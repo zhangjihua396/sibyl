@@ -2,6 +2,13 @@
 
 import { useState } from 'react';
 
+import { Card, StatCard } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input, Label } from '@/components/ui/input';
+import { Toggle } from '@/components/ui/toggle';
+import { Progress } from '@/components/ui/progress';
+import { StatusBadge } from '@/components/ui/badge';
+import { PageHeader } from '@/components/layout/page-header';
 import { useHealth, useIngest, useIngestStatus, useStats } from '@/lib/hooks';
 
 export default function IngestPage() {
@@ -18,7 +25,6 @@ export default function IngestPage() {
       path: customPath || undefined,
       force,
     });
-    // Refetch stats after starting ingestion
     setTimeout(() => refetchStats(), 2000);
   };
 
@@ -27,40 +33,24 @@ export default function IngestPage() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-sc-fg-primary">Document Ingestion</h1>
-        <p className="text-sc-fg-muted">Sync documents and extract knowledge entities</p>
-      </div>
+      <PageHeader
+        title="Document Ingestion"
+        description="Sync documents and extract knowledge entities"
+      />
 
       {/* Status Card */}
-      <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl p-6">
+      <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-sc-fg-primary">Ingestion Status</h2>
-          <span
-            className={`px-3 py-1 rounded-full text-sm ${
-              isRunning ? 'bg-sc-yellow/20 text-sc-yellow' : 'bg-sc-green/20 text-sc-green'
-            }`}
-          >
-            {isRunning ? 'Running' : 'Idle'}
-          </span>
+          <StatusBadge
+            status={isRunning ? 'running' : 'idle'}
+            pulse={isRunning}
+          />
         </div>
 
-        {isRunning && status && (
+        {isRunning && status ? (
           <div className="space-y-4">
-            {/* Progress Bar */}
-            <div>
-              <div className="flex justify-between text-sm text-sc-fg-muted mb-2">
-                <span>Progress</span>
-                <span>{Math.round(progress * 100)}%</span>
-              </div>
-              <div className="h-2 bg-sc-bg-highlight rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-sc-purple rounded-full transition-all duration-500"
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
-            </div>
+            <Progress value={progress} showLabel />
 
             {/* Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -89,96 +79,66 @@ export default function IngestPage() {
               <div className="bg-sc-red/10 border border-sc-red/30 rounded-lg p-4">
                 <h3 className="text-sm font-medium text-sc-red mb-2">Errors</h3>
                 <ul className="space-y-1 text-sm text-sc-fg-muted">
-                  {status.errors.map(error => (
+                  {status.errors.map((error: string) => (
                     <li key={error}>• {error}</li>
                   ))}
                 </ul>
               </div>
             )}
           </div>
-        )}
-
-        {!isRunning && (
+        ) : (
           <p className="text-sc-fg-muted">
             Ready to ingest documents. Configure options below and start ingestion.
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Configuration */}
-      <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl p-6">
+      <Card>
         <h2 className="text-lg font-semibold text-sc-fg-primary mb-4">Configuration</h2>
 
-        <div className="space-y-4">
-          {/* Custom Path */}
+        <div className="space-y-6">
           <div>
-            <label
+            <Label
               htmlFor="custom-path"
-              className="block text-sm font-medium text-sc-fg-muted mb-2"
+              description="Specify a directory path to ingest, or leave empty to use configured sources"
             >
               Custom Path (optional)
-            </label>
-            <input
+            </Label>
+            <Input
               id="custom-path"
               type="text"
               value={customPath}
-              onChange={e => setCustomPath(e.target.value)}
+              onChange={(e) => setCustomPath(e.target.value)}
               placeholder="Leave empty to use default knowledge sources"
-              className="w-full px-4 py-2 bg-sc-bg-highlight border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary placeholder:text-sc-fg-subtle focus:border-sc-cyan focus:outline-none transition-colors font-mono"
+              className="font-mono"
               disabled={isRunning}
             />
-            <p className="text-xs text-sc-fg-subtle mt-1">
-              Specify a directory path to ingest, or leave empty to use configured sources
-            </p>
           </div>
 
-          {/* Force Re-ingest */}
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setForce(!force)}
-              disabled={isRunning}
-              className={`relative w-11 h-6 rounded-full transition-colors ${
-                force ? 'bg-sc-purple' : 'bg-sc-bg-highlight'
-              } ${isRunning ? 'opacity-50 cursor-not-allowed' : ''}`}
-            >
-              <span
-                className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white transition-transform ${
-                  force ? 'translate-x-5' : ''
-                }`}
-              />
-            </button>
-            <div>
-              <span className="text-sm font-medium text-sc-fg-primary">Force Re-ingest</span>
-              <p className="text-xs text-sc-fg-subtle">
-                Re-process all files even if they haven't changed
-              </p>
-            </div>
-          </div>
+          <Toggle
+            checked={force}
+            onChange={setForce}
+            disabled={isRunning}
+            label="Force Re-ingest"
+            description="Re-process all files even if they haven't changed"
+          />
 
-          {/* Start Button */}
-          <button
-            type="button"
+          <Button
+            size="lg"
             onClick={handleIngest}
             disabled={isRunning || ingest.isPending}
-            className="w-full px-6 py-3 bg-sc-purple text-white rounded-xl hover:bg-sc-purple/80 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium"
+            loading={isRunning || ingest.isPending}
+            icon="↻"
+            className="w-full"
           >
-            {isRunning ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Ingesting...
-              </span>
-            ) : ingest.isPending ? (
-              'Starting...'
-            ) : (
-              '↻ Start Ingestion'
-            )}
-          </button>
+            {isRunning ? 'Ingesting...' : ingest.isPending ? 'Starting...' : 'Start Ingestion'}
+          </Button>
         </div>
-      </div>
+      </Card>
 
       {/* Current Stats */}
-      <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl p-6">
+      <Card>
         <h2 className="text-lg font-semibold text-sc-fg-primary mb-4">Current Knowledge Base</h2>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -201,10 +161,10 @@ export default function IngestPage() {
                 </div>
               ))}
         </div>
-      </div>
+      </Card>
 
       {/* Server Info */}
-      <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl p-6">
+      <Card>
         <h2 className="text-lg font-semibold text-sc-fg-primary mb-4">Server Info</h2>
 
         <dl className="grid grid-cols-2 gap-4 text-sm">
@@ -229,7 +189,7 @@ export default function IngestPage() {
             <dd className="text-sc-fg-primary font-mono">0.1.0</dd>
           </div>
         </dl>
-      </div>
+      </Card>
     </div>
   );
 }

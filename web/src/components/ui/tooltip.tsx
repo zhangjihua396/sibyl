@@ -66,46 +66,263 @@ export function Tooltip({ content, children, position = 'top', delay = 200 }: To
   );
 }
 
-// Empty state component for when there's no data
+// Empty state component for when there's no data - with personality
 interface EmptyStateProps {
   icon?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
+  variant?: 'default' | 'search' | 'data' | 'create';
 }
 
-export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
+const EMPTY_STATE_DEFAULTS = {
+  search: {
+    icon: '🔍',
+    floatingClass: 'animate-float',
+  },
+  data: {
+    icon: '📊',
+    floatingClass: 'animate-wiggle',
+  },
+  create: {
+    icon: '✨',
+    floatingClass: 'animate-bounce-in',
+  },
+  default: {
+    icon: '🌌',
+    floatingClass: 'animate-float',
+  },
+};
+
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  variant = 'default'
+}: EmptyStateProps) {
+  const defaults = EMPTY_STATE_DEFAULTS[variant];
+  const displayIcon = icon ?? defaults.icon;
+
   return (
     <div className="text-center py-16 animate-fade-in">
-      {icon && (
-        <div className="text-6xl mb-4 opacity-60">{icon}</div>
+      {displayIcon && (
+        <div className={`text-6xl mb-4 opacity-80 ${defaults.floatingClass}`}>
+          {displayIcon}
+        </div>
       )}
       <p className="text-sc-fg-muted text-lg font-medium">{title}</p>
       {description && (
-        <p className="text-sc-fg-subtle text-sm mt-2 max-w-md mx-auto">{description}</p>
+        <p className="text-sc-fg-subtle text-sm mt-2 max-w-md mx-auto">
+          {description}
+        </p>
       )}
       {action && (
-        <div className="mt-6">{action}</div>
+        <div className="mt-6 animate-slide-up">{action}</div>
       )}
     </div>
   );
 }
 
-// Error state component
+// Error state component - friendly and helpful
 interface ErrorStateProps {
   title?: string;
   message: string;
   action?: ReactNode;
+  variant?: 'error' | 'warning' | 'offline';
 }
 
-export function ErrorState({ title = 'Something went wrong', message, action }: ErrorStateProps) {
+const ERROR_VARIANTS = {
+  error: {
+    icon: '⚠️',
+    title: 'Oops, something went sideways',
+    color: 'text-sc-red',
+    iconClass: 'animate-wiggle',
+  },
+  warning: {
+    icon: '⚡',
+    title: 'Heads up',
+    color: 'text-sc-yellow',
+    iconClass: 'animate-pulse',
+  },
+  offline: {
+    icon: '📡',
+    title: 'Connection lost',
+    color: 'text-sc-coral',
+    iconClass: 'animate-float',
+  },
+};
+
+export function ErrorState({
+  title,
+  message,
+  action,
+  variant = 'error'
+}: ErrorStateProps) {
+  const variantConfig = ERROR_VARIANTS[variant];
+  const displayTitle = title ?? variantConfig.title;
+
   return (
-    <div className="text-center py-12">
-      <div className="text-4xl mb-4">⚠</div>
-      <p className="text-sc-red text-lg font-medium">{title}</p>
-      <p className="text-sc-fg-muted text-sm mt-1">{message}</p>
+    <div className="text-center py-12 animate-fade-in">
+      <div className={`text-4xl mb-4 ${variantConfig.iconClass}`}>
+        {variantConfig.icon}
+      </div>
+      <p className={`text-lg font-medium ${variantConfig.color}`}>
+        {displayTitle}
+      </p>
+      <p className="text-sc-fg-muted text-sm mt-1 max-w-md mx-auto">
+        {message}
+      </p>
       {action && (
-        <div className="mt-4">{action}</div>
+        <div className="mt-4 animate-slide-up">{action}</div>
+      )}
+    </div>
+  );
+}
+
+// Success celebration component
+interface SuccessStateProps {
+  title: string;
+  message?: string;
+  action?: ReactNode;
+  celebratory?: boolean;
+}
+
+export function SuccessState({
+  title,
+  message,
+  action,
+  celebratory = true
+}: SuccessStateProps) {
+  return (
+    <div className="text-center py-12 animate-bounce-in">
+      <div className={`text-6xl mb-4 ${celebratory ? 'success-sparkle' : ''}`}>
+        ✨
+      </div>
+      <p className="text-sc-green text-xl font-semibold gradient-text">
+        {title}
+      </p>
+      {message && (
+        <p className="text-sc-fg-muted text-sm mt-2 max-w-md mx-auto">
+          {message}
+        </p>
+      )}
+      {action && (
+        <div className="mt-6 animate-slide-up">{action}</div>
+      )}
+    </div>
+  );
+}
+
+// Info/help tooltip component
+interface InfoTooltipProps {
+  content: ReactNode;
+  size?: 'sm' | 'md';
+}
+
+export function InfoTooltip({ content, size = 'sm' }: InfoTooltipProps) {
+  const sizeClasses = {
+    sm: 'w-3.5 h-3.5 text-[10px]',
+    md: 'w-4 h-4 text-xs',
+  };
+
+  return (
+    <Tooltip content={content} position="top">
+      <button
+        type="button"
+        className={`
+          inline-flex items-center justify-center
+          ${sizeClasses[size]}
+          rounded-full
+          bg-sc-bg-highlight
+          border border-sc-fg-subtle/30
+          text-sc-fg-muted
+          hover:text-sc-cyan
+          hover:border-sc-cyan/50
+          hover:bg-sc-bg-elevated
+          transition-all duration-200
+          cursor-help
+        `}
+        aria-label="More information"
+      >
+        ?
+      </button>
+    </Tooltip>
+  );
+}
+
+// Contextual hint component - subtle guidance
+interface HintProps {
+  children: ReactNode;
+  icon?: ReactNode;
+  variant?: 'info' | 'tip' | 'warning';
+  dismissible?: boolean;
+  onDismiss?: () => void;
+}
+
+const HINT_VARIANTS = {
+  info: {
+    icon: '💡',
+    bg: 'bg-sc-cyan/10',
+    border: 'border-sc-cyan/30',
+    text: 'text-sc-cyan',
+  },
+  tip: {
+    icon: '✨',
+    bg: 'bg-sc-purple/10',
+    border: 'border-sc-purple/30',
+    text: 'text-sc-purple',
+  },
+  warning: {
+    icon: '⚡',
+    bg: 'bg-sc-yellow/10',
+    border: 'border-sc-yellow/30',
+    text: 'text-sc-yellow',
+  },
+};
+
+export function Hint({
+  children,
+  icon,
+  variant = 'tip',
+  dismissible = false,
+  onDismiss
+}: HintProps) {
+  const [visible, setVisible] = useState(true);
+  const variantConfig = HINT_VARIANTS[variant];
+  const displayIcon = icon ?? variantConfig.icon;
+
+  if (!visible) return null;
+
+  const handleDismiss = () => {
+    setVisible(false);
+    onDismiss?.();
+  };
+
+  return (
+    <div
+      className={`
+        flex items-start gap-3 p-3 rounded-lg border animate-slide-up
+        ${variantConfig.bg} ${variantConfig.border}
+      `}
+    >
+      {displayIcon && (
+        <span className="text-xl flex-shrink-0 animate-glow-pulse">
+          {displayIcon}
+        </span>
+      )}
+      <div className="flex-1 text-sm text-sc-fg-primary">
+        {children}
+      </div>
+      {dismissible && (
+        <button
+          type="button"
+          onClick={handleDismiss}
+          className="flex-shrink-0 text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
+          aria-label="Dismiss"
+        >
+          ✕
+        </button>
       )}
     </div>
   );

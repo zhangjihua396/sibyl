@@ -90,6 +90,7 @@ body {
 ::-webkit-scrollbar-thumb {
   background: var(--sc-fg-subtle);
   border-radius: 4px;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
@@ -125,9 +126,10 @@ pre {
 }
 
 /* =============================================================================
-   Animations
+   Animations - Electric & Playful
    ============================================================================= */
 
+/* Core animations */
 @keyframes pulse-glow {
   0%,
   100% {
@@ -158,6 +160,152 @@ pre {
   }
 }
 
+/* Shimmer effect for loaders and highlights */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Gradient rotation for borders */
+@keyframes gradient-rotate {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+/* Orbital spin for advanced loaders */
+@keyframes orbital-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Floating animation for icons */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+/* Bounce in animation */
+@keyframes bounce-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Spark burst effect */
+@keyframes spark-burst {
+  0% {
+    opacity: 1;
+    transform: scale(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5) rotate(180deg);
+  }
+}
+
+/* Glow pulse - softer than pulse-glow */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Wiggle for attention */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+/* Electric scan line effect */
+@keyframes scan-line {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+/* Gradient shimmer for text */
+@keyframes gradient-text {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Scale bounce on hover */
+@keyframes scale-bounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Confetti celebration */
+@keyframes confetti-fall {
+  0% {
+    opacity: 1;
+    transform: translateY(0) rotateZ(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100vh) rotateZ(720deg);
+  }
+}
+
+/* Utility animation classes */
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
 }
@@ -168,4 +316,189 @@ pre {
 
 .animate-pulse-glow {
   animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--sc-cyan) 20%, transparent),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s ease-in-out infinite;
+}
+
+.animate-gradient-rotate {
+  background-size: 200% 200%;
+  animation: gradient-rotate 3s ease infinite;
+}
+
+.animate-orbital {
+  animation: orbital-spin 1.5s linear infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+.animate-wiggle {
+  animation: wiggle 0.5s ease-in-out;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Hover effects */
+.hover-spark {
+  position: relative;
+  overflow: hidden;
+}
+
+.hover-spark::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklch, var(--sc-cyan) 40%, transparent),
+    transparent 70%
+  );
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  transition: width 0.6s ease, height 0.6s ease, opacity 0.6s ease;
+  pointer-events: none;
+}
+
+.hover-spark:hover::before {
+  width: 300px;
+  height: 300px;
+  opacity: 1;
+}
+
+/* Gradient border animation */
+.gradient-border {
+  position: relative;
+  background: var(--sc-bg-base);
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(
+    135deg,
+    var(--sc-purple),
+    var(--sc-cyan),
+    var(--sc-coral),
+    var(--sc-purple)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+  animation: gradient-rotate 3s ease infinite;
+  background-size: 200% 200%;
+}
+
+/* Electric scan effect for loading states */
+.electric-scan {
+  position: relative;
+  overflow: hidden;
+}
+
+.electric-scan::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--sc-cyan),
+    transparent
+  );
+  animation: scan-line 2s ease-in-out infinite;
+}
+
+/* Gradient text effect */
+.gradient-text {
+  background: linear-gradient(
+    135deg,
+    var(--sc-purple),
+    var(--sc-cyan),
+    var(--sc-coral)
+  );
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-text 3s ease infinite;
+}
+
+/* Success celebration sparkles */
+@keyframes sparkle {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.success-sparkle {
+  position: relative;
+}
+
+.success-sparkle::before,
+.success-sparkle::after {
+  content: '✨';
+  position: absolute;
+  font-size: 1.5rem;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.success-sparkle::before {
+  top: -10px;
+  left: -10px;
+  animation: sparkle 1s ease-out;
+}
+
+.success-sparkle::after {
+  bottom: -10px;
+  right: -10px;
+  animation: sparkle 1s ease-out 0.2s;
+}
+
+/* Reduced motion support - respect user preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -89,30 +89,34 @@ interface EntityListItemProps {
 export function EntityListItem({ entity, onClick }: EntityListItemProps) {
   const styles = getEntityStyles(entity.entity_type);
 
-  const Wrapper = onClick ? 'button' : Link;
-  const wrapperProps = onClick
-    ? { type: 'button' as const, onClick }
-    : { href: `/entities/${entity.id}` };
+  const content = (
+    <div className="flex items-center gap-3">
+      <span className={`w-2 h-2 rounded-full ${styles.dot}`} />
+      <span className="text-sc-fg-primary font-medium truncate flex-1">
+        {entity.name}
+      </span>
+      <span className="text-xs text-sc-fg-subtle capitalize">
+        {entity.entity_type.replace(/_/g, ' ')}
+      </span>
+    </div>
+  );
+
+  const className = `
+    block w-full text-left bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg p-3
+    transition-all duration-200 hover:shadow-md ${styles.card}
+  `;
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
 
   return (
-    <Wrapper
-      {...wrapperProps}
-      className={`
-        block w-full text-left bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg p-3
-        transition-all duration-200
-        hover:shadow-md
-        ${styles.card}
-      `}
-    >
-      <div className="flex items-center gap-3">
-        <span className={`w-2 h-2 rounded-full ${styles.dot}`} />
-        <span className="text-sc-fg-primary font-medium truncate flex-1">
-          {entity.name}
-        </span>
-        <span className="text-xs text-sc-fg-subtle capitalize">
-          {entity.entity_type.replace(/_/g, ' ')}
-        </span>
-      </div>
-    </Wrapper>
+    <Link href={`/entities/${entity.id}`} className={className}>
+      {content}
+    </Link>
   );
 }

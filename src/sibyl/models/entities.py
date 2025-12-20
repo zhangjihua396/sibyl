@@ -21,10 +21,18 @@ class EntityType(StrEnum):
     CONFIG_FILE = "config_file"
     SLASH_COMMAND = "slash_command"
 
+    # Task management types
+    PROJECT = "project"
+    TASK = "task"
+    TEAM = "team"
+    ERROR_PATTERN = "error_pattern"
+    MILESTONE = "milestone"
+
 
 class RelationshipType(StrEnum):
     """Types of relationships between entities."""
 
+    # Existing knowledge relationships
     APPLIES_TO = "APPLIES_TO"
     REQUIRES = "REQUIRES"
     CONFLICTS_WITH = "CONFLICTS_WITH"
@@ -35,6 +43,20 @@ class RelationshipType(StrEnum):
     PART_OF = "PART_OF"
     RELATED_TO = "RELATED_TO"
     DERIVED_FROM = "DERIVED_FROM"
+
+    # Task management relationships
+    BELONGS_TO = "BELONGS_TO"        # Task -> Project
+    CONTAINS = "CONTAINS"            # Project -> Task
+    DEPENDS_ON = "DEPENDS_ON"        # Task -> Task (blocking)
+    BLOCKS = "BLOCKS"                # Task -> Task (inverse of DEPENDS_ON)
+    ASSIGNED_TO = "ASSIGNED_TO"      # Task -> Person
+    MEMBER_OF = "MEMBER_OF"          # Person -> Team
+    OWNS = "OWNS"                    # Team -> Project
+    INVOLVES = "INVOLVES"            # Project -> Topic/Domain
+    REFERENCES = "REFERENCES"        # Task -> Pattern/Rule/Template
+    ENCOUNTERED = "ENCOUNTERED"      # Task -> ErrorPattern
+    IMPLEMENTED = "IMPLEMENTED"      # Task -> Pattern/Feature
+    VALIDATED_BY = "VALIDATED_BY"    # Task -> Rule (verified compliance)
 
 
 class Entity(BaseModel):

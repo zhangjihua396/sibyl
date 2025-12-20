@@ -62,27 +62,32 @@ export function SearchResultCompact({ result, onClick }: SearchResultCompactProp
   const styles = getEntityStyles(result.type);
   const scorePercent = Math.round(result.score * 100);
 
-  const Wrapper = onClick ? 'button' : Link;
-  const wrapperProps = onClick
-    ? { type: 'button' as const, onClick }
-    : { href: `/entities/${result.id}` };
+  const content = (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 min-w-0 flex-1">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
+        <span className="text-sc-fg-primary truncate">{result.name}</span>
+      </div>
+      <span className="text-xs text-sc-fg-subtle flex-shrink-0">{scorePercent}%</span>
+    </div>
+  );
+
+  const className = `
+    block w-full text-left p-3 rounded-lg border border-sc-fg-subtle/10
+    transition-all duration-150 bg-sc-bg-highlight hover:border-sc-purple/30
+  `;
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={className}>
+        {content}
+      </button>
+    );
+  }
 
   return (
-    <Wrapper
-      {...wrapperProps}
-      className={`
-        block w-full text-left p-3 rounded-lg border border-sc-fg-subtle/10
-        transition-all duration-150 bg-sc-bg-highlight
-        hover:border-sc-purple/30
-      `}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0 flex-1">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${styles.dot}`} />
-          <span className="text-sc-fg-primary truncate">{result.name}</span>
-        </div>
-        <span className="text-xs text-sc-fg-subtle flex-shrink-0">{scorePercent}%</span>
-      </div>
-    </Wrapper>
+    <Link href={`/entities/${result.id}`} className={className}>
+      {content}
+    </Link>
   );
 }
