@@ -65,14 +65,29 @@ class EntityManager:
                 entity_types=entity_types,
             )
 
-            # Graphiti generates its own UUID - return the episode UUID
             created_uuid = result.episode.uuid
+            desired_id = entity.id or created_uuid
+
+            # Force deterministic UUID when caller provides one
+            await self._client.client.driver.execute_query(
+                """
+                MATCH (n {uuid: $created_uuid})
+                SET n.uuid = $desired_id
+                RETURN n.uuid
+                """,
+                created_uuid=created_uuid,
+                desired_id=desired_id,
+            )
+
+            # Persist attributes and metadata on the created node so downstream filters work
+            await self._persist_entity_attributes(desired_id, entity)
+
             log.info(
                 "Entity created successfully",
-                entity_id=entity.id,
+                entity_id=desired_id,
                 episode_uuid=created_uuid,
             )
-            return created_uuid
+            return desired_id
 
         except Exception as e:
             log.exception("Failed to create entity", entity_id=entity.id, error=str(e))
@@ -207,27 +222,28 @@ class EntityManager:
             if not existing:
                 raise EntityNotFoundError("Entity", entity_id)
 
-            # Apply updates to create new entity
+            merged_metadata = {**(existing.metadata or {}), **(updates.get("metadata") or {})}
+
+            # Any non-core fields should be preserved in metadata so filters can read them
+            for key, value in updates.items():
+                if key not in {"name", "description", "content", "metadata", "source_file"}:
+                    merged_metadata[key] = value
+
+            # Collect all properties, preserving existing values when not updated
             updated_entity = Entity(
                 id=existing.id,
                 entity_type=existing.entity_type,
                 name=updates.get("name", existing.name),
                 description=updates.get("description", existing.description),
                 content=updates.get("content", existing.content),
-                metadata={**(existing.metadata or {}), **(updates.get("metadata") or {})},
+                metadata=merged_metadata,
                 created_at=existing.created_at,
                 updated_at=datetime.now(UTC),
-                source_file=existing.source_file,
+                source_file=updates.get("source_file", existing.source_file),
             )
 
-            # Remove old episode (if it exists as an episode)
-            try:
-                await self._client.client.remove_episode(entity_id)
-            except Exception as e:
-                log.debug("No episode to remove or removal failed", entity_id=entity_id, error=str(e))
-
-            # Create new episode with updated data
-            await self.create(updated_entity)
+            # Persist updates in-place to avoid changing UUIDs
+            await self._persist_entity_attributes(entity_id, updated_entity)
 
             log.info("Entity updated successfully", entity_id=entity_id)
             return updated_entity
@@ -250,17 +266,17 @@ class EntityManager:
         log.info("Deleting entity", entity_id=entity_id)
 
         try:
-            # Verify entity exists
-            nodes = await EntityNode.get_by_uuids(
-                self._client.client.driver,
-                [entity_id]
+            result = await self._client.client.driver.execute_query(
+                """
+                MATCH (n {uuid: $entity_id})
+                DETACH DELETE n
+                RETURN 1 as deleted
+                """,
+                entity_id=entity_id,
             )
 
-            if not nodes:
+            if not result:
                 raise EntityNotFoundError("Entity", entity_id)
-
-            # Remove the episode (this will cascade to nodes/edges if they're only in this episode)
-            await self._client.client.remove_episode(entity_id)
 
             log.info("Entity deleted successfully", entity_id=entity_id)
             return True
@@ -336,6 +352,99 @@ class EntityManager:
         except Exception as e:
             log.exception("Failed to list entities", entity_type=entity_type, error=str(e))
             return []
+
+    async def _persist_entity_attributes(self, entity_id: str, entity: Entity) -> None:
+        """Persist normalized attributes/metadata on a node for reliable querying."""
+        props = self._collect_properties(entity)
+        metadata = self._serialize_metadata(entity.metadata or {})
+
+        # Remove None values to appease FalkorDB property constraints
+        props = {k: v for k, v in props.items() if v is not None}
+
+        props["updated_at"] = datetime.now(UTC).isoformat()
+        if entity.created_at:
+            props["created_at"] = entity.created_at.isoformat()
+
+        import json
+
+        metadata_json = json.dumps(metadata) if metadata else "{}"
+
+        await self._client.client.driver.execute_query(
+            """
+            MATCH (n {uuid: $entity_id})
+            SET n += $props,
+                n.metadata = $metadata
+            """,
+            entity_id=entity_id,
+            props=props,
+            metadata=metadata_json,
+        )
+
+    def _collect_properties(self, entity: Entity) -> dict[str, Any]:
+        """Collect structured properties for storage and filtering."""
+        props: dict[str, Any] = {
+            "uuid": entity.id,
+            "entity_type": entity.entity_type.value,
+            "name": entity.name,
+            "description": entity.description,
+            "content": entity.content,
+            "source_file": entity.source_file,
+        }
+
+        # Common optional fields
+        for field in ("category", "languages", "tags", "severity", "template_type", "file_extension"):
+            value = getattr(entity, field, None)
+            if value is None:
+                value = entity.metadata.get(field)
+            if value is not None:
+                props[field] = value
+
+        # Task-specific fields (if present)
+        task_fields = (
+            "status",
+            "priority",
+            "task_order",
+            "project_id",
+            "feature",
+            "sprint",
+            "assignees",
+            "due_date",
+            "estimated_hours",
+            "actual_hours",
+            "domain",
+            "technologies",
+            "complexity",
+            "branch_name",
+            "commit_shas",
+            "pr_url",
+            "learnings",
+            "blockers_encountered",
+            "started_at",
+            "completed_at",
+            "reviewed_at",
+        )
+        for field in task_fields:
+            value = getattr(entity, field, None)
+            if value is None:
+                value = entity.metadata.get(field)
+            if value is not None:
+                # Serialize datetimes to isoformat for storage
+                if isinstance(value, datetime):
+                    props[field] = value.isoformat()
+                else:
+                    props[field] = value
+
+        return props
+
+    def _serialize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Convert metadata values to JSON-serializable forms."""
+        serialized: dict[str, Any] = {}
+        for key, value in metadata.items():
+            if isinstance(value, datetime):
+                serialized[key] = value.isoformat()
+            elif value is not None:
+                serialized[key] = value
+        return serialized
 
     def _format_entity_as_episode(self, entity: Entity) -> str:
         """Format an entity as natural language for episode storage.
@@ -488,6 +597,8 @@ class EntityManager:
             k: v for k, v in node.attributes.items()
             if k not in {"entity_type", "description", "content", "source_file"}
         }
+        if isinstance(node.attributes.get("metadata"), dict):
+            metadata.update(node.attributes["metadata"])
 
         return Entity(
             id=node.uuid,

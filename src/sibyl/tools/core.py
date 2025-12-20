@@ -174,13 +174,13 @@ async def search(
         for entity, score in raw_results:
             # Apply language filter
             if language:
-                entity_langs = getattr(entity, "languages", []) or []
+                entity_langs = getattr(entity, "languages", None) or entity.metadata.get("languages", [])
                 if language.lower() not in [l.lower() for l in entity_langs]:
                     continue
 
             # Apply category filter
             if category:
-                entity_cat = getattr(entity, "category", "") or ""
+                entity_cat = getattr(entity, "category", "") or entity.metadata.get("category", "")
                 if category.lower() not in entity_cat.lower():
                     continue
 
@@ -199,13 +199,16 @@ async def search(
                     score=score,
                     source=entity.source_file,
                     metadata={
-                        k: v
-                        for k, v in {
-                            "category": getattr(entity, "category", None),
-                            "languages": getattr(entity, "languages", None),
-                            "severity": getattr(entity, "severity", None),
-                        }.items()
-                        if v is not None
+                        **entity.metadata,
+                        **{
+                            k: v
+                            for k, v in {
+                                "category": getattr(entity, "category", None) or entity.metadata.get("category"),
+                                "languages": getattr(entity, "languages", None) or entity.metadata.get("languages"),
+                                "severity": getattr(entity, "severity", None) or entity.metadata.get("severity"),
+                            }.items()
+                            if v is not None
+                        },
                     },
                 )
             )
@@ -341,13 +344,13 @@ async def _explore_list(
     for entity in all_entities:
         # Language filter
         if language:
-            entity_langs = getattr(entity, "languages", []) or []
+            entity_langs = getattr(entity, "languages", None) or entity.metadata.get("languages", [])
             if language.lower() not in [l.lower() for l in entity_langs]:
                 continue
 
         # Category filter
         if category:
-            entity_cat = getattr(entity, "category", "") or ""
+            entity_cat = getattr(entity, "category", "") or entity.metadata.get("category", "")
             if category.lower() not in entity_cat.lower():
                 continue
 
@@ -358,14 +361,17 @@ async def _explore_list(
                 name=entity.name,
                 description=entity.description[:200] if entity.description else "",
                 metadata={
-                    k: v
-                    for k, v in {
-                        "category": getattr(entity, "category", None),
-                        "languages": getattr(entity, "languages", None),
-                        "severity": getattr(entity, "severity", None),
-                        "template_type": getattr(entity, "template_type", None),
-                    }.items()
-                    if v is not None
+                    **entity.metadata,
+                    **{
+                        k: v
+                        for k, v in {
+                            "category": getattr(entity, "category", None) or entity.metadata.get("category"),
+                            "languages": getattr(entity, "languages", None) or entity.metadata.get("languages"),
+                            "severity": getattr(entity, "severity", None) or entity.metadata.get("severity"),
+                            "template_type": getattr(entity, "template_type", None) or entity.metadata.get("template_type"),
+                        }.items()
+                        if v is not None
+                    },
                 },
             )
         )

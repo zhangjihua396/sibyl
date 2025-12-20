@@ -34,3 +34,23 @@ class ValidationError(ConventionsMCPError):
 
 class SearchError(ConventionsMCPError):
     """Raised when a search operation fails."""
+
+
+class InvalidTransitionError(ConventionsMCPError):
+    """Raised when an invalid task status transition is attempted."""
+
+    def __init__(
+        self,
+        from_status: str,
+        to_status: str,
+        allowed: list[str] | None = None,
+    ) -> None:
+        allowed_str = f" Allowed: {allowed}" if allowed else ""
+        super().__init__(
+            f"Invalid transition: {from_status} -> {to_status}.{allowed_str}",
+            details={
+                "from_status": from_status,
+                "to_status": to_status,
+                "allowed_transitions": allowed or [],
+            },
+        )

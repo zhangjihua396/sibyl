@@ -204,9 +204,8 @@ async def store_entities(
             if name_key in entity_id_map:
                 # Skip duplicate, keep first occurrence
                 continue
-
-            await entity_manager.create(entity)
-            entity_id_map[name_key] = entity.id
+            created_id = await entity_manager.create(entity)
+            entity_id_map[name_key] = created_id
             stored_count += 1
 
         except Exception as e:

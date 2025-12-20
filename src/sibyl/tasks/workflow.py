@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from sibyl.models.entities import Episode, EntityType, Relationship, RelationshipType
+from sibyl.errors import InvalidTransitionError
+from sibyl.models.entities import EntityType, Episode, Relationship, RelationshipType
 from sibyl.models.tasks import Task, TaskStatus
 
 if TYPE_CHECKING:
@@ -17,8 +18,76 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+# =============================================================================
+# State Machine Definition
+# =============================================================================
+
+# Valid status transitions: {from_status: [to_statuses]}
+VALID_TRANSITIONS: dict[TaskStatus, set[TaskStatus]] = {
+    TaskStatus.BACKLOG: {TaskStatus.TODO, TaskStatus.ARCHIVED},
+    TaskStatus.TODO: {TaskStatus.DOING, TaskStatus.BACKLOG, TaskStatus.ARCHIVED},
+    TaskStatus.DOING: {
+        TaskStatus.BLOCKED,
+        TaskStatus.REVIEW,
+        TaskStatus.DONE,  # Direct completion without review
+        TaskStatus.ARCHIVED,
+    },
+    TaskStatus.BLOCKED: {TaskStatus.DOING, TaskStatus.ARCHIVED},
+    TaskStatus.REVIEW: {TaskStatus.DOING, TaskStatus.DONE, TaskStatus.ARCHIVED},
+    TaskStatus.DONE: {TaskStatus.ARCHIVED},  # Only archival after done
+    TaskStatus.ARCHIVED: set(),  # Terminal state
+}
+
+
+def is_valid_transition(from_status: TaskStatus, to_status: TaskStatus) -> bool:
+    """Check if a status transition is valid.
+
+    Args:
+        from_status: Current status
+        to_status: Target status
+
+    Returns:
+        True if transition is allowed
+    """
+    if from_status == to_status:
+        return True  # No-op is always valid
+    allowed = VALID_TRANSITIONS.get(from_status, set())
+    return to_status in allowed
+
+
+def get_allowed_transitions(status: TaskStatus) -> set[TaskStatus]:
+    """Get allowed transitions from a given status.
+
+    Args:
+        status: Current status
+
+    Returns:
+        Set of valid target statuses
+    """
+    return VALID_TRANSITIONS.get(status, set())
+
+
 class TaskWorkflowEngine:
-    """Handles task status transitions and automations."""
+    """Handles task status transitions and automations.
+
+    The workflow engine enforces the task status state machine:
+
+    ```
+    backlog ──┬──> todo ──┬──> doing ──┬──> blocked ──> doing
+              │           │            │                  │
+              │           │            ├──> review ──> done
+              │           │            │       │
+              │           │            │       └──> doing (revision)
+              │           │            │
+              └───────────┴────────────┴──> archived (from any state)
+    ```
+
+    Key constraints:
+    - Tasks must progress through workflow stages (can't skip to done)
+    - ARCHIVED is a terminal state (no transitions out)
+    - DONE only allows transition to ARCHIVED
+    - Any state can transition to ARCHIVED
+    """
 
     def __init__(
         self,
@@ -31,6 +100,83 @@ class TaskWorkflowEngine:
         self._relationship_manager = relationship_manager
         self._graph_client = graph_client
 
+    def _validate_transition(
+        self,
+        current_status: TaskStatus,
+        target_status: TaskStatus,
+    ) -> None:
+        """Validate that a status transition is allowed.
+
+        Args:
+            current_status: Current task status
+            target_status: Desired status
+
+        Raises:
+            InvalidTransitionError: If transition is not allowed
+        """
+        if not is_valid_transition(current_status, target_status):
+            allowed = get_allowed_transitions(current_status)
+            raise InvalidTransitionError(
+                from_status=current_status.value,
+                to_status=target_status.value,
+                allowed=[s.value for s in allowed],
+            )
+
+    async def transition_task(
+        self,
+        task_id: str,
+        target_status: TaskStatus,
+        updates: dict | None = None,
+    ) -> Task:
+        """Transition a task to a new status with validation.
+
+        This is the core transition method that all other workflow
+        methods build upon. It validates the transition against the
+        state machine before applying it.
+
+        Args:
+            task_id: Task UUID
+            target_status: Desired status
+            updates: Additional field updates to apply
+
+        Returns:
+            Updated task
+
+        Raises:
+            InvalidTransitionError: If transition is not allowed
+            EntityNotFoundError: If task doesn't exist
+        """
+        log.info(
+            "Transitioning task",
+            task_id=task_id,
+            target_status=target_status.value,
+        )
+
+        # Get current task
+        entity = await self._entity_manager.get(task_id)
+        task = self._entity_to_task(entity)
+
+        # Validate transition
+        self._validate_transition(task.status, target_status)
+
+        # Build updates
+        all_updates = updates or {}
+        if target_status != task.status:
+            all_updates["status"] = target_status
+
+        # Apply updates
+        if all_updates:
+            updated_entity = await self._entity_manager.update(task_id, all_updates)
+            task = self._entity_to_task(updated_entity)
+
+        log.info(
+            "Task transitioned",
+            task_id=task_id,
+            from_status=entity.metadata.get("status"),
+            to_status=target_status.value,
+        )
+        return task
+
     async def start_task(self, task_id: str, assignee: str) -> Task:
         """Transition task to 'doing' status.
 
@@ -40,6 +186,9 @@ class TaskWorkflowEngine:
 
         Returns:
             Updated task
+
+        Raises:
+            InvalidTransitionError: If task is not in TODO status
         """
         log.info("Starting task", task_id=task_id, assignee=assignee)
 
@@ -47,8 +196,11 @@ class TaskWorkflowEngine:
         entity = await self._entity_manager.get(task_id)
         task = self._entity_to_task(entity)
 
+        # Validate transition
+        self._validate_transition(task.status, TaskStatus.DOING)
+
         # Build updates
-        updates = {
+        updates: dict = {
             "status": TaskStatus.DOING,
             "started_at": datetime.now(UTC),
         }
@@ -85,10 +237,18 @@ class TaskWorkflowEngine:
 
         Returns:
             Updated task
+
+        Raises:
+            InvalidTransitionError: If task is not in DOING status
         """
         log.info("Submitting task for review", task_id=task_id, pr_url=pr_url)
 
-        updates = {
+        # Get current task and validate transition
+        entity = await self._entity_manager.get(task_id)
+        task = self._entity_to_task(entity)
+        self._validate_transition(task.status, TaskStatus.REVIEW)
+
+        updates: dict = {
             "status": TaskStatus.REVIEW,
             "commit_shas": commit_shas,
             "reviewed_at": datetime.now(UTC),
@@ -118,15 +278,19 @@ class TaskWorkflowEngine:
 
         Returns:
             Updated task
+
+        Raises:
+            InvalidTransitionError: If task is not in DOING or REVIEW status
         """
         log.info("Completing task", task_id=task_id)
 
-        # Get current task
+        # Get current task and validate transition
         entity = await self._entity_manager.get(task_id)
         task = self._entity_to_task(entity)
+        self._validate_transition(task.status, TaskStatus.DONE)
 
         # Build updates
-        updates = {
+        updates: dict = {
             "status": TaskStatus.DONE,
             "completed_at": datetime.now(UTC),
         }
@@ -165,17 +329,21 @@ class TaskWorkflowEngine:
 
         Returns:
             Updated task
+
+        Raises:
+            InvalidTransitionError: If task is not in DOING status
         """
         log.info("Blocking task", task_id=task_id)
 
-        # Get current task
+        # Get current task and validate transition
         entity = await self._entity_manager.get(task_id)
         task = self._entity_to_task(entity)
+        self._validate_transition(task.status, TaskStatus.BLOCKED)
 
         # Add blocker to list
         blockers = task.blockers_encountered + [blocker_description]
 
-        updates = {
+        updates: dict = {
             "status": TaskStatus.BLOCKED,
             "blockers_encountered": blockers,
         }
@@ -194,10 +362,18 @@ class TaskWorkflowEngine:
 
         Returns:
             Updated task
+
+        Raises:
+            InvalidTransitionError: If task is not in BLOCKED status
         """
         log.info("Unblocking task", task_id=task_id)
 
-        updates = {
+        # Get current task and validate transition
+        entity = await self._entity_manager.get(task_id)
+        task = self._entity_to_task(entity)
+        self._validate_transition(task.status, TaskStatus.DOING)
+
+        updates: dict = {
             "status": TaskStatus.DOING,
         }
 
@@ -216,20 +392,27 @@ class TaskWorkflowEngine:
 
         Returns:
             Updated task
+
+        Raises:
+            InvalidTransitionError: If task is already ARCHIVED
         """
         log.info("Archiving task", task_id=task_id, reason=reason)
 
-        updates = {
+        # Get current task and validate transition
+        entity = await self._entity_manager.get(task_id)
+        task = self._entity_to_task(entity)
+        self._validate_transition(task.status, TaskStatus.ARCHIVED)
+
+        updates: dict = {
             "status": TaskStatus.ARCHIVED,
-            "metadata": {"archive_reason": reason} if reason else {},
         }
+        if reason:
+            updates["metadata"] = {**(task.metadata or {}), "archive_reason": reason}
 
         updated_entity = await self._entity_manager.update(task_id, updates)
         updated_task = self._entity_to_task(updated_entity)
 
         # Update project progress
-        entity = await self._entity_manager.get(task_id)
-        task = self._entity_to_task(entity)
         if task.project_id:
             await self._update_project_progress(task.project_id)
 

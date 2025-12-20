@@ -2,6 +2,7 @@
 
 import asyncio
 from typing import TYPE_CHECKING
+import os
 
 import structlog
 
@@ -34,6 +35,11 @@ class GraphClient:
             GraphConnectionError: If connection fails.
         """
         try:
+            # Ensure Graphiti sees the API key (Graphiti uses OPENAI_API_KEY env)
+            api_key = settings.openai_api_key.get_secret_value()
+            if api_key and not os.getenv("OPENAI_API_KEY"):
+                os.environ["OPENAI_API_KEY"] = api_key
+
             from graphiti_core import Graphiti
             from graphiti_core.driver.falkordb_driver import FalkorDriver
 

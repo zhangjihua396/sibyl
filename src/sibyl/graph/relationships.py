@@ -41,31 +41,53 @@ class RelationshipManager:
         )
 
         try:
-            # Serialize metadata as JSON string (FalkorDB doesn't support inline props)
-            metadata_json = json.dumps(relationship.metadata) if relationship.metadata else "{}"
+            # Deduplicate existing relationships with same source/target/type
+            existing = await self._client.client.driver.execute_query(
+                """
+                MATCH (source {uuid: $source_id})-[r:RELATIONSHIP {relationship_type: $rel_type, source_id: $source_id, target_id: $target_id}]->(target {uuid: $target_id})
+                RETURN r.relationship_id as rel_id, id(r) as edge_id
+                """,
+                source_id=relationship.source_id,
+                target_id=relationship.target_id,
+                rel_type=relationship.relationship_type.value,
+            )
+            if existing:
+                first_row = existing[0]
+                rel_id = first_row.get("rel_id") if isinstance(first_row, dict) else first_row
+                rel_id = rel_id or relationship.id
+                log.info(
+                    "Relationship already exists; skipping duplicate",
+                    relationship_id=rel_id,
+                    type=relationship.relationship_type,
+                    source=relationship.source_id,
+                    target=relationship.target_id,
+                )
+                return rel_id
 
             # Create the edge using explicit property assignment
-            # FalkorDB doesn't support $props for inline relationship properties
             query = """
-            MATCH (source), (target)
-            WHERE source.uuid = $source_id AND target.uuid = $target_id
+            MATCH (source {uuid: $source_id}), (target {uuid: $target_id})
             CREATE (source)-[r:RELATIONSHIP {
+                relationship_id: $rel_id,
                 relationship_type: $rel_type,
                 weight: $weight,
                 created_at: $created_at,
-                metadata: $metadata
+                metadata: $metadata,
+                source_id: $source_id,
+                target_id: $target_id
             }]->(target)
             RETURN id(r) as edge_id
             """
 
             result = await self._client.client.driver.execute_query(
                 query,
+                rel_id=relationship.id,
                 source_id=relationship.source_id,
                 target_id=relationship.target_id,
                 rel_type=relationship.relationship_type.value,
                 weight=relationship.weight,
                 created_at=relationship.created_at.isoformat(),
-                metadata=metadata_json,
+                metadata=relationship.metadata or {},
             )
 
             # Check if relationship creation succeeded
@@ -184,8 +206,8 @@ class RelationshipManager:
             for record in result:
                 rel_props = record.get("r", {})
                 rel_id = str(record.get("rel_id", ""))
-                source_id = record.get("source_id", "")
-                target_id = record.get("other_id", "")
+                source_id = rel_props.get("source_id") or record.get("source_id", "")
+                target_id = rel_props.get("target_id") or record.get("other_id", "")
 
                 # Parse the relationship type
                 rel_type_str = rel_props.get("relationship_type", "RELATED_TO")
@@ -270,7 +292,7 @@ class RelationshipManager:
             WHERE start.uuid = $entity_id{type_filter}
             WITH related, relationships(path) as rels, length(path) as hops
             WHERE related.uuid <> $entity_id
-            RETURN DISTINCT related, rels[0] as first_rel, hops
+            RETURN DISTINCT related, rels[0] as first_rel, id(rels[0]) as first_rel_id, hops
             ORDER BY hops, related.name
             LIMIT $limit
             """
@@ -279,10 +301,12 @@ class RelationshipManager:
                 query, entity_id=entity_id, limit=limit
             )
 
-            related_entities = []
+            related_entities: list[tuple[Entity, Relationship]] = []
             for record in result:
                 entity_data = record.get("related", {})
                 rel_data = record.get("first_rel", {})
+                source_id = rel_data.get("source_id") or entity_id
+                target_uuid = entity_data.get("uuid", "")
 
                 # Build Entity from node properties
                 entity = self._build_entity_from_node(entity_data)
@@ -294,7 +318,9 @@ class RelationshipManager:
                 # Extract metadata (stored as JSON string)
                 metadata_raw = rel_data.get("metadata", "{}")
                 try:
-                    metadata = json.loads(metadata_raw) if isinstance(metadata_raw, str) else metadata_raw or {}
+                    metadata = (
+                        json.loads(metadata_raw) if isinstance(metadata_raw, str) else metadata_raw or {}
+                    )
                 except json.JSONDecodeError:
                     metadata = {}
 
@@ -302,8 +328,8 @@ class RelationshipManager:
                 relationship = Relationship(
                     id=str(record.get("first_rel_id", "")),
                     relationship_type=rel_type,
-                    source_id=entity_id,  # Simplified: assume source is the start entity
-                    target_id=entity_data.get("uuid", ""),
+                    source_id=source_id if source_id else entity_id,
+                    target_id=target_uuid,
                     weight=float(rel_data.get("weight", 1.0)),
                     metadata=metadata,
                 )
@@ -336,26 +362,43 @@ class RelationshipManager:
         log.info("Deleting relationship", relationship_id=relationship_id)
 
         try:
-            # Delete relationship by internal ID
-            query = """
-            MATCH ()-[r:RELATIONSHIP]->()
-            WHERE id(r) = $rel_id
-            DELETE r
-            RETURN count(r) as deleted_count
-            """
-
+            # Delete by stable relationship_id property first
             result = await self._client.client.driver.execute_query(
-                query, rel_id=int(relationship_id)
+                """
+                MATCH ()-[r:RELATIONSHIP {relationship_id: $rel_id}]->()
+                DELETE r
+                RETURN count(r) as deleted_count
+                """,
+                rel_id=relationship_id,
             )
 
-            if result and len(result) > 0:
-                deleted_count = result[0].get("deleted_count", 0)
-                if deleted_count > 0:
-                    log.info(
-                        "Relationship deleted successfully",
-                        relationship_id=relationship_id,
+            deleted_count = result[0].get("deleted_count", 0) if result else 0
+
+            # Fallback to internal id if property not found and rel_id is numeric
+            if deleted_count == 0:
+                try:
+                    rel_id_int = int(relationship_id)
+                except ValueError:
+                    rel_id_int = None
+
+                if rel_id_int is not None:
+                    result = await self._client.client.driver.execute_query(
+                        """
+                        MATCH ()-[r:RELATIONSHIP]->()
+                        WHERE id(r) = $rel_id
+                        DELETE r
+                        RETURN count(r) as deleted_count
+                        """,
+                        rel_id=rel_id_int,
                     )
-                    return
+                    deleted_count = result[0].get("deleted_count", 0) if result else 0
+
+            if deleted_count > 0:
+                log.info(
+                    "Relationship deleted successfully",
+                    relationship_id=relationship_id,
+                )
+                return
 
             log.warning("Relationship not found for deletion", relationship_id=relationship_id)
 

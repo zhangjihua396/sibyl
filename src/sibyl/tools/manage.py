@@ -6,16 +6,15 @@ Includes task workflow, source operations, analysis, and admin actions.
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any, Literal
+from typing import Any
 
 import structlog
 
 from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
-from sibyl.models.entities import EntityType, Relationship, RelationshipType
+from sibyl.models.entities import EntityType
 from sibyl.models.sources import CrawlStatus, Source, SourceType
-from sibyl.models.tasks import Task, TaskStatus
 
 log = structlog.get_logger()
 
@@ -167,7 +166,10 @@ async def _handle_task_action(
     entity_id: str | None,
     data: dict[str, Any],
 ) -> ManageResponse:
-    """Handle task workflow actions."""
+    """Handle task workflow actions.
+
+    Uses the TaskWorkflowEngine for proper state machine validation.
+    """
     if not entity_id and action != "update_task":
         return ManageResponse(
             success=False,
@@ -177,202 +179,95 @@ async def _handle_task_action(
 
     client = await get_graph_client()
     entity_manager = EntityManager(client)
+    relationship_manager = RelationshipManager(client)
 
-    if action == "start_task":
-        return await _start_task(entity_manager, entity_id)
+    # Use workflow engine for state-validated transitions
+    from sibyl.errors import InvalidTransitionError
+    from sibyl.tasks.workflow import TaskWorkflowEngine
 
-    elif action == "block_task":
-        reason = data.get("reason", "No reason provided")
-        return await _block_task(entity_manager, entity_id, reason)
+    workflow = TaskWorkflowEngine(entity_manager, relationship_manager, client)
 
-    elif action == "unblock_task":
-        return await _unblock_task(entity_manager, entity_id)
+    try:
+        if action == "start_task":
+            assignee = data.get("assignee", "system")
+            task = await workflow.start_task(entity_id, assignee)
+            return ManageResponse(
+                success=True,
+                action=action,
+                entity_id=entity_id,
+                message="Task started",
+                data={"status": task.status.value, "branch_name": task.branch_name},
+            )
 
-    elif action == "submit_review":
-        return await _submit_review(entity_manager, entity_id)
+        elif action == "block_task":
+            reason = data.get("reason", "No reason provided")
+            task = await workflow.block_task(entity_id, reason)
+            return ManageResponse(
+                success=True,
+                action=action,
+                entity_id=entity_id,
+                message=f"Task blocked: {reason}",
+                data={"status": task.status.value, "reason": reason},
+            )
 
-    elif action == "complete_task":
-        learnings = data.get("learnings", "")
-        return await _complete_task(entity_manager, entity_id, learnings)
+        elif action == "unblock_task":
+            task = await workflow.unblock_task(entity_id)
+            return ManageResponse(
+                success=True,
+                action=action,
+                entity_id=entity_id,
+                message="Task unblocked, resuming work",
+                data={"status": task.status.value},
+            )
 
-    elif action == "archive_task":
-        return await _archive_task(entity_manager, entity_id)
+        elif action == "submit_review":
+            commit_shas = data.get("commit_shas", [])
+            pr_url = data.get("pr_url")
+            task = await workflow.submit_for_review(entity_id, commit_shas, pr_url)
+            return ManageResponse(
+                success=True,
+                action=action,
+                entity_id=entity_id,
+                message="Task submitted for review",
+                data={"status": task.status.value, "pr_url": task.pr_url},
+            )
 
-    elif action == "update_task":
-        return await _update_task(entity_manager, entity_id, data)
+        elif action == "complete_task":
+            learnings = data.get("learnings", "")
+            actual_hours = data.get("actual_hours")
+            task = await workflow.complete_task(entity_id, actual_hours, learnings)
+            return ManageResponse(
+                success=True,
+                action=action,
+                entity_id=entity_id,
+                message="Task completed" + (" with learnings captured" if learnings else ""),
+                data={"status": task.status.value, "learnings": learnings},
+            )
+
+        elif action == "archive_task":
+            reason = data.get("reason", "")
+            task = await workflow.archive_task(entity_id, reason)
+            return ManageResponse(
+                success=True,
+                action=action,
+                entity_id=entity_id,
+                message="Task archived",
+                data={"status": task.status.value},
+            )
+
+        elif action == "update_task":
+            return await _update_task(entity_manager, entity_id, data)
+
+    except InvalidTransitionError as e:
+        return ManageResponse(
+            success=False,
+            action=action,
+            entity_id=entity_id,
+            message=str(e),
+            data=e.details,
+        )
 
     return ManageResponse(success=False, action=action, message="Unknown task action")
-
-
-async def _start_task(
-    entity_manager: EntityManager,
-    entity_id: str,
-) -> ManageResponse:
-    """Start work on a task."""
-    updates = {
-        "status": TaskStatus.DOING.value,
-        "started_at": datetime.now(UTC).isoformat(),
-    }
-
-    result = await entity_manager.update(entity_id, updates)
-    if result:
-        return ManageResponse(
-            success=True,
-            action="start_task",
-            entity_id=entity_id,
-            message="Task started",
-            data={"status": TaskStatus.DOING.value},
-        )
-
-    return ManageResponse(
-        success=False,
-        action="start_task",
-        entity_id=entity_id,
-        message="Failed to start task",
-    )
-
-
-async def _block_task(
-    entity_manager: EntityManager,
-    entity_id: str,
-    reason: str,
-) -> ManageResponse:
-    """Mark task as blocked."""
-    # Get existing blockers
-    entity = await entity_manager.get(entity_id)
-    existing_blockers = entity.metadata.get("blockers_encountered", [])
-
-    updates = {
-        "status": TaskStatus.BLOCKED.value,
-        "blockers_encountered": existing_blockers + [reason],
-    }
-
-    result = await entity_manager.update(entity_id, updates)
-    if result:
-        return ManageResponse(
-            success=True,
-            action="block_task",
-            entity_id=entity_id,
-            message=f"Task blocked: {reason}",
-            data={"status": TaskStatus.BLOCKED.value, "reason": reason},
-        )
-
-    return ManageResponse(
-        success=False,
-        action="block_task",
-        entity_id=entity_id,
-        message="Failed to block task",
-    )
-
-
-async def _unblock_task(
-    entity_manager: EntityManager,
-    entity_id: str,
-) -> ManageResponse:
-    """Remove blocked status from task."""
-    updates = {"status": TaskStatus.DOING.value}
-
-    result = await entity_manager.update(entity_id, updates)
-    if result:
-        return ManageResponse(
-            success=True,
-            action="unblock_task",
-            entity_id=entity_id,
-            message="Task unblocked, resuming work",
-            data={"status": TaskStatus.DOING.value},
-        )
-
-    return ManageResponse(
-        success=False,
-        action="unblock_task",
-        entity_id=entity_id,
-        message="Failed to unblock task",
-    )
-
-
-async def _submit_review(
-    entity_manager: EntityManager,
-    entity_id: str,
-) -> ManageResponse:
-    """Submit task for code review."""
-    updates = {
-        "status": TaskStatus.REVIEW.value,
-        "reviewed_at": datetime.now(UTC).isoformat(),
-    }
-
-    result = await entity_manager.update(entity_id, updates)
-    if result:
-        return ManageResponse(
-            success=True,
-            action="submit_review",
-            entity_id=entity_id,
-            message="Task submitted for review",
-            data={"status": TaskStatus.REVIEW.value},
-        )
-
-    return ManageResponse(
-        success=False,
-        action="submit_review",
-        entity_id=entity_id,
-        message="Failed to submit for review",
-    )
-
-
-async def _complete_task(
-    entity_manager: EntityManager,
-    entity_id: str,
-    learnings: str,
-) -> ManageResponse:
-    """Complete task and capture learnings."""
-    updates = {
-        "status": TaskStatus.DONE.value,
-        "completed_at": datetime.now(UTC).isoformat(),
-    }
-
-    if learnings:
-        updates["learnings"] = learnings
-
-    result = await entity_manager.update(entity_id, updates)
-    if result:
-        return ManageResponse(
-            success=True,
-            action="complete_task",
-            entity_id=entity_id,
-            message="Task completed" + (f" with learnings captured" if learnings else ""),
-            data={"status": TaskStatus.DONE.value, "learnings": learnings},
-        )
-
-    return ManageResponse(
-        success=False,
-        action="complete_task",
-        entity_id=entity_id,
-        message="Failed to complete task",
-    )
-
-
-async def _archive_task(
-    entity_manager: EntityManager,
-    entity_id: str,
-) -> ManageResponse:
-    """Archive task without completing."""
-    updates = {"status": TaskStatus.ARCHIVED.value}
-
-    result = await entity_manager.update(entity_id, updates)
-    if result:
-        return ManageResponse(
-            success=True,
-            action="archive_task",
-            entity_id=entity_id,
-            message="Task archived",
-            data={"status": TaskStatus.ARCHIVED.value},
-        )
-
-    return ManageResponse(
-        success=False,
-        action="archive_task",
-        entity_id=entity_id,
-        message="Failed to archive task",
-    )
 
 
 async def _update_task(
@@ -487,8 +382,8 @@ async def _crawl_source(
         crawl_status=CrawlStatus.PENDING,
     )
 
-    # Store source
-    await entity_manager.create(source)
+    # Store source (use actual created ID)
+    created_id = await entity_manager.create(source)
 
     # TODO: Trigger actual crawl pipeline (async job)
     # For now, just mark as pending
@@ -496,10 +391,10 @@ async def _crawl_source(
     return ManageResponse(
         success=True,
         action="crawl",
-        entity_id=source_id,
+        entity_id=created_id,
         message=f"Crawl queued for {url}",
         data={
-            "source_id": source_id,
+            "source_id": created_id,
             "url": url,
             "depth": depth,
             "status": CrawlStatus.PENDING.value,
