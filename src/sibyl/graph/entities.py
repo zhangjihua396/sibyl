@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from sibyl.errors import EntityNotFoundError, SearchError
 from sibyl.models.entities import Entity, EntityType
+from sibyl.models.sources import Community, Document, Source
+from sibyl.models.tasks import ErrorPattern, Milestone, Project, Task, Team
 
 if TYPE_CHECKING:
     from sibyl.graph.client import GraphClient
@@ -367,7 +369,92 @@ class EntityManager:
             content = entity.content[:500] if len(entity.content) > 500 else entity.content
             parts.append(f"Content: {sanitize(content)}")
 
+        # Add type-specific fields
+        parts.extend(self._format_specialized_fields(entity, sanitize))
+
         return "\n".join(parts)
+
+    def _format_specialized_fields(
+        self,
+        entity: Entity,
+        sanitize: Any,
+    ) -> list[str]:
+        """Format specialized fields for different entity types.
+
+        Args:
+            entity: The entity to format.
+            sanitize: Function to sanitize text.
+
+        Returns:
+            List of formatted field strings.
+        """
+        parts: list[str] = []
+
+        if isinstance(entity, Task):
+            if entity.status:
+                parts.append(f"Status: {entity.status}")
+            if entity.priority:
+                parts.append(f"Priority: {entity.priority}")
+            if entity.domain:
+                parts.append(f"Domain: {sanitize(entity.domain)}")
+            if entity.technologies:
+                parts.append(f"Technologies: {', '.join(entity.technologies)}")
+            if entity.feature:
+                parts.append(f"Feature: {sanitize(entity.feature)}")
+
+        elif isinstance(entity, Project):
+            if entity.status:
+                parts.append(f"Status: {entity.status}")
+            if entity.tech_stack:
+                parts.append(f"Tech Stack: {', '.join(entity.tech_stack)}")
+            if entity.features:
+                parts.append(f"Features: {', '.join(entity.features[:5])}")
+
+        elif isinstance(entity, Source):
+            parts.append(f"URL: {sanitize(entity.url)}")
+            parts.append(f"Source Type: {entity.source_type}")
+            if entity.crawl_status:
+                parts.append(f"Crawl Status: {entity.crawl_status}")
+            if entity.document_count:
+                parts.append(f"Documents: {entity.document_count}")
+
+        elif isinstance(entity, Document):
+            parts.append(f"URL: {sanitize(entity.url)}")
+            if entity.title:
+                parts.append(f"Title: {sanitize(entity.title)}")
+            if entity.headings:
+                parts.append(f"Headings: {', '.join(entity.headings[:5])}")
+            if entity.has_code:
+                parts.append("Has Code: yes")
+            if entity.language:
+                parts.append(f"Language: {entity.language}")
+
+        elif isinstance(entity, Community):
+            if entity.key_concepts:
+                parts.append(f"Concepts: {', '.join(entity.key_concepts)}")
+            if entity.member_count:
+                parts.append(f"Members: {entity.member_count}")
+            if entity.level is not None:
+                parts.append(f"Level: {entity.level}")
+
+        elif isinstance(entity, ErrorPattern):
+            parts.append(f"Error: {sanitize(entity.error_message)}")
+            parts.append(f"Root Cause: {sanitize(entity.root_cause)}")
+            parts.append(f"Solution: {sanitize(entity.solution)}")
+            if entity.technologies:
+                parts.append(f"Technologies: {', '.join(entity.technologies)}")
+
+        elif isinstance(entity, Team):
+            if entity.members:
+                parts.append(f"Members: {', '.join(entity.members[:5])}")
+            if entity.focus_areas:
+                parts.append(f"Focus Areas: {', '.join(entity.focus_areas)}")
+
+        elif isinstance(entity, Milestone):
+            if entity.total_tasks:
+                parts.append(f"Tasks: {entity.completed_tasks}/{entity.total_tasks}")
+
+        return parts
 
     def _node_to_entity(self, node: EntityNode) -> Entity:
         """Convert a Graphiti EntityNode to our Entity model.

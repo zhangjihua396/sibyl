@@ -2,9 +2,9 @@
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Any
+from typing import Any, Self
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from sibyl.models.entities import Entity, EntityType
 
@@ -83,15 +83,16 @@ class Task(Entity):
     completed_at: datetime | None = Field(default=None, description="When completed")
     reviewed_at: datetime | None = Field(default=None, description="When reviewed")
 
-    @property
-    def name(self) -> str:
-        """Entity name is the task title."""
-        return self.title
-
-    @property
-    def content(self) -> str:
-        """Entity content is the task description."""
-        return self.description
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set name and content from task-specific fields."""
+        if isinstance(data, dict):
+            if "name" not in data and "title" in data:
+                data["name"] = data["title"]
+            if "content" not in data and "description" in data:
+                data["content"] = data["description"]
+        return data
 
 
 class ProjectStatus(StrEnum):
@@ -139,15 +140,16 @@ class Project(Entity):
     team_members: list[str] = Field(default_factory=list, description="Team member IDs/emails")
     tags: list[str] = Field(default_factory=list, description="Project tags")
 
-    @property
-    def name(self) -> str:
-        """Entity name is the project title."""
-        return self.title
-
-    @property
-    def content(self) -> str:
-        """Entity content is the project description."""
-        return self.description
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set name and content from project-specific fields."""
+        if isinstance(data, dict):
+            if "name" not in data and "title" in data:
+                data["name"] = data["title"]
+            if "content" not in data and "description" in data:
+                data["content"] = data["description"]
+        return data
 
 
 class Team(Entity):
@@ -155,15 +157,18 @@ class Team(Entity):
 
     entity_type: EntityType = EntityType.TEAM
 
-    name: str = Field(..., description="Team name")
-    description: str = Field(default="", description="Team description")
+    # Note: Team uses 'name' directly from Entity, no title field needed
     members: list[str] = Field(default_factory=list, description="Team member IDs/emails")
     focus_areas: list[str] = Field(default_factory=list, description="Areas of responsibility")
 
-    @property
-    def content(self) -> str:
-        """Entity content is the team description."""
-        return self.description
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set content from description."""
+        if isinstance(data, dict):
+            if "content" not in data and "description" in data:
+                data["content"] = data["description"]
+        return data
 
 
 class ErrorPattern(Entity):
@@ -182,22 +187,25 @@ class ErrorPattern(Entity):
     occurrence_count: int = Field(default=1, description="How many times encountered")
     last_encountered: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-    @property
-    def name(self) -> str:
-        """Entity name is truncated error message."""
-        return self.error_message[:100]
-
-    @property
-    def content(self) -> str:
-        """Entity content includes all error details."""
-        return f"""Error: {self.error_message}
-
-Root Cause: {self.root_cause}
-
-Solution: {self.solution}
-
-Prevention: {self.prevention}
-""".strip()
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set name and content from error pattern fields."""
+        if isinstance(data, dict):
+            if "name" not in data and "error_message" in data:
+                data["name"] = data["error_message"][:100]
+            if "content" not in data:
+                parts = []
+                if "error_message" in data:
+                    parts.append(f"Error: {data['error_message']}")
+                if "root_cause" in data:
+                    parts.append(f"Root Cause: {data['root_cause']}")
+                if "solution" in data:
+                    parts.append(f"Solution: {data['solution']}")
+                if data.get("prevention"):
+                    parts.append(f"Prevention: {data['prevention']}")
+                data["content"] = "\n\n".join(parts)
+        return data
 
 
 class Milestone(Entity):
@@ -205,8 +213,7 @@ class Milestone(Entity):
 
     entity_type: EntityType = EntityType.MILESTONE
 
-    name: str = Field(..., description="Milestone name (e.g., 'Sprint 24', 'v1.0 Release')")
-    description: str = Field(default="", description="Milestone description")
+    # Note: Milestone uses 'name' directly from Entity, overriding with specific description
     project_id: str = Field(..., description="Parent project UUID")
 
     start_date: datetime | None = Field(default=None, description="Milestone start")
@@ -216,10 +223,14 @@ class Milestone(Entity):
     total_tasks: int = Field(default=0, description="Total tasks in milestone")
     completed_tasks: int = Field(default=0, description="Tasks completed")
 
-    @property
-    def content(self) -> str:
-        """Entity content is the milestone description."""
-        return self.description
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set content from description."""
+        if isinstance(data, dict):
+            if "content" not in data and "description" in data:
+                data["content"] = data["description"]
+        return data
 
 
 class TimeEntry(BaseModel):

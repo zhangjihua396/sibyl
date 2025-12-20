@@ -1,4 +1,4 @@
-"""Pydantic models for the Conventions MCP Server."""
+"""Pydantic models for the Sibyl MCP Server."""
 
 from sibyl.models.entities import (
     ConfigFile,
@@ -21,6 +21,27 @@ from sibyl.models.responses import (
     SearchResult,
     SearchResultItem,
 )
+from sibyl.models.sources import (
+    Community,
+    CrawlStatus,
+    Document,
+    Source,
+    SourceType,
+)
+from sibyl.models.tasks import (
+    ErrorPattern,
+    Milestone,
+    Project,
+    ProjectStatus,
+    Task,
+    TaskComplexity,
+    TaskEstimate,
+    TaskKnowledgeSuggestion,
+    TaskPriority,
+    TaskStatus,
+    Team,
+    TimeEntry,
+)
 from sibyl.models.tools import (
     AddLearningInput,
     GetLanguageGuideInput,
@@ -32,28 +53,50 @@ from sibyl.models.tools import (
 )
 
 __all__ = [
+    # Tool inputs
     "AddLearningInput",
-    "ConfigFile",
-    "Entity",
-    "EntityResponse",
-    "EntityType",
-    "Episode",
     "GetLanguageGuideInput",
     "GetRelatedInput",
     "GetTemplateInput",
+    "ListEntitiesInput",
+    "RecordDebuggingInput",
+    "SearchInput",
+    # Responses
+    "EntityResponse",
+    "SearchResult",
+    "SearchResultItem",
+    # Base entities
+    "ConfigFile",
+    "Entity",
+    "EntityType",
+    "Episode",
     "KnowledgeSource",
     "Language",
-    "ListEntitiesInput",
     "Pattern",
-    "RecordDebuggingInput",
     "Relationship",
     "RelationshipType",
     "Rule",
-    "SearchInput",
-    "SearchResult",
-    "SearchResultItem",
     "SlashCommand",
     "Template",
     "Tool",
     "Topic",
+    # Task management
+    "ErrorPattern",
+    "Milestone",
+    "Project",
+    "ProjectStatus",
+    "Task",
+    "TaskComplexity",
+    "TaskEstimate",
+    "TaskKnowledgeSuggestion",
+    "TaskPriority",
+    "TaskStatus",
+    "Team",
+    "TimeEntry",
+    # Documentation crawling
+    "Community",
+    "CrawlStatus",
+    "Document",
+    "Source",
+    "SourceType",
 ]
