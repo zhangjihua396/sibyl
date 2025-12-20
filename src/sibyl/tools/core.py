@@ -15,7 +15,7 @@ from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, Episode, Pattern, Relationship, RelationshipType
-from sibyl.models.tasks import Task, TaskPriority, TaskStatus, Project, ProjectStatus
+from sibyl.models.tasks import Project, ProjectStatus, Task, TaskPriority, TaskStatus
 from sibyl.tasks.workflow import TaskWorkflowEngine
 from sibyl.utils.resilience import TIMEOUTS, with_timeout
 
@@ -118,24 +118,40 @@ async def search(
     limit: int = 10,
     include_content: bool = True,
 ) -> SearchResponse:
-    """Semantic search across the knowledge graph.
+    """Search the Sibyl knowledge graph by meaning.
+
+    Use this tool to find knowledge across all entity types using natural
+    language queries. Results are ranked by semantic similarity.
+
+    USE CASES:
+    • Find patterns/rules related to a technology: search("OAuth authentication best practices")
+    • Find open tasks: search("", types=["task"], status="doing")
+    • Find knowledge by technology: search("", language="python", types=["pattern"])
+    • Find recent learnings: search("", types=["episode"], since="2024-01-01")
+    • Find tasks for a project: search("", types=["task"], project="proj_abc")
+    • Find documentation: search("hooks state management", types=["document"])
 
     Args:
-        query: Natural language search query.
-        types: Entity types to search (pattern, rule, template, task, project, etc.).
-               If None, searches all types.
-        language: Filter by programming language.
-        category: Filter by category/topic.
-        status: Filter tasks by status (backlog, todo, doing, blocked, review, done).
-        project: Filter by project_id.
-        source: Filter by source_id (for documents).
-        assignee: Filter tasks by assignee.
-        since: Temporal filter - ISO date string (e.g., "2024-01-15").
-        limit: Maximum results (1-50).
-        include_content: Whether to include full content in results.
+        query: Natural language search query. Can be empty if using filters.
+        types: Entity types to search. Options: pattern, rule, template, topic,
+               episode, task, project, source, document. If None, searches all.
+        language: Filter by programming language (python, typescript, rust, etc.).
+        category: Filter by category/domain (authentication, database, api, etc.).
+        status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
+        project: Filter by project_id to find tasks within a specific project.
+        source: Filter documents by source_id (documentation source).
+        assignee: Filter tasks by assignee name.
+        since: Temporal filter - only return entities created after this ISO date.
+        limit: Maximum results to return (1-50, default 10).
+        include_content: Include full content in results (default True).
 
     Returns:
-        SearchResponse with ranked results.
+        SearchResponse with ranked results including id, name, type, score, and metadata.
+
+    EXAMPLES:
+        search("error handling patterns", types=["pattern"], language="python")
+        search("", types=["task"], status="todo", project="proj_auth")
+        search("database optimization", types=["pattern", "episode"])
     """
     # Clamp limit
     limit = max(1, min(limit, 50))
@@ -332,28 +348,45 @@ async def explore(
     status: str | None = None,
     limit: int = 50,
 ) -> ExploreResponse:
-    """Explore and browse the knowledge graph.
+    """Navigate and browse the Sibyl knowledge graph structure.
 
-    Modes:
-        - list: Browse entities by type with optional filters
-        - related: Find entities connected to a specific entity
-        - traverse: Multi-hop graph traversal from an entity
-        - dependencies: Task dependency chains (topologically sorted)
+    Use this tool to explore entities and their relationships without
+    semantic search. Ideal for browsing, listing, and graph traversal.
+
+    MODES:
+    • list: Browse entities by type with optional filters
+    • related: Find entities directly connected to a specific entity
+    • traverse: Multi-hop graph traversal (1-3 hops) from an entity
+    • dependencies: Task dependency chains in topological order
+
+    USE CASES:
+    • List all patterns: explore(mode="list", types=["pattern"])
+    • List open tasks for project: explore(mode="list", types=["task"], project="proj_abc", status="todo")
+    • Find related knowledge: explore(mode="related", entity_id="pattern_oauth")
+    • Task dependency chain: explore(mode="dependencies", entity_id="task_123")
+    • Explore project graph: explore(mode="traverse", entity_id="proj_abc", depth=2)
 
     Args:
-        mode: Exploration mode.
-        types: Entity types to explore (for list mode).
-        entity_id: Starting entity for related/traverse/dependencies modes.
-        relationship_types: Filter by relationship types (for related/traverse).
-        depth: Traversal depth for traverse mode (1-3).
-        language: Filter by language.
-        category: Filter by category.
-        project: Filter by project_id (for tasks).
-        status: Filter by task status (backlog, todo, doing, etc.).
-        limit: Maximum results.
+        mode: Exploration mode - list, related, traverse, or dependencies.
+        types: Entity types to include. Options: pattern, rule, template, topic,
+               episode, task, project, source, document (for list mode).
+        entity_id: Starting entity ID (required for related/traverse/dependencies).
+        relationship_types: Filter edges by type - DEPENDS_ON, BELONGS_TO, RELATED_TO.
+        depth: Traversal depth for traverse mode (1-3, default 1).
+        language: Filter by programming language.
+        category: Filter by category/domain.
+        project: Filter by project_id (especially for task listing).
+        status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
+        limit: Maximum results (1-200, default 50).
 
     Returns:
-        ExploreResponse with entities or relationships.
+        ExploreResponse with entities, relationships, and navigation metadata.
+
+    EXAMPLES:
+        explore(mode="list", types=["task"], status="doing")
+        explore(mode="related", entity_id="pattern_oauth")
+        explore(mode="dependencies", project="proj_auth")
+        explore(mode="traverse", entity_id="task_abc", depth=2, relationship_types=["DEPENDS_ON"])
     """
     # Clamp values
     limit = max(1, min(limit, 200))
@@ -732,28 +765,53 @@ async def add(
     depends_on: list[str] | None = None,
     # Project-specific parameters
     repository_url: str | None = None,
+    # Auto-linking
+    auto_link: bool = False,
 ) -> AddResponse:
-    """Add new knowledge to the graph.
+    """Add new knowledge to the Sibyl knowledge graph.
+
+    Use this tool to create entities with automatic relationship discovery.
+    Supports episodes (learnings), patterns, tasks, and projects.
+
+    ENTITY TYPES:
+    • episode: Temporal knowledge snapshot (default) - insights, learnings, discoveries
+    • pattern: Coding pattern or best practice
+    • task: Work item with workflow state machine
+    • project: Container for related tasks
+
+    USE CASES:
+    • Record a learning: add("Redis pooling insight", "Discovered that...", category="debugging")
+    • Create a pattern: add("Error handling pattern", "...", entity_type="pattern", languages=["python"])
+    • Create a task: add("Implement OAuth", "...", entity_type="task", project="proj_auth", priority="high")
+    • Create a project: add("Auth System", "...", entity_type="project", repository_url="...")
+    • Auto-link to related knowledge: add("OAuth insight", "...", auto_link=True)
 
     Args:
-        title: Short title for the knowledge.
-        content: Full content/description.
-        entity_type: Type of entity to create (episode, pattern, task, project).
-        category: Category for organization.
-        languages: Applicable programming languages.
-        tags: Searchable tags.
-        related_to: IDs of related entities to link.
-        metadata: Additional structured metadata.
-        project: Project ID for task entities.
-        priority: Task priority (critical, high, medium, low, someday).
-        assignees: List of assignees for tasks.
-        due_date: Due date for tasks (ISO format string).
+        title: Short title (max 200 chars).
+        content: Full content/description (max 50k chars).
+        entity_type: Type to create - episode (default), pattern, task, project.
+        category: Domain category (authentication, database, api, debugging, etc.).
+        languages: Programming languages (python, typescript, rust, etc.).
+        tags: Searchable tags for discovery.
+        related_to: Entity IDs to explicitly link (creates RELATED_TO edges).
+        metadata: Additional structured data.
+        project: Project ID for tasks (creates BELONGS_TO edge).
+        priority: Task priority - critical, high, medium (default), low, someday.
+        assignees: List of assignee names for tasks.
+        due_date: Due date for tasks (ISO format: 2024-03-15).
         technologies: Technologies involved (for tasks).
-        depends_on: Task IDs this task depends on (creates DEPENDS_ON relationships).
+        depends_on: Task IDs this depends on (creates DEPENDS_ON edges).
         repository_url: Repository URL for projects.
+        auto_link: Auto-discover related patterns/rules/templates (similarity > 0.75).
 
     Returns:
-        AddResponse indicating success or failure.
+        AddResponse with created entity ID, auto-discovered links, and timestamp.
+
+    EXAMPLES:
+        add("OAuth redirect bug", "Fixed issue where...", category="debugging", languages=["python"])
+        add("Add user auth", "Implement login flow", entity_type="task", project="proj_web", priority="high")
+        add("E-commerce API", "Backend services for...", entity_type="project", repository_url="github.com/...")
+        add("Connection pooling pattern", "Best practice for...", entity_type="pattern", auto_link=True)
     """
     # Sanitize inputs
     title = title.strip()
@@ -939,6 +997,42 @@ async def add(
                 except Exception as e:
                     log.warning("relationship_creation_failed", error=str(e), type="RELATED_TO", target=related_id)
 
+        # Auto-link: discover and create REFERENCES relationships
+        if auto_link:
+            try:
+                auto_link_results = await _auto_discover_links(
+                    entity_manager=entity_manager,
+                    title=title,
+                    content=content,
+                    technologies=technologies or languages or [],
+                    category=category,
+                    exclude_id=created_id,
+                    threshold=0.75,
+                    limit=5,
+                )
+
+                for linked_id, score in auto_link_results:
+                    try:
+                        rel = Relationship(
+                            id=f"rel_{created_id}_references_{linked_id}",
+                            source_id=created_id,
+                            target_id=linked_id,
+                            relationship_type=RelationshipType.RELATED_TO,  # Use RELATED_TO for auto-links
+                            metadata={
+                                "created_at": datetime.now(UTC).isoformat(),
+                                "auto_linked": True,
+                                "similarity_score": score,
+                            },
+                        )
+                        await relationship_manager.create(rel)
+                        relationships_created.append(f"AUTO:{linked_id[:8]}...")
+                    except Exception as e:
+                        log.warning("auto_link_failed", error=str(e), target=linked_id)
+
+                log.info("auto_link_complete", entity_id=created_id, links_found=len(auto_link_results))
+            except Exception as e:
+                log.warning("auto_link_search_failed", error=str(e))
+
         message = f"Added: {title}"
         if relationships_created:
             message += f" (linked: {len(relationships_created)})"
@@ -965,6 +1059,79 @@ def _generate_id(prefix: str, *parts: str) -> str:
     combined = ":".join(str(p)[:100] for p in parts)
     hash_bytes = hashlib.sha256(combined.encode()).hexdigest()[:12]
     return f"{prefix}_{hash_bytes}"
+
+
+async def _auto_discover_links(
+    entity_manager: EntityManager,
+    title: str,
+    content: str,
+    technologies: list[str],
+    category: str | None,
+    exclude_id: str,
+    threshold: float = 0.75,
+    limit: int = 5,
+) -> list[tuple[str, float]]:
+    """Discover related entities for auto-linking.
+
+    Searches for patterns, rules, templates, and topics that are
+    semantically similar to the new entity.
+
+    Args:
+        entity_manager: Entity manager for search.
+        title: Entity title.
+        content: Entity content.
+        technologies: Technologies to include in search.
+        category: Category/domain for filtering.
+        exclude_id: ID to exclude from results (the new entity).
+        threshold: Minimum similarity score (0-1).
+        limit: Maximum links to discover.
+
+    Returns:
+        List of (entity_id, score) tuples above threshold.
+    """
+    # Build search query from title, content summary, and technologies
+    tech_str = ", ".join(technologies[:5]) if technologies else ""
+    query_parts = [title]
+    if content:
+        # Take first 200 chars of content
+        query_parts.append(content[:200])
+    if tech_str:
+        query_parts.append(tech_str)
+    if category:
+        query_parts.append(category)
+
+    query = " ".join(query_parts)
+
+    # Search for linkable entity types
+    linkable_types = [
+        EntityType.PATTERN,
+        EntityType.RULE,
+        EntityType.TEMPLATE,
+        EntityType.TOPIC,
+    ]
+
+    try:
+        results = await entity_manager.search(
+            query=query,
+            entity_types=linkable_types,
+            limit=limit * 2,  # Over-fetch to filter by threshold
+        )
+
+        # Filter by threshold and exclude self
+        links: list[tuple[str, float]] = []
+        for entity, score in results:
+            if entity.id == exclude_id:
+                continue
+            if score >= threshold:
+                links.append((entity.id, score))
+            if len(links) >= limit:
+                break
+
+        return links
+
+    except Exception as e:
+        log.warning("auto_discover_search_failed", error=str(e))
+        return []
 
 
 # =============================================================================
@@ -1002,29 +1169,50 @@ async def manage(
     actual_hours: float | None = None,
     learnings: str | None = None,
 ) -> ManageResponse:
-    """Manage task workflows and system operations.
+    """Manage task workflows and administrative operations.
 
-    Actions:
-        - start_task: Begin work on a task (sets status=doing, generates branch)
-        - block_task: Mark task as blocked with reason
-        - unblock_task: Resume blocked task
-        - submit_review: Submit task for review with commits/PR
-        - complete_task: Mark task as done with learnings
-        - archive: Archive a task or entity
-        - health: Get system health status
+    Use this tool for task state machine transitions and system management.
+    Provides structured workflow actions with automatic metadata capture.
+
+    TASK WORKFLOW (state machine):
+    backlog → todo → doing → blocked ↔ doing → review → done → archived
+
+    ACTIONS:
+    • start_task: Begin work (backlog/todo→doing), auto-generates branch name
+    • block_task: Mark blocked with reason (doing→blocked)
+    • unblock_task: Resume work (blocked→doing)
+    • submit_review: Submit for review with commits/PR (doing→review)
+    • complete_task: Mark done with learnings captured (review→done)
+    • archive: Archive completed task (done→archived)
+    • health: System health check (no entity_id needed)
+
+    USE CASES:
+    • Start working on a task: manage("start_task", entity_id="task_abc", assignee="alice")
+    • Block with reason: manage("block_task", entity_id="task_abc", blocker="Waiting on API access")
+    • Submit for review: manage("submit_review", entity_id="task_abc", pr_url="github.com/.../pull/42")
+    • Complete with learnings: manage("complete_task", entity_id="task_abc", actual_hours=4.5, learnings="...")
+    • Check system health: manage("health")
 
     Args:
-        action: The management action to perform.
-        entity_id: Task or entity ID (required for task actions).
+        action: Workflow action to perform.
+        entity_id: Task ID (required for task actions, optional for health).
         assignee: User starting the task (for start_task).
-        blocker: Description of blocker (for block_task).
-        commit_shas: Git commit SHAs (for submit_review).
-        pr_url: Pull request URL (for submit_review).
-        actual_hours: Time spent (for complete_task).
-        learnings: What was learned (for complete_task).
+        blocker: Description of blocking issue (for block_task).
+        commit_shas: Git commit SHAs associated with work (for submit_review).
+        pr_url: Pull request URL for review (for submit_review).
+        actual_hours: Actual time spent in hours (for complete_task).
+        learnings: Knowledge captured during task (for complete_task, stored as episode).
 
     Returns:
-        ManageResponse with action result.
+        ManageResponse with success status, action result, and any generated data
+        (e.g., branch name for start_task, captured learnings for complete_task).
+
+    EXAMPLES:
+        manage("start_task", entity_id="task_123", assignee="alice")
+        manage("block_task", entity_id="task_123", blocker="Need design approval")
+        manage("submit_review", entity_id="task_123", commit_shas=["abc123"], pr_url="...")
+        manage("complete_task", entity_id="task_123", actual_hours=3.0, learnings="OAuth requires...")
+        manage("health")
     """
     log.info(
         "manage",
@@ -1080,7 +1268,7 @@ async def manage(
                 },
             )
 
-        elif action == "block_task":
+        if action == "block_task":
             if not blocker:
                 return ManageResponse(
                     success=False,
@@ -1100,7 +1288,7 @@ async def manage(
                 },
             )
 
-        elif action == "unblock_task":
+        if action == "unblock_task":
             task = await workflow.unblock_task(entity_id)
             return ManageResponse(
                 success=True,
@@ -1110,7 +1298,7 @@ async def manage(
                 data={"status": task.status.value},
             )
 
-        elif action == "submit_review":
+        if action == "submit_review":
             task = await workflow.submit_for_review(
                 entity_id,
                 commit_shas=commit_shas or [],
@@ -1128,7 +1316,7 @@ async def manage(
                 },
             )
 
-        elif action == "complete_task":
+        if action == "complete_task":
             task = await workflow.complete_task(
                 entity_id,
                 actual_hours=actual_hours,
@@ -1147,7 +1335,7 @@ async def manage(
                 },
             )
 
-        elif action == "archive":
+        if action == "archive":
             # Generic archive - update status to archived
             await entity_manager.update(entity_id, {"status": TaskStatus.ARCHIVED})
             return ManageResponse(
@@ -1158,13 +1346,12 @@ async def manage(
                 data={"status": "archived"},
             )
 
-        else:
-            return ManageResponse(
-                success=False,
-                action=action,
-                entity_id=entity_id,
-                message=f"Unknown action: {action}",
-            )
+        return ManageResponse(
+            success=False,
+            action=action,
+            entity_id=entity_id,
+            message=f"Unknown action: {action}",
+        )
 
     except Exception as e:
         log.warning("manage_failed", error=str(e), action=action)

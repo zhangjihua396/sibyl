@@ -14,6 +14,27 @@ if TYPE_CHECKING:
 log = structlog.get_logger()
 
 
+def _extract_values(record: Any, columns: list[str]) -> dict[str, Any]:
+    """Extract values from a FalkorDB record.
+
+    FalkorDB returns rows as lists (positional), not dicts.
+    This helper maps positional values to column names.
+
+    Args:
+        record: A query result row (list or dict).
+        columns: Expected column names in RETURN order.
+
+    Returns:
+        Dict mapping column names to values.
+    """
+    if isinstance(record, dict):
+        return record
+    if isinstance(record, (list, tuple)):
+        return {col: record[i] if i < len(record) else None for i, col in enumerate(columns)}
+    # Single value - map to first column
+    return {columns[0]: record} if columns else {}
+
+
 class RelationshipManager:
     """Manages relationship operations in the knowledge graph."""
 
@@ -52,9 +73,8 @@ class RelationshipManager:
                 rel_type=relationship.relationship_type.value,
             )
             if existing:
-                first_row = existing[0]
-                rel_id = first_row.get("rel_id") if isinstance(first_row, dict) else first_row
-                rel_id = rel_id or relationship.id
+                row = _extract_values(existing[0], ["rel_id", "edge_id"])
+                rel_id = row.get("rel_id") or relationship.id
                 log.info(
                     "Relationship already exists; skipping duplicate",
                     relationship_id=rel_id,
@@ -204,10 +224,13 @@ class RelationshipManager:
 
             relationships = []
             for record in result:
-                rel_props = record.get("r", {})
-                rel_id = str(record.get("rel_id", ""))
-                source_id = rel_props.get("source_id") or record.get("source_id", "")
-                target_id = rel_props.get("target_id") or record.get("other_id", "")
+                row = _extract_values(record, ["r", "rel_id", "other_id", "source_id"])
+                rel_props = row.get("r") or {}
+                if isinstance(rel_props, dict) is False:
+                    rel_props = {}
+                rel_id = str(row.get("rel_id") or "")
+                source_id = rel_props.get("source_id") or row.get("source_id", "")
+                target_id = rel_props.get("target_id") or row.get("other_id", "")
 
                 # Parse the relationship type
                 rel_type_str = rel_props.get("relationship_type", "RELATED_TO")
@@ -303,8 +326,13 @@ class RelationshipManager:
 
             related_entities: list[tuple[Entity, Relationship]] = []
             for record in result:
-                entity_data = record.get("related", {})
-                rel_data = record.get("first_rel", {})
+                row = _extract_values(record, ["related", "first_rel", "first_rel_id", "hops"])
+                entity_data = row.get("related") or {}
+                if not isinstance(entity_data, dict):
+                    entity_data = {}
+                rel_data = row.get("first_rel") or {}
+                if not isinstance(rel_data, dict):
+                    rel_data = {}
                 source_id = rel_data.get("source_id") or entity_id
                 target_uuid = entity_data.get("uuid", "")
 
@@ -326,7 +354,7 @@ class RelationshipManager:
 
                 # Build the relationship
                 relationship = Relationship(
-                    id=str(record.get("first_rel_id", "")),
+                    id=str(row.get("first_rel_id") or ""),
                     relationship_type=rel_type,
                     source_id=source_id if source_id else entity_id,
                     target_id=target_uuid,
@@ -372,7 +400,8 @@ class RelationshipManager:
                 rel_id=relationship_id,
             )
 
-            deleted_count = result[0].get("deleted_count", 0) if result else 0
+            row = _extract_values(result[0], ["deleted_count"]) if result else {}
+            deleted_count = row.get("deleted_count", 0)
 
             # Fallback to internal id if property not found and rel_id is numeric
             if deleted_count == 0:
@@ -391,7 +420,8 @@ class RelationshipManager:
                         """,
                         rel_id=rel_id_int,
                     )
-                    deleted_count = result[0].get("deleted_count", 0) if result else 0
+                    row = _extract_values(result[0], ["deleted_count"]) if result else {}
+                    deleted_count = row.get("deleted_count", 0)
 
             if deleted_count > 0:
                 log.info(
@@ -447,10 +477,13 @@ class RelationshipManager:
 
             relationships = []
             for record in result:
-                rel_props = record.get("r", {})
-                rel_id = str(record.get("rel_id", ""))
-                source_id = record.get("source_id", "")
-                target_id = record.get("target_id", "")
+                row = _extract_values(record, ["r", "source_id", "target_id", "rel_id"])
+                rel_props = row.get("r") or {}
+                if not isinstance(rel_props, dict):
+                    rel_props = {}
+                rel_id = str(row.get("rel_id") or "")
+                source_id = row.get("source_id") or ""
+                target_id = row.get("target_id") or ""
 
                 # Parse the relationship type
                 rel_type_str = rel_props.get("relationship_type", "RELATED_TO")
