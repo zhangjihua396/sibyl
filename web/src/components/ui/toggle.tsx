@@ -1,0 +1,92 @@
+interface ToggleProps {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  disabled?: boolean;
+  size?: 'sm' | 'md';
+  label?: string;
+  description?: string;
+}
+
+const sizes: Record<NonNullable<ToggleProps['size']>, { track: string; thumb: string; translate: string }> = {
+  sm: { track: 'w-8 h-4', thumb: 'w-3 h-3', translate: 'translate-x-4' },
+  md: { track: 'w-11 h-6', thumb: 'w-4 h-4', translate: 'translate-x-5' },
+};
+
+export function Toggle({
+  checked,
+  onChange,
+  disabled = false,
+  size = 'md',
+  label,
+  description,
+}: ToggleProps) {
+  const sizeStyles = sizes[size];
+
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        disabled={disabled}
+        onClick={() => onChange(!checked)}
+        className={`
+          relative inline-flex flex-shrink-0 rounded-full transition-colors duration-200 ease-in-out
+          focus:outline-none focus-visible:ring-2 focus-visible:ring-sc-cyan focus-visible:ring-offset-2 focus-visible:ring-offset-sc-bg-dark
+          ${sizeStyles.track}
+          ${checked ? 'bg-sc-purple' : 'bg-sc-bg-highlight'}
+          ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+        `}
+      >
+        <span
+          className={`
+            absolute top-0.5 left-0.5 rounded-full bg-white shadow transform transition-transform duration-200 ease-in-out
+            ${sizeStyles.thumb}
+            ${checked ? sizeStyles.translate : 'translate-x-0'}
+          `}
+        />
+      </button>
+      {(label || description) && (
+        <div>
+          {label && (
+            <span className={`text-sm font-medium ${disabled ? 'text-sc-fg-subtle' : 'text-sc-fg-primary'}`}>
+              {label}
+            </span>
+          )}
+          {description && (
+            <p className="text-xs text-sc-fg-subtle">{description}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Filter chip/toggle for multi-select scenarios
+interface FilterChipProps {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  disabled?: boolean;
+}
+
+export function FilterChip({ active, onClick, children, disabled }: FilterChipProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-all duration-150
+        border
+        ${active
+          ? 'bg-sc-purple/20 text-sc-purple border-sc-purple/30 shadow-sm shadow-sc-purple/10'
+          : 'bg-sc-bg-highlight text-sc-fg-muted border-sc-fg-subtle/10 hover:border-sc-fg-subtle/30 hover:text-sc-fg-primary'
+        }
+        ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
+      `}
+    >
+      {children}
+    </button>
+  );
+}

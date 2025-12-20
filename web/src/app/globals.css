@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   SilkCircuit Design Tokens
+   ============================================================================= */
+
+:root {
+  /* Core palette */
+  --sc-purple: #e135ff;
+  --sc-magenta: #ff00ff;
+  --sc-cyan: #80ffea;
+  --sc-coral: #ff6ac1;
+  --sc-yellow: #f1fa8c;
+  --sc-green: #50fa7b;
+  --sc-red: #ff6363;
+
+  /* Background hierarchy */
+  --sc-bg-base: #12101a;
+  --sc-bg-dark: #0a0812;
+  --sc-bg-highlight: #1a162a;
+  --sc-bg-elevated: #221e30;
+  --sc-bg-surface: #2a2640;
+
+  /* Foreground */
+  --sc-fg-primary: #f8f8f2;
+  --sc-fg-muted: #8b85a0;
+  --sc-fg-subtle: #5a5470;
+
+  /* Semantic */
+  --background: var(--sc-bg-base);
+  --foreground: var(--sc-fg-primary);
+
+  /* Entity type colors */
+  --entity-pattern: var(--sc-purple);
+  --entity-rule: var(--sc-red);
+  --entity-template: var(--sc-cyan);
+  --entity-tool: var(--sc-yellow);
+  --entity-language: var(--sc-coral);
+  --entity-topic: var(--sc-magenta);
+  --entity-episode: var(--sc-green);
+  --entity-knowledge-source: var(--sc-fg-muted);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+
+  /* SilkCircuit colors for Tailwind */
+  --color-sc-purple: var(--sc-purple);
+  --color-sc-magenta: var(--sc-magenta);
+  --color-sc-cyan: var(--sc-cyan);
+  --color-sc-coral: var(--sc-coral);
+  --color-sc-yellow: var(--sc-yellow);
+  --color-sc-green: var(--sc-green);
+  --color-sc-red: var(--sc-red);
+
+  --color-sc-bg-base: var(--sc-bg-base);
+  --color-sc-bg-dark: var(--sc-bg-dark);
+  --color-sc-bg-highlight: var(--sc-bg-highlight);
+  --color-sc-bg-elevated: var(--sc-bg-elevated);
+  --color-sc-bg-surface: var(--sc-bg-surface);
+
+  --color-sc-fg-primary: var(--sc-fg-primary);
+  --color-sc-fg-muted: var(--sc-fg-muted);
+  --color-sc-fg-subtle: var(--sc-fg-subtle);
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+
+body {
+  background: var(--sc-bg-dark);
+  color: var(--sc-fg-primary);
+  font-family: var(--font-sans);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--sc-bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sc-fg-subtle);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sc-fg-muted);
+}
+
+/* Selection */
+::selection {
+  background: color-mix(in oklch, var(--sc-purple) 40%, transparent);
+}
+
+/* Focus outline */
+:focus-visible {
+  outline: 2px solid var(--sc-cyan);
+  outline-offset: 2px;
+}
+
+/* =============================================================================
+   Typography
+   ============================================================================= */
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: 600;
+  color: var(--sc-fg-primary);
+}
+
+code,
+pre {
+  font-family: var(--font-mono);
+}
+
+/* =============================================================================
+   Animations
+   ============================================================================= */
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 10px color-mix(in oklch, var(--sc-purple) 30%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 20px color-mix(in oklch, var(--sc-purple) 50%, transparent);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

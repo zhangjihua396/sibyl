@@ -370,6 +370,77 @@ class RelationshipManager:
                 details={"relationship_id": relationship_id, "error": str(e)},
             ) from e
 
+    async def list_all(
+        self,
+        relationship_types: list[RelationshipType] | None = None,
+        limit: int = 1000,
+    ) -> list[Relationship]:
+        """List all relationships in the graph.
+
+        Args:
+            relationship_types: Optional filter by relationship types.
+            limit: Maximum relationships to return.
+
+        Returns:
+            List of all relationships.
+        """
+        log.debug("Listing all relationships", types=relationship_types, limit=limit)
+
+        try:
+            # Build relationship type filter
+            type_filter = ""
+            if relationship_types:
+                types_str = ", ".join(f"'{t.value}'" for t in relationship_types)
+                type_filter = f"WHERE r.relationship_type IN [{types_str}]"
+
+            query = f"""
+            MATCH (source)-[r:RELATIONSHIP]->(target)
+            {type_filter}
+            RETURN r, source.uuid as source_id, target.uuid as target_id, id(r) as rel_id
+            LIMIT $limit
+            """
+
+            result = await self._client.client.driver.execute_query(query, limit=limit)
+
+            relationships = []
+            for record in result:
+                rel_props = record.get("r", {})
+                rel_id = str(record.get("rel_id", ""))
+                source_id = record.get("source_id", "")
+                target_id = record.get("target_id", "")
+
+                # Parse the relationship type
+                rel_type_str = rel_props.get("relationship_type", "RELATED_TO")
+                try:
+                    rel_type = RelationshipType(rel_type_str)
+                except ValueError:
+                    rel_type = RelationshipType.RELATED_TO
+
+                # Extract metadata
+                metadata_raw = rel_props.get("metadata", "{}")
+                try:
+                    metadata = json.loads(metadata_raw) if isinstance(metadata_raw, str) else metadata_raw or {}
+                except json.JSONDecodeError:
+                    metadata = {}
+
+                relationships.append(
+                    Relationship(
+                        id=rel_id,
+                        relationship_type=rel_type,
+                        source_id=source_id,
+                        target_id=target_id,
+                        weight=float(rel_props.get("weight", 1.0)),
+                        metadata=metadata,
+                    )
+                )
+
+            log.debug("Listed relationships", count=len(relationships))
+            return relationships
+
+        except Exception as e:
+            log.exception("Failed to list relationships", error=str(e))
+            return []
+
     def _build_entity_from_node(self, node_data: dict[str, Any]) -> Entity:
         """Build an Entity model from graph node data.
 

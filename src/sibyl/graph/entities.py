@@ -2,7 +2,7 @@
 
 import re
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import structlog
 from graphiti_core.nodes import EntityNode
@@ -184,54 +184,66 @@ class EntityManager:
             log.exception("Search failed", query=query, error=str(e))
             raise SearchError(f"Search failed: {e}") from e
 
-    async def update(self, entity: Entity) -> None:
-        """Update an existing entity.
+    async def update(self, entity_id: str, updates: dict[str, Any]) -> Entity | None:
+        """Update an existing entity with partial updates.
 
         Args:
-            entity: The entity with updated values.
+            entity_id: The entity's unique identifier.
+            updates: Dictionary of fields to update.
+
+        Returns:
+            The updated entity, or None if update failed.
+
+        Raises:
+            EntityNotFoundError: If entity doesn't exist.
         """
-        log.info("Updating entity", entity_id=entity.id, entity_type=entity.entity_type)
+        log.info("Updating entity", entity_id=entity_id, fields=list(updates.keys()))
 
         try:
-            # Graphiti doesn't have direct update - we need to:
-            # 1. Retrieve the existing node
-            # 2. Delete the old episode
-            # 3. Create a new episode with updated data
+            # Retrieve the existing entity
+            existing = await self.get(entity_id)
+            if not existing:
+                raise EntityNotFoundError("Entity", entity_id)
 
-            # First verify the entity exists
-            nodes = await EntityNode.get_by_uuids(
-                self._client.client.driver,
-                [entity.id]
+            # Apply updates to create new entity
+            updated_entity = Entity(
+                id=existing.id,
+                entity_type=existing.entity_type,
+                name=updates.get("name", existing.name),
+                description=updates.get("description", existing.description),
+                content=updates.get("content", existing.content),
+                metadata={**(existing.metadata or {}), **(updates.get("metadata") or {})},
+                created_at=existing.created_at,
+                updated_at=datetime.now(UTC),
+                source_file=existing.source_file,
             )
-
-            if not nodes:
-                raise EntityNotFoundError("Entity", entity.id)
-
-            # Update timestamp
-            entity.updated_at = datetime.now(UTC)
 
             # Remove old episode (if it exists as an episode)
             try:
-                await self._client.client.remove_episode(entity.id)
+                await self._client.client.remove_episode(entity_id)
             except Exception as e:
-                log.debug("No episode to remove or removal failed", entity_id=entity.id, error=str(e))
+                log.debug("No episode to remove or removal failed", entity_id=entity_id, error=str(e))
 
             # Create new episode with updated data
-            await self.create(entity)
+            await self.create(updated_entity)
 
-            log.info("Entity updated successfully", entity_id=entity.id)
+            log.info("Entity updated successfully", entity_id=entity_id)
+            return updated_entity
 
         except EntityNotFoundError:
             raise
         except Exception as e:
-            log.exception("Failed to update entity", entity_id=entity.id, error=str(e))
+            log.exception("Failed to update entity", entity_id=entity_id, error=str(e))
             raise
 
-    async def delete(self, entity_id: str) -> None:
+    async def delete(self, entity_id: str) -> bool:
         """Delete an entity from the graph.
 
         Args:
             entity_id: The entity's unique identifier.
+
+        Returns:
+            True if deletion succeeded, False otherwise.
         """
         log.info("Deleting entity", entity_id=entity_id)
 
@@ -249,12 +261,13 @@ class EntityManager:
             await self._client.client.remove_episode(entity_id)
 
             log.info("Entity deleted successfully", entity_id=entity_id)
+            return True
 
         except EntityNotFoundError:
             raise
         except Exception as e:
             log.exception("Failed to delete entity", entity_id=entity_id, error=str(e))
-            raise
+            return False
 
     async def list_by_type(
         self,

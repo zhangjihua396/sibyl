@@ -4,7 +4,32 @@ Graphiti-powered knowledge graph providing AI agents access to development
 conventions, patterns, templates, and hard-won wisdom.
 """
 
-from sibyl.config import Settings
+import logging
+
+import structlog
+
+# Configure logging FIRST before any other modules use structlog
+logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+
+structlog.configure(
+    processors=[
+        structlog.stdlib.filter_by_level,
+        structlog.stdlib.add_log_level,
+        structlog.stdlib.PositionalArgumentsFormatter(),
+        structlog.processors.TimeStamper(fmt="%H:%M:%S"),
+        structlog.processors.StackInfoRenderer(),
+        structlog.processors.format_exc_info,
+        structlog.processors.UnicodeDecoder(),
+        structlog.dev.ConsoleRenderer(colors=False, pad_event=30),
+    ],
+    wrapper_class=structlog.stdlib.BoundLogger,
+    context_class=dict,
+    logger_factory=structlog.stdlib.LoggerFactory(),
+    cache_logger_on_first_use=False,
+)
+
+from sibyl.config import Settings  # noqa: E402 - must come after structlog config
 
 __version__ = "0.1.0"
 __all__ = ["Settings", "__version__"]

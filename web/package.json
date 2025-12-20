@@ -1,0 +1,38 @@
+{
+  "name": "@sibyl/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3337",
+    "build": "next build",
+    "start": "next start --port 3337",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit",
+    "generate:types": "openapi-typescript http://localhost:3334/api/openapi.json -o src/lib/api-types.ts"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.12",
+    "@types/three": "^0.182.0",
+    "next": "16.1.0",
+    "nuqs": "^2.8.5",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-force-graph-3d": "^1.29.0",
+    "reagraph": "^4.30.7",
+    "three": "^0.182.0",
+    "zod": "^4.2.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.3.10",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "openapi-typescript": "^7.10.1",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  },
+  "packageManager": "pnpm@10.26.0+sha512.3b3f6c725ebe712506c0ab1ad4133cf86b1f4b687effce62a9b38b4d72e3954242e643190fc51fa1642949c735f403debd44f5cb0edd657abe63a8b6a7e1e402"
+}

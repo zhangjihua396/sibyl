@@ -74,33 +74,12 @@ def serve(
         sibyl serve -h 0.0.0.0         # Listen on all interfaces
         sibyl serve -t stdio           # Legacy subprocess mode
     """
-    transport_display = {
-        "streamable-http": "Streamable HTTP",
-        "sse": "Server-Sent Events",
-        "stdio": "Standard I/O (subprocess)",
-    }.get(transport, transport)
-
-    console.print(
-        Panel(
-            f"[{ELECTRIC_PURPLE}]Sibyl[/{ELECTRIC_PURPLE}] [{NEON_CYAN}]Oracle of Development Wisdom[/{NEON_CYAN}]\n"
-            f"[dim]{transport_display}[/dim]",
-            subtitle="[dim]v0.1.0[/dim]",
-            border_style=NEON_CYAN,
-        )
-    )
-
-    if transport != "stdio":
-        info(f"Starting daemon on [bold]{host}:{port}[/bold]")
-        info(f"MCP endpoint: [bold]http://{host}:{port}/mcp[/bold]")
-    else:
-        info("Starting in stdio mode (subprocess)")
-
     from sibyl.main import run_server
 
     try:
         run_server(host=host, port=port, transport=transport)
     except KeyboardInterrupt:
-        console.print(f"\n[{NEON_CYAN}]Server stopped[/{NEON_CYAN}]")
+        console.print(f"\n[{NEON_CYAN}]Shutting down...[/{NEON_CYAN}]")
 
 
 @app.command()

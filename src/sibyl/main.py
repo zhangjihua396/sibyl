@@ -1,32 +1,48 @@
-"""Entry point for the Conventions MCP Server daemon."""
+"""Entry point for the Sibyl MCP Server daemon.
 
-import sys
+Hosts both MCP protocol at /mcp and REST API at /api/*.
+"""
 
 import structlog
+from starlette.applications import Starlette
+from starlette.routing import Mount
 
 from sibyl.config import settings
 
 
-def configure_logging() -> None:
-    """Configure structured logging."""
-    structlog.configure(
-        processors=[
-            structlog.stdlib.filter_by_level,
-            structlog.stdlib.add_logger_name,
-            structlog.stdlib.add_log_level,
-            structlog.stdlib.PositionalArgumentsFormatter(),
-            structlog.processors.TimeStamper(fmt="iso"),
-            structlog.processors.StackInfoRenderer(),
-            structlog.processors.format_exc_info,
-            structlog.processors.UnicodeDecoder(),
-            structlog.dev.ConsoleRenderer()
-            if sys.stderr.isatty()
-            else structlog.processors.JSONRenderer(),
+def create_combined_app(host: str, port: int) -> Starlette:
+    """Create a combined Starlette app with MCP and REST API.
+
+    Routes:
+        /api/*  - FastAPI REST endpoints
+        /mcp    - MCP protocol endpoint (streamable HTTP)
+        /       - Root redirect to API docs
+
+    Args:
+        host: Host to bind to
+        port: Port to listen on
+
+    Returns:
+        Combined Starlette application
+    """
+    from sibyl.api.app import create_api_app
+    from sibyl.server import create_mcp_server
+
+    # Create FastAPI app for REST endpoints
+    api_app = create_api_app()
+
+    # Create MCP server
+    mcp = create_mcp_server(host=host, port=port)
+
+    # Get the MCP ASGI app
+    mcp_app = mcp.sse_app()
+
+    # Create combined app with both mounted
+    return Starlette(
+        routes=[
+            Mount("/api", app=api_app, name="api"),
+            Mount("/mcp", app=mcp_app, name="mcp"),
         ],
-        wrapper_class=structlog.stdlib.BoundLogger,
-        context_class=dict,
-        logger_factory=structlog.stdlib.LoggerFactory(),
-        cache_logger_on_first_use=True,
     )
 
 
@@ -42,20 +58,18 @@ def run_server(
         port: Port to listen on (defaults to settings.server_port)
         transport: Transport type ('streamable-http', 'sse', or 'stdio')
     """
-    configure_logging()
     log = structlog.get_logger()
 
     # Use settings defaults if not specified
     host = host or settings.server_host
     port = port or settings.server_port
 
-    from sibyl.server import create_mcp_server
     from sibyl.tools.admin import mark_server_started
 
     mark_server_started()
 
     log.info(
-        "Starting Conventions MCP Server",
+        "Starting Sibyl Server",
         version="0.1.0",
         name=settings.server_name,
         transport=transport,
@@ -63,11 +77,35 @@ def run_server(
         port=port,
     )
 
-    # Create server with specified host/port
-    mcp = create_mcp_server(host=host, port=port)
+    if transport == "stdio":
+        # Legacy stdio mode - MCP only
+        from sibyl.server import create_mcp_server
 
-    # Run with specified transport
-    mcp.run(transport=transport)  # type: ignore[arg-type]
+        mcp = create_mcp_server(host=host, port=port)
+        mcp.run(transport="stdio")  # type: ignore[arg-type]
+    else:
+        # HTTP mode - combined app with REST API + MCP
+        import uvicorn
+
+        app = create_combined_app(host, port)
+
+        log.info(
+            "Server endpoints",
+            api=f"http://{host}:{port}/api",
+            mcp=f"http://{host}:{port}/mcp",
+            docs=f"http://{host}:{port}/api/docs",
+        )
+
+        # Configure uvicorn with clean logging
+        config = uvicorn.Config(
+            app,
+            host=host,
+            port=port,
+            log_level="warning",  # Suppress verbose uvicorn logs
+            access_log=False,  # Use our own access logging
+        )
+        server = uvicorn.Server(config)
+        server.run()
 
 
 def main() -> None:

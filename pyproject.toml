@@ -31,9 +31,10 @@ dependencies = [
     "graphiti-core[falkordb]>=0.5",
     # Async support
     "anyio>=4.0",
-    # HTTP server (for streamable-http transport)
-    "uvicorn>=0.32.0",
+    # HTTP server
+    "uvicorn[standard]>=0.32.0",
     "starlette>=0.41.0",
+    "fastapi>=0.115.0",
     # Data validation
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
