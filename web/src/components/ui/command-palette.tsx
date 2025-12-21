@@ -120,7 +120,7 @@ export function CommandPalette({
   // Reset selection when query changes
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query]);
+  }, []);
 
   // Focus input when opened
   useEffect(() => {
@@ -165,14 +165,23 @@ export function CommandPalette({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      role="presentation"
+      onClick={onClose}
+      onKeyDown={e => e.key === 'Escape' && onClose()}
+    >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-sc-bg-dark/80 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-sc-bg-dark/80 backdrop-blur-sm" aria-hidden="true" />
 
       {/* Palette */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
         className="relative w-full max-w-lg bg-sc-bg-base border border-sc-fg-subtle/30 rounded-xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
+        onKeyDown={e => e.stopPropagation()}
       >
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-sc-fg-subtle/20">

@@ -86,9 +86,9 @@ export const TaskCard = memo(function TaskCard({
       <div className="flex items-center justify-between">
         {/* Assignees */}
         <div className="flex items-center -space-x-1">
-          {assignees.slice(0, 3).map((assignee, i) => (
+          {assignees.slice(0, 3).map(assignee => (
             <div
-              key={i}
+              key={assignee}
               className="w-5 h-5 rounded-full bg-sc-bg-elevated border border-sc-bg-base flex items-center justify-center text-[10px] text-sc-fg-muted"
               title={assignee}
             >

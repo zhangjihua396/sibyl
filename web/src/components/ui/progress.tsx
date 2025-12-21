@@ -107,7 +107,13 @@ export function CircularProgress({
   const colorClass = colors[color];
 
   return (
-    <svg width={size} height={size} className="transform -rotate-90">
+    <svg
+      width={size}
+      height={size}
+      className="transform -rotate-90"
+      role="img"
+      aria-label={`Progress: ${value}%`}
+    >
       {/* Background circle */}
       <circle
         cx={size / 2}

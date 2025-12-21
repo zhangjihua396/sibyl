@@ -251,7 +251,11 @@ export function ProgressSpinner({
 
   return (
     <div className={`relative ${container}`}>
-      <svg className="transform -rotate-90 w-full h-full">
+      <svg
+        className="transform -rotate-90 w-full h-full"
+        role="img"
+        aria-label={`Loading: ${progress}%`}
+      >
         <circle
           cx="50%"
           cy="50%"

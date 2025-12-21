@@ -5,7 +5,7 @@ import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
 import { StatusBadge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, StatCard } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input, Label } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Toggle } from '@/components/ui/toggle';

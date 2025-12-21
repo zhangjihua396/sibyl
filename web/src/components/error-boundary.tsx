@@ -137,7 +137,12 @@ export function ErrorFallback({ error, reset, level = 'section' }: ErrorFallback
           Try again
         </Button>
         {level === 'page' && (
-          <Button onClick={() => (window.location.href = '/')} variant="secondary">
+          <Button
+            onClick={() => {
+              window.location.href = '/';
+            }}
+            variant="secondary"
+          >
             Go home
           </Button>
         )}

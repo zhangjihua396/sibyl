@@ -104,6 +104,7 @@ export const SourceCard = memo(function SourceCard({
         </Link>
         {onDelete && (
           <button
+            type="button"
             onClick={() => onDelete(source.id)}
             className="px-3 py-1.5 text-sm rounded border border-sc-fg-subtle/20 text-sc-fg-subtle hover:border-[#ff6363]/30 hover:text-[#ff6363] transition-colors"
             title="Delete source"

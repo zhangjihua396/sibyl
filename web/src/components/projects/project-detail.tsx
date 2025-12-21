@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Button, ColorButton } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import type { TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
@@ -120,9 +120,9 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
           <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl p-5">
             <h2 className="font-semibold text-sc-fg-primary mb-3">Tech Stack</h2>
             <div className="flex flex-wrap gap-2">
-              {techStack.map((tech, i) => (
+              {techStack.map(tech => (
                 <span
-                  key={i}
+                  key={tech}
                   className="text-xs px-2 py-1 rounded-md bg-sc-cyan/10 text-sc-cyan border border-sc-cyan/20"
                 >
                   {tech}
@@ -163,7 +163,10 @@ export function ProjectDetailSkeleton() {
       </div>
       <div className="grid grid-cols-6 gap-3">
         {[...Array(6)].map((_, i) => (
-          <div key={i} className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg p-3">
+          <div
+            key={`skeleton-${i}`}
+            className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg p-3"
+          >
             <div className="h-6 w-6 bg-sc-bg-elevated rounded mx-auto" />
             <div className="h-6 w-8 bg-sc-bg-elevated rounded mx-auto mt-2" />
           </div>

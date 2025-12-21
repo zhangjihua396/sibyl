@@ -82,7 +82,7 @@ export const EntityDetailPanel = memo(function EntityDetailPanel({
             </div>
 
             {/* Related entities */}
-            {related && related.entities && related.entities.length > 0 && (
+            {related?.entities && related.entities.length > 0 && (
               <div className="pt-4 border-t border-sc-fg-subtle/20">
                 <h5 className="text-xs font-medium text-sc-fg-muted mb-2">
                   Related ({related.entities.length})

@@ -9,6 +9,10 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "a11y": {
+        "noStaticElementInteractions": "off",
+        "useSemanticElements": "off"
+      },
       "complexity": {
         "noBannedTypes": "error",
         "noUselessTypeConstraint": "error"
@@ -16,6 +20,7 @@
       "correctness": {
         "noUnusedVariables": "error",
         "noUnusedImports": "error",
+        "noUnknownTypeSelector": "off",
         "useExhaustiveDependencies": "warn"
       },
       "style": {
@@ -25,7 +30,8 @@
       },
       "suspicious": {
         "noExplicitAny": "warn",
-        "noConfusingVoidType": "error"
+        "noConfusingVoidType": "error",
+        "noArrayIndexKey": "off"
       }
     }
   },

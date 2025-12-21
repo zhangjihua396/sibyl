@@ -76,19 +76,29 @@ export function QuickTaskModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh]"
+      role="presentation"
+      onClick={onClose}
+    >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-sc-bg-dark/80 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-sc-bg-dark/80 backdrop-blur-sm" aria-hidden="true" />
 
       {/* Modal */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="quick-task-title"
         className="relative w-full max-w-lg bg-sc-bg-base border border-sc-fg-subtle/30 rounded-xl shadow-2xl overflow-hidden"
         onClick={e => e.stopPropagation()}
         onKeyDown={handleKeyDown}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-sc-fg-subtle/20">
-          <h2 className="text-lg font-semibold text-sc-fg-primary flex items-center gap-2">
+          <h2
+            id="quick-task-title"
+            className="text-lg font-semibold text-sc-fg-primary flex items-center gap-2"
+          >
             <span className="text-sc-purple">☰</span>
             Quick Task
           </h2>
@@ -112,7 +122,6 @@ export function QuickTaskModal({
               onChange={e => setTitle(e.target.value)}
               placeholder="What needs to be done?"
               className="w-full px-3 py-2 bg-sc-bg-highlight border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary placeholder:text-sc-fg-subtle focus:border-sc-purple focus:outline-none focus:ring-2 focus:ring-sc-purple/10 transition-all"
-              autoFocus
             />
           </div>
 
@@ -132,8 +141,14 @@ export function QuickTaskModal({
             {/* Project select */}
             {projects && projects.length > 0 && (
               <div className="flex-1">
-                <label className="block text-xs text-sc-fg-subtle mb-1">Project</label>
+                <label
+                  htmlFor="quick-task-project"
+                  className="block text-xs text-sc-fg-subtle mb-1"
+                >
+                  Project
+                </label>
                 <select
+                  id="quick-task-project"
                   value={projectId}
                   onChange={e => setProjectId(e.target.value)}
                   className="w-full px-3 py-2 bg-sc-bg-highlight border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary focus:border-sc-purple focus:outline-none focus:ring-2 focus:ring-sc-purple/10 transition-all"
@@ -150,8 +165,11 @@ export function QuickTaskModal({
 
             {/* Priority select */}
             <div className={projects && projects.length > 0 ? 'w-32' : 'flex-1'}>
-              <label className="block text-xs text-sc-fg-subtle mb-1">Priority</label>
+              <label htmlFor="quick-task-priority" className="block text-xs text-sc-fg-subtle mb-1">
+                Priority
+              </label>
               <select
+                id="quick-task-priority"
                 value={priority}
                 onChange={e => setPriority(e.target.value as TaskPriority)}
                 className="w-full px-3 py-2 bg-sc-bg-highlight border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary focus:border-sc-purple focus:outline-none focus:ring-2 focus:ring-sc-purple/10 transition-all"
