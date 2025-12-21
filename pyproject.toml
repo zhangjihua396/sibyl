@@ -45,6 +45,11 @@ dependencies = [
     "mistune>=3.0",
     "pyyaml>=6.0",
     "typer>=0.20.0",
+    "sqlmodel>=0.0.27",
+    "asyncpg>=0.31.0",
+    "pgvector>=0.4.2",
+    "alembic>=1.17.2",
+    "greenlet>=3.3.0",
 ]
 
 [project.optional-dependencies]
