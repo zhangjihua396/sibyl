@@ -183,33 +183,62 @@ def _register_tools(mcp: FastMCP) -> None:
         tags: list[str] | None = None,
         related_to: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
+        # Task-specific parameters
+        project: str | None = None,
+        priority: str | None = None,
+        assignees: list[str] | None = None,
+        due_date: str | None = None,
+        technologies: list[str] | None = None,
+        depends_on: list[str] | None = None,
+        # Project-specific parameters
+        repository_url: str | None = None,
+        # Auto-linking
+        auto_link: bool = False,
     ) -> dict[str, Any]:
         """Add new knowledge to the graph.
 
         Creates a new knowledge entity that can be searched and explored.
-        Use this to record learnings, patterns, debugging victories, or
-        any other knowledge worth preserving.
+        Supports episodes (learnings), patterns, tasks, and projects.
+
+        ENTITY TYPES:
+        - episode: Temporal knowledge (default) - insights, learnings, discoveries
+        - pattern: Coding pattern or best practice
+        - task: Work item with workflow state machine (REQUIRES project)
+        - project: Container for related tasks
 
         Args:
             title: Short title for the knowledge (max 200 chars)
             content: Full content/description (max 50000 chars)
-            entity_type: Type of entity - "episode" (default) or "pattern"
+            entity_type: Type - "episode" (default), "pattern", "task", or "project"
             category: Category for organization (e.g., "debugging", "architecture")
             languages: Applicable programming languages
             tags: Searchable tags for discovery
             related_to: IDs of related entities to link
             metadata: Additional structured metadata (stored as JSON)
+            project: Project ID (REQUIRED for tasks). Use explore(types=["project"]) to find projects.
+            priority: Task priority - critical, high, medium (default), low, someday
+            assignees: List of assignee names for tasks
+            due_date: Due date for tasks (ISO format: 2024-03-15)
+            technologies: Technologies involved (for tasks)
+            depends_on: Task IDs this depends on (creates DEPENDS_ON edges)
+            repository_url: Repository URL for projects
+            auto_link: Auto-discover related patterns/rules (similarity > 0.75)
 
         Returns:
             Result with success status, entity ID, and message
 
         Examples:
-            add("TypeScript strict mode", "Always enable strictNullChecks...",
-                category="type-safety", languages=["typescript"])
-
+            # Record a learning
             add("Debug: Redis timeout", "Problem was connection pool exhaustion",
-                entity_type="pattern", category="debugging",
-                metadata={"root_cause": "pool size", "solution": "increase pool"})
+                entity_type="pattern", category="debugging")
+
+            # Create a task (project is REQUIRED)
+            add("Implement OAuth", "Add OAuth2 login flow",
+                entity_type="task", project="sibyl-project", priority="high")
+
+            # Create a project
+            add("Auth System", "Authentication and authorization",
+                entity_type="project", repository_url="github.com/org/auth")
         """
         from sibyl.tools.core import add as _add
 
@@ -222,6 +251,14 @@ def _register_tools(mcp: FastMCP) -> None:
             tags=tags,
             related_to=related_to,
             metadata=metadata,
+            project=project,
+            priority=priority,
+            assignees=assignees,
+            due_date=due_date,
+            technologies=technologies,
+            depends_on=depends_on,
+            repository_url=repository_url,
+            auto_link=auto_link,
         )
         return _to_dict(result)
 

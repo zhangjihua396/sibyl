@@ -125,8 +125,10 @@ class ExploreResponse:
 
     mode: str
     entities: list[EntitySummary] | list[RelatedEntity]
-    total: int
+    total: int  # Count of entities returned in this response
     filters: dict[str, Any]
+    has_more: bool = False  # True if more results exist beyond the limit
+    actual_total: int | None = None  # Actual total count in DB (if available)
 
 
 @dataclass
@@ -164,12 +166,16 @@ async def search(  # noqa: PLR0915
     Use this tool to find knowledge across all entity types using natural
     language queries. Results are ranked by semantic similarity.
 
+    TASK MANAGEMENT WORKFLOW:
+    For task searches, always include project filter:
+    1. First: explore(mode="list", types=["project"]) - Identify the project
+    2. Then: search("query", types=["task"], project="<project_id>") - Search within project
+
     USE CASES:
     • Find patterns/rules related to a technology: search("OAuth authentication best practices")
-    • Find open tasks: search("", types=["task"], status="doing")
+    • Find tasks in a project: search("", types=["task"], project="proj_abc", status="todo")
     • Find knowledge by technology: search("", language="python", types=["pattern"])
     • Find recent learnings: search("", types=["episode"], since="2024-01-01")
-    • Find tasks for a project: search("", types=["task"], project="proj_abc")
     • Find documentation: search("hooks state management", types=["document"])
 
     Args:
@@ -413,9 +419,15 @@ async def explore(
     • traverse: Multi-hop graph traversal (1-3 hops) from an entity
     • dependencies: Task dependency chains in topological order
 
+    TASK MANAGEMENT WORKFLOW:
+    For task operations, always use project-first approach:
+    1. First: explore(mode="list", types=["project"]) - Find relevant project
+    2. Then: explore(mode="list", types=["task"], project="<project_id>") - List tasks in project
+    Never list all tasks without a project filter - use project context.
+
     USE CASES:
-    • List all patterns: explore(mode="list", types=["pattern"])
-    • List open tasks for project: explore(mode="list", types=["task"], project="proj_abc", status="todo")
+    • List projects first: explore(mode="list", types=["project"])
+    • List tasks for project: explore(mode="list", types=["task"], project="proj_abc", status="todo")
     • Find related knowledge: explore(mode="related", entity_id="pattern_oauth")
     • Task dependency chain: explore(mode="dependencies", entity_id="task_123")
     • Explore project graph: explore(mode="traverse", entity_id="proj_abc", depth=2)
@@ -429,18 +441,23 @@ async def explore(
         depth: Traversal depth for traverse mode (1-3, default 1).
         language: Filter by programming language.
         category: Filter by category/domain.
-        project: Filter by project_id (especially for task listing).
+        project: Filter by project_id (REQUIRED for task listing - use project-first workflow).
         status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
         limit: Maximum results (1-200, default 50).
 
     Returns:
-        ExploreResponse with entities, relationships, and navigation metadata.
+        ExploreResponse with:
+        - entities: List of matching entities
+        - total: Count returned in this response
+        - has_more: True if more results exist beyond limit
+        - actual_total: Actual count matching filters (for pagination awareness)
+        - filters: Applied filter criteria
 
     EXAMPLES:
-        explore(mode="list", types=["task"], status="doing")
+        explore(mode="list", types=["project"])  # First: find projects
+        explore(mode="list", types=["task"], project="proj_abc", status="todo")  # Then: tasks in project
         explore(mode="related", entity_id="pattern_oauth")
-        explore(mode="dependencies", project="proj_auth")
-        explore(mode="traverse", entity_id="task_abc", depth=2, relationship_types=["DEPENDS_ON"])
+        explore(mode="dependencies", entity_id="task_123")
     """
     # Clamp values
     limit = max(1, min(limit, 200))
@@ -530,15 +547,15 @@ async def _explore_list(
             EntityType.TOPIC,
         ]
 
+    # Fetch more than limit to detect has_more and apply filters
+    fetch_limit = limit + 50  # Over-fetch to detect pagination
     all_entities = []
     for entity_type in target_types:
-        entities = await entity_manager.list_by_type(
-            entity_type, limit=limit * 2
-        )  # Over-fetch for filtering
+        entities = await entity_manager.list_by_type(entity_type, limit=fetch_limit)
         all_entities.extend(entities)
 
     # Apply filters and convert to summaries
-    results = []
+    filtered_entities = []
     for entity in all_entities:
         # Language filter
         if language:
@@ -566,6 +583,15 @@ async def _explore_list(
             if status.lower() != str(status_val).lower():
                 continue
 
+        filtered_entities.append(entity)
+
+    # Determine pagination
+    actual_total = len(filtered_entities)
+    has_more = actual_total > limit
+
+    # Build result summaries (limited)
+    results = []
+    for entity in filtered_entities[:limit]:
         results.append(
             EntitySummary(
                 id=entity.id,
@@ -576,14 +602,13 @@ async def _explore_list(
             )
         )
 
-        if len(results) >= limit:
-            break
-
     return ExploreResponse(
         mode="list",
         entities=results,
         total=len(results),
         filters=filters,
+        has_more=has_more,
+        actual_total=actual_total,
     )
 
 
@@ -818,9 +843,12 @@ async def add(  # noqa: PLR0915
     USE CASES:
     • Record a learning: add("Redis pooling insight", "Discovered that...", category="debugging")
     • Create a pattern: add("Error handling pattern", "...", entity_type="pattern", languages=["python"])
-    • Create a task: add("Implement OAuth", "...", entity_type="task", project="proj_auth", priority="high")
+    • Create a task: add("Implement OAuth", "...", entity_type="task", project="sibyl-project", priority="high")
     • Create a project: add("Auth System", "...", entity_type="project", repository_url="...")
     • Auto-link to related knowledge: add("OAuth insight", "...", auto_link=True)
+
+    IMPORTANT: Tasks REQUIRE a project. Always specify project="<project_id>" when creating tasks.
+    Use explore(mode="list", types=["project"]) to find available projects first.
 
     Args:
         title: Short title (max 200 chars).
@@ -831,7 +859,7 @@ async def add(  # noqa: PLR0915
         tags: Searchable tags for discovery.
         related_to: Entity IDs to explicitly link (creates RELATED_TO edges).
         metadata: Additional structured data.
-        project: Project ID for tasks (creates BELONGS_TO edge).
+        project: Project ID for tasks (REQUIRED for tasks, creates BELONGS_TO edge).
         priority: Task priority - critical, high, medium (default), low, someday.
         assignees: List of assignee names for tasks.
         due_date: Due date for tasks (ISO format: 2024-03-15).
@@ -915,6 +943,15 @@ async def add(  # noqa: PLR0915
         relationship_manager = RelationshipManager(client)
 
         if entity_type == "task":
+            # Require project for tasks
+            if not project:
+                return AddResponse(
+                    success=False,
+                    id=None,
+                    message="Tasks require a project. Use project='project_id' or create a project first.",
+                    timestamp=datetime.now(UTC),
+                )
+
             # Parse due date if provided
             parsed_due_date = None
             if due_date:

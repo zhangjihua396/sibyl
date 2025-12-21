@@ -20,8 +20,8 @@ if _env_path.exists():
 if not os.getenv("SEMAPHORE_LIMIT"):
     os.environ["SEMAPHORE_LIMIT"] = "1"
 
-from sibyl.errors import GraphConnectionError
-from sibyl.utils.resilience import GRAPH_RETRY, TIMEOUTS, retry, with_timeout
+from sibyl.errors import GraphConnectionError  # noqa: E402
+from sibyl.utils.resilience import GRAPH_RETRY, TIMEOUTS, retry, with_timeout  # noqa: E402
 
 if TYPE_CHECKING:
     from graphiti_core import Graphiti
