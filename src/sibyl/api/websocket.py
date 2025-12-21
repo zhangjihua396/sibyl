@@ -63,7 +63,7 @@ class ConnectionManager:
         if connections:
             log.debug(
                 "websocket_broadcast",
-                event=event,
+                ws_event=event,
                 recipients=len(connections) - len(disconnected),
             )
 
