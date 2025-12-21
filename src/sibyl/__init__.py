@@ -11,6 +11,8 @@ import structlog
 # Configure logging FIRST before any other modules use structlog
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
+# Suppress noisy "Index already exists" from FalkorDB driver
+logging.getLogger("graphiti_core.driver.falkordb_driver").setLevel(logging.WARNING)
 
 structlog.configure(
     processors=[

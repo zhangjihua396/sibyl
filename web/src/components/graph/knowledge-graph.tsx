@@ -27,21 +27,40 @@ export function KnowledgeGraph({
   const { nodes, edges } = useMemo(() => {
     if (!data) return { nodes: [], edges: [] };
 
-    const transformedNodes: GraphNode[] = data.nodes.map(node => ({
-      id: node.id,
-      label: node.label,
-      fill: node.color || ENTITY_COLORS[node.type as keyof typeof ENTITY_COLORS] || DEFAULT_NODE_COLOR,
-      size: Math.max(10, Math.min(40, node.size * 5)),
-      data: { type: node.type },
-    }));
+    // Filter out nodes with empty/missing IDs and deduplicate
+    const seenNodeIds = new Set<string>();
+    const transformedNodes: GraphNode[] = data.nodes
+      .filter(node => {
+        if (!node.id) return false;
+        if (seenNodeIds.has(node.id)) return false;
+        seenNodeIds.add(node.id);
+        return true;
+      })
+      .map(node => ({
+        id: node.id,
+        label: node.label || node.id.slice(0, 8),
+        fill: node.color || ENTITY_COLORS[node.type as keyof typeof ENTITY_COLORS] || DEFAULT_NODE_COLOR,
+        size: Math.max(10, Math.min(40, node.size * 5)),
+        data: { type: node.type },
+      }));
 
-    const transformedEdges: GraphEdge[] = data.edges.map(edge => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      label: edge.type,
-      size: Math.max(1, edge.weight * 2),
-    }));
+    // Filter out edges with empty/missing IDs or invalid source/target, and deduplicate
+    const seenEdgeIds = new Set<string>();
+    const transformedEdges: GraphEdge[] = data.edges
+      .filter(edge => {
+        if (!edge.id || !edge.source || !edge.target) return false;
+        if (!seenNodeIds.has(edge.source) || !seenNodeIds.has(edge.target)) return false;
+        if (seenEdgeIds.has(edge.id)) return false;
+        seenEdgeIds.add(edge.id);
+        return true;
+      })
+      .map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        label: edge.type,
+        size: Math.max(1, edge.weight * 2),
+      }));
 
     return { nodes: transformedNodes, edges: transformedEdges };
   }, [data]);

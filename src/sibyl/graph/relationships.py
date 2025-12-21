@@ -522,7 +522,7 @@ class RelationshipManager:
         try:
             # Build relationship type filter
             type_filter = ""
-            if relationship_types:
+            if relationship_types and isinstance(relationship_types, list) and len(relationship_types) > 0:
                 types_str = ", ".join(f"'{t.value}'" for t in relationship_types)
                 type_filter = f"WHERE r.relationship_type IN [{types_str}]"
 
@@ -536,14 +536,22 @@ class RelationshipManager:
             result = await self._client.client.driver.execute_query(query, limit=limit)
 
             relationships = []
-            for record in result:
-                row = _extract_values(record, ["r", "source_id", "target_id", "rel_id"])
-                rel_props = row.get("r") or {}
-                if not isinstance(rel_props, dict):
-                    rel_props = {}
-                rel_id = str(row.get("rel_id") or "")
-                source_id = row.get("source_id") or ""
-                target_id = row.get("target_id") or ""
+            # FalkorDB returns (data, columns, metadata) tuple
+            data = result[0] if isinstance(result, tuple) else result
+            if not data:
+                return []
+
+            for row in data:
+                # Row is already a dict with column names as keys
+                if isinstance(row, dict):
+                    rel_props = row.get("r") or {}
+                    if hasattr(rel_props, "properties"):
+                        rel_props = rel_props.properties  # Extract from Edge object
+                    rel_id = str(row.get("rel_id") or "")
+                    source_id = str(row.get("source_id") or "")
+                    target_id = str(row.get("target_id") or "")
+                else:
+                    continue
 
                 # Parse the relationship type
                 rel_type_str = rel_props.get("relationship_type", "RELATED_TO")

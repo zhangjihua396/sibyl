@@ -3,11 +3,17 @@
 Hosts both MCP protocol at /mcp and REST API at /api/*.
 """
 
+from contextlib import asynccontextmanager
+from typing import TYPE_CHECKING
+
 import structlog
 from starlette.applications import Starlette
 from starlette.routing import Mount
 
 from sibyl.config import settings
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 
 def create_combined_app(host: str, port: int) -> Starlette:
@@ -34,15 +40,24 @@ def create_combined_app(host: str, port: int) -> Starlette:
     # Create MCP server
     mcp = create_mcp_server(host=host, port=port)
 
-    # Get the MCP ASGI app
-    mcp_app = mcp.sse_app()
+    # Get the MCP ASGI app (streamable HTTP transport)
+    mcp_app = mcp.streamable_http_app()
+
+    @asynccontextmanager
+    async def lifespan(app: Starlette) -> "AsyncGenerator[None, None]":
+        """Combined lifespan that initializes MCP session manager."""
+        # The MCP session manager needs to be started for streamable HTTP
+        async with mcp.session_manager.run():
+            yield
 
     # Create combined app with both mounted
+    # Note: streamable_http_app() already routes to /mcp internally
     return Starlette(
         routes=[
             Mount("/api", app=api_app, name="api"),
-            Mount("/mcp", app=mcp_app, name="mcp"),
+            Mount("/", app=mcp_app, name="mcp"),
         ],
+        lifespan=lifespan,
     )
 
 
