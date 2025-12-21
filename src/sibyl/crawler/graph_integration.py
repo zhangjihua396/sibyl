@@ -17,7 +17,7 @@ References:
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -25,10 +25,8 @@ import structlog
 
 from sibyl.config import settings
 from sibyl.db import DocumentChunk, get_session
-from sibyl.models.entities import EntityType
 
 if TYPE_CHECKING:
-    from sibyl.crawler.chunker import Chunk
     from sibyl.graph.client import GraphClient
 
 log = structlog.get_logger()
@@ -116,21 +114,21 @@ Do not infer entities that aren't explicitly present.'''
         """Initialize the extractor.
 
         Args:
-            model: LLM model to use (default: gpt-4o-mini for cost efficiency)
+            model: LLM model to use (default: claude-haiku-4-5 for cost efficiency)
         """
-        self.model = model or "gpt-4o-mini"
+        self.model = model or "claude-haiku-4-5"
         self._client = None
 
     async def _get_client(self):
-        """Lazily initialize OpenAI client."""
+        """Lazily initialize Anthropic client."""
         if self._client is None:
-            from openai import AsyncOpenAI
+            from anthropic import AsyncAnthropic
 
-            api_key = settings.openai_api_key.get_secret_value()
+            api_key = settings.anthropic_api_key.get_secret_value()
             if not api_key:
-                raise ValueError("OpenAI API key not configured")
+                raise ValueError("Anthropic API key not configured")
 
-            self._client = AsyncOpenAI(api_key=api_key)
+            self._client = AsyncAnthropic(api_key=api_key)
 
         return self._client
 
@@ -160,15 +158,22 @@ Do not infer entities that aren't explicitly present.'''
         )
 
         try:
-            response = await client.chat.completions.create(
+            response = await client.messages.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                response_format={"type": "json_object"},
-                temperature=0.1,  # Low for consistency
                 max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}],
             )
 
-            result = json.loads(response.choices[0].message.content or "{}")
+            # Extract JSON from response
+            response_text = response.content[0].text if response.content else "{}"
+
+            # Handle case where model wraps JSON in markdown code blocks
+            if "```json" in response_text:
+                response_text = response_text.split("```json")[1].split("```")[0]
+            elif "```" in response_text:
+                response_text = response_text.split("```")[1].split("```")[0]
+
+            result = json.loads(response_text.strip())
             entities = []
 
             for item in result.get("entities", []):
@@ -191,7 +196,7 @@ Do not infer entities that aren't explicitly present.'''
             return entities
 
         except Exception as e:
-            log.error("Entity extraction failed", error=str(e), url=url)
+            log.warning("Entity extraction failed", error=str(e), url=url)
             return []
 
     async def extract_batch(

@@ -346,3 +346,102 @@ def list_documents(
             _handle_client_error(e)
 
     _docs()
+
+
+@app.command("link-graph")
+def link_graph(
+    source_id: Annotated[
+        str | None, typer.Argument(help="Source ID (or 'all' for all sources)")
+    ] = None,
+    batch_size: Annotated[int, typer.Option("--batch", "-b", help="Batch size")] = 50,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", "-n", help="Show what would be processed")
+    ] = False,
+) -> None:
+    """Re-process existing chunks through graph integration.
+
+    Extracts entities from document chunks and links them to the knowledge graph.
+    Use after initial crawl to connect documents to graph entities.
+    """
+    from sibyl.cli.common import CORAL, SUCCESS_GREEN
+
+    @run_async
+    async def _link() -> None:
+        from sqlalchemy import select
+
+        from sibyl.crawler.graph_integration import GraphIntegrationService
+        from sibyl.db import CrawlSource, DocumentChunk, get_session
+        from sibyl.graph.client import get_graph_client
+
+        try:
+            graph_client = await get_graph_client()
+        except Exception as e:
+            error(f"Failed to connect to graph: {e}")
+            return
+
+        integration = GraphIntegrationService(
+            graph_client,
+            extract_entities=True,
+            create_new_entities=False,
+        )
+
+        async with get_session() as session:
+            # Get sources to process
+            if source_id and source_id != "all":
+                sources = [await session.get(CrawlSource, source_id)]
+                sources = [s for s in sources if s]
+            else:
+                result = await session.execute(select(CrawlSource))
+                sources = list(result.scalars().all())
+
+            if not sources:
+                error("No sources found")
+                return
+
+            total_extracted = 0
+            total_linked = 0
+            total_chunks = 0
+
+            for source in sources:
+                # Get chunks for this source's documents
+                chunk_query = (
+                    select(DocumentChunk)
+                    .join(DocumentChunk.document)
+                    .where(DocumentChunk.document.has(source_id=source.id))
+                    .where(DocumentChunk.has_entities == False)  # noqa: E712
+                    .limit(batch_size * 10)
+                )
+                result = await session.execute(chunk_query)
+                chunks = list(result.scalars().all())
+
+                if not chunks:
+                    info(f"No unprocessed chunks for source: {source.name}")
+                    continue
+
+                if dry_run:
+                    console.print(
+                        f"Would process [{CORAL}]{len(chunks)}[/{CORAL}] chunks "
+                        f"from [{NEON_CYAN}]{source.name}[/{NEON_CYAN}]"
+                    )
+                    continue
+
+                with spinner(f"Processing {len(chunks)} chunks from {source.name}..."):
+                    # Process in batches
+                    for i in range(0, len(chunks), batch_size):
+                        batch = chunks[i : i + batch_size]
+                        stats = await integration.process_chunks(batch, source.name)
+                        total_extracted += stats.entities_extracted
+                        total_linked += stats.entities_linked
+                        total_chunks += len(batch)
+
+            if dry_run:
+                return
+
+            console.print(
+                f"\n[{SUCCESS_GREEN}]✓[/{SUCCESS_GREEN}] Graph integration complete\n"
+            )
+            console.print(f"  Chunks processed: [{CORAL}]{total_chunks}[/{CORAL}]")
+            console.print(f"  Entities extracted: [{CORAL}]{total_extracted}[/{CORAL}]")
+            console.print(f"  Entities linked: [{CORAL}]{total_linked}[/{CORAL}]")
+
+    _link()

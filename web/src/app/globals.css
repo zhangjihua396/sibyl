@@ -5,26 +5,26 @@
    ============================================================================= */
 
 :root {
-  /* Core palette */
-  --sc-purple: #e135ff;
-  --sc-magenta: #ff00ff;
-  --sc-cyan: #80ffea;
-  --sc-coral: #ff6ac1;
-  --sc-yellow: #f1fa8c;
-  --sc-green: #50fa7b;
-  --sc-red: #ff6363;
+  /* Core palette - OKLCH for perceptual uniformity and P3 gamut */
+  --sc-purple: oklch(64% 0.31 328);
+  --sc-magenta: oklch(70% 0.32 328);
+  --sc-cyan: oklch(92% 0.16 180);
+  --sc-coral: oklch(72% 0.22 350);
+  --sc-yellow: oklch(95% 0.13 105);
+  --sc-green: oklch(88% 0.23 145);
+  --sc-red: oklch(68% 0.22 25);
 
-  /* Background hierarchy */
-  --sc-bg-base: #12101a;
-  --sc-bg-dark: #0a0812;
-  --sc-bg-highlight: #1a162a;
-  --sc-bg-elevated: #221e30;
-  --sc-bg-surface: #2a2640;
+  /* Background hierarchy - deep purples */
+  --sc-bg-base: oklch(10% 0.02 285);
+  --sc-bg-dark: oklch(6% 0.015 285);
+  --sc-bg-highlight: oklch(14% 0.025 285);
+  --sc-bg-elevated: oklch(17% 0.03 285);
+  --sc-bg-surface: oklch(21% 0.035 285);
 
   /* Foreground */
-  --sc-fg-primary: #f8f8f2;
-  --sc-fg-muted: #8b85a0;
-  --sc-fg-subtle: #5a5470;
+  --sc-fg-primary: oklch(98% 0.005 110);
+  --sc-fg-muted: oklch(62% 0.035 280);
+  --sc-fg-subtle: oklch(42% 0.03 280);
 
   /* Semantic */
   --background: var(--sc-bg-base);

@@ -81,11 +81,12 @@ async def get_task_dependencies(
             """
 
         result = await client.client.driver.execute_query(query, task_id=task_id)
+        rows = result[0] if result else []
 
         dependencies: list[str] = []
         blockers: list[str] = []
 
-        for record in result:
+        for record in rows:
             # Handle list-based FalkorDB results
             if isinstance(record, (list, tuple)):
                 dep_id = record[0] if len(record) > 0 else None
@@ -151,11 +152,12 @@ async def get_blocking_tasks(
         """
 
         result = await client.client.driver.execute_query(query, task_id=task_id)
+        rows = result[0] if result else []
 
         blocked_tasks: list[str] = []
         incomplete: list[str] = []
 
-        for record in result:
+        for record in rows:
             # Handle list-based FalkorDB results
             if isinstance(record, (list, tuple)):
                 dep_id = record[0] if len(record) > 0 else None
@@ -226,9 +228,10 @@ async def detect_dependency_cycles(
             """
             result = await client.client.driver.execute_query(query)
 
-        # Build adjacency list
+        # Build adjacency list - extract rows from (rows, cols, meta) tuple
+        rows = result[0] if result else []
         graph: dict[str, list[str]] = {}
-        for record in result:
+        for record in rows:
             if isinstance(record, (list, tuple)):
                 from_id = record[0] if len(record) > 0 else None
                 to_id = record[1] if len(record) > 1 else None
@@ -332,9 +335,10 @@ async def suggest_task_order(  # noqa: PLR0915
             """
             task_result = await client.client.driver.execute_query(task_query)
 
-        # Build task set with priorities
+        # Build task set with priorities - extract rows from tuple
+        task_rows = task_result[0] if task_result else []
         tasks: dict[str, int] = {}  # task_id -> priority
-        for record in task_result:
+        for record in task_rows:
             if isinstance(record, (list, tuple)):
                 task_id = record[0] if len(record) > 0 else None
                 status = record[1] if len(record) > 1 else None
@@ -370,11 +374,12 @@ async def suggest_task_order(  # noqa: PLR0915
             """
             dep_result = await client.client.driver.execute_query(dep_query)
 
-        # Build adjacency list and in-degree count
+        # Build adjacency list and in-degree count - extract rows from tuple
+        dep_rows = dep_result[0] if dep_result else []
         graph: dict[str, list[str]] = {task_id: [] for task_id in tasks}
         in_degree: dict[str, int] = dict.fromkeys(tasks, 0)
 
-        for record in dep_result:
+        for record in dep_rows:
             if isinstance(record, (list, tuple)):
                 from_id = record[0] if len(record) > 0 else None
                 to_id = record[1] if len(record) > 1 else None

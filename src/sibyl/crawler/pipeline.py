@@ -1,4 +1,4 @@
-"""Document ingestion pipeline - crawl, chunk, embed, store.
+"""Document ingestion pipeline - crawl, chunk, embed, store, integrate.
 
 Orchestrates the full ingestion flow:
 1. Crawl documentation source
@@ -6,6 +6,7 @@ Orchestrates the full ingestion flow:
 3. Chunk documents into retrievable segments
 4. Generate embeddings
 5. Store chunks with embeddings
+6. Extract entities and link to knowledge graph (Graph-RAG integration)
 
 Supports both single-document and bulk source ingestion.
 """
@@ -14,7 +15,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
@@ -24,6 +24,7 @@ from sqlmodel import col
 
 from sibyl.crawler.chunker import ChunkStrategy, DocumentChunker
 from sibyl.crawler.embedder import EmbeddingService
+from sibyl.crawler.graph_integration import GraphIntegrationService
 from sibyl.crawler.service import CrawlerService
 from sibyl.db import (
     CrawledDocument,
@@ -31,9 +32,6 @@ from sibyl.db import (
     DocumentChunk,
     get_session,
 )
-
-if TYPE_CHECKING:
-    pass
 
 log = structlog.get_logger()
 
@@ -48,23 +46,28 @@ class IngestionStats:
     documents_stored: int = 0
     chunks_created: int = 0
     embeddings_generated: int = 0
+    entities_extracted: int = 0
+    entities_linked: int = 0
     errors: int = 0
     duration_seconds: float = 0.0
 
     def __str__(self) -> str:
-        return (
+        base = (
             f"Ingested {self.source_name}: "
             f"{self.documents_stored} docs, "
             f"{self.chunks_created} chunks, "
-            f"{self.embeddings_generated} embeddings "
-            f"in {self.duration_seconds:.1f}s"
+            f"{self.embeddings_generated} embeddings"
         )
+        if self.entities_extracted > 0:
+            base += f", {self.entities_extracted} entities ({self.entities_linked} linked)"
+        base += f" in {self.duration_seconds:.1f}s"
+        return base
 
 
 class IngestionPipeline:
     """Full document ingestion pipeline.
 
-    Coordinates crawling, chunking, embedding, and storage.
+    Coordinates crawling, chunking, embedding, storage, and graph integration.
     Handles batching and error recovery.
     """
 
@@ -74,6 +77,7 @@ class IngestionPipeline:
         chunk_strategy: ChunkStrategy = ChunkStrategy.SEMANTIC,
         generate_embeddings: bool = True,
         embedding_batch_size: int = 50,
+        integrate_with_graph: bool = True,
     ) -> None:
         """Initialize the ingestion pipeline.
 
@@ -81,13 +85,16 @@ class IngestionPipeline:
             chunk_strategy: Strategy for chunking documents
             generate_embeddings: Whether to generate embeddings
             embedding_batch_size: Batch size for embedding generation
+            integrate_with_graph: Whether to extract entities and link to graph
         """
         self.chunk_strategy = chunk_strategy
         self.generate_embeddings = generate_embeddings
         self.embedding_batch_size = embedding_batch_size
+        self.integrate_with_graph = integrate_with_graph
 
         self._crawler: CrawlerService | None = None
         self._embedder: EmbeddingService | None = None
+        self._graph_integration: GraphIntegrationService | None = None
         self._chunker = DocumentChunker()
 
     async def start(self) -> None:
@@ -97,6 +104,21 @@ class IngestionPipeline:
 
         if self.generate_embeddings:
             self._embedder = EmbeddingService(batch_size=self.embedding_batch_size)
+
+        if self.integrate_with_graph:
+            try:
+                from sibyl.graph.client import get_graph_client
+
+                graph_client = await get_graph_client()
+                self._graph_integration = GraphIntegrationService(
+                    graph_client,
+                    extract_entities=True,
+                    create_new_entities=False,  # Only link to existing entities for now
+                )
+                log.info("Graph integration enabled")
+            except Exception as e:
+                log.warning("Graph integration unavailable", error=str(e))
+                self._graph_integration = None
 
         log.info("Ingestion pipeline started")
 
@@ -194,12 +216,14 @@ class IngestionPipeline:
         document: CrawledDocument,
         stats: IngestionStats,
     ) -> None:
-        """Process a single document - store, chunk, embed.
+        """Process a single document - store, chunk, embed, integrate with graph.
 
         Args:
             document: Document to process
             stats: Stats to update
         """
+        db_chunks: list[DocumentChunk] = []
+
         async with get_session() as session:
             # Check for existing document (deduplication)
             existing = await session.execute(
@@ -263,13 +287,47 @@ class IngestionPipeline:
                     entity_ids=[],
                 )
                 session.add(db_chunk)
+                db_chunks.append(db_chunk)
 
-            log.debug(
-                "Processed document",
-                url=document.url,
-                chunks=len(chunks),
-                embeddings=len(embeddings) if embeddings else 0,
-            )
+            # Flush to get chunk IDs for graph integration
+            await session.flush()
+
+        # Graph integration: extract entities and link to knowledge graph
+        if self._graph_integration and db_chunks:
+            try:
+                integration_stats = await self._graph_integration.process_chunks(
+                    db_chunks,
+                    source_name=document.url,
+                )
+                stats.entities_extracted += integration_stats.entities_extracted
+                stats.entities_linked += integration_stats.entities_linked
+
+                # Create DOCUMENTED_IN relationships for linked entities
+                entity_uuids = []
+                for chunk in db_chunks:
+                    if chunk.entity_ids:
+                        entity_uuids.extend(chunk.entity_ids)
+
+                if entity_uuids:
+                    await self._graph_integration.create_doc_relationships(
+                        document.id,
+                        list(set(entity_uuids)),  # Dedupe
+                    )
+
+            except Exception as e:
+                log.warning(
+                    "Graph integration failed for document",
+                    url=document.url,
+                    error=str(e),
+                )
+
+        log.debug(
+            "Processed document",
+            url=document.url,
+            chunks=len(chunks),
+            embeddings=len(embeddings) if embeddings else 0,
+            entities=stats.entities_extracted,
+        )
 
     async def ingest_url(
         self,

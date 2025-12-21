@@ -68,6 +68,10 @@ ENTITY_COLORS: dict[EntityType, str] = {
     EntityType.KNOWLEDGE_SOURCE: "#8b85a0",  # Muted
     EntityType.CONFIG_FILE: "#f1fa8c",  # Electric Yellow
     EntityType.SLASH_COMMAND: "#80ffea",  # Neon Cyan
+    EntityType.TASK: "#ff9580",  # Warm orange
+    EntityType.PROJECT: "#bd93f9",  # Soft purple
+    EntityType.DOCUMENT: "#8be9fd",  # Light cyan - docs stand out
+    EntityType.COMMUNITY: "#ffb86c",  # Orange for clusters
 }
 
 DEFAULT_COLOR = "#8b85a0"  # Muted for unknown types
