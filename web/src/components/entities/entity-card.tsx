@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { EntityBadge } from '@/components/ui/badge';
 import { getEntityStyles } from '@/lib/constants';
@@ -18,7 +19,7 @@ interface EntityCardProps {
   showActions?: boolean;
 }
 
-export function EntityCard({ entity, onDelete, showActions = true }: EntityCardProps) {
+export const EntityCard = memo(function EntityCard({ entity, onDelete, showActions = true }: EntityCardProps) {
   const styles = getEntityStyles(entity.entity_type);
 
   return (
@@ -80,4 +81,4 @@ export function EntityCard({ entity, onDelete, showActions = true }: EntityCardP
       </div>
     </div>
   );
-}
+});

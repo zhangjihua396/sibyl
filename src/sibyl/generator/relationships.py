@@ -1,11 +1,10 @@
 """Relationship weaving for generated entities."""
 
+import uuid
 from collections import defaultdict
 
 from sibyl.generator.config import GeneratorConfig
-import uuid
-
-from sibyl.models.entities import Entity, Relationship, RelationshipType
+from sibyl.models.entities import Entity, EntityType, Relationship, RelationshipType
 
 
 class RelationshipWeaver:
@@ -14,14 +13,15 @@ class RelationshipWeaver:
     Creates:
     - Tasks → Projects (BELONGS_TO)
     - Tasks → Tasks (DEPENDS_ON)
-    - Patterns → Tasks (REFERENCES)
+    - Patterns → Tasks (REFERENCES - actually RELATED_TO)
     - Episodes → Tasks (DERIVED_FROM)
-    - Rules → Patterns (ENFORCES)
+    - Rules → Patterns (ENABLES)
     """
 
     def __init__(self, config: GeneratorConfig) -> None:
         self.config = config
         self._rng = None
+        self._rel_counter = 0
 
     @property
     def rng(self):
@@ -31,6 +31,11 @@ class RelationshipWeaver:
 
             self._rng = random.Random(self.config.seed)  # noqa: S311 - deterministic seed for reproducibility
         return self._rng
+
+    def _next_id(self) -> str:
+        """Generate a unique relationship ID."""
+        self._rel_counter += 1
+        return f"rel_{uuid.uuid4().hex[:8]}_{self._rel_counter:06d}"
 
     def weave(self, entities: list[Entity]) -> list[Relationship]:
         """Weave relationships between entities.
@@ -42,26 +47,26 @@ class RelationshipWeaver:
             List of relationships.
         """
         # Index entities by type
-        by_type: dict[str, list[Entity]] = defaultdict(list)
+        by_type: dict[EntityType, list[Entity]] = defaultdict(list)
         for entity in entities:
             by_type[entity.entity_type].append(entity)
 
         relationships = []
 
         # Tasks → Projects (BELONGS_TO)
-        relationships.extend(self._weave_task_projects(by_type["task"], by_type["project"]))
+        relationships.extend(self._weave_task_projects(by_type[EntityType.TASK], by_type[EntityType.PROJECT]))
 
         # Tasks → Tasks (DEPENDS_ON)
-        relationships.extend(self._weave_task_dependencies(by_type["task"]))
+        relationships.extend(self._weave_task_dependencies(by_type[EntityType.TASK]))
 
-        # Patterns → Tasks (REFERENCES)
-        relationships.extend(self._weave_pattern_references(by_type["pattern"], by_type["task"]))
+        # Patterns → Tasks (RELATED_TO)
+        relationships.extend(self._weave_pattern_references(by_type[EntityType.PATTERN], by_type[EntityType.TASK]))
 
         # Episodes → Tasks (DERIVED_FROM)
-        relationships.extend(self._weave_episode_sources(by_type["episode"], by_type["task"]))
+        relationships.extend(self._weave_episode_sources(by_type[EntityType.EPISODE], by_type[EntityType.TASK]))
 
-        # Rules → Patterns (ENFORCES)
-        relationships.extend(self._weave_rule_patterns(by_type["rule"], by_type["pattern"]))
+        # Rules → Patterns (ENABLES)
+        relationships.extend(self._weave_rule_patterns(by_type[EntityType.RULE], by_type[EntityType.PATTERN]))
 
         return relationships
 
@@ -85,9 +90,10 @@ class RelationshipWeaver:
                 if project_exists:
                     relationships.append(
                         Relationship(
+                            id=self._next_id(),
                             source_id=task.id,
                             target_id=project_id,
-                            type="BELONGS_TO",
+                            relationship_type=RelationshipType.BELONGS_TO,
                             metadata={"_generated": True},
                         )
                     )
@@ -96,9 +102,10 @@ class RelationshipWeaver:
                 project = self.rng.choice(projects)
                 relationships.append(
                     Relationship(
+                        id=self._next_id(),
                         source_id=task.id,
                         target_id=project.id,
-                        type="BELONGS_TO",
+                        relationship_type=RelationshipType.BELONGS_TO,
                         metadata={"_generated": True},
                     )
                 )
@@ -141,9 +148,10 @@ class RelationshipWeaver:
                     if not self._would_create_cycle(relationships, task.id, dep.id):
                         relationships.append(
                             Relationship(
+                                id=self._next_id(),
                                 source_id=task.id,
                                 target_id=dep.id,
-                                type="DEPENDS_ON",
+                                relationship_type=RelationshipType.DEPENDS_ON,
                                 metadata={
                                     "_generated": True,
                                     "blocking": self.rng.random() > 0.7,
@@ -163,7 +171,7 @@ class RelationshipWeaver:
         # Build adjacency map
         deps: dict[str, set[str]] = defaultdict(set)
         for rel in existing:
-            if rel.type == "DEPENDS_ON":
+            if rel.relationship_type == RelationshipType.DEPENDS_ON:
                 deps[rel.source_id].add(rel.target_id)
 
         # Check if target can reach source (would mean cycle)
@@ -216,9 +224,10 @@ class RelationshipWeaver:
             for pattern in refs:
                 relationships.append(
                     Relationship(
+                        id=self._next_id(),
                         source_id=task.id,
                         target_id=pattern.id,
-                        type="REFERENCES",
+                        relationship_type=RelationshipType.RELATED_TO,
                         metadata={
                             "_generated": True,
                             "context": "implementation",
@@ -247,9 +256,10 @@ class RelationshipWeaver:
             for task in source_tasks:
                 relationships.append(
                     Relationship(
+                        id=self._next_id(),
                         source_id=episode.id,
                         target_id=task.id,
-                        type="DERIVED_FROM",
+                        relationship_type=RelationshipType.DERIVED_FROM,
                         metadata={
                             "_generated": True,
                             "learning_type": self.rng.choice([
@@ -291,9 +301,10 @@ class RelationshipWeaver:
             for pattern in matching_patterns:
                 relationships.append(
                     Relationship(
+                        id=self._next_id(),
                         source_id=rule.id,
                         target_id=pattern.id,
-                        type="ENFORCES",
+                        relationship_type=RelationshipType.ENABLES,
                         metadata={
                             "_generated": True,
                             "severity": rule.metadata.get("severity", "warning") if rule.metadata else "warning",

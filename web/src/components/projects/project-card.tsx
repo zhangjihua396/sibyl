@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import type { TaskSummary } from '@/lib/api';
 
 interface ProjectCardProps {
@@ -13,7 +14,7 @@ interface ProjectCardProps {
   };
 }
 
-export function ProjectCard({ project, isSelected, onClick, taskCounts }: ProjectCardProps) {
+export const ProjectCard = memo(function ProjectCard({ project, isSelected, onClick, taskCounts }: ProjectCardProps) {
   const progress = taskCounts && taskCounts.total > 0
     ? Math.round((taskCounts.done / taskCounts.total) * 100)
     : 0;
@@ -58,7 +59,7 @@ export function ProjectCard({ project, isSelected, onClick, taskCounts }: Projec
       )}
     </button>
   );
-}
+});
 
 export function ProjectCardSkeleton() {
   return (

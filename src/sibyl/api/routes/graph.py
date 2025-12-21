@@ -52,18 +52,17 @@ async def get_all_nodes(
             entities = await entity_manager.list_by_type(entity_type, limit=limit)
             all_entities.extend(entities)
 
-        # Build connection counts for node sizing
+        # Build connection counts via single batch fetch (avoids N+1)
         connection_counts: dict[str, int] = {}
-        for entity in all_entities:
-            try:
-                related = await relationship_manager.get_related_entities(
-                    entity_id=entity.id,
-                    depth=1,
-                    limit=100,
-                )
-                connection_counts[entity.id] = len(related)
-            except Exception:
-                connection_counts[entity.id] = 0
+        try:
+            # Fetch all relationships in one query
+            all_relationships = await relationship_manager.list_all(limit=limit * 10)
+            # Count connections per entity (both as source and target)
+            for rel in all_relationships:
+                connection_counts[rel.source_id] = connection_counts.get(rel.source_id, 0) + 1
+                connection_counts[rel.target_id] = connection_counts.get(rel.target_id, 0) + 1
+        except Exception:
+            pass  # Fall back to zero connections if fetch fails
 
         # Normalize sizes (1.0 to 3.0 based on connections)
         max_connections = max(connection_counts.values()) if connection_counts else 1

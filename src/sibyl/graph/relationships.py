@@ -160,6 +160,66 @@ class RelationshipManager:
             },
         )
 
+    async def bulk_create_direct(
+        self,
+        relationships: list[Relationship],
+        batch_size: int = 100,
+    ) -> tuple[int, int]:
+        """Bulk create relationships directly in FalkorDB.
+
+        This is faster than create() as it skips deduplication checks.
+        Use for stress testing or bulk imports.
+
+        Args:
+            relationships: List of relationships to create.
+            batch_size: Number of relationships per batch.
+
+        Returns:
+            Tuple of (created_count, failed_count).
+        """
+        created = 0
+        failed = 0
+
+        for i in range(0, len(relationships), batch_size):
+            batch = relationships[i : i + batch_size]
+
+            for rel in batch:
+                try:
+                    # Create relationship directly, skip dedup check for speed
+                    result = await self._client.client.driver.execute_query(
+                        """
+                        MATCH (source {uuid: $source_id}), (target {uuid: $target_id})
+                        CREATE (source)-[r:RELATIONSHIP {
+                            relationship_id: $rel_id,
+                            relationship_type: $rel_type,
+                            weight: $weight,
+                            created_at: $created_at,
+                            metadata: $metadata,
+                            source_id: $source_id,
+                            target_id: $target_id,
+                            _generated: true
+                        }]->(target)
+                        RETURN id(r) as edge_id
+                        """,
+                        rel_id=rel.id,
+                        source_id=rel.source_id,
+                        target_id=rel.target_id,
+                        rel_type=rel.relationship_type.value,
+                        weight=rel.weight,
+                        created_at=rel.created_at.isoformat(),
+                        metadata=json.dumps(rel.metadata or {}),
+                    )
+                    if result and len(result) > 0:
+                        created += 1
+                    else:
+                        failed += 1
+                except Exception as e:
+                    log.debug("Failed to create relationship", rel_id=rel.id, error=str(e))
+                    failed += 1
+
+        log.info("Bulk create relationships complete", created=created, failed=failed)
+        return created, failed
+
     async def get_for_entity(
         self,
         entity_id: str,

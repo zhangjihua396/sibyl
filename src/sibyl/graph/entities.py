@@ -446,6 +446,72 @@ class EntityManager:
                 serialized[key] = value
         return serialized
 
+    async def bulk_create_direct(
+        self,
+        entities: list[Entity],
+        batch_size: int = 100,
+    ) -> tuple[int, int]:
+        """Bulk create entities directly in FalkorDB, bypassing Graphiti LLM.
+
+        This is much faster than create() as it skips LLM-based entity extraction.
+        Use this for stress testing or bulk imports where LLM processing isn't needed.
+
+        Args:
+            entities: List of entities to create.
+            batch_size: Number of entities per batch.
+
+        Returns:
+            Tuple of (created_count, failed_count).
+        """
+        import json
+
+        created = 0
+        failed = 0
+
+        for i in range(0, len(entities), batch_size):
+            batch = entities[i : i + batch_size]
+
+            for entity in batch:
+                try:
+                    metadata = self._serialize_metadata(entity.metadata or {})
+                    metadata_json = json.dumps(metadata) if metadata else "{}"
+
+                    created_at = entity.created_at.isoformat() if entity.created_at else datetime.now(UTC).isoformat()
+                    updated_at = datetime.now(UTC).isoformat()
+
+                    # Create node with explicit properties (FalkorDB doesn't support $props dict)
+                    await self._client.client.driver.execute_query(
+                        """
+                        CREATE (n:Entity {
+                            uuid: $uuid,
+                            name: $name,
+                            entity_type: $entity_type,
+                            description: $description,
+                            content: $content,
+                            created_at: $created_at,
+                            updated_at: $updated_at,
+                            metadata: $metadata,
+                            _generated: true
+                        })
+                        RETURN n.uuid as id
+                        """,
+                        uuid=entity.id,
+                        name=entity.name,
+                        entity_type=entity.entity_type.value,
+                        description=entity.description or "",
+                        content=entity.content or "",
+                        created_at=created_at,
+                        updated_at=updated_at,
+                        metadata=metadata_json,
+                    )
+                    created += 1
+                except Exception as e:
+                    log.debug("Failed to create entity", entity_id=entity.id, error=str(e))
+                    failed += 1
+
+        log.info("Bulk create complete", created=created, failed=failed)
+        return created, failed
+
     def _format_entity_as_episode(self, entity: Entity) -> str:
         """Format an entity as natural language for episode storage.
 

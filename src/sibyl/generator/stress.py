@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 from sibyl.generator.base import BaseGenerator, GeneratorResult
 from sibyl.generator.config import GeneratorConfig, StressConfig
-from sibyl.models.entities import Entity, EntityType, Relationship
+from sibyl.models.entities import Entity, EntityType, Relationship, RelationshipType
 
 # Map string types to EntityType enum
 ENTITY_TYPE_MAP: dict[str, EntityType] = {
@@ -112,6 +112,7 @@ class StressTestGenerator(BaseGenerator):
         super().__init__(config)
         self.stress_config = stress_config
         self._counter = 0
+        self._rel_counter = 0
 
     def _quick_id(self, prefix: str) -> str:
         """Generate fast sequential ID."""
@@ -121,6 +122,11 @@ class StressTestGenerator(BaseGenerator):
     def _quick_uuid(self) -> str:
         """Generate UUID without dashes for compactness."""
         return uuid.uuid4().hex
+
+    def _next_rel_id(self) -> str:
+        """Generate a unique relationship ID."""
+        self._rel_counter += 1
+        return f"rel_{uuid.uuid4().hex[:8]}_{self._rel_counter:06d}"
 
     async def generate(self) -> GeneratorResult:
         """Generate stress test data as fast as possible."""
@@ -229,13 +235,13 @@ class StressTestGenerator(BaseGenerator):
             by_type.setdefault(str(entity.entity_type), []).append(entity)
 
         # Relationship types and their source→target mappings
-        rel_types = [
-            ("BELONGS_TO", "task", "project"),
-            ("DEPENDS_ON", "task", "task"),
-            ("REFERENCES", "task", "pattern"),
-            ("DERIVED_FROM", "episode", "task"),
-            ("ENFORCES", "rule", "pattern"),
-            ("RELATED_TO", None, None),  # Any to any
+        rel_types: list[tuple[RelationshipType, str | None, str | None]] = [
+            (RelationshipType.BELONGS_TO, "task", "project"),
+            (RelationshipType.DEPENDS_ON, "task", "task"),
+            (RelationshipType.RELATED_TO, "task", "pattern"),
+            (RelationshipType.DERIVED_FROM, "episode", "task"),
+            (RelationshipType.ENABLES, "rule", "pattern"),
+            (RelationshipType.RELATED_TO, None, None),  # Any to any
         ]
 
         count = 0
@@ -269,9 +275,10 @@ class StressTestGenerator(BaseGenerator):
 
             relationships.append(
                 Relationship(
+                    id=self._next_rel_id(),
                     source_id=source.id,
                     target_id=target.id,
-                    type=rel_type,
+                    relationship_type=rel_type,
                     metadata={
                         "_generated": True,
                         "_stress_test": True,

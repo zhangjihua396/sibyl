@@ -31,6 +31,44 @@ MAX_CONTENT_LENGTH = 50000
 
 
 # =============================================================================
+# Helper Functions - Entity Attribute Extraction
+# =============================================================================
+
+
+def _get_field(entity: Any, field: str, default: Any = None) -> Any:
+    """Get field from entity object or its metadata, with fallback default."""
+    value = getattr(entity, field, None)
+    if value is None:
+        value = entity.metadata.get(field, default)
+    return value if value is not None else default
+
+
+def _serialize_enum(value: Any) -> Any:
+    """Serialize enum value to its string representation."""
+    if value is None:
+        return None
+    return value.value if hasattr(value, "value") else value
+
+
+def _build_entity_metadata(entity: Any) -> dict[str, Any]:
+    """Build standardized metadata dict from entity with common fields."""
+    status = _serialize_enum(_get_field(entity, "status"))
+    priority = _serialize_enum(_get_field(entity, "priority"))
+
+    extra = {
+        "category": _get_field(entity, "category"),
+        "languages": _get_field(entity, "languages"),
+        "severity": _get_field(entity, "severity"),
+        "template_type": _get_field(entity, "template_type"),
+        "status": status,
+        "priority": priority,
+        "project_id": _get_field(entity, "project_id"),
+        "assignees": _get_field(entity, "assignees"),
+    }
+    return {**entity.metadata, **{k: v for k, v in extra.items() if v is not None}}
+
+
+# =============================================================================
 # Response Models
 # =============================================================================
 
@@ -267,49 +305,44 @@ async def search(
         for entity, score in raw_results:
             # Apply language filter
             if language:
-                entity_langs = getattr(entity, "languages", None) or entity.metadata.get("languages", [])
-                if language.lower() not in [l.lower() for l in entity_langs]:
+                entity_langs = _get_field(entity, "languages", [])
+                if language.lower() not in [lang.lower() for lang in entity_langs]:
                     continue
 
             # Apply category filter
             if category:
-                entity_cat = getattr(entity, "category", "") or entity.metadata.get("category", "")
+                entity_cat = _get_field(entity, "category", "")
                 if category.lower() not in entity_cat.lower():
                     continue
 
             # Apply status filter (for tasks)
             if status:
-                entity_status = getattr(entity, "status", None)
-                if entity_status is None:
-                    entity_status = entity.metadata.get("status")
+                entity_status = _get_field(entity, "status")
                 if entity_status is None:
                     continue
-                # Handle both enum and string status
-                status_val = entity_status.value if hasattr(entity_status, "value") else str(entity_status)
-                if status.lower() != status_val.lower():
+                status_val = _serialize_enum(entity_status)
+                if status.lower() != str(status_val).lower():
                     continue
 
             # Apply project filter
             if project:
-                entity_project = getattr(entity, "project_id", None) or entity.metadata.get("project_id")
-                if entity_project != project:
+                if _get_field(entity, "project_id") != project:
                     continue
 
             # Apply source filter
             if source:
-                entity_source = getattr(entity, "source_id", None) or entity.metadata.get("source_id")
-                if entity_source != source:
+                if _get_field(entity, "source_id") != source:
                     continue
 
             # Apply assignee filter (for tasks)
             if assignee:
-                entity_assignees = getattr(entity, "assignees", None) or entity.metadata.get("assignees", [])
+                entity_assignees = _get_field(entity, "assignees", [])
                 if assignee.lower() not in [a.lower() for a in entity_assignees]:
                     continue
 
             # Apply temporal filter
             if since_date:
-                entity_created = getattr(entity, "created_at", None) or entity.metadata.get("created_at")
+                entity_created = _get_field(entity, "created_at")
                 if entity_created:
                     try:
                         if isinstance(entity_created, str):
@@ -325,14 +358,6 @@ async def search(
             else:
                 content = entity.description[:200] if entity.description else ""
 
-            # Extract status value for serialization
-            raw_status = getattr(entity, "status", None) or entity.metadata.get("status")
-            status_value = raw_status.value if hasattr(raw_status, "value") else raw_status
-
-            # Extract priority value for serialization
-            raw_priority = getattr(entity, "priority", None) or entity.metadata.get("priority")
-            priority_value = raw_priority.value if hasattr(raw_priority, "value") else raw_priority
-
             results.append(
                 SearchResult(
                     id=entity.id,
@@ -341,22 +366,7 @@ async def search(
                     content=content or "",
                     score=score,
                     source=entity.source_file,
-                    metadata={
-                        **entity.metadata,
-                        **{
-                            k: v
-                            for k, v in {
-                                "category": getattr(entity, "category", None) or entity.metadata.get("category"),
-                                "languages": getattr(entity, "languages", None) or entity.metadata.get("languages"),
-                                "severity": getattr(entity, "severity", None) or entity.metadata.get("severity"),
-                                "status": status_value,
-                                "priority": priority_value,
-                                "project_id": getattr(entity, "project_id", None) or entity.metadata.get("project_id"),
-                                "assignees": getattr(entity, "assignees", None) or entity.metadata.get("assignees"),
-                            }.items()
-                            if v is not None
-                        },
-                    },
+                    metadata=_build_entity_metadata(entity),
                 )
             )
 
@@ -530,38 +540,29 @@ async def _explore_list(
     for entity in all_entities:
         # Language filter
         if language:
-            entity_langs = getattr(entity, "languages", None) or entity.metadata.get("languages", [])
-            if language.lower() not in [l.lower() for l in entity_langs]:
+            entity_langs = _get_field(entity, "languages", [])
+            if language.lower() not in [lang.lower() for lang in entity_langs]:
                 continue
 
         # Category filter
         if category:
-            entity_cat = getattr(entity, "category", "") or entity.metadata.get("category", "")
+            entity_cat = _get_field(entity, "category", "")
             if category.lower() not in entity_cat.lower():
                 continue
 
         # Project filter (for tasks)
         if project:
-            entity_project = getattr(entity, "project_id", None) or entity.metadata.get("project_id")
-            if entity_project != project:
+            if _get_field(entity, "project_id") != project:
                 continue
 
         # Status filter (for tasks)
         if status:
-            entity_status = getattr(entity, "status", None)
-            if entity_status is None:
-                entity_status = entity.metadata.get("status")
+            entity_status = _get_field(entity, "status")
             if entity_status is None:
                 continue
-            status_val = entity_status.value if hasattr(entity_status, "value") else str(entity_status)
-            if status.lower() != status_val.lower():
+            status_val = _serialize_enum(entity_status)
+            if status.lower() != str(status_val).lower():
                 continue
-
-        # Extract status/priority for serialization
-        raw_status = getattr(entity, "status", None) or entity.metadata.get("status")
-        status_value = raw_status.value if hasattr(raw_status, "value") else raw_status
-        raw_priority = getattr(entity, "priority", None) or entity.metadata.get("priority")
-        priority_value = raw_priority.value if hasattr(raw_priority, "value") else raw_priority
 
         results.append(
             EntitySummary(
@@ -569,23 +570,7 @@ async def _explore_list(
                 type=entity.entity_type.value,
                 name=entity.name,
                 description=entity.description[:200] if entity.description else "",
-                metadata={
-                    **entity.metadata,
-                    **{
-                        k: v
-                        for k, v in {
-                            "category": getattr(entity, "category", None) or entity.metadata.get("category"),
-                            "languages": getattr(entity, "languages", None) or entity.metadata.get("languages"),
-                            "severity": getattr(entity, "severity", None) or entity.metadata.get("severity"),
-                            "template_type": getattr(entity, "template_type", None) or entity.metadata.get("template_type"),
-                            "status": status_value,
-                            "priority": priority_value,
-                            "project_id": getattr(entity, "project_id", None) or entity.metadata.get("project_id"),
-                            "assignees": getattr(entity, "assignees", None) or entity.metadata.get("assignees"),
-                        }.items()
-                        if v is not None
-                    },
-                },
+                metadata=_build_entity_metadata(entity),
             )
         )
 

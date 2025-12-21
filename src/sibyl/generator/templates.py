@@ -199,10 +199,10 @@ class TemplateGenerator(BaseGenerator):
         generators = {
             "project": self.generate_project,
             "task": self.generate_task,
-            "pattern": self.generate_pattern,
-            "rule": self.generate_rule,
-            "template": self.generate_template,
-            "episode": self.generate_episode,
+            "pattern": self._generate_pattern,
+            "rule": self._generate_rule,
+            "template": self._generate_template,
+            "episode": self._generate_episode,
         }
 
         generator = generators.get(entity_type)
@@ -388,6 +388,7 @@ See related code examples in the repository.
 
         # Fill in template
         content = template.format(
+            domain=domain,
             observation=self.pick([
                 "caching significantly reduced latency",
                 "connection pooling was exhausted",

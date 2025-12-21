@@ -14,14 +14,11 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.12",
-    "@types/three": "^0.182.0",
     "next": "16.1.0",
     "nuqs": "^2.8.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-force-graph-3d": "^1.29.0",
     "reagraph": "^4.30.7",
-    "three": "^0.182.0",
     "zod": "^4.2.1"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,7 +19,7 @@ interface SourceCardProps {
   isCrawling?: boolean;
 }
 
-export function SourceCard({ source, onCrawl, onDelete, isCrawling }: SourceCardProps) {
+export const SourceCard = memo(function SourceCard({ source, onCrawl, onDelete, isCrawling }: SourceCardProps) {
   const crawlStatus = (source.metadata.crawl_status as CrawlStatusType) || 'pending';
   const sourceType = (source.metadata.source_type as SourceTypeValue) || 'website';
   const documentCount = source.metadata.document_count || 0;
@@ -110,7 +111,7 @@ export function SourceCard({ source, onCrawl, onDelete, isCrawling }: SourceCard
       </div>
     </div>
   );
-}
+});
 
 export function SourceCardSkeleton() {
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import type { TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
 import { TaskCard, TaskCardSkeleton } from './task-card';
@@ -22,7 +22,7 @@ interface KanbanColumnProps {
   onDragLeave: () => void;
 }
 
-function KanbanColumn({
+const KanbanColumn = memo(function KanbanColumn({
   status,
   tasks,
   onDrop,
@@ -101,13 +101,13 @@ function KanbanColumn({
       </div>
     </div>
   );
-}
+});
 
 export function KanbanBoard({ tasks, isLoading, onStatusChange, onTaskClick }: KanbanBoardProps) {
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
 
-  // Group tasks by status
-  const tasksByStatus = useCallback(() => {
+  // Group tasks by status - memoized to prevent recalculation on every render
+  const tasksByStatus = useMemo(() => {
     const grouped: Record<TaskStatus, TaskSummary[]> = {
       backlog: [],
       todo: [],
@@ -126,7 +126,7 @@ export function KanbanBoard({ tasks, isLoading, onStatusChange, onTaskClick }: K
     }
 
     return grouped;
-  }, [tasks])();
+  }, [tasks]);
 
   const handleDrop = (taskId: string, newStatus: TaskStatus) => {
     onStatusChange?.(taskId, newStatus);

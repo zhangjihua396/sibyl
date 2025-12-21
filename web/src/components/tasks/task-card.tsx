@@ -1,5 +1,6 @@
 'use client';
 
+import { memo } from 'react';
 import type { TaskPriority, TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/lib/constants';
 
@@ -9,7 +10,7 @@ interface TaskCardProps {
   onClick?: (taskId: string) => void;
 }
 
-export function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
+export const TaskCard = memo(function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
   const status = (task.metadata.status ?? 'todo') as TaskStatus;
   const priority = (task.metadata.priority ?? 'medium') as TaskPriority;
   const statusConfig = TASK_STATUS_CONFIG[status as keyof typeof TASK_STATUS_CONFIG];
@@ -90,7 +91,7 @@ export function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
       </div>
     </div>
   );
-}
+});
 
 export function TaskCardSkeleton() {
   return (

@@ -4,6 +4,11 @@ Commands for generating test data to stress-test the system.
 Supports both template-based (fast) and LLM-enhanced (Claude) generation.
 """
 
+import os
+
+# Disable graphiti telemetry before any imports
+os.environ["GRAPHITI_TELEMETRY_ENABLED"] = "false"
+
 from typing import Annotated
 
 import typer
@@ -122,25 +127,14 @@ def generate_realistic(  # noqa: PLR0915 - complex CLI command
                 with spinner("Storing in graph...") as progress:
                     progress.add_task("Storing in graph...", total=None)
 
-                    entity_mgr = EntityManager()
-                    rel_mgr = RelationshipManager()
+                    from sibyl.graph.client import get_graph_client
+                    client = await get_graph_client()
+                    entity_mgr = EntityManager(client)
+                    rel_mgr = RelationshipManager(client)
 
-                    stored_entities = 0
-                    stored_rels = 0
-
-                    for entity in result.entities:
-                        try:
-                            await entity_mgr.create(entity)
-                            stored_entities += 1
-                        except Exception:  # noqa: S110
-                            pass  # Skip duplicates
-
-                    for rel in result.relationships:
-                        try:
-                            await rel_mgr.create(rel)
-                            stored_rels += 1
-                        except Exception:  # noqa: S110
-                            pass  # Skip duplicates
+                    # Use bulk_create_direct for speed (bypasses Graphiti LLM)
+                    stored_entities, _ = await entity_mgr.bulk_create_direct(result.entities, batch_size=100)
+                    stored_rels, _ = await rel_mgr.bulk_create_direct(result.relationships, batch_size=100)
 
                 success(f"Stored {stored_entities} entities, {stored_rels} relationships")
             else:
@@ -226,29 +220,17 @@ def generate_stress(  # noqa: PLR0915 - complex CLI command
                 with spinner("Storing in graph (this may take a while)...") as progress:
                     task = progress.add_task("Storing...", total=None)
 
-                    entity_mgr = EntityManager()
-                    rel_mgr = RelationshipManager()
+                    from sibyl.graph.client import get_graph_client
+                    client = await get_graph_client()
+                    entity_mgr = EntityManager(client)
+                    rel_mgr = RelationshipManager(client)
 
-                    batch_size = 100
-                    stored = 0
+                    # Use bulk_create_direct for speed (bypasses Graphiti LLM)
+                    progress.update(task, description="Storing entities...")
+                    stored, failed_ents = await entity_mgr.bulk_create_direct(result.entities, batch_size=500)
 
-                    for i in range(0, len(result.entities), batch_size):
-                        batch = result.entities[i : i + batch_size]
-                        for entity in batch:
-                            try:
-                                await entity_mgr.create(entity)
-                                stored += 1
-                            except Exception:  # noqa: S110
-                                pass
-                        progress.update(task, description=f"Stored {stored:,} entities...")
-
-                    stored_rels = 0
-                    for rel in result.relationships:
-                        try:
-                            await rel_mgr.create(rel)
-                            stored_rels += 1
-                        except Exception:  # noqa: S110
-                            pass
+                    progress.update(task, description="Storing relationships...")
+                    stored_rels, failed_rels = await rel_mgr.bulk_create_direct(result.relationships, batch_size=500)
 
                 success(f"Stored {stored:,} entities, {stored_rels:,} relationships")
             else:
@@ -359,24 +341,14 @@ def generate_scenario(  # noqa: PLR0915 - complex CLI command
                 with spinner("Storing in graph...") as progress:
                     progress.add_task("Storing...", total=None)
 
-                    entity_mgr = EntityManager()
-                    rel_mgr = RelationshipManager()
+                    from sibyl.graph.client import get_graph_client
+                    client = await get_graph_client()
+                    entity_mgr = EntityManager(client)
+                    rel_mgr = RelationshipManager(client)
 
-                    stored_entities = 0
-                    for entity in result.entities:
-                        try:
-                            await entity_mgr.create(entity)
-                            stored_entities += 1
-                        except Exception:  # noqa: S110
-                            pass
-
-                    stored_rels = 0
-                    for rel in result.relationships:
-                        try:
-                            await rel_mgr.create(rel)
-                            stored_rels += 1
-                        except Exception:  # noqa: S110
-                            pass
+                    # Use bulk_create_direct for speed (bypasses Graphiti LLM)
+                    stored_entities, _ = await entity_mgr.bulk_create_direct(result.entities, batch_size=100)
+                    stored_rels, _ = await rel_mgr.bulk_create_direct(result.relationships, batch_size=100)
 
                 success(f"Stored {stored_entities:,} entities, {stored_rels:,} relationships")
             else:
