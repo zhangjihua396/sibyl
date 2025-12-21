@@ -28,6 +28,43 @@ class GraphClient:
         self._client: Graphiti | None = None
         self._connected = False
 
+    def _create_llm_client(self) -> object:
+        """Create the LLM client based on provider settings.
+
+        Returns:
+            Configured LLM client (AnthropicClient or OpenAIClient).
+        """
+        from graphiti_core.llm_client.config import LLMConfig
+
+        if settings.llm_provider == "anthropic":
+            from graphiti_core.llm_client.anthropic_client import AnthropicClient
+
+            # Get API key from settings or environment
+            api_key = settings.anthropic_api_key.get_secret_value()
+            if not api_key:
+                api_key = os.getenv("ANTHROPIC_API_KEY", "")
+
+            config = LLMConfig(
+                api_key=api_key,
+                model=settings.llm_model,
+            )
+            log.debug("Using Anthropic LLM client", model=settings.llm_model)
+            return AnthropicClient(config=config)
+
+        else:  # openai
+            from graphiti_core.llm_client.openai_client import OpenAIClient
+
+            api_key = settings.openai_api_key.get_secret_value()
+            if not api_key:
+                api_key = os.getenv("OPENAI_API_KEY", "")
+
+            config = LLMConfig(
+                api_key=api_key,
+                model=settings.llm_model,
+            )
+            log.debug("Using OpenAI LLM client", model=settings.llm_model)
+            return OpenAIClient(config=config)
+
     async def connect(self) -> None:
         """Establish connection to FalkorDB via Graphiti.
 
@@ -35,11 +72,6 @@ class GraphClient:
             GraphConnectionError: If connection fails.
         """
         try:
-            # Ensure Graphiti sees the API key (Graphiti uses OPENAI_API_KEY env)
-            api_key = settings.openai_api_key.get_secret_value()
-            if api_key and not os.getenv("OPENAI_API_KEY"):
-                os.environ["OPENAI_API_KEY"] = api_key
-
             from graphiti_core import Graphiti
             from graphiti_core.driver.falkordb_driver import FalkorDriver
 
@@ -48,6 +80,8 @@ class GraphClient:
                 host=settings.falkordb_host,
                 port=settings.falkordb_port,
                 graph=settings.falkordb_graph_name,
+                llm_provider=settings.llm_provider,
+                llm_model=settings.llm_model,
             )
 
             # Create FalkorDB driver with connection details
@@ -58,10 +92,18 @@ class GraphClient:
                 database=settings.falkordb_graph_name,
             )
 
-            # Initialize Graphiti with the driver
-            self._client = Graphiti(graph_driver=driver)
+            # Create LLM client based on provider setting
+            llm_client = self._create_llm_client()
+
+            # Ensure OpenAI API key is set for embeddings (Graphiti still uses OpenAI for embeddings)
+            openai_key = settings.openai_api_key.get_secret_value()
+            if openai_key and not os.getenv("OPENAI_API_KEY"):
+                os.environ["OPENAI_API_KEY"] = openai_key
+
+            # Initialize Graphiti with the driver and LLM client
+            self._client = Graphiti(graph_driver=driver, llm_client=llm_client)
             self._connected = True
-            log.info("Connected to FalkorDB successfully")
+            log.info("Connected to FalkorDB successfully", llm_provider=settings.llm_provider)
 
         except Exception as e:
             # Use log.error (not exception) to avoid traceback spam in CLI

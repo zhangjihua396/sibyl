@@ -35,7 +35,23 @@ class Settings(BaseSettings):
         description="Name of the graph in FalkorDB",
     )
 
-    # Graphiti configuration
+    # LLM Provider configuration
+    llm_provider: Literal["openai", "anthropic"] = Field(
+        default="anthropic",
+        description="LLM provider for entity extraction (openai or anthropic)",
+    )
+    llm_model: str = Field(
+        default="claude-haiku-4-5",
+        description="LLM model for entity extraction",
+    )
+
+    # Anthropic configuration
+    anthropic_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="Anthropic API key (defaults to ANTHROPIC_API_KEY env var)",
+    )
+
+    # OpenAI configuration (for embeddings, or LLM if provider=openai)
     openai_api_key: SecretStr = Field(default=SecretStr(""), description="OpenAI API key for embeddings")
     embedding_model: str = Field(
         default="text-embedding-3-small",

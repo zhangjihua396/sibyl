@@ -28,7 +28,7 @@ dependencies = [
     # MCP Protocol
     "mcp>=1.25",
     # Knowledge Graph
-    "graphiti-core[falkordb]>=0.24",
+    "graphiti-core[falkordb,anthropic]>=0.24",
     # Async support
     "anyio>=4.0",
     # HTTP server
