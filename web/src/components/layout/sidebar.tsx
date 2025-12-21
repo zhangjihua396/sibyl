@@ -11,9 +11,14 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  X,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useEffect } from 'react';
 import { APP_CONFIG } from '@/lib/constants';
+import { useMobileNav } from './mobile-nav-context';
 import { NavLink } from './nav-link';
 
 // Navigation with Lucide icons
@@ -28,12 +33,12 @@ const NAVIGATION: Array<{ name: string; href: string; icon: LucideIcon }> = [
   { name: 'Ingest', href: '/ingest', icon: RefreshCw },
 ];
 
-export function Sidebar() {
+function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   return (
-    <aside className="w-64 bg-sc-bg-base border-r border-sc-fg-subtle/10 flex flex-col">
+    <>
       {/* Logo */}
-      <div className="p-6 border-b border-sc-fg-subtle/10">
-        <Link href="/" className="flex items-center gap-3 group">
+      <div className="p-4 md:p-6 border-b border-sc-fg-subtle/10">
+        <Link href="/" className="flex items-center gap-3 group" onClick={onNavClick}>
           <div className="relative">
             {/* Glow effect */}
             <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-sc-purple via-sc-magenta to-sc-coral blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
@@ -52,16 +57,16 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto">
         {NAVIGATION.map(item => (
-          <NavLink key={item.name} href={item.href} icon={item.icon}>
+          <NavLink key={item.name} href={item.href} icon={item.icon} onClick={onNavClick}>
             {item.name}
           </NavLink>
         ))}
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sc-fg-subtle/10">
+      <div className="p-3 md:p-4 border-t border-sc-fg-subtle/10">
         <div className="flex items-center gap-2 text-[10px] text-sc-fg-subtle">
           <div className="w-1.5 h-1.5 rounded-full bg-sc-green animate-pulse shadow-[0_0_6px_rgba(80,250,123,0.6)]" />
           <span className="uppercase tracking-wider">
@@ -69,6 +74,75 @@ export function Sidebar() {
           </span>
         </div>
       </div>
-    </aside>
+    </>
+  );
+}
+
+export function Sidebar() {
+  const { isOpen, close } = useMobileNav();
+  const pathname = usePathname();
+
+  // Close mobile nav on route change
+  useEffect(() => {
+    close();
+  }, [pathname, close]);
+
+  // Close on escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        close();
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen, close]);
+
+  return (
+    <>
+      {/* Desktop Sidebar - hidden on mobile */}
+      <aside className="hidden md:flex w-64 bg-sc-bg-base border-r border-sc-fg-subtle/10 flex-col">
+        <SidebarContent />
+      </aside>
+
+      {/* Mobile Drawer */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
+              onClick={close}
+              aria-hidden="true"
+            />
+
+            {/* Drawer */}
+            <motion.aside
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 w-72 bg-sc-bg-base border-r border-sc-fg-subtle/10 flex flex-col z-50 md:hidden shadow-2xl shadow-black/50"
+            >
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={close}
+                className="absolute top-4 right-4 p-2 rounded-lg text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight transition-colors"
+                aria-label="Close navigation"
+              >
+                <X size={20} />
+              </button>
+
+              <SidebarContent onNavClick={close} />
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

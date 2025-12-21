@@ -1,10 +1,11 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Fira_Code, Space_Grotesk } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 
 import { AsyncBoundary } from '@/components/error-boundary';
 import { Header } from '@/components/layout/header';
+import { MobileNavProvider } from '@/components/layout/mobile-nav-context';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Providers } from '@/components/providers';
 
@@ -27,20 +28,30 @@ export const metadata: Metadata = {
   description: 'Knowledge graph visualization and management for development wisdom',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0a0812',
+};
+
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className={`${spaceGrotesk.variable} ${firaCode.variable} antialiased`}>
         <Providers>
-          <div className="flex h-screen overflow-hidden">
-            <Sidebar />
-            <div className="flex-1 flex flex-col overflow-hidden">
-              <Header />
-              <main className="flex-1 overflow-auto bg-sc-bg-dark p-6">
-                <AsyncBoundary level="page">{children}</AsyncBoundary>
-              </main>
+          <MobileNavProvider>
+            <div className="flex h-dvh overflow-hidden">
+              <Sidebar />
+              <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+                <Header />
+                <main className="flex-1 overflow-auto bg-sc-bg-dark p-3 sm:p-4 md:p-6">
+                  <AsyncBoundary level="page">{children}</AsyncBoundary>
+                </main>
+              </div>
             </div>
-          </div>
+          </MobileNavProvider>
           <Toaster
             theme="dark"
             position="bottom-right"

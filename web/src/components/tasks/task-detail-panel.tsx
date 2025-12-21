@@ -368,8 +368,8 @@ export function TaskDetailPanel({ task, relatedKnowledge = [] }: TaskDetailPanel
         </div>
       </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Content Grid - sidebar first on mobile for quick actions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Main Content - 2 cols */}
         <div className="lg:col-span-2 space-y-6">
           {/* Details */}

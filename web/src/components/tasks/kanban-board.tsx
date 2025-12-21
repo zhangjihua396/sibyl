@@ -237,7 +237,7 @@ const KanbanColumn = memo(function KanbanColumn({
 
   return (
     <div
-      className="flex-1 min-w-[300px] max-w-[380px]"
+      className="flex-1 min-w-[260px] sm:min-w-[300px] max-w-[320px] sm:max-w-[380px] snap-start sm:snap-align-none"
       onDragOver={handleDragOver}
       onDragLeave={onDragLeave}
       onDrop={handleDrop}
@@ -394,9 +394,9 @@ export function KanbanBoard({
 
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 -mx-3 px-3 sm:mx-0 sm:px-0">
         {TASK_STATUSES.map(status => (
-          <div key={status} className="flex-1 min-w-[300px] max-w-[380px]">
+          <div key={status} className="flex-1 min-w-[260px] sm:min-w-[300px] max-w-[320px] sm:max-w-[380px]">
             <div className="flex items-center gap-2 mb-3 px-1">
               <div className="w-5 h-5 bg-sc-bg-elevated rounded animate-pulse" />
               <div className="w-16 h-4 bg-sc-bg-elevated rounded animate-pulse" />
@@ -412,7 +412,7 @@ export function KanbanBoard({
   }
 
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
+    <div className="flex gap-3 sm:gap-4 overflow-x-auto pb-4 -mx-3 px-3 sm:mx-0 sm:px-0 snap-x snap-mandatory sm:snap-none">
       {TASK_STATUSES.map(status => (
         <KanbanColumn
           key={status}

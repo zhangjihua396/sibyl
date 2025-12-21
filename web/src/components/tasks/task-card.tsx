@@ -9,6 +9,7 @@ interface TaskCardProps {
   task: TaskSummary;
   projectName?: string;
   showProject?: boolean;
+  draggable?: boolean;
   onDragStart?: (e: React.DragEvent, taskId: string) => void;
   onClick?: (taskId: string) => void;
   onProjectClick?: (projectId: string) => void;
@@ -109,6 +110,7 @@ export const TaskCard = memo(function TaskCard({
   task,
   projectName,
   showProject = true,
+  draggable: isDraggable = true,
   onDragStart,
   onClick,
   onProjectClick,
@@ -144,12 +146,12 @@ export const TaskCard = memo(function TaskCard({
 
   return (
     <div
-      draggable
-      onDragStart={e => onDragStart?.(e, task.id)}
+      draggable={isDraggable}
+      onDragStart={isDraggable ? e => onDragStart?.(e, task.id) : undefined}
       onClick={() => onClick?.(task.id)}
       className={`
         relative rounded-xl overflow-hidden
-        cursor-grab active:cursor-grabbing
+        ${isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'}
         transition-all duration-200
         hover:shadow-lg hover:shadow-black/20
         hover:-translate-y-0.5

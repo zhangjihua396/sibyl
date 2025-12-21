@@ -4,9 +4,9 @@ import { FolderKanban, Hash, LayoutDashboard, ListTodo, X } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
-import { PageHeader } from '@/components/layout/page-header';
 import { KanbanBoard } from '@/components/tasks/kanban-board';
 import { type QuickTaskData, QuickTaskModal } from '@/components/tasks/quick-task-modal';
+import { TaskListMobile } from '@/components/tasks/task-list-mobile';
 import { CommandPalette, useKeyboardShortcuts } from '@/components/ui/command-palette';
 import { TasksEmptyState } from '@/components/ui/empty-state';
 import { LoadingState } from '@/components/ui/spinner';
@@ -135,14 +135,6 @@ function TasksPageContent() {
     [createEntity]
   );
 
-  // Count tasks by status for the header
-  const taskCounts = {
-    total: tasks.length,
-    doing: tasks.filter(t => t.metadata.status === 'doing').length,
-    review: tasks.filter(t => t.metadata.status === 'review').length,
-    done: tasks.filter(t => t.metadata.status === 'done').length,
-  };
-
   // Build breadcrumb items based on filter
   const breadcrumbItems = [
     { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -154,49 +146,63 @@ function TasksPageContent() {
     <div className="space-y-4 animate-fade-in">
       <Breadcrumb items={breadcrumbItems} custom />
 
-      <PageHeader
-        title="Task Board"
-        description={
-          currentProjectName
-            ? `Tasks for ${currentProjectName}`
-            : 'Manage tasks with a Kanban-style workflow'
-        }
-        meta={`${taskCounts.total} tasks | ${taskCounts.doing} in progress | ${taskCounts.review} in review`}
-        action={
+      {/* Filters - Mobile: inline row, Desktop: chips */}
+      <div className="space-y-2 sm:space-y-3">
+        {/* Mobile: Project Dropdown + New Button in row */}
+        <div className="flex sm:hidden items-center gap-2">
+          <select
+            value={projectFilter || ''}
+            onChange={e => handleProjectFilter(e.target.value || null)}
+            className="flex-1 min-w-0 px-3 py-2 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-lg text-sm text-sc-fg-primary focus:border-sc-purple focus:outline-none"
+          >
+            <option value="">All Projects</option>
+            {projects.map(project => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+          </select>
           <button
             type="button"
             onClick={() => setIsQuickTaskOpen(true)}
-            className="px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="shrink-0 px-3 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm"
+          >
+            <span>+</span>
+            <span>New</span>
+          </button>
+        </div>
+
+        {/* Desktop: Project Filter Chips + New Button */}
+        <div className="hidden sm:flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-sc-fg-subtle font-medium">Project:</span>
+            <FilterChip active={!projectFilter} onClick={() => handleProjectFilter(null)}>
+              All
+            </FilterChip>
+            {projects.map(project => (
+              <FilterChip
+                key={project.id}
+                active={projectFilter === project.id}
+                onClick={() => handleProjectFilter(project.id)}
+              >
+                {project.name}
+              </FilterChip>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsQuickTaskOpen(true)}
+            className="shrink-0 px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm"
           >
             <span>+</span>
             <span>New Task</span>
             <kbd className="text-xs bg-white/20 px-1.5 py-0.5 rounded ml-1">C</kbd>
           </button>
-        }
-      />
-
-      {/* Filters */}
-      <div className="space-y-3">
-        {/* Project Filter */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-sc-fg-subtle font-medium">Project:</span>
-          <FilterChip active={!projectFilter} onClick={() => handleProjectFilter(null)}>
-            All
-          </FilterChip>
-          {projects.map(project => (
-            <FilterChip
-              key={project.id}
-              active={projectFilter === project.id}
-              onClick={() => handleProjectFilter(project.id)}
-            >
-              {project.name}
-            </FilterChip>
-          ))}
         </div>
 
-        {/* Tag Filter */}
+        {/* Tag Filter - Desktop only */}
         {allTags.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="hidden sm:flex flex-wrap items-center gap-2">
             <span className="text-xs text-sc-fg-subtle font-medium flex items-center gap-1">
               <Hash size={12} />
               Tags:
@@ -223,7 +229,7 @@ function TasksPageContent() {
         )}
       </div>
 
-      {/* Kanban Board or Empty State */}
+      {/* Task Board - Mobile List / Desktop Kanban */}
       {error ? (
         <ErrorState
           title="Failed to load tasks"
@@ -236,15 +242,32 @@ function TasksPageContent() {
           onClearFilter={projectFilter ? () => handleProjectFilter(null) : undefined}
         />
       ) : (
-        <KanbanBoard
-          tasks={tasks}
-          projects={projects.map(p => ({ id: p.id, name: p.name }))}
-          isLoading={isLoading}
-          currentProjectId={projectFilter}
-          onStatusChange={handleStatusChange}
-          onTaskClick={handleTaskClick}
-          onProjectFilter={handleProjectFilter}
-        />
+        <>
+          {/* Mobile: Filtered list with status tabs */}
+          <div className="md:hidden">
+            <TaskListMobile
+              tasks={tasks}
+              projects={projects.map(p => ({ id: p.id, name: p.name }))}
+              currentProjectId={projectFilter}
+              onStatusChange={handleStatusChange}
+              onTaskClick={handleTaskClick}
+              onProjectFilter={handleProjectFilter}
+            />
+          </div>
+
+          {/* Desktop: Full Kanban board */}
+          <div className="hidden md:block">
+            <KanbanBoard
+              tasks={tasks}
+              projects={projects.map(p => ({ id: p.id, name: p.name }))}
+              isLoading={isLoading}
+              currentProjectId={projectFilter}
+              onStatusChange={handleStatusChange}
+              onTaskClick={handleTaskClick}
+              onProjectFilter={handleProjectFilter}
+            />
+          </div>
+        </>
       )}
 
       {/* Update status indicator */}

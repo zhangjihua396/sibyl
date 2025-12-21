@@ -96,8 +96,8 @@ export function EntitiesContent({
       />
 
       {/* Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="flex-1">
+      <div className="flex flex-col gap-3 sm:gap-4">
+        <div className="flex-1 sm:max-w-md">
           <Input
             type="text"
             placeholder="Filter entities..."
@@ -107,8 +107,8 @@ export function EntitiesContent({
           />
         </div>
 
-        {/* Type Filter */}
-        <div className="flex flex-wrap gap-2">
+        {/* Type Filter - scrollable on mobile */}
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           <FilterChip active={!typeFilter} onClick={() => handleTypeFilter(null)}>
             All
           </FilterChip>
@@ -142,7 +142,7 @@ export function EntitiesContent({
       ) : (
         <>
           {/* Entity Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {filteredEntities.map(entity => (
               <EntityCard key={entity.id} entity={entity} onDelete={handleDelete} />
             ))}
@@ -150,23 +150,23 @@ export function EntitiesContent({
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2">
               <Button
                 variant="secondary"
                 onClick={() => handlePageChange(page - 1)}
                 disabled={page <= 1}
               >
-                ← Prev
+                <span className="hidden xs:inline">←</span> Prev
               </Button>
-              <span className="px-4 py-2 text-sc-fg-muted">
-                Page {page} of {totalPages}
+              <span className="px-2 sm:px-4 py-2 text-xs sm:text-sm text-sc-fg-muted">
+                {page}/{totalPages}
               </span>
               <Button
                 variant="secondary"
                 onClick={() => handlePageChange(page + 1)}
                 disabled={page >= totalPages}
               >
-                Next →
+                Next <span className="hidden xs:inline">→</span>
               </Button>
             </div>
           )}

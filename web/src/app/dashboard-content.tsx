@@ -36,8 +36,8 @@ function EntityRingChart({ counts }: { counts: Record<string, number> }) {
 
   if (total === 0) {
     return (
-      <div className="w-32 h-32 rounded-full border-4 border-sc-fg-subtle/20 flex items-center justify-center">
-        <span className="text-sc-fg-subtle text-sm">No data</span>
+      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-sc-fg-subtle/20 flex items-center justify-center">
+        <span className="text-sc-fg-subtle text-xs sm:text-sm">No data</span>
       </div>
     );
   }
@@ -76,7 +76,7 @@ function EntityRingChart({ counts }: { counts: Record<string, number> }) {
   };
 
   return (
-    <div className="relative w-32 h-32">
+    <div className="relative w-24 h-24 sm:w-32 sm:h-32">
       <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90" role="img">
         <title>Entity distribution chart</title>
         {segments.map((seg, _i) => (
@@ -93,8 +93,10 @@ function EntityRingChart({ counts }: { counts: Record<string, number> }) {
         ))}
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-sc-fg-primary">{total}</span>
-        <span className="text-[10px] text-sc-fg-subtle uppercase tracking-wide">Entities</span>
+        <span className="text-xl sm:text-2xl font-bold text-sc-fg-primary">{total}</span>
+        <span className="text-[8px] sm:text-[10px] text-sc-fg-subtle uppercase tracking-wide">
+          Entities
+        </span>
       </div>
     </div>
   );
@@ -157,7 +159,7 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
   }, [stats]);
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Dashboard breadcrumb */}
       <nav
         aria-label="Breadcrumb"
@@ -171,21 +173,23 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
       </nav>
 
       {/* Hero Section - System Overview */}
-      <div className="bg-gradient-to-br from-sc-bg-base via-sc-bg-elevated to-sc-purple/5 border border-sc-fg-subtle/20 rounded-2xl p-6 shadow-xl shadow-black/10">
-        <div className="flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
+      <div className="bg-gradient-to-br from-sc-bg-base via-sc-bg-elevated to-sc-purple/5 border border-sc-fg-subtle/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl shadow-black/10">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-8 items-start lg:items-center justify-between">
           {/* Left: Status & Welcome */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 space-y-3 sm:space-y-4 min-w-0">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sc-purple via-sc-magenta to-sc-coral flex items-center justify-center shadow-lg shadow-sc-purple/30">
-                <Sparkles size={24} className="text-white" />
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-sc-purple via-sc-magenta to-sc-coral flex items-center justify-center shadow-lg shadow-sc-purple/30 shrink-0">
+                <Sparkles size={20} className="text-white sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-sc-fg-primary">Knowledge Oracle</h1>
-                <div className="flex items-center gap-4 mt-1">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-sc-fg-primary truncate">
+                  Knowledge Oracle
+                </h1>
+                <div className="flex items-center gap-3 sm:gap-4 mt-1 flex-wrap">
                   <StatusIndicator status={serverStatus} />
                   {health?.graph_connected && (
-                    <div className="flex items-center gap-1.5 text-sm text-sc-fg-muted">
-                      <Database size={12} className="text-sc-cyan" />
+                    <div className="flex items-center gap-1.5 text-xs sm:text-sm text-sc-fg-muted">
+                      <Database size={12} className="text-sc-cyan shrink-0" />
                       <span>Graph Connected</span>
                     </div>
                   )}
@@ -194,10 +198,10 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
             </div>
 
             {/* Quick Stats Row */}
-            <div className="flex flex-wrap gap-6">
+            <div className="flex flex-wrap gap-3 sm:gap-6">
               <div className="flex items-center gap-2">
-                <Clock size={16} className="text-sc-cyan" />
-                <span className="text-sm text-sc-fg-muted">
+                <Clock size={14} className="text-sc-cyan shrink-0 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">
                   Uptime:{' '}
                   <span className="text-sc-fg-primary font-medium">
                     {formatUptime(health?.uptime_seconds ?? 0)}
@@ -205,14 +209,14 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <FolderKanban size={16} className="text-sc-purple" />
-                <span className="text-sm text-sc-fg-muted">
+                <FolderKanban size={14} className="text-sc-purple shrink-0 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">
                   <span className="text-sc-fg-primary font-medium">{projectCount}</span> Projects
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <ListTodo size={16} className="text-sc-coral" />
-                <span className="text-sm text-sc-fg-muted">
+                <ListTodo size={14} className="text-sc-coral shrink-0 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">
                   <span className="text-sc-fg-primary font-medium">{taskStats.total}</span> Tasks
                 </span>
               </div>
@@ -220,19 +224,21 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
           </div>
 
           {/* Right: Entity Ring Chart */}
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 sm:gap-6 w-full sm:w-auto justify-center sm:justify-end">
             <EntityRingChart counts={stats?.entity_counts ?? {}} />
-            <div className="space-y-2">
+            <div className="space-y-1.5 sm:space-y-2 hidden xs:block">
               {topEntities.map(([type, count]) => (
                 <div key={type} className="flex items-center gap-2">
                   <div
-                    className="w-2 h-2 rounded-full"
+                    className="w-2 h-2 rounded-full shrink-0"
                     style={{ backgroundColor: ENTITY_COLORS[type as keyof typeof ENTITY_COLORS] }}
                   />
-                  <span className="text-xs text-sc-fg-muted capitalize">
+                  <span className="text-[10px] sm:text-xs text-sc-fg-muted capitalize">
                     {type.replace(/_/g, ' ')}
                   </span>
-                  <span className="text-xs font-medium text-sc-fg-primary">{count}</span>
+                  <span className="text-[10px] sm:text-xs font-medium text-sc-fg-primary">
+                    {count}
+                  </span>
                 </div>
               ))}
             </div>
@@ -241,77 +247,80 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
       </div>
 
       {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Task Overview - Takes 2 cols */}
-        <div className="lg:col-span-2 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-2xl p-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sc-coral/10 border border-sc-coral/20 flex items-center justify-center">
-                <ListTodo size={20} className="text-sc-coral" />
+        <div className="lg:col-span-2 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-4 sm:mb-6 gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sc-coral/10 border border-sc-coral/20 flex items-center justify-center shrink-0">
+                <ListTodo size={16} className="text-sc-coral sm:w-5 sm:h-5" />
               </div>
-              <div>
-                <h2 className="text-lg font-semibold text-sc-fg-primary">Task Overview</h2>
-                <p className="text-sm text-sc-fg-muted">{taskStats.doing} in progress</p>
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-semibold text-sc-fg-primary truncate">
+                  Task Overview
+                </h2>
+                <p className="text-xs sm:text-sm text-sc-fg-muted">{taskStats.doing} in progress</p>
               </div>
             </div>
             <Link
               href="/tasks"
-              className="flex items-center gap-1.5 text-sm text-sc-purple hover:text-sc-purple/80 transition-colors"
+              className="flex items-center gap-1 sm:gap-1.5 text-xs sm:text-sm text-sc-purple hover:text-sc-purple/80 transition-colors shrink-0"
             >
-              View all <ArrowRight size={14} />
+              <span className="hidden xs:inline">View all</span>
+              <ArrowRight size={14} />
             </Link>
           </div>
 
           {/* Task Status Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
             <Link
               href="/tasks"
-              className="bg-sc-bg-elevated rounded-xl p-4 border border-sc-fg-subtle/10 hover:border-sc-cyan/30 transition-all group"
+              className="bg-sc-bg-elevated rounded-lg sm:rounded-xl p-3 sm:p-4 border border-sc-fg-subtle/10 hover:border-sc-cyan/30 transition-all group"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Target size={16} className="text-sc-cyan" />
-                <span className="text-sm text-sc-fg-muted">To Do</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <Target size={14} className="text-sc-cyan sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">To Do</span>
               </div>
-              <p className="text-2xl font-bold text-sc-fg-primary group-hover:text-sc-cyan transition-colors">
+              <p className="text-xl sm:text-2xl font-bold text-sc-fg-primary group-hover:text-sc-cyan transition-colors">
                 {taskStats.todo}
               </p>
             </Link>
 
             <Link
               href="/tasks"
-              className="bg-sc-bg-elevated rounded-xl p-4 border border-sc-fg-subtle/10 hover:border-sc-purple/30 transition-all group"
+              className="bg-sc-bg-elevated rounded-lg sm:rounded-xl p-3 sm:p-4 border border-sc-fg-subtle/10 hover:border-sc-purple/30 transition-all group"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Play size={16} className="text-sc-purple" />
-                <span className="text-sm text-sc-fg-muted">In Progress</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <Play size={14} className="text-sc-purple sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">In Progress</span>
               </div>
-              <p className="text-2xl font-bold text-sc-fg-primary group-hover:text-sc-purple transition-colors">
+              <p className="text-xl sm:text-2xl font-bold text-sc-fg-primary group-hover:text-sc-purple transition-colors">
                 {taskStats.doing}
               </p>
             </Link>
 
             <Link
               href="/tasks"
-              className="bg-sc-bg-elevated rounded-xl p-4 border border-sc-fg-subtle/10 hover:border-sc-yellow/30 transition-all group"
+              className="bg-sc-bg-elevated rounded-lg sm:rounded-xl p-3 sm:p-4 border border-sc-fg-subtle/10 hover:border-sc-yellow/30 transition-all group"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <RefreshCw size={16} className="text-sc-yellow" />
-                <span className="text-sm text-sc-fg-muted">In Review</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <RefreshCw size={14} className="text-sc-yellow sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">In Review</span>
               </div>
-              <p className="text-2xl font-bold text-sc-fg-primary group-hover:text-sc-yellow transition-colors">
+              <p className="text-xl sm:text-2xl font-bold text-sc-fg-primary group-hover:text-sc-yellow transition-colors">
                 {taskStats.review}
               </p>
             </Link>
 
             <Link
               href="/tasks"
-              className="bg-sc-bg-elevated rounded-xl p-4 border border-sc-fg-subtle/10 hover:border-sc-green/30 transition-all group"
+              className="bg-sc-bg-elevated rounded-lg sm:rounded-xl p-3 sm:p-4 border border-sc-fg-subtle/10 hover:border-sc-green/30 transition-all group"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle2 size={16} className="text-sc-green" />
-                <span className="text-sm text-sc-fg-muted">Completed</span>
+              <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+                <CheckCircle2 size={14} className="text-sc-green sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm text-sc-fg-muted">Completed</span>
               </div>
-              <p className="text-2xl font-bold text-sc-fg-primary group-hover:text-sc-green transition-colors">
+              <p className="text-xl sm:text-2xl font-bold text-sc-fg-primary group-hover:text-sc-green transition-colors">
                 {taskStats.done}
               </p>
             </Link>
@@ -319,12 +328,12 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
 
           {/* Task Progress Bar */}
           {taskStats.total > 0 && (
-            <div className="mt-6">
-              <div className="flex items-center justify-between text-xs text-sc-fg-muted mb-2">
+            <div className="mt-4 sm:mt-6">
+              <div className="flex items-center justify-between text-[10px] sm:text-xs text-sc-fg-muted mb-1.5 sm:mb-2">
                 <span>Progress</span>
                 <span>{Math.round((taskStats.done / taskStats.total) * 100)}% complete</span>
               </div>
-              <div className="h-2 bg-sc-bg-dark rounded-full overflow-hidden flex">
+              <div className="h-1.5 sm:h-2 bg-sc-bg-dark rounded-full overflow-hidden flex">
                 <div
                   className="h-full bg-sc-green transition-all duration-500"
                   style={{ width: `${(taskStats.done / taskStats.total) * 100}%` }}
@@ -347,88 +356,96 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-sc-purple/10 border border-sc-purple/20 flex items-center justify-center">
-              <Zap size={20} className="text-sc-purple" />
+        <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sc-purple/10 border border-sc-purple/20 flex items-center justify-center">
+              <Zap size={16} className="text-sc-purple sm:w-5 sm:h-5" />
             </div>
-            <h2 className="text-lg font-semibold text-sc-fg-primary">Quick Actions</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-sc-fg-primary">Quick Actions</h2>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-2 sm:space-y-3">
             <Link
               href="/search"
-              className="flex items-center gap-3 p-3 bg-sc-bg-elevated rounded-xl border border-sc-fg-subtle/10 hover:border-sc-cyan/30 hover:bg-sc-bg-highlight transition-all group"
+              className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-sc-bg-elevated rounded-lg sm:rounded-xl border border-sc-fg-subtle/10 hover:border-sc-cyan/30 hover:bg-sc-bg-highlight transition-all group"
             >
-              <div className="w-9 h-9 rounded-lg bg-sc-cyan/10 flex items-center justify-center">
-                <Search size={18} className="text-sc-cyan" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-sc-cyan/10 flex items-center justify-center shrink-0">
+                <Search size={16} className="text-sc-cyan sm:w-[18px] sm:h-[18px]" />
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-sc-fg-primary group-hover:text-sc-cyan transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs sm:text-sm font-medium text-sc-fg-primary group-hover:text-sc-cyan transition-colors truncate">
                   Search Knowledge
                 </div>
-                <div className="text-xs text-sc-fg-subtle">Find patterns & insights</div>
+                <div className="text-[10px] sm:text-xs text-sc-fg-subtle truncate">
+                  Find patterns & insights
+                </div>
               </div>
               <ArrowRight
-                size={16}
-                className="text-sc-fg-subtle group-hover:text-sc-cyan transition-colors"
+                size={14}
+                className="text-sc-fg-subtle group-hover:text-sc-cyan transition-colors shrink-0 sm:w-4 sm:h-4"
               />
             </Link>
 
             <Link
               href="/graph"
-              className="flex items-center gap-3 p-3 bg-sc-bg-elevated rounded-xl border border-sc-fg-subtle/10 hover:border-sc-purple/30 hover:bg-sc-bg-highlight transition-all group"
+              className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-sc-bg-elevated rounded-lg sm:rounded-xl border border-sc-fg-subtle/10 hover:border-sc-purple/30 hover:bg-sc-bg-highlight transition-all group"
             >
-              <div className="w-9 h-9 rounded-lg bg-sc-purple/10 flex items-center justify-center">
-                <Network size={18} className="text-sc-purple" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-sc-purple/10 flex items-center justify-center shrink-0">
+                <Network size={16} className="text-sc-purple sm:w-[18px] sm:h-[18px]" />
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-sc-fg-primary group-hover:text-sc-purple transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs sm:text-sm font-medium text-sc-fg-primary group-hover:text-sc-purple transition-colors truncate">
                   Explore Graph
                 </div>
-                <div className="text-xs text-sc-fg-subtle">Visualize connections</div>
+                <div className="text-[10px] sm:text-xs text-sc-fg-subtle truncate">
+                  Visualize connections
+                </div>
               </div>
               <ArrowRight
-                size={16}
-                className="text-sc-fg-subtle group-hover:text-sc-purple transition-colors"
+                size={14}
+                className="text-sc-fg-subtle group-hover:text-sc-purple transition-colors shrink-0 sm:w-4 sm:h-4"
               />
             </Link>
 
             <Link
               href="/entities"
-              className="flex items-center gap-3 p-3 bg-sc-bg-elevated rounded-xl border border-sc-fg-subtle/10 hover:border-sc-coral/30 hover:bg-sc-bg-highlight transition-all group"
+              className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-sc-bg-elevated rounded-lg sm:rounded-xl border border-sc-fg-subtle/10 hover:border-sc-coral/30 hover:bg-sc-bg-highlight transition-all group"
             >
-              <div className="w-9 h-9 rounded-lg bg-sc-coral/10 flex items-center justify-center">
-                <Boxes size={18} className="text-sc-coral" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-sc-coral/10 flex items-center justify-center shrink-0">
+                <Boxes size={16} className="text-sc-coral sm:w-[18px] sm:h-[18px]" />
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-sc-fg-primary group-hover:text-sc-coral transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs sm:text-sm font-medium text-sc-fg-primary group-hover:text-sc-coral transition-colors truncate">
                   Browse Entities
                 </div>
-                <div className="text-xs text-sc-fg-subtle">View all knowledge</div>
+                <div className="text-[10px] sm:text-xs text-sc-fg-subtle truncate">
+                  View all knowledge
+                </div>
               </div>
               <ArrowRight
-                size={16}
-                className="text-sc-fg-subtle group-hover:text-sc-coral transition-colors"
+                size={14}
+                className="text-sc-fg-subtle group-hover:text-sc-coral transition-colors shrink-0 sm:w-4 sm:h-4"
               />
             </Link>
 
             <Link
               href="/ingest"
-              className="flex items-center gap-3 p-3 bg-sc-bg-elevated rounded-xl border border-sc-fg-subtle/10 hover:border-sc-green/30 hover:bg-sc-bg-highlight transition-all group"
+              className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-sc-bg-elevated rounded-lg sm:rounded-xl border border-sc-fg-subtle/10 hover:border-sc-green/30 hover:bg-sc-bg-highlight transition-all group"
             >
-              <div className="w-9 h-9 rounded-lg bg-sc-green/10 flex items-center justify-center">
-                <RefreshCw size={18} className="text-sc-green" />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-sc-green/10 flex items-center justify-center shrink-0">
+                <RefreshCw size={16} className="text-sc-green sm:w-[18px] sm:h-[18px]" />
               </div>
-              <div className="flex-1">
-                <div className="text-sm font-medium text-sc-fg-primary group-hover:text-sc-green transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs sm:text-sm font-medium text-sc-fg-primary group-hover:text-sc-green transition-colors truncate">
                   Ingest Documents
                 </div>
-                <div className="text-xs text-sc-fg-subtle">Sync knowledge sources</div>
+                <div className="text-[10px] sm:text-xs text-sc-fg-subtle truncate">
+                  Sync knowledge sources
+                </div>
               </div>
               <ArrowRight
-                size={16}
-                className="text-sc-fg-subtle group-hover:text-sc-green transition-colors"
+                size={14}
+                className="text-sc-fg-subtle group-hover:text-sc-green transition-colors shrink-0 sm:w-4 sm:h-4"
               />
             </Link>
           </div>
@@ -436,18 +453,22 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
       </div>
 
       {/* Entity Breakdown - Full Width Bar Chart Style */}
-      <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-2xl p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-sc-cyan/10 border border-sc-cyan/20 flex items-center justify-center">
-            <Layers size={20} className="text-sc-cyan" />
+      <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+        <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sc-cyan/10 border border-sc-cyan/20 flex items-center justify-center shrink-0">
+            <Layers size={16} className="text-sc-cyan sm:w-5 sm:h-5" />
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-sc-fg-primary">Knowledge Distribution</h2>
-            <p className="text-sm text-sc-fg-muted">{stats?.total_entities ?? 0} total entities</p>
+          <div className="min-w-0">
+            <h2 className="text-base sm:text-lg font-semibold text-sc-fg-primary truncate">
+              Knowledge Distribution
+            </h2>
+            <p className="text-xs sm:text-sm text-sc-fg-muted">
+              {stats?.total_entities ?? 0} total entities
+            </p>
           </div>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-2.5 sm:space-y-3">
           {Object.entries(stats?.entity_counts ?? {})
             .filter(([_, count]) => count > 0)
             .sort((a, b) => b[1] - a[1])
@@ -461,18 +482,21 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <div
-                        className="w-2.5 h-2.5 rounded-full"
+                        className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: color }}
                       />
-                      <span className="text-sm font-medium text-sc-fg-primary capitalize">
+                      <span className="text-xs sm:text-sm font-medium text-sc-fg-primary capitalize">
                         {type.replace(/_/g, ' ')}
                       </span>
                     </div>
-                    <span className="text-sm text-sc-fg-muted">
-                      {count} <span className="text-sc-fg-subtle">({percentage.toFixed(1)}%)</span>
+                    <span className="text-xs sm:text-sm text-sc-fg-muted">
+                      {count}{' '}
+                      <span className="text-sc-fg-subtle hidden xs:inline">
+                        ({percentage.toFixed(1)}%)
+                      </span>
                     </span>
                   </div>
-                  <div className="h-2 bg-sc-bg-dark rounded-full overflow-hidden">
+                  <div className="h-1.5 sm:h-2 bg-sc-bg-dark rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all duration-500 group-hover:opacity-80"
                       style={{
@@ -490,16 +514,19 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
 
       {/* Error Display */}
       {health?.errors && health.errors.length > 0 && (
-        <div className="bg-sc-red/10 border border-sc-red/30 rounded-2xl p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-sc-red/20 flex items-center justify-center">
-              <Activity size={20} className="text-sc-red" />
+        <div className="bg-sc-red/10 border border-sc-red/30 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sc-red/20 flex items-center justify-center">
+              <Activity size={16} className="text-sc-red sm:w-5 sm:h-5" />
             </div>
-            <h2 className="text-lg font-semibold text-sc-red">System Errors</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-sc-red">System Errors</h2>
           </div>
-          <ul className="space-y-2">
+          <ul className="space-y-1.5 sm:space-y-2">
             {health.errors.map((error: string) => (
-              <li key={error} className="flex items-start gap-2 text-sm text-sc-fg-muted">
+              <li
+                key={error}
+                className="flex items-start gap-2 text-xs sm:text-sm text-sc-fg-muted"
+              >
                 <span className="text-sc-red mt-0.5">•</span>
                 {error}
               </li>

@@ -8,15 +8,17 @@ interface NavLinkProps {
   href: string;
   icon: LucideIcon;
   children: React.ReactNode;
+  onClick?: () => void;
 }
 
-export function NavLink({ href, icon: Icon, children }: NavLinkProps) {
+export function NavLink({ href, icon: Icon, children, onClick }: NavLinkProps) {
   const pathname = usePathname();
   const isActive = pathname === href;
 
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={`
         flex items-center gap-3 px-3 py-2.5 rounded-lg
         text-sm font-medium transition-all duration-200

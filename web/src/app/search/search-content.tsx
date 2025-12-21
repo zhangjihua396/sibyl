@@ -110,24 +110,24 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
       />
 
       {/* Search Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex gap-3">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
+        <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
           <div className="flex-1">
             <SearchInput
               ref={inputRef}
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search for patterns, rules, templates..."
+              placeholder="Search patterns, rules, templates..."
               onSubmit={() => setSubmittedQuery(query)}
             />
           </div>
-          <Button type="submit" size="lg" disabled={!query.trim()}>
+          <Button type="submit" size="lg" disabled={!query.trim()} className="xs:w-auto">
             Search
           </Button>
         </div>
 
         {/* Filters Section */}
-        <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl p-4 space-y-4">
+        <div className="bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg sm:rounded-xl p-3 sm:p-4 space-y-3 sm:space-y-4">
           {/* Entity Type Filters */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
@@ -257,25 +257,24 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
 
       {/* Results */}
       {submittedQuery ? (
-        <div className="space-y-4">
+        <div className="space-y-3 sm:space-y-4">
           {isLoading ? (
-            <LoadingState message="Searching knowledge base..." />
+            <LoadingState message="Searching..." />
           ) : error ? (
             <ErrorState title="Search failed" message={error.message} />
           ) : filteredResults && filteredResults.length > 0 ? (
             <>
-              <div className="flex items-center justify-between">
-                <div className="text-sc-fg-muted text-sm">
-                  Found {filteredResults.length} results for "{submittedQuery}"
-                  {selectedTypes.length > 0 && (
-                    <span className="text-sc-fg-subtle"> in {selectedTypes.join(', ')}</span>
-                  )}
-                  {selectedStatus && (
-                    <span className="text-sc-fg-subtle"> with status {selectedStatus}</span>
-                  )}
-                </div>
+              <div className="text-sc-fg-muted text-xs sm:text-sm">
+                <span className="font-medium">{filteredResults.length}</span> results
+                <span className="hidden xs:inline"> for "{submittedQuery}"</span>
+                {selectedTypes.length > 0 && (
+                  <span className="text-sc-fg-subtle hidden sm:inline"> in {selectedTypes.join(', ')}</span>
+                )}
+                {selectedStatus && (
+                  <span className="text-sc-fg-subtle hidden sm:inline"> ({selectedStatus})</span>
+                )}
               </div>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {filteredResults.map((result: SearchResult) => (
                   <SearchResultCard key={result.id} result={result} />
                 ))}

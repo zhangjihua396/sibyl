@@ -78,28 +78,29 @@ export function Breadcrumb({ items, custom }: BreadcrumbProps) {
   return (
     <nav
       aria-label="Breadcrumb"
-      className="flex items-center gap-1.5 text-sm text-sc-fg-muted min-h-[24px]"
+      className="flex items-center gap-1.5 text-sm text-sc-fg-muted h-6 overflow-hidden"
       style={{ viewTransitionName: 'breadcrumb' }}
     >
       {breadcrumbs.map((crumb, index) => {
         const Icon = crumb.icon;
+        const isLast = index === breadcrumbs.length - 1;
         return (
           <Fragment key={crumb.href ?? crumb.label}>
             {index > 0 && (
-              <ChevronRight size={14} className="text-sc-fg-subtle/50 mx-0.5" aria-hidden="true" />
+              <ChevronRight size={14} className="text-sc-fg-subtle/50 shrink-0" aria-hidden="true" />
             )}
-            {crumb.href && index < breadcrumbs.length - 1 ? (
+            {crumb.href && !isLast ? (
               <Link
                 href={crumb.href}
-                className="flex items-center gap-1.5 hover:text-sc-purple transition-colors"
+                className="flex items-center gap-1.5 hover:text-sc-purple transition-colors shrink-0"
               >
                 {Icon && <Icon size={14} strokeWidth={2} />}
-                <span>{crumb.label}</span>
+                <span className="hidden xs:inline">{crumb.label}</span>
               </Link>
             ) : (
-              <span className="flex items-center gap-1.5 text-sc-fg-primary font-medium">
-                {Icon && <Icon size={14} strokeWidth={2} />}
-                <span>{crumb.label}</span>
+              <span className={`flex items-center gap-1.5 text-sc-fg-primary font-medium ${isLast ? 'min-w-0 truncate' : 'shrink-0'}`}>
+                {Icon && <Icon size={14} strokeWidth={2} className="shrink-0" />}
+                <span className={isLast ? 'truncate' : ''}>{crumb.label}</span>
               </span>
             )}
           </Fragment>

@@ -249,17 +249,17 @@ export default function SourcesPage() {
         title="Knowledge Sources"
         description="Crawl documentation websites and upload files to build your knowledge graph"
         meta={
-          <div className="flex items-center gap-3 text-xs">
-            <span className="flex items-center gap-1.5 px-2 py-1 bg-sc-bg-base rounded-lg">
-              <Globe size={12} className="text-sc-purple" />
-              <span className="text-sc-fg-muted">{stats.total} sources</span>
+          <div className="flex items-center gap-2 sm:gap-3 text-[10px] sm:text-xs">
+            <span className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 bg-sc-bg-base rounded-lg">
+              <Globe size={10} className="text-sc-purple sm:w-3 sm:h-3" />
+              <span className="text-sc-fg-muted">{stats.total}</span>
             </span>
-            <span className="flex items-center gap-1.5 px-2 py-1 bg-sc-bg-base rounded-lg">
+            <span className="hidden xs:flex items-center gap-1.5 px-2 py-1 bg-sc-bg-base rounded-lg">
               <Database size={12} className="text-sc-cyan" />
-              <span className="text-sc-fg-muted">{stats.totalDocs} documents</span>
+              <span className="text-sc-fg-muted">{stats.totalDocs} docs</span>
             </span>
             {stats.inProgress > 0 && (
-              <span className="flex items-center gap-1.5 px-2 py-1 bg-sc-purple/20 text-sc-purple rounded-lg animate-pulse">
+              <span className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-1 bg-sc-purple/20 text-sc-purple rounded-lg animate-pulse">
                 {stats.inProgress} crawling
               </span>
             )}
@@ -269,18 +269,18 @@ export default function SourcesPage() {
           <button
             type="button"
             onClick={() => setShowAddDialog(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-xl font-medium transition-colors shadow-lg shadow-sc-purple/25"
+            className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg sm:rounded-xl font-medium transition-colors shadow-lg shadow-sc-purple/25 text-sm sm:text-base"
           >
-            <Plus size={18} />
-            Add Source
+            <Plus size={16} className="sm:w-[18px] sm:h-[18px]" />
+            <span className="hidden xs:inline">Add Source</span>
           </button>
         }
       />
 
       {/* Filters & Controls */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
         {/* Search */}
-        <div className="relative flex-1 max-w-md">
+        <div className="relative flex-1 sm:max-w-md">
           <Search
             size={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-sc-fg-subtle"
@@ -290,7 +290,7 @@ export default function SourcesPage() {
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             placeholder="Search sources..."
-            className="w-full pl-10 pr-4 py-2.5 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl text-sc-fg-primary placeholder:text-sc-fg-subtle focus:border-sc-purple focus:outline-none focus:ring-1 focus:ring-sc-purple/30 transition-colors"
+            className="w-full pl-10 pr-4 py-2 sm:py-2.5 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg sm:rounded-xl text-sm sm:text-base text-sc-fg-primary placeholder:text-sc-fg-subtle focus:border-sc-purple focus:outline-none focus:ring-1 focus:ring-sc-purple/30 transition-colors"
           />
         </div>
 
@@ -300,19 +300,19 @@ export default function SourcesPage() {
           <button
             type="button"
             onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors ${
+            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border transition-colors ${
               showFilters || filterStatus !== 'all'
                 ? 'bg-sc-purple/20 border-sc-purple/40 text-sc-purple'
                 : 'bg-sc-bg-base border-sc-fg-subtle/20 text-sc-fg-muted hover:border-sc-fg-subtle/40'
             }`}
           >
             <Filter size={16} />
-            Filters
+            <span className="hidden xs:inline text-sm">Filters</span>
             {filterStatus !== 'all' && <span className="w-2 h-2 bg-sc-purple rounded-full" />}
           </button>
 
-          {/* View Mode Toggle */}
-          <div className="flex bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl overflow-hidden">
+          {/* View Mode Toggle - Desktop only */}
+          <div className="hidden sm:flex bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl overflow-hidden">
             <button
               type="button"
               onClick={() => setViewMode('grid')}
@@ -343,7 +343,7 @@ export default function SourcesPage() {
           <button
             type="button"
             onClick={() => refetch()}
-            className="p-2.5 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl text-sc-fg-muted hover:text-sc-fg-primary hover:border-sc-fg-subtle/40 transition-colors"
+            className="p-2 sm:p-2.5 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg sm:rounded-xl text-sc-fg-muted hover:text-sc-fg-primary hover:border-sc-fg-subtle/40 transition-colors"
             title="Refresh"
           >
             <RefreshCw size={16} />
@@ -360,17 +360,17 @@ export default function SourcesPage() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="flex flex-wrap gap-4 p-4 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl">
+            <div className="flex flex-col sm:flex-row sm:flex-wrap gap-4 p-3 sm:p-4 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg sm:rounded-xl">
               {/* Status Filter */}
-              <div>
+              <div className="flex-1 min-w-0">
                 <span className="block text-xs text-sc-fg-subtle mb-2">Status</span>
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
                       { value: 'all', label: 'All' },
-                      { value: 'completed', label: 'Completed' },
+                      { value: 'completed', label: 'Done' },
                       { value: 'pending', label: 'Pending' },
-                      { value: 'in_progress', label: 'In Progress' },
+                      { value: 'in_progress', label: 'Active' },
                       { value: 'failed', label: 'Failed' },
                     ] as const
                   ).map(status => (
@@ -378,7 +378,7 @@ export default function SourcesPage() {
                       key={status.value}
                       type="button"
                       onClick={() => setFilterStatus(status.value)}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors capitalize ${
+                      className={`px-2.5 sm:px-3 py-1.5 text-xs rounded-lg transition-colors capitalize ${
                         filterStatus === status.value
                           ? 'bg-sc-purple text-white'
                           : 'bg-sc-bg-highlight text-sc-fg-muted hover:text-sc-fg-primary'
@@ -391,21 +391,21 @@ export default function SourcesPage() {
               </div>
 
               {/* Sort By */}
-              <div>
+              <div className="flex-1 min-w-0">
                 <span className="block text-xs text-sc-fg-subtle mb-2">Sort by</span>
                 <div className="flex flex-wrap gap-1.5">
                   {(
                     [
-                      { value: 'updated', label: 'Last Updated' },
+                      { value: 'updated', label: 'Updated' },
                       { value: 'name', label: 'Name' },
-                      { value: 'documents', label: 'Documents' },
+                      { value: 'documents', label: 'Docs' },
                     ] as const
                   ).map(option => (
                     <button
                       key={option.value}
                       type="button"
                       onClick={() => setSortBy(option.value)}
-                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                      className={`px-2.5 sm:px-3 py-1.5 text-xs rounded-lg transition-colors ${
                         sortBy === option.value
                           ? 'bg-sc-cyan text-sc-bg-dark'
                           : 'bg-sc-bg-highlight text-sc-fg-muted hover:text-sc-fg-primary'
@@ -421,12 +421,12 @@ export default function SourcesPage() {
         )}
       </AnimatePresence>
 
-      {/* Sources Grid/List */}
+      {/* Sources Grid/List - always list on mobile */}
       {isLoading ? (
         <div
           className={
             viewMode === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+              ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4'
               : 'space-y-3'
           }
         >
@@ -475,7 +475,7 @@ export default function SourcesPage() {
           layout
           className={
             viewMode === 'grid'
-              ? 'grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'
+              ? 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4'
               : 'space-y-3'
           }
         >

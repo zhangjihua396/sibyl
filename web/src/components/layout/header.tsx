@@ -1,14 +1,17 @@
 'use client';
 
-import { Command, Loader2, Search, Wifi, WifiOff } from 'lucide-react';
+import { Command, Loader2, Menu, Search, Sparkles, Wifi, WifiOff } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { useConnectionStatus, useHealth } from '@/lib/hooks';
+import { useMobileNav } from './mobile-nav-context';
 
 export function Header() {
   const router = useRouter();
   const { data: health } = useHealth();
   const wsStatus = useConnectionStatus();
+  const { toggle } = useMobileNav();
   const [searchQuery, setSearchQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
 
@@ -43,9 +46,27 @@ export function Header() {
       : { icon: WifiOff, label: 'Offline', color: 'sc-red' };
 
   return (
-    <header className="h-14 bg-sc-bg-base border-b border-sc-fg-subtle/10 flex items-center justify-between px-6">
-      {/* Search */}
-      <div className="flex-1 max-w-md">
+    <header className="h-14 bg-sc-bg-base border-b border-sc-fg-subtle/10 flex items-center justify-between px-3 md:px-6 gap-3">
+      {/* Mobile: Hamburger + Logo */}
+      <div className="flex items-center gap-2 md:hidden">
+        <button
+          type="button"
+          onClick={toggle}
+          className="p-2 -ml-1 rounded-lg text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight transition-colors"
+          aria-label="Open navigation menu"
+        >
+          <Menu size={22} />
+        </button>
+        <Link href="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sc-purple via-sc-magenta to-sc-coral flex items-center justify-center">
+            <Sparkles size={16} className="text-white" strokeWidth={2.5} />
+          </div>
+          <span className="font-bold text-sc-fg-primary">Sibyl</span>
+        </Link>
+      </div>
+
+      {/* Search - responsive */}
+      <div className="flex-1 max-w-md hidden sm:block">
         <div className={`relative transition-all duration-300 ${isFocused ? 'scale-[1.02]' : ''}`}>
           <label htmlFor="global-search" className="sr-only">
             Search knowledge base
@@ -104,11 +125,21 @@ export function Header() {
         </div>
       </div>
 
+      {/* Mobile Search Button */}
+      <button
+        type="button"
+        onClick={() => router.push('/search')}
+        className="sm:hidden p-2 rounded-lg text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight transition-colors"
+        aria-label="Search"
+      >
+        <Search size={20} />
+      </button>
+
       {/* Connection Status */}
       <div
         className={`
-          flex items-center gap-2 px-3 py-1.5 rounded-full
-          text-xs font-medium tracking-wide uppercase
+          flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-full
+          text-[10px] sm:text-xs font-medium tracking-wide uppercase
           border transition-all duration-500
           ${
             isConnected
