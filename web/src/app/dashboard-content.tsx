@@ -1,14 +1,13 @@
 'use client';
 
+import { LayoutDashboard } from 'lucide-react';
 import Link from 'next/link';
-
-import { Card, StatCard } from '@/components/ui/card';
-import { ColorButton } from '@/components/ui/button';
 import { EntityBreakdown } from '@/components/entities/entity-legend';
-import { PageHeader } from '@/components/layout/page-header';
-import { useHealth, useStats } from '@/lib/hooks';
-import { formatUptime, QUICK_ACTIONS } from '@/lib/constants';
+import { ColorButton } from '@/components/ui/button';
+import { Card, StatCard } from '@/components/ui/card';
 import type { StatsResponse } from '@/lib/api';
+import { formatUptime, QUICK_ACTIONS } from '@/lib/constants';
+import { useHealth, useStats } from '@/lib/hooks';
 
 interface DashboardContentProps {
   initialStats: StatsResponse;
@@ -22,11 +21,18 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
   const { data: stats, isLoading: statsLoading } = useStats(initialStats);
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <PageHeader
-        title="Dashboard"
-        description="Knowledge graph overview and server status"
-      />
+    <div className="space-y-4 animate-fade-in">
+      {/* Dashboard breadcrumb - consistent with other pages */}
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-1.5 text-sm text-sc-fg-muted min-h-[24px]"
+        style={{ viewTransitionName: 'breadcrumb' }}
+      >
+        <span className="flex items-center gap-1.5 text-sc-fg-primary font-medium">
+          <LayoutDashboard size={14} strokeWidth={2} />
+          <span>Dashboard</span>
+        </span>
+      </nav>
 
       {/* Status Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -83,7 +89,7 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
       <Card>
         <h3 className="text-lg font-semibold text-sc-fg-primary mb-4">Quick Actions</h3>
         <div className="flex flex-wrap gap-3">
-          {QUICK_ACTIONS.map((action) => (
+          {QUICK_ACTIONS.map(action => (
             <Link key={action.href} href={action.href}>
               <ColorButton color={action.color} icon={action.icon}>
                 {action.label}

@@ -3,15 +3,14 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-
-import { Card } from '@/components/ui/card';
-import { Button, ColorButton } from '@/components/ui/button';
-import { Input, Textarea } from '@/components/ui/input';
+import { EntityBreadcrumb } from '@/components/layout/breadcrumb';
 import { EntityBadge } from '@/components/ui/badge';
-import { Breadcrumb } from '@/components/layout/page-header';
-import { useDeleteEntity, useEntity, useUpdateEntity } from '@/lib/hooks';
-import { formatDateTime } from '@/lib/constants';
+import { Button, ColorButton } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input, Textarea } from '@/components/ui/input';
 import type { Entity } from '@/lib/api';
+import { formatDateTime } from '@/lib/constants';
+import { useDeleteEntity, useEntity, useUpdateEntity } from '@/lib/hooks';
 
 interface EntityDetailContentProps {
   initialEntity: Entity;
@@ -65,13 +64,8 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      <Breadcrumb
-        items={[
-          { label: 'Entities', href: '/entities' },
-          { label: currentEntity.name },
-        ]}
-      />
+    <div className="space-y-4 animate-fade-in">
+      <EntityBreadcrumb entityType="entity" entityName={currentEntity.name} />
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
@@ -83,7 +77,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
             <Input
               type="text"
               value={editedName}
-              onChange={(e) => setEditedName(e.target.value)}
+              onChange={e => setEditedName(e.target.value)}
               className="text-2xl font-bold"
             />
           ) : (
@@ -97,11 +91,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
               <Button variant="secondary" onClick={handleCancel}>
                 Cancel
               </Button>
-              <ColorButton
-                color="green"
-                onClick={handleSave}
-                disabled={updateEntity.isPending}
-              >
+              <ColorButton color="green" onClick={handleSave} disabled={updateEntity.isPending}>
                 {updateEntity.isPending ? 'Saving...' : 'Save'}
               </ColorButton>
             </>
@@ -115,11 +105,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
               <ColorButton color="cyan" onClick={handleStartEdit}>
                 Edit
               </ColorButton>
-              <ColorButton
-                color="red"
-                onClick={handleDelete}
-                disabled={deleteEntity.isPending}
-              >
+              <ColorButton color="red" onClick={handleDelete} disabled={deleteEntity.isPending}>
                 {deleteEntity.isPending ? 'Deleting...' : 'Delete'}
               </ColorButton>
             </>
@@ -137,7 +123,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
             {isEditing ? (
               <Textarea
                 value={editedDescription}
-                onChange={(e) => setEditedDescription(e.target.value)}
+                onChange={e => setEditedDescription(e.target.value)}
                 rows={3}
                 placeholder="Enter description..."
               />
@@ -154,7 +140,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
             {isEditing ? (
               <Textarea
                 value={editedContent}
-                onChange={(e) => setEditedContent(e.target.value)}
+                onChange={e => setEditedContent(e.target.value)}
                 rows={12}
                 monospace
                 placeholder="Enter content..."
@@ -181,9 +167,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
               </div>
               {currentEntity.source_file && (
                 <div>
-                  <dt className="text-xs text-sc-fg-subtle uppercase tracking-wide">
-                    Source File
-                  </dt>
+                  <dt className="text-xs text-sc-fg-subtle uppercase tracking-wide">Source File</dt>
                   <dd className="text-sc-fg-muted font-mono text-sm mt-1 break-all">
                     {currentEntity.source_file}
                   </dd>

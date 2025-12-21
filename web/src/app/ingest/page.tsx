@@ -1,15 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-
-import { TIMING } from '@/lib/constants';
-import { Card, StatCard } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input, Label } from '@/components/ui/input';
-import { Toggle } from '@/components/ui/toggle';
-import { Progress } from '@/components/ui/progress';
-import { StatusBadge } from '@/components/ui/badge';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
+import { StatusBadge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, StatCard } from '@/components/ui/card';
+import { Input, Label } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { Toggle } from '@/components/ui/toggle';
+import { TIMING } from '@/lib/constants';
 import { useHealth, useIngest, useIngestStatus, useStats } from '@/lib/hooks';
 
 export default function IngestPage() {
@@ -33,7 +33,9 @@ export default function IngestPage() {
   const progress = status?.progress ?? 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
+      <Breadcrumb />
+
       <PageHeader
         title="Document Ingestion"
         description="Sync documents and extract knowledge entities"
@@ -43,10 +45,7 @@ export default function IngestPage() {
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-sc-fg-primary">Ingestion Status</h2>
-          <StatusBadge
-            status={isRunning ? 'running' : 'idle'}
-            pulse={isRunning}
-          />
+          <StatusBadge status={isRunning ? 'running' : 'idle'} pulse={isRunning} />
         </div>
 
         {isRunning && status ? (
@@ -110,7 +109,7 @@ export default function IngestPage() {
               id="custom-path"
               type="text"
               value={customPath}
-              onChange={(e) => setCustomPath(e.target.value)}
+              onChange={e => setCustomPath(e.target.value)}
               placeholder="Leave empty to use default knowledge sources"
               className="font-mono"
               disabled={isRunning}

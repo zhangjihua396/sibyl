@@ -14,10 +14,14 @@ interface ProjectCardProps {
   };
 }
 
-export const ProjectCard = memo(function ProjectCard({ project, isSelected, onClick, taskCounts }: ProjectCardProps) {
-  const progress = taskCounts && taskCounts.total > 0
-    ? Math.round((taskCounts.done / taskCounts.total) * 100)
-    : 0;
+export const ProjectCard = memo(function ProjectCard({
+  project,
+  isSelected,
+  onClick,
+  taskCounts,
+}: ProjectCardProps) {
+  const progress =
+    taskCounts && taskCounts.total > 0 ? Math.round((taskCounts.done / taskCounts.total) * 100) : 0;
 
   return (
     <button
@@ -26,20 +30,21 @@ export const ProjectCard = memo(function ProjectCard({ project, isSelected, onCl
       className={`
         w-full text-left p-3 rounded-lg transition-all duration-150
         border
-        ${isSelected
-          ? 'bg-sc-purple/10 border-sc-purple/40 shadow-sm'
-          : 'bg-sc-bg-base border-sc-fg-subtle/20 hover:border-sc-fg-subtle/40 hover:bg-sc-bg-highlight/50'
+        ${
+          isSelected
+            ? 'bg-sc-purple/10 border-sc-purple/40 shadow-sm'
+            : 'bg-sc-bg-base border-sc-fg-subtle/20 hover:border-sc-fg-subtle/40 hover:bg-sc-bg-highlight/50'
         }
       `}
     >
-      <h3 className={`font-medium truncate ${isSelected ? 'text-sc-purple' : 'text-sc-fg-primary'}`}>
+      <h3
+        className={`font-medium truncate ${isSelected ? 'text-sc-purple' : 'text-sc-fg-primary'}`}
+      >
         {project.name}
       </h3>
 
       {project.description && (
-        <p className="text-xs text-sc-fg-muted mt-1 line-clamp-2">
-          {project.description}
-        </p>
+        <p className="text-xs text-sc-fg-muted mt-1 line-clamp-2">{project.description}</p>
       )}
 
       {taskCounts && (
@@ -52,7 +57,9 @@ export const ProjectCard = memo(function ProjectCard({ project, isSelected, onCl
             />
           </div>
           <div className="flex justify-between mt-1 text-[10px] text-sc-fg-subtle">
-            <span>{taskCounts.done}/{taskCounts.total} tasks</span>
+            <span>
+              {taskCounts.done}/{taskCounts.total} tasks
+            </span>
             <span>{progress}%</span>
           </div>
         </div>

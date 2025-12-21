@@ -1,4 +1,9 @@
-import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes, type ReactNode } from 'react';
+import {
+  forwardRef,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type TextareaHTMLAttributes,
+} from 'react';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   icon?: ReactNode;
@@ -28,9 +33,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           `}
           {...props}
         />
-        {error && (
-          <p className="mt-1.5 text-sm text-sc-red">{error}</p>
-        )}
+        {error && <p className="mt-1.5 text-sm text-sc-red">{error}</p>}
       </div>
     );
   }
@@ -61,7 +64,7 @@ export const SearchInput = forwardRef<HTMLInputElement, SearchInputProps>(
             hover:border-sc-fg-subtle/40
             ${className}
           `}
-          onKeyDown={(e) => {
+          onKeyDown={e => {
             if (e.key === 'Enter' && onSubmit) onSubmit();
           }}
           {...props}
@@ -97,9 +100,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
           `}
           {...props}
         />
-        {error && (
-          <p className="mt-1.5 text-sm text-sc-red">{error}</p>
-        )}
+        {error && <p className="mt-1.5 text-sm text-sc-red">{error}</p>}
       </div>
     );
   }
@@ -122,9 +123,7 @@ export function Label({ htmlFor, children, description, required }: LabelProps) 
         {children}
         {required && <span className="text-sc-red ml-1">*</span>}
       </label>
-      {description && (
-        <p className="text-xs text-sc-fg-subtle mt-0.5">{description}</p>
-      )}
+      {description && <p className="text-xs text-sc-fg-subtle mt-0.5">{description}</p>}
     </div>
   );
 }

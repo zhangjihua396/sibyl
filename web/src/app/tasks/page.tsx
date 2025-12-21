@@ -1,15 +1,19 @@
 'use client';
 
+import { FolderKanban, LayoutDashboard, ListTodo } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback } from 'react';
-
-import { FilterChip } from '@/components/ui/toggle';
-import { LoadingState } from '@/components/ui/spinner';
-import { EmptyState, ErrorState } from '@/components/ui/tooltip';
+import { Suspense, useCallback, useState } from 'react';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
 import { KanbanBoard } from '@/components/tasks/kanban-board';
-import { useProjects, useTasks, useTaskUpdateStatus } from '@/lib/hooks';
-import type { TaskStatus } from '@/lib/api';
+import { QuickTaskModal } from '@/components/tasks/quick-task-modal';
+import { CommandPalette, useKeyboardShortcuts } from '@/components/ui/command-palette';
+import { TasksEmptyState } from '@/components/ui/empty-state';
+import { LoadingState } from '@/components/ui/spinner';
+import { FilterChip } from '@/components/ui/toggle';
+import { ErrorState } from '@/components/ui/tooltip';
+import type { TaskPriority, TaskStatus } from '@/lib/api';
+import { useCreateEntity, useProjects, useTasks, useTaskUpdateStatus } from '@/lib/hooks';
 
 function TasksPageContent() {
   const router = useRouter();
@@ -17,12 +21,28 @@ function TasksPageContent() {
 
   const projectFilter = searchParams.get('project') || undefined;
 
+  // State for modals
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+  const [isQuickTaskOpen, setIsQuickTaskOpen] = useState(false);
+
   const { data: tasksData, isLoading, error } = useTasks({ project: projectFilter });
   const { data: projectsData } = useProjects();
   const updateStatus = useTaskUpdateStatus();
+  const createEntity = useCreateEntity();
 
   const projects = projectsData?.entities ?? [];
   const tasks = tasksData?.entities ?? [];
+
+  // Find current project name for filtered view
+  const currentProjectName = projectFilter
+    ? projects.find(p => p.id === projectFilter)?.name
+    : undefined;
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onCommandPalette: () => setIsCommandPaletteOpen(true),
+    onCreateTask: () => setIsQuickTaskOpen(true),
+  });
 
   const handleProjectFilter = useCallback(
     (projectId: string | null) => {
@@ -55,20 +75,70 @@ function TasksPageContent() {
     [router]
   );
 
+  const handleCreateTask = useCallback(
+    async (task: {
+      title: string;
+      description?: string;
+      priority: TaskPriority;
+      projectId?: string;
+    }) => {
+      try {
+        await createEntity.mutateAsync({
+          name: task.title,
+          description: task.description,
+          entity_type: 'task',
+          metadata: {
+            status: 'todo',
+            priority: task.priority,
+            project_id: task.projectId,
+          },
+        });
+        setIsQuickTaskOpen(false);
+      } catch (err) {
+        console.error('Failed to create task:', err);
+      }
+    },
+    [createEntity]
+  );
+
   // Count tasks by status for the header
   const taskCounts = {
     total: tasks.length,
-    doing: tasks.filter((t) => t.metadata.status === 'doing').length,
-    review: tasks.filter((t) => t.metadata.status === 'review').length,
-    done: tasks.filter((t) => t.metadata.status === 'done').length,
+    doing: tasks.filter(t => t.metadata.status === 'doing').length,
+    review: tasks.filter(t => t.metadata.status === 'review').length,
+    done: tasks.filter(t => t.metadata.status === 'done').length,
   };
 
+  // Build breadcrumb items based on filter
+  const breadcrumbItems = [
+    { label: 'Dashboard', href: '/', icon: LayoutDashboard },
+    { label: 'Tasks', href: '/tasks', icon: ListTodo },
+    ...(currentProjectName ? [{ label: currentProjectName, icon: FolderKanban }] : []),
+  ];
+
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
+      <Breadcrumb items={breadcrumbItems} custom />
+
       <PageHeader
         title="Task Board"
-        description="Manage tasks with a Kanban-style workflow"
+        description={
+          currentProjectName
+            ? `Tasks for ${currentProjectName}`
+            : 'Manage tasks with a Kanban-style workflow'
+        }
         meta={`${taskCounts.total} tasks | ${taskCounts.doing} in progress | ${taskCounts.review} in review`}
+        action={
+          <button
+            type="button"
+            onClick={() => setIsQuickTaskOpen(true)}
+            className="px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <span>+</span>
+            <span>New Task</span>
+            <kbd className="text-xs bg-white/20 px-1.5 py-0.5 rounded ml-1">C</kbd>
+          </button>
+        }
       />
 
       {/* Project Filter */}
@@ -76,7 +146,7 @@ function TasksPageContent() {
         <FilterChip active={!projectFilter} onClick={() => handleProjectFilter(null)}>
           All Projects
         </FilterChip>
-        {projects.map((project) => (
+        {projects.map(project => (
           <FilterChip
             key={project.id}
             active={projectFilter === project.id}
@@ -87,28 +157,26 @@ function TasksPageContent() {
         ))}
       </div>
 
-      {/* Kanban Board */}
+      {/* Kanban Board or Empty State */}
       {error ? (
         <ErrorState
           title="Failed to load tasks"
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       ) : tasks.length === 0 && !isLoading ? (
-        <EmptyState
-          icon="☰"
-          title="No tasks found"
-          description={
-            projectFilter
-              ? 'This project has no tasks yet'
-              : 'Create some tasks to get started'
-          }
+        <TasksEmptyState
+          projectName={currentProjectName}
+          onCreateTask={() => setIsQuickTaskOpen(true)}
+          onClearFilter={projectFilter ? () => handleProjectFilter(null) : undefined}
         />
       ) : (
         <KanbanBoard
           tasks={tasks}
+          projects={projects.map(p => ({ id: p.id, name: p.name }))}
           isLoading={isLoading}
           onStatusChange={handleStatusChange}
           onTaskClick={handleTaskClick}
+          onProjectFilter={handleProjectFilter}
         />
       )}
 
@@ -118,6 +186,23 @@ function TasksPageContent() {
           Updating task...
         </div>
       )}
+
+      {/* Quick Task Modal */}
+      <QuickTaskModal
+        isOpen={isQuickTaskOpen}
+        onClose={() => setIsQuickTaskOpen(false)}
+        onSubmit={handleCreateTask}
+        projects={projects.map(p => ({ id: p.id, name: p.name }))}
+        defaultProjectId={projectFilter}
+        isSubmitting={createEntity.isPending}
+      />
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onCreateTask={() => setIsQuickTaskOpen(true)}
+      />
     </div>
   );
 }

@@ -6,21 +6,30 @@ import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/lib/constants';
 
 interface TaskCardProps {
   task: TaskSummary;
+  projectName?: string;
   onDragStart?: (e: React.DragEvent, taskId: string) => void;
   onClick?: (taskId: string) => void;
+  onProjectClick?: (projectId: string) => void;
 }
 
-export const TaskCard = memo(function TaskCard({ task, onDragStart, onClick }: TaskCardProps) {
+export const TaskCard = memo(function TaskCard({
+  task,
+  projectName,
+  onDragStart,
+  onClick,
+  onProjectClick,
+}: TaskCardProps) {
   const status = (task.metadata.status ?? 'todo') as TaskStatus;
   const priority = (task.metadata.priority ?? 'medium') as TaskPriority;
   const statusConfig = TASK_STATUS_CONFIG[status as keyof typeof TASK_STATUS_CONFIG];
   const priorityConfig = TASK_PRIORITY_CONFIG[priority as keyof typeof TASK_PRIORITY_CONFIG];
   const assignees = task.metadata.assignees ?? [];
+  const projectId = task.metadata.project_id as string | undefined;
 
   return (
     <div
       draggable
-      onDragStart={(e) => onDragStart?.(e, task.id)}
+      onDragStart={e => onDragStart?.(e, task.id)}
       onClick={() => onClick?.(task.id)}
       className={`
         bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg p-3
@@ -31,24 +40,35 @@ export const TaskCard = memo(function TaskCard({ task, onDragStart, onClick }: T
       `}
       role="button"
       tabIndex={0}
-      onKeyDown={(e) => {
+      onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onClick?.(task.id);
         }
       }}
     >
-      {/* Priority indicator */}
-      <div className="flex items-center gap-2 mb-2">
+      {/* Project badge + Priority indicator */}
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {projectName && projectId && (
+          <button
+            type="button"
+            onClick={e => {
+              e.stopPropagation();
+              onProjectClick?.(projectId);
+            }}
+            className="text-xs px-1.5 py-0.5 rounded bg-sc-cyan/20 text-sc-cyan border border-sc-cyan/30 hover:bg-sc-cyan/30 transition-colors truncate max-w-[120px]"
+            title={`View ${projectName} tasks`}
+          >
+            ◇ {projectName}
+          </button>
+        )}
         <span
           className={`text-xs px-1.5 py-0.5 rounded ${priorityConfig?.bgClass} ${priorityConfig?.textClass}`}
         >
           {priorityConfig?.label ?? priority}
         </span>
         {typeof task.metadata.feature === 'string' && task.metadata.feature && (
-          <span className="text-xs text-sc-fg-subtle truncate">
-            {task.metadata.feature}
-          </span>
+          <span className="text-xs text-sc-fg-subtle truncate">{task.metadata.feature}</span>
         )}
       </div>
 
@@ -59,9 +79,7 @@ export const TaskCard = memo(function TaskCard({ task, onDragStart, onClick }: T
 
       {/* Description preview */}
       {task.description && (
-        <p className="text-xs text-sc-fg-muted line-clamp-2 mb-3">
-          {task.description}
-        </p>
+        <p className="text-xs text-sc-fg-muted line-clamp-2 mb-3">{task.description}</p>
       )}
 
       {/* Footer */}

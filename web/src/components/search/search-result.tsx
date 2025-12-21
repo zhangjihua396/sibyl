@@ -35,13 +35,9 @@ export function SearchResultCard({ result }: SearchResultCardProps) {
             <EntityBadge type={result.type} />
             <span className="text-xs text-sc-fg-subtle">{scorePercent}% match</span>
           </div>
-          <h3 className="text-lg font-semibold text-sc-fg-primary truncate">
-            {result.name}
-          </h3>
+          <h3 className="text-lg font-semibold text-sc-fg-primary truncate">{result.name}</h3>
           {result.content && (
-            <p className="text-sc-fg-muted text-sm mt-1 line-clamp-2">
-              {result.content}
-            </p>
+            <p className="text-sc-fg-muted text-sm mt-1 line-clamp-2">{result.content}</p>
           )}
         </div>
         <div className="flex-shrink-0 pt-1">

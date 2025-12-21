@@ -1,15 +1,15 @@
 'use client';
 
 import { Suspense, useCallback, useState } from 'react';
-
-import { GRAPH_DEFAULTS } from '@/lib/constants';
-import { Card } from '@/components/ui/card';
-import { FilterChip } from '@/components/ui/toggle';
-import { LoadingState } from '@/components/ui/spinner';
 import { EntityLegend } from '@/components/entities/entity-legend';
-import { PageHeader } from '@/components/layout/page-header';
-import { KnowledgeGraph } from '@/components/graph/knowledge-graph';
 import { EntityDetailPanel } from '@/components/graph/entity-detail-panel';
+import { KnowledgeGraph } from '@/components/graph/knowledge-graph';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { PageHeader } from '@/components/layout/page-header';
+import { Card } from '@/components/ui/card';
+import { LoadingState } from '@/components/ui/spinner';
+import { FilterChip } from '@/components/ui/toggle';
+import { GRAPH_DEFAULTS } from '@/lib/constants';
 import { useStats } from '@/lib/hooks';
 
 function GraphControls({
@@ -24,9 +24,7 @@ function GraphControls({
 
   const toggleType = (type: string) => {
     const current = filters.types || [];
-    const newTypes = current.includes(type)
-      ? current.filter((t) => t !== type)
-      : [...current, type];
+    const newTypes = current.includes(type) ? current.filter(t => t !== type) : [...current, type];
     onFilterChange({ types: newTypes.length > 0 ? newTypes : undefined });
   };
 
@@ -34,7 +32,7 @@ function GraphControls({
     <Card className="!p-4">
       <h3 className="text-sm font-medium text-sc-fg-muted mb-3">Entity Types</h3>
       <div className="flex flex-wrap gap-2">
-        {entityTypes.map((type) => {
+        {entityTypes.map(type => {
           const isActive = !filters.types || filters.types.includes(type);
           return (
             <FilterChip key={type} active={isActive} onClick={() => toggleType(type)}>
@@ -52,7 +50,7 @@ function GraphPageContent() {
   const [filters, setFilters] = useState<{ types?: string[] }>({});
 
   const handleNodeClick = useCallback((nodeId: string) => {
-    setSelectedNodeId(prev => prev === nodeId ? null : nodeId);
+    setSelectedNodeId(prev => (prev === nodeId ? null : nodeId));
   }, []);
 
   const handleClosePanel = useCallback(() => {
@@ -61,10 +59,9 @@ function GraphPageContent() {
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <PageHeader
-        title="Knowledge Graph"
-        description="Explore entity relationships and patterns"
-      />
+      <Breadcrumb />
+
+      <PageHeader title="Knowledge Graph" description="Explore entity relationships and patterns" />
 
       {/* Controls */}
       <GraphControls filters={filters} onFilterChange={setFilters} />
@@ -82,10 +79,7 @@ function GraphPageContent() {
 
         {/* Entity detail panel */}
         {selectedNodeId && (
-          <EntityDetailPanel
-            entityId={selectedNodeId}
-            onClose={handleClosePanel}
-          />
+          <EntityDetailPanel entityId={selectedNodeId} onClose={handleClosePanel} />
         )}
       </div>
 

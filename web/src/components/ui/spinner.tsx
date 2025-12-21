@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 type SpinnerSize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -25,7 +25,12 @@ const colors: Record<NonNullable<SpinnerProps['color']>, string> = {
   current: 'border-current border-t-transparent',
 };
 
-export function Spinner({ size = 'md', color = 'purple', variant = 'default', className = '' }: SpinnerProps) {
+export function Spinner({
+  size = 'md',
+  color = 'purple',
+  variant = 'default',
+  className = '',
+}: SpinnerProps) {
   if (variant === 'orbital') {
     return <OrbitalSpinner size={size} />;
   }
@@ -62,13 +67,19 @@ function OrbitalSpinner({ size = 'md' }: { size: SpinnerSize }) {
   return (
     <div className={`relative ${container}`} role="status" aria-label="Loading">
       <div className="absolute inset-0 animate-orbital">
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-purple`} />
+        <div
+          className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-purple`}
+        />
       </div>
       <div className="absolute inset-0 animate-orbital" style={{ animationDelay: '0.2s' }}>
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-cyan`} />
+        <div
+          className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-cyan`}
+        />
       </div>
       <div className="absolute inset-0 animate-orbital" style={{ animationDelay: '0.4s' }}>
-        <div className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-coral`} />
+        <div
+          className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-coral`}
+        />
       </div>
     </div>
   );
@@ -124,15 +135,22 @@ const PLAYFUL_MESSAGES = [
   'Decoding the matrix...',
 ];
 
-export function LoadingState({ size = 'lg', message, variant = 'orbital', playful = false }: LoadingStateProps) {
-  const [currentMessage, setCurrentMessage] = useState(message || (playful ? PLAYFUL_MESSAGES[0] : undefined));
+export function LoadingState({
+  size = 'lg',
+  message,
+  variant = 'orbital',
+  playful = false,
+}: LoadingStateProps) {
+  const [currentMessage, setCurrentMessage] = useState(
+    message || (playful ? PLAYFUL_MESSAGES[0] : undefined)
+  );
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     if (!playful || message) return;
 
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % PLAYFUL_MESSAGES.length);
+      setMessageIndex(prev => (prev + 1) % PLAYFUL_MESSAGES.length);
     }, 2500);
 
     return () => clearInterval(interval);
@@ -214,7 +232,11 @@ interface ProgressSpinnerProps {
   showPercent?: boolean;
 }
 
-export function ProgressSpinner({ progress, size = 'lg', showPercent = true }: ProgressSpinnerProps) {
+export function ProgressSpinner({
+  progress,
+  size = 'lg',
+  showPercent = true,
+}: ProgressSpinnerProps) {
   const sizeMap = {
     sm: { container: 'w-8 h-8', text: 'text-[8px]', stroke: '3' },
     md: { container: 'w-12 h-12', text: 'text-[10px]', stroke: '4' },
@@ -253,7 +275,9 @@ export function ProgressSpinner({ progress, size = 'lg', showPercent = true }: P
         />
       </svg>
       {showPercent && (
-        <div className={`absolute inset-0 flex items-center justify-center ${text} font-bold text-sc-fg-primary`}>
+        <div
+          className={`absolute inset-0 flex items-center justify-center ${text} font-bold text-sc-fg-primary`}
+        >
           {Math.round(progress)}%
         </div>
       )}

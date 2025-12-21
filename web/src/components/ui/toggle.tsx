@@ -7,7 +7,10 @@ interface ToggleProps {
   description?: string;
 }
 
-const sizes: Record<NonNullable<ToggleProps['size']>, { track: string; thumb: string; translate: string }> = {
+const sizes: Record<
+  NonNullable<ToggleProps['size']>,
+  { track: string; thumb: string; translate: string }
+> = {
   sm: { track: 'w-8 h-4', thumb: 'w-3 h-3', translate: 'translate-x-4' },
   md: { track: 'w-11 h-6', thumb: 'w-4 h-4', translate: 'translate-x-5' },
 };
@@ -49,13 +52,13 @@ export function Toggle({
       {(label || description) && (
         <div>
           {label && (
-            <span className={`text-sm font-medium ${disabled ? 'text-sc-fg-subtle' : 'text-sc-fg-primary'}`}>
+            <span
+              className={`text-sm font-medium ${disabled ? 'text-sc-fg-subtle' : 'text-sc-fg-primary'}`}
+            >
               {label}
             </span>
           )}
-          {description && (
-            <p className="text-xs text-sc-fg-subtle">{description}</p>
-          )}
+          {description && <p className="text-xs text-sc-fg-subtle">{description}</p>}
         </div>
       )}
     </div>
@@ -79,9 +82,10 @@ export function FilterChip({ active, onClick, children, disabled }: FilterChipPr
       className={`
         px-3 py-1.5 rounded-lg text-sm font-medium capitalize transition-all duration-150
         border
-        ${active
-          ? 'bg-sc-purple/20 text-sc-purple border-sc-purple/30 shadow-sm shadow-sc-purple/10'
-          : 'bg-sc-bg-highlight text-sc-fg-muted border-sc-fg-subtle/10 hover:border-sc-fg-subtle/30 hover:text-sc-fg-primary'
+        ${
+          active
+            ? 'bg-sc-purple/20 text-sc-purple border-sc-purple/30 shadow-sm shadow-sc-purple/10'
+            : 'bg-sc-bg-highlight text-sc-fg-muted border-sc-fg-subtle/10 hover:border-sc-fg-subtle/30 hover:text-sc-fg-primary'
         }
         ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
       `}

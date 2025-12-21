@@ -1,17 +1,17 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 import { EntityBadge } from '@/components/ui/badge';
-import {
-  TASK_STATUS_CONFIG,
-  TASK_PRIORITY_CONFIG,
-  type TaskStatusType,
-  type TaskPriorityType,
-  formatDateTime,
-} from '@/lib/constants';
+import { Button } from '@/components/ui/button';
 import type { Entity, TaskStatus } from '@/lib/api';
+import {
+  formatDateTime,
+  TASK_PRIORITY_CONFIG,
+  TASK_STATUS_CONFIG,
+  type TaskPriorityType,
+  type TaskStatusType,
+} from '@/lib/constants';
 import { useTaskUpdateStatus } from '@/lib/hooks';
 
 interface TaskDetailPanelProps {
@@ -96,7 +96,9 @@ export function TaskDetailPanel({ task, onClose, relatedKnowledge = [] }: TaskDe
           {/* Current Status */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-sc-fg-subtle uppercase">Status</span>
-            <span className={`px-2 py-1 rounded text-sm font-medium ${statusConfig.bgClass} ${statusConfig.textClass}`}>
+            <span
+              className={`px-2 py-1 rounded text-sm font-medium ${statusConfig.bgClass} ${statusConfig.textClass}`}
+            >
               {statusConfig.icon} {statusConfig.label}
             </span>
           </div>
@@ -104,7 +106,9 @@ export function TaskDetailPanel({ task, onClose, relatedKnowledge = [] }: TaskDe
           {/* Priority */}
           <div className="flex items-center gap-2">
             <span className="text-xs text-sc-fg-subtle uppercase">Priority</span>
-            <span className={`px-2 py-1 rounded text-sm ${priorityConfig.bgClass} ${priorityConfig.textClass}`}>
+            <span
+              className={`px-2 py-1 rounded text-sm ${priorityConfig.bgClass} ${priorityConfig.textClass}`}
+            >
               {priorityConfig.label}
             </span>
           </div>
@@ -112,7 +116,7 @@ export function TaskDetailPanel({ task, onClose, relatedKnowledge = [] }: TaskDe
 
         {/* Status Actions */}
         <div className="flex items-center gap-2">
-          {getNextStatuses(status).map((nextStatus) => {
+          {getNextStatuses(status).map(nextStatus => {
             const nextConfig = TASK_STATUS_CONFIG[nextStatus as TaskStatusType];
             return (
               <Button
@@ -162,7 +166,7 @@ export function TaskDetailPanel({ task, onClose, relatedKnowledge = [] }: TaskDe
             <section>
               <h3 className="text-sm font-semibold text-sc-fg-muted mb-3">Technologies</h3>
               <div className="flex flex-wrap gap-2">
-                {technologies.map((tech) => (
+                {technologies.map(tech => (
                   <span
                     key={tech}
                     className="px-2 py-1 text-xs rounded bg-sc-bg-elevated border border-sc-fg-subtle/20 text-sc-fg-primary"
@@ -179,7 +183,7 @@ export function TaskDetailPanel({ task, onClose, relatedKnowledge = [] }: TaskDe
             <section>
               <h3 className="text-sm font-semibold text-sc-fg-muted mb-3">Linked Knowledge</h3>
               <div className="space-y-2">
-                {relatedKnowledge.map((item) => (
+                {relatedKnowledge.map(item => (
                   <Link
                     key={item.id}
                     href={`/entities/${item.id}`}
@@ -213,7 +217,10 @@ export function TaskDetailPanel({ task, onClose, relatedKnowledge = [] }: TaskDe
                 <div className="flex justify-between">
                   <dt className="text-sc-fg-subtle">Project</dt>
                   <dd>
-                    <Link href={`/projects?id=${projectId}`} className="text-sc-purple hover:underline">
+                    <Link
+                      href={`/projects?id=${projectId}`}
+                      className="text-sc-purple hover:underline"
+                    >
                       View Project
                     </Link>
                   </dd>

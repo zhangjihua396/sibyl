@@ -1,5 +1,5 @@
-import { Suspense, type ReactNode } from 'react';
-import { Skeleton, SkeletonCard, SkeletonList, LoadingState } from '@/components/ui/spinner';
+import { type ReactNode, Suspense } from 'react';
+import { LoadingState, Skeleton, SkeletonCard, SkeletonList } from '@/components/ui/spinner';
 
 // =============================================================================
 // Suspense Boundary Types

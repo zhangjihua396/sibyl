@@ -2,17 +2,17 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-
-import { SearchInput } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { FilterChip } from '@/components/ui/toggle';
-import { LoadingState } from '@/components/ui/spinner';
-import { EmptyState, ErrorState } from '@/components/ui/tooltip';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
 import { SearchResultCard } from '@/components/search/search-result';
+import { Button } from '@/components/ui/button';
+import { SearchInput } from '@/components/ui/input';
+import { LoadingState } from '@/components/ui/spinner';
+import { FilterChip } from '@/components/ui/toggle';
+import { EmptyState, ErrorState } from '@/components/ui/tooltip';
 import type { SearchResponse, SearchResult, StatsResponse } from '@/lib/api';
-import { useSearch, useStats } from '@/lib/hooks';
 import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
+import { useSearch, useStats } from '@/lib/hooks';
 
 // Curated searchable entity types
 const SEARCHABLE_TYPES = [
@@ -31,11 +31,7 @@ interface SearchContentProps {
   initialStats?: StatsResponse;
 }
 
-export function SearchContent({
-  initialQuery,
-  initialResults,
-  initialStats,
-}: SearchContentProps) {
+export function SearchContent({ initialQuery, initialResults, initialStats }: SearchContentProps) {
   const searchParams = useSearchParams();
   const urlQuery = searchParams.get('q') || '';
 
@@ -51,7 +47,11 @@ export function SearchContent({
   // Check if task type is selected to show status filter
   const showStatusFilter = selectedTypes.includes('task');
 
-  const { data: results, isLoading, error } = useSearch(
+  const {
+    data: results,
+    isLoading,
+    error,
+  } = useSearch(
     {
       query: submittedQuery,
       types: selectedTypes.length > 0 ? selectedTypes : undefined,
@@ -73,10 +73,8 @@ export function SearchContent({
   };
 
   const toggleType = (type: string) => {
-    setSelectedTypes((prev) => {
-      const newTypes = prev.includes(type)
-        ? prev.filter((t) => t !== type)
-        : [...prev, type];
+    setSelectedTypes(prev => {
+      const newTypes = prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type];
       // Clear status filter if task is deselected
       if (type === 'task' && prev.includes('task')) {
         setSelectedStatus(null);
@@ -86,7 +84,7 @@ export function SearchContent({
   };
 
   const toggleStatus = (status: string) => {
-    setSelectedStatus((prev) => (prev === status ? null : status));
+    setSelectedStatus(prev => (prev === status ? null : status));
   };
 
   // Filter results by status if selected
@@ -102,7 +100,9 @@ export function SearchContent({
   const getTypeCount = (type: string) => stats?.entity_counts[type] ?? 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
+      <Breadcrumb />
+
       <PageHeader
         title="Search Knowledge"
         description="Semantic search across all entities"
@@ -116,7 +116,7 @@ export function SearchContent({
             <SearchInput
               ref={inputRef}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={e => setQuery(e.target.value)}
               placeholder="Search for patterns, rules, templates..."
               onSubmit={() => setSubmittedQuery(query)}
             />
@@ -146,7 +146,7 @@ export function SearchContent({
               )}
             </div>
             <div className="flex flex-wrap gap-2">
-              {SEARCHABLE_TYPES.map((type) => {
+              {SEARCHABLE_TYPES.map(type => {
                 const count = getTypeCount(type);
                 return (
                   <FilterChip
@@ -155,9 +155,7 @@ export function SearchContent({
                     onClick={() => toggleType(type)}
                   >
                     {type.replace(/_/g, ' ')}
-                    {count > 0 && (
-                      <span className="ml-1 text-[10px] opacity-70">({count})</span>
-                    )}
+                    {count > 0 && <span className="ml-1 text-[10px] opacity-70">({count})</span>}
                   </FilterChip>
                 );
               })}
@@ -180,7 +178,7 @@ export function SearchContent({
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {TASK_STATUSES.map((status) => {
+                {TASK_STATUSES.map(status => {
                   const config = TASK_STATUS_CONFIG[status];
                   return (
                     <FilterChip
@@ -237,7 +235,8 @@ export function SearchContent({
                   setSinceDate(d.toISOString().split('T')[0]);
                 }}
                 className={`text-xs px-2 py-1 rounded border transition-colors ${
-                  sinceDate && new Date(sinceDate) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) &&
+                  sinceDate &&
+                  new Date(sinceDate) >= new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) &&
                   new Date(sinceDate) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
                     ? 'bg-sc-purple/20 border-sc-purple/40 text-sc-purple'
                     : 'border-sc-fg-subtle/20 text-sc-fg-muted hover:border-sc-fg-subtle/40'
@@ -248,7 +247,7 @@ export function SearchContent({
               <input
                 type="date"
                 value={sinceDate}
-                onChange={(e) => setSinceDate(e.target.value)}
+                onChange={e => setSinceDate(e.target.value)}
                 className="text-xs px-2 py-1 rounded border border-sc-fg-subtle/20 bg-sc-bg-elevated text-sc-fg-primary focus:outline-none focus:border-sc-purple/40"
               />
             </div>
@@ -269,9 +268,7 @@ export function SearchContent({
                 <div className="text-sc-fg-muted text-sm">
                   Found {filteredResults.length} results for "{submittedQuery}"
                   {selectedTypes.length > 0 && (
-                    <span className="text-sc-fg-subtle">
-                      {' '}in {selectedTypes.join(', ')}
-                    </span>
+                    <span className="text-sc-fg-subtle"> in {selectedTypes.join(', ')}</span>
                   )}
                   {selectedStatus && (
                     <span className="text-sc-fg-subtle"> with status {selectedStatus}</span>

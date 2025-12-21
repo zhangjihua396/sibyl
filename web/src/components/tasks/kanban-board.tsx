@@ -1,22 +1,26 @@
 'use client';
 
-import { useState, useCallback, useMemo, memo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import type { TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
 import { TaskCard, TaskCardSkeleton } from './task-card';
 
 interface KanbanBoardProps {
   tasks: TaskSummary[];
+  projects?: Array<{ id: string; name: string }>;
   isLoading?: boolean;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
   onTaskClick?: (taskId: string) => void;
+  onProjectFilter?: (projectId: string) => void;
 }
 
 interface KanbanColumnProps {
   status: TaskStatus;
   tasks: TaskSummary[];
+  projectMap: Map<string, string>;
   onDrop: (taskId: string, status: TaskStatus) => void;
   onTaskClick?: (taskId: string) => void;
+  onProjectClick?: (projectId: string) => void;
   dragOverStatus: TaskStatus | null;
   onDragOver: (status: TaskStatus) => void;
   onDragLeave: () => void;
@@ -25,8 +29,10 @@ interface KanbanColumnProps {
 const KanbanColumn = memo(function KanbanColumn({
   status,
   tasks,
+  projectMap,
   onDrop,
   onTaskClick,
+  onProjectClick,
   dragOverStatus,
   onDragOver,
   onDragLeave,
@@ -74,17 +80,24 @@ const KanbanColumn = memo(function KanbanColumn({
         `}
       >
         <div className="space-y-2">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onDragStart={(e, id) => {
-                e.dataTransfer.setData('text/plain', id);
-                e.dataTransfer.effectAllowed = 'move';
-              }}
-              onClick={onTaskClick}
-            />
-          ))}
+          {tasks.map(task => {
+            const projectId = task.metadata.project_id as string | undefined;
+            const projectName = projectId ? projectMap.get(projectId) : undefined;
+
+            return (
+              <TaskCard
+                key={task.id}
+                task={task}
+                projectName={projectName}
+                onDragStart={(e, id) => {
+                  e.dataTransfer.setData('text/plain', id);
+                  e.dataTransfer.effectAllowed = 'move';
+                }}
+                onClick={onTaskClick}
+                onProjectClick={onProjectClick}
+              />
+            );
+          })}
         </div>
 
         {tasks.length === 0 && !isDragOver && (
@@ -103,8 +116,24 @@ const KanbanColumn = memo(function KanbanColumn({
   );
 });
 
-export function KanbanBoard({ tasks, isLoading, onStatusChange, onTaskClick }: KanbanBoardProps) {
+export function KanbanBoard({
+  tasks,
+  projects,
+  isLoading,
+  onStatusChange,
+  onTaskClick,
+  onProjectFilter,
+}: KanbanBoardProps) {
   const [dragOverStatus, setDragOverStatus] = useState<TaskStatus | null>(null);
+
+  // Build project lookup map
+  const projectMap = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const project of projects ?? []) {
+      map.set(project.id, project.name);
+    }
+    return map;
+  }, [projects]);
 
   // Group tasks by status - memoized to prevent recalculation on every render
   const tasksByStatus = useMemo(() => {
@@ -135,7 +164,7 @@ export function KanbanBoard({ tasks, isLoading, onStatusChange, onTaskClick }: K
   if (isLoading) {
     return (
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {TASK_STATUSES.map((status) => (
+        {TASK_STATUSES.map(status => (
           <div key={status} className="flex-1 min-w-[280px] max-w-[360px]">
             <div className="flex items-center gap-2 mb-3 px-1">
               <div className="w-5 h-5 bg-sc-bg-elevated rounded animate-pulse" />
@@ -153,13 +182,15 @@ export function KanbanBoard({ tasks, isLoading, onStatusChange, onTaskClick }: K
 
   return (
     <div className="flex gap-4 overflow-x-auto pb-4">
-      {TASK_STATUSES.map((status) => (
+      {TASK_STATUSES.map(status => (
         <KanbanColumn
           key={status}
           status={status}
           tasks={tasksByStatus[status] || []}
+          projectMap={projectMap}
           onDrop={handleDrop}
           onTaskClick={onTaskClick}
+          onProjectClick={onProjectFilter}
           dragOverStatus={dragOverStatus}
           onDragOver={setDragOverStatus}
           onDragLeave={() => setDragOverStatus(null)}

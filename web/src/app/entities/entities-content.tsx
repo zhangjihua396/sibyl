@@ -2,16 +2,16 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
-
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { FilterChip } from '@/components/ui/toggle';
-import { LoadingState } from '@/components/ui/spinner';
-import { EmptyState, ErrorState } from '@/components/ui/tooltip';
-import { PageHeader } from '@/components/layout/page-header';
 import { EntityCard } from '@/components/entities/entity-card';
-import { useDeleteEntity, useEntities, useStats } from '@/lib/hooks';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { PageHeader } from '@/components/layout/page-header';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { LoadingState } from '@/components/ui/spinner';
+import { FilterChip } from '@/components/ui/toggle';
+import { EmptyState, ErrorState } from '@/components/ui/tooltip';
 import type { EntityListResponse, StatsResponse } from '@/lib/api';
+import { useDeleteEntity, useEntities, useStats } from '@/lib/hooks';
 
 interface EntitiesContentProps {
   initialEntities: EntityListResponse;
@@ -77,7 +77,7 @@ export function EntitiesContent({
 
   const filteredEntities =
     data?.entities.filter(
-      (e) =>
+      e =>
         !searchQuery ||
         e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         e.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -86,7 +86,9 @@ export function EntitiesContent({
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
+      <Breadcrumb />
+
       <PageHeader
         title="Entities"
         description="Browse and manage knowledge entities"
@@ -100,7 +102,7 @@ export function EntitiesContent({
             type="text"
             placeholder="Filter entities..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={e => setSearchQuery(e.target.value)}
             icon="⌕"
           />
         </div>
@@ -110,7 +112,7 @@ export function EntitiesContent({
           <FilterChip active={!typeFilter} onClick={() => handleTypeFilter(null)}>
             All
           </FilterChip>
-          {entityTypes.map((type) => (
+          {entityTypes.map(type => (
             <FilterChip
               key={type}
               active={typeFilter === type}
@@ -141,7 +143,7 @@ export function EntitiesContent({
         <>
           {/* Entity Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredEntities.map((entity) => (
+            {filteredEntities.map(entity => (
               <EntityCard key={entity.id} entity={entity} onDelete={handleDelete} />
             ))}
           </div>

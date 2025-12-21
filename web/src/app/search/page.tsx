@@ -20,11 +20,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
 
   return (
     <Suspense fallback={<SearchSkeleton />}>
-      <SearchContent
-        initialQuery={query}
-        initialResults={initialResults}
-        initialStats={stats}
-      />
+      <SearchContent initialQuery={query} initialResults={initialResults} initialStats={stats} />
     </Suspense>
   );
 }

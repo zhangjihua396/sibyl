@@ -2,10 +2,9 @@
 
 import Link from 'next/link';
 import { memo } from 'react';
-
-import { useEntity, useRelatedEntities } from '@/lib/hooks';
 import { EntityBadge } from '@/components/ui/badge';
 import { LoadingState } from '@/components/ui/spinner';
+import { useEntity, useRelatedEntities } from '@/lib/hooks';
 
 interface RelatedEntity {
   id: string;
@@ -54,16 +53,12 @@ export const EntityDetailPanel = memo(function EntityDetailPanel({
 
             {/* Name */}
             <div>
-              <h4 className="text-lg font-semibold text-sc-fg-primary">
-                {entity.name}
-              </h4>
+              <h4 className="text-lg font-semibold text-sc-fg-primary">{entity.name}</h4>
             </div>
 
             {/* Description */}
             {entity.description && (
-              <p className="text-sm text-sc-fg-muted leading-relaxed">
-                {entity.description}
-              </p>
+              <p className="text-sm text-sc-fg-muted leading-relaxed">{entity.description}</p>
             )}
 
             {/* Metadata */}
@@ -93,7 +88,7 @@ export const EntityDetailPanel = memo(function EntityDetailPanel({
                   Related ({related.entities.length})
                 </h5>
                 <div className="space-y-1">
-                  {(related.entities as RelatedEntity[]).slice(0, 5).map((rel) => (
+                  {(related.entities as RelatedEntity[]).slice(0, 5).map(rel => (
                     <div
                       key={rel.id}
                       className="text-xs px-2 py-1 bg-sc-bg-highlight rounded truncate text-sc-fg-muted"

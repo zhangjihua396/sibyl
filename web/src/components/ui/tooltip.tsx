@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 
 interface TooltipProps {
   content: ReactNode;
@@ -18,9 +18,11 @@ const positions = {
 
 const arrows = {
   top: 'top-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-b-transparent border-t-sc-bg-elevated',
-  bottom: 'bottom-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-t-transparent border-b-sc-bg-elevated',
+  bottom:
+    'bottom-full left-1/2 -translate-x-1/2 border-l-transparent border-r-transparent border-t-transparent border-b-sc-bg-elevated',
   left: 'left-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-r-transparent border-l-sc-bg-elevated',
-  right: 'right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-sc-bg-elevated',
+  right:
+    'right-full top-1/2 -translate-y-1/2 border-t-transparent border-b-transparent border-l-transparent border-r-sc-bg-elevated',
 };
 
 export function Tooltip({ content, children, position = 'top', delay = 200 }: TooltipProps) {
@@ -57,9 +59,7 @@ export function Tooltip({ content, children, position = 'top', delay = 200 }: To
           role="tooltip"
         >
           {content}
-          <span
-            className={`absolute w-0 h-0 border-4 ${arrows[position]}`}
-          />
+          <span className={`absolute w-0 h-0 border-4 ${arrows[position]}`} />
         </div>
       )}
     </div>
@@ -99,7 +99,7 @@ export function EmptyState({
   title,
   description,
   action,
-  variant = 'default'
+  variant = 'default',
 }: EmptyStateProps) {
   const defaults = EMPTY_STATE_DEFAULTS[variant];
   const displayIcon = icon ?? defaults.icon;
@@ -107,19 +107,13 @@ export function EmptyState({
   return (
     <div className="text-center py-16 animate-fade-in">
       {displayIcon && (
-        <div className={`text-6xl mb-4 opacity-80 ${defaults.floatingClass}`}>
-          {displayIcon}
-        </div>
+        <div className={`text-6xl mb-4 opacity-80 ${defaults.floatingClass}`}>{displayIcon}</div>
       )}
       <p className="text-sc-fg-muted text-lg font-medium">{title}</p>
       {description && (
-        <p className="text-sc-fg-subtle text-sm mt-2 max-w-md mx-auto">
-          {description}
-        </p>
+        <p className="text-sc-fg-subtle text-sm mt-2 max-w-md mx-auto">{description}</p>
       )}
-      {action && (
-        <div className="mt-6 animate-slide-up">{action}</div>
-      )}
+      {action && <div className="mt-6 animate-slide-up">{action}</div>}
     </div>
   );
 }
@@ -153,29 +147,16 @@ const ERROR_VARIANTS = {
   },
 };
 
-export function ErrorState({
-  title,
-  message,
-  action,
-  variant = 'error'
-}: ErrorStateProps) {
+export function ErrorState({ title, message, action, variant = 'error' }: ErrorStateProps) {
   const variantConfig = ERROR_VARIANTS[variant];
   const displayTitle = title ?? variantConfig.title;
 
   return (
     <div className="text-center py-12 animate-fade-in">
-      <div className={`text-4xl mb-4 ${variantConfig.iconClass}`}>
-        {variantConfig.icon}
-      </div>
-      <p className={`text-lg font-medium ${variantConfig.color}`}>
-        {displayTitle}
-      </p>
-      <p className="text-sc-fg-muted text-sm mt-1 max-w-md mx-auto">
-        {message}
-      </p>
-      {action && (
-        <div className="mt-4 animate-slide-up">{action}</div>
-      )}
+      <div className={`text-4xl mb-4 ${variantConfig.iconClass}`}>{variantConfig.icon}</div>
+      <p className={`text-lg font-medium ${variantConfig.color}`}>{displayTitle}</p>
+      <p className="text-sc-fg-muted text-sm mt-1 max-w-md mx-auto">{message}</p>
+      {action && <div className="mt-4 animate-slide-up">{action}</div>}
     </div>
   );
 }
@@ -188,28 +169,13 @@ interface SuccessStateProps {
   celebratory?: boolean;
 }
 
-export function SuccessState({
-  title,
-  message,
-  action,
-  celebratory = true
-}: SuccessStateProps) {
+export function SuccessState({ title, message, action, celebratory = true }: SuccessStateProps) {
   return (
     <div className="text-center py-12 animate-bounce-in">
-      <div className={`text-6xl mb-4 ${celebratory ? 'success-sparkle' : ''}`}>
-        ✨
-      </div>
-      <p className="text-sc-green text-xl font-semibold gradient-text">
-        {title}
-      </p>
-      {message && (
-        <p className="text-sc-fg-muted text-sm mt-2 max-w-md mx-auto">
-          {message}
-        </p>
-      )}
-      {action && (
-        <div className="mt-6 animate-slide-up">{action}</div>
-      )}
+      <div className={`text-6xl mb-4 ${celebratory ? 'success-sparkle' : ''}`}>✨</div>
+      <p className="text-sc-green text-xl font-semibold gradient-text">{title}</p>
+      {message && <p className="text-sc-fg-muted text-sm mt-2 max-w-md mx-auto">{message}</p>}
+      {action && <div className="mt-6 animate-slide-up">{action}</div>}
     </div>
   );
 }
@@ -286,7 +252,7 @@ export function Hint({
   icon,
   variant = 'tip',
   dismissible = false,
-  onDismiss
+  onDismiss,
 }: HintProps) {
   const [visible, setVisible] = useState(true);
   const variantConfig = HINT_VARIANTS[variant];
@@ -307,13 +273,9 @@ export function Hint({
       `}
     >
       {displayIcon && (
-        <span className="text-xl flex-shrink-0 animate-glow-pulse">
-          {displayIcon}
-        </span>
+        <span className="text-xl flex-shrink-0 animate-glow-pulse">{displayIcon}</span>
       )}
-      <div className="flex-1 text-sm text-sc-fg-primary">
-        {children}
-      </div>
+      <div className="flex-1 text-sm text-sc-fg-primary">{children}</div>
       {dismissible && (
         <button
           type="button"

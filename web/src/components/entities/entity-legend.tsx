@@ -1,7 +1,7 @@
 import { memo } from 'react';
-import { ENTITY_COLORS, ENTITY_TYPES } from '@/lib/constants';
 import { Spinner } from '@/components/ui/spinner';
 import { EmptyState } from '@/components/ui/tooltip';
+import { ENTITY_COLORS, ENTITY_TYPES } from '@/lib/constants';
 
 interface LegendProps {
   types?: string[];
@@ -10,9 +10,9 @@ interface LegendProps {
 }
 
 export function EntityLegend({ types, compact = false, className = '' }: LegendProps) {
-  const displayTypes = types ?? ENTITY_TYPES.filter(t =>
-    !['config_file', 'slash_command', 'knowledge_source'].includes(t)
-  );
+  const displayTypes =
+    types ??
+    ENTITY_TYPES.filter(t => !['config_file', 'slash_command', 'knowledge_source'].includes(t));
 
   if (compact) {
     return (
@@ -53,7 +53,10 @@ interface EntityBreakdownProps {
   loading?: boolean;
 }
 
-export const EntityBreakdown = memo(function EntityBreakdown({ counts, loading }: EntityBreakdownProps) {
+export const EntityBreakdown = memo(function EntityBreakdown({
+  counts,
+  loading,
+}: EntityBreakdownProps) {
   if (loading) {
     return (
       <div className="flex justify-center py-8">

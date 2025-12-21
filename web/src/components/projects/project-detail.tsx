@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import type { TaskSummary } from '@/lib/api';
-import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
 import { Button, ColorButton } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import type { TaskSummary } from '@/lib/api';
+import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
 
 interface ProjectDetailProps {
   project: TaskSummary;
@@ -15,7 +15,7 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
   // Calculate task counts by status
   const tasksByStatus = TASK_STATUSES.reduce(
     (acc, status) => {
-      acc[status] = tasks.filter((t) => t.metadata.status === status).length;
+      acc[status] = tasks.filter(t => t.metadata.status === status).length;
       return acc;
     },
     {} as Record<string, number>
@@ -30,8 +30,8 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
   const progress = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
   // Extract metadata
-  const techStack = (project.metadata.technologies as string[]) ??
-    (project.metadata.tech_stack as string[]) ?? [];
+  const techStack =
+    (project.metadata.technologies as string[]) ?? (project.metadata.tech_stack as string[]) ?? [];
   const repoUrl = project.metadata.repository_url as string | undefined;
 
   return (
@@ -40,9 +40,7 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-sc-fg-primary">{project.name}</h1>
-          {project.description && (
-            <p className="text-sc-fg-muted mt-2">{project.description}</p>
-          )}
+          {project.description && <p className="text-sc-fg-muted mt-2">{project.description}</p>}
         </div>
 
         {/* Quick Actions */}
@@ -68,7 +66,7 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
 
       {/* Task Status Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {TASK_STATUSES.map((status) => {
+        {TASK_STATUSES.map(status => {
           const config = TASK_STATUS_CONFIG[status];
           const count = tasksByStatus[status] || 0;
 
@@ -91,9 +89,9 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
           <h2 className="font-semibold text-sc-fg-primary mb-4">Active Work</h2>
           <div className="space-y-3">
             {tasks
-              .filter((t) => ['doing', 'blocked', 'review'].includes(t.metadata.status ?? ''))
+              .filter(t => ['doing', 'blocked', 'review'].includes(t.metadata.status ?? ''))
               .slice(0, 5)
-              .map((task) => {
+              .map(task => {
                 const status = task.metadata.status ?? 'todo';
                 const config = TASK_STATUS_CONFIG[status as keyof typeof TASK_STATUS_CONFIG];
 
@@ -103,10 +101,10 @@ export function ProjectDetail({ project, tasks }: ProjectDetailProps) {
                     className="flex items-center gap-3 p-2 rounded-lg bg-sc-bg-highlight/30"
                   >
                     <span className={config?.textClass}>{config?.icon}</span>
-                    <span className="flex-1 text-sm text-sc-fg-primary truncate">
-                      {task.name}
-                    </span>
-                    <span className={`text-xs px-2 py-0.5 rounded ${config?.bgClass} ${config?.textClass}`}>
+                    <span className="flex-1 text-sm text-sc-fg-primary truncate">{task.name}</span>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded ${config?.bgClass} ${config?.textClass}`}
+                    >
                       {config?.label}
                     </span>
                   </div>

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
+import { SourceCard, SourceCardSkeleton } from '@/components/sources';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/ui/spinner';
 import { EmptyState, ErrorState } from '@/components/ui/tooltip';
-import { SourceCard, SourceCardSkeleton } from '@/components/sources';
-import { useSources, useCreateSource, useDeleteSource, useCrawlSource } from '@/lib/hooks';
-import { Input } from '@/components/ui/input';
+import { useCrawlSource, useCreateSource, useDeleteSource, useSources } from '@/lib/hooks';
 
 export default function SourcesPage() {
   const { data: sourcesData, isLoading, error } = useSources();
@@ -66,7 +67,8 @@ export default function SourcesPage() {
 
   if (error) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
+        <Breadcrumb />
         <PageHeader
           title="Knowledge Sources"
           description="Manage documentation sources for the knowledge graph"
@@ -80,18 +82,14 @@ export default function SourcesPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
+      <Breadcrumb />
+
       <PageHeader
         title="Knowledge Sources"
         description="Manage documentation sources for the knowledge graph"
         meta={`${sources.length} sources`}
-        action={
-          !showAddForm && (
-            <Button onClick={() => setShowAddForm(true)}>
-              + Add Source
-            </Button>
-          )
-        }
+        action={!showAddForm && <Button onClick={() => setShowAddForm(true)}>+ Add Source</Button>}
       />
 
       {/* Add Source Form */}
@@ -107,7 +105,7 @@ export default function SourcesPage() {
                 id="url"
                 type="url"
                 value={newSourceUrl}
-                onChange={(e) => setNewSourceUrl(e.target.value)}
+                onChange={e => setNewSourceUrl(e.target.value)}
                 placeholder="https://docs.example.com"
                 required
               />
@@ -120,7 +118,7 @@ export default function SourcesPage() {
                 id="name"
                 type="text"
                 value={newSourceName}
-                onChange={(e) => setNewSourceName(e.target.value)}
+                onChange={e => setNewSourceName(e.target.value)}
                 placeholder="Auto-generated from URL if empty"
               />
             </div>
@@ -136,10 +134,7 @@ export default function SourcesPage() {
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                disabled={!newSourceUrl.trim() || createSource.isPending}
-              >
+              <Button type="submit" disabled={!newSourceUrl.trim() || createSource.isPending}>
                 {createSource.isPending ? 'Adding...' : 'Add Source'}
               </Button>
             </div>
@@ -162,7 +157,7 @@ export default function SourcesPage() {
         />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {sources.map((source) => (
+          {sources.map(source => (
             <SourceCard
               key={source.id}
               source={source}

@@ -110,15 +110,9 @@ export function ErrorFallback({ error, reset, level = 'section' }: ErrorFallback
 
   return (
     <div className={`text-center animate-fade-in ${styles.container}`}>
-      <div className={`${styles.icon} mb-4 animate-wiggle`}>
-        ⚠️
-      </div>
-      <h2 className={`font-semibold text-sc-red ${styles.title}`}>
-        Something went wrong
-      </h2>
-      <p className={`text-sc-fg-muted mt-2 mx-auto ${styles.message}`}>
-        {friendlyMessage}
-      </p>
+      <div className={`${styles.icon} mb-4 animate-wiggle`}>⚠️</div>
+      <h2 className={`font-semibold text-sc-red ${styles.title}`}>Something went wrong</h2>
+      <p className={`text-sc-fg-muted mt-2 mx-auto ${styles.message}`}>{friendlyMessage}</p>
 
       {/* Error details (dev only) */}
       {process.env.NODE_ENV === 'development' && (
@@ -143,10 +137,7 @@ export function ErrorFallback({ error, reset, level = 'section' }: ErrorFallback
           Try again
         </Button>
         {level === 'page' && (
-          <Button
-            onClick={() => (window.location.href = '/')}
-            variant="secondary"
-          >
+          <Button onClick={() => (window.location.href = '/')} variant="secondary">
             Go home
           </Button>
         )}

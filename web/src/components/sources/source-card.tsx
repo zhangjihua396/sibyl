@@ -1,16 +1,16 @@
 'use client';
 
-import { memo } from 'react';
 import Link from 'next/link';
+import { memo } from 'react';
 import { Button } from '@/components/ui/button';
+import type { SourceSummary } from '@/lib/api';
 import {
   CRAWL_STATUS_CONFIG,
-  SOURCE_TYPE_CONFIG,
   type CrawlStatusType,
-  type SourceTypeValue,
   formatDateTime,
+  SOURCE_TYPE_CONFIG,
+  type SourceTypeValue,
 } from '@/lib/constants';
-import type { SourceSummary } from '@/lib/api';
 
 interface SourceCardProps {
   source: SourceSummary;
@@ -19,7 +19,12 @@ interface SourceCardProps {
   isCrawling?: boolean;
 }
 
-export const SourceCard = memo(function SourceCard({ source, onCrawl, onDelete, isCrawling }: SourceCardProps) {
+export const SourceCard = memo(function SourceCard({
+  source,
+  onCrawl,
+  onDelete,
+  isCrawling,
+}: SourceCardProps) {
   const crawlStatus = (source.metadata.crawl_status as CrawlStatusType) || 'pending';
   const sourceType = (source.metadata.source_type as SourceTypeValue) || 'website';
   const documentCount = source.metadata.document_count || 0;
@@ -45,9 +50,7 @@ export const SourceCard = memo(function SourceCard({ source, onCrawl, onDelete, 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-lg">{typeConfig.icon}</span>
-            <h3 className="text-base font-semibold text-sc-fg-primary truncate">
-              {source.name}
-            </h3>
+            <h3 className="text-base font-semibold text-sc-fg-primary truncate">{source.name}</h3>
           </div>
           <p className="text-xs text-sc-fg-subtle truncate" title={url}>
             {getDomain(url)}
@@ -55,7 +58,9 @@ export const SourceCard = memo(function SourceCard({ source, onCrawl, onDelete, 
         </div>
 
         {/* Status Badge */}
-        <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${statusConfig.bgClass} ${statusConfig.textClass}`}>
+        <div
+          className={`flex items-center gap-1.5 px-2 py-1 rounded text-xs ${statusConfig.bgClass} ${statusConfig.textClass}`}
+        >
           <span>{statusConfig.icon}</span>
           <span>{statusConfig.label}</span>
         </div>
@@ -63,9 +68,7 @@ export const SourceCard = memo(function SourceCard({ source, onCrawl, onDelete, 
 
       {/* Description */}
       {source.description && (
-        <p className="text-sm text-sc-fg-muted line-clamp-2 mb-3">
-          {source.description}
-        </p>
+        <p className="text-sm text-sc-fg-muted line-clamp-2 mb-3">{source.description}</p>
       )}
 
       {/* Stats Row */}

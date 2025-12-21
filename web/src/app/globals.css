@@ -44,8 +44,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-sans: var(--font-space-grotesk), "Space Grotesk", system-ui, sans-serif;
+  --font-mono: var(--font-fira-code), "Fira Code", monospace;
 
   /* SilkCircuit colors for Tailwind */
   --color-sc-purple: var(--sc-purple);
@@ -361,7 +361,7 @@ pre {
 }
 
 .hover-spark::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 50%;
   left: 50%;
@@ -375,7 +375,10 @@ pre {
   );
   transform: translate(-50%, -50%);
   opacity: 0;
-  transition: width 0.6s ease, height 0.6s ease, opacity 0.6s ease;
+  transition:
+    width 0.6s ease,
+    height 0.6s ease,
+    opacity 0.6s ease;
   pointer-events: none;
 }
 
@@ -392,7 +395,7 @@ pre {
 }
 
 .gradient-border::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
@@ -404,7 +407,9 @@ pre {
     var(--sc-coral),
     var(--sc-purple)
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   opacity: 0;
@@ -424,29 +429,19 @@ pre {
 }
 
 .electric-scan::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 2px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    var(--sc-cyan),
-    transparent
-  );
+  background: linear-gradient(90deg, transparent, var(--sc-cyan), transparent);
   animation: scan-line 2s ease-in-out infinite;
 }
 
 /* Gradient text effect */
 .gradient-text {
-  background: linear-gradient(
-    135deg,
-    var(--sc-purple),
-    var(--sc-cyan),
-    var(--sc-coral)
-  );
+  background: linear-gradient(135deg, var(--sc-purple), var(--sc-cyan), var(--sc-coral));
   background-size: 200% 200%;
   -webkit-background-clip: text;
   background-clip: text;
@@ -473,7 +468,7 @@ pre {
 
 .success-sparkle::before,
 .success-sparkle::after {
-  content: '✨';
+  content: "✨";
   position: absolute;
   font-size: 1.5rem;
   opacity: 0;
@@ -500,5 +495,49 @@ pre {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* =============================================================================
+   View Transitions - Smooth page navigation
+   ============================================================================= */
+
+@view-transition {
+  navigation: auto;
+}
+
+/* Breadcrumb slides horizontally, fades content */
+::view-transition-old(breadcrumb) {
+  animation: 150ms ease-out fade-out;
+}
+
+::view-transition-new(breadcrumb) {
+  animation: 150ms ease-in fade-in;
+}
+
+/* Main content fades smoothly */
+::view-transition-old(page-content) {
+  animation: 200ms ease-out fade-out;
+}
+
+::view-transition-new(page-content) {
+  animation: 200ms ease-in 50ms fade-in;
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }

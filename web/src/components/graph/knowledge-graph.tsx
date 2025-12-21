@@ -2,11 +2,10 @@
 
 import { useMemo } from 'react';
 import { darkTheme, GraphCanvas, type GraphEdge, type GraphNode } from 'reagraph';
-
-import { useGraphData } from '@/lib/hooks';
-import { ENTITY_COLORS } from '@/lib/constants';
 import { LoadingState } from '@/components/ui/spinner';
 import { EmptyState, ErrorState } from '@/components/ui/tooltip';
+import { ENTITY_COLORS } from '@/lib/constants';
+import { useGraphData } from '@/lib/hooks';
 
 const DEFAULT_NODE_COLOR = '#8b85a0';
 
@@ -39,7 +38,10 @@ export function KnowledgeGraph({
       .map(node => ({
         id: node.id,
         label: node.label || node.id.slice(0, 8),
-        fill: node.color || ENTITY_COLORS[node.type as keyof typeof ENTITY_COLORS] || DEFAULT_NODE_COLOR,
+        fill:
+          node.color ||
+          ENTITY_COLORS[node.type as keyof typeof ENTITY_COLORS] ||
+          DEFAULT_NODE_COLOR,
         size: Math.max(10, Math.min(40, node.size * 5)),
         data: { type: node.type },
       }));
@@ -68,10 +70,7 @@ export function KnowledgeGraph({
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full bg-sc-bg-dark">
-        <LoadingState
-          message="Loading knowledge graph..."
-          variant="orbital"
-        />
+        <LoadingState message="Loading knowledge graph..." variant="orbital" />
       </div>
     );
   }
@@ -79,11 +78,7 @@ export function KnowledgeGraph({
   if (error) {
     return (
       <div className="flex items-center justify-center h-full bg-sc-bg-dark">
-        <ErrorState
-          variant="error"
-          title="Failed to load graph"
-          message={error.message}
-        />
+        <ErrorState variant="error" title="Failed to load graph" message={error.message} />
       </div>
     );
   }

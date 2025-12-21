@@ -18,8 +18,7 @@ const variants: Record<ButtonVariant, string> = {
     'bg-sc-purple text-white hover:bg-sc-purple/80 active:scale-[0.98] shadow-lg shadow-sc-purple/20 hover:shadow-xl hover:shadow-sc-purple/30',
   secondary:
     'bg-sc-bg-highlight border border-sc-fg-subtle/20 text-sc-fg-primary hover:border-sc-purple/50 hover:text-sc-purple hover:shadow-lg hover:shadow-sc-purple/10',
-  ghost:
-    'bg-transparent text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight',
+  ghost: 'bg-transparent text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight',
   danger:
     'bg-sc-red/20 text-sc-red border border-sc-red/30 hover:bg-sc-red/30 hover:border-sc-red/50 hover:shadow-lg hover:shadow-sc-red/20',
 };
@@ -78,11 +77,15 @@ interface ColorButtonProps extends Omit<ButtonProps, 'variant'> {
 }
 
 const colorStyles: Record<ColorButtonProps['color'], string> = {
-  purple: 'bg-sc-purple/20 text-sc-purple hover:bg-sc-purple/30 border border-sc-purple/30 hover:border-sc-purple/50 hover:shadow-lg hover:shadow-sc-purple/20',
+  purple:
+    'bg-sc-purple/20 text-sc-purple hover:bg-sc-purple/30 border border-sc-purple/30 hover:border-sc-purple/50 hover:shadow-lg hover:shadow-sc-purple/20',
   cyan: 'bg-sc-cyan/20 text-sc-cyan hover:bg-sc-cyan/30 border border-sc-cyan/30 hover:border-sc-cyan/50 hover:shadow-lg hover:shadow-sc-cyan/20',
-  coral: 'bg-sc-coral/20 text-sc-coral hover:bg-sc-coral/30 border border-sc-coral/30 hover:border-sc-coral/50 hover:shadow-lg hover:shadow-sc-coral/20',
-  yellow: 'bg-sc-yellow/20 text-sc-yellow hover:bg-sc-yellow/30 border border-sc-yellow/30 hover:border-sc-yellow/50 hover:shadow-lg hover:shadow-sc-yellow/20',
-  green: 'bg-sc-green/20 text-sc-green hover:bg-sc-green/30 border border-sc-green/30 hover:border-sc-green/50 hover:shadow-lg hover:shadow-sc-green/20',
+  coral:
+    'bg-sc-coral/20 text-sc-coral hover:bg-sc-coral/30 border border-sc-coral/30 hover:border-sc-coral/50 hover:shadow-lg hover:shadow-sc-coral/20',
+  yellow:
+    'bg-sc-yellow/20 text-sc-yellow hover:bg-sc-yellow/30 border border-sc-yellow/30 hover:border-sc-yellow/50 hover:shadow-lg hover:shadow-sc-yellow/20',
+  green:
+    'bg-sc-green/20 text-sc-green hover:bg-sc-green/30 border border-sc-green/30 hover:border-sc-green/50 hover:shadow-lg hover:shadow-sc-green/20',
   red: 'bg-sc-red/20 text-sc-red hover:bg-sc-red/30 border border-sc-red/30 hover:border-sc-red/50 hover:shadow-lg hover:shadow-sc-red/20',
 };
 
@@ -152,7 +155,8 @@ export function IconButton({
   };
 
   const variantClasses = {
-    default: 'bg-sc-bg-highlight border border-sc-fg-subtle/20 hover:border-sc-purple/50 hover:text-sc-purple hover:shadow-lg hover:shadow-sc-purple/10',
+    default:
+      'bg-sc-bg-highlight border border-sc-fg-subtle/20 hover:border-sc-purple/50 hover:text-sc-purple hover:shadow-lg hover:shadow-sc-purple/10',
     ghost: 'bg-transparent hover:bg-sc-bg-highlight',
   };
 
@@ -184,9 +188,12 @@ interface GradientButtonProps extends Omit<ButtonProps, 'variant'> {
 }
 
 const gradients = {
-  'purple-cyan': 'bg-gradient-to-r from-sc-purple to-sc-cyan hover:from-sc-purple/90 hover:to-sc-cyan/90',
-  'purple-coral': 'bg-gradient-to-r from-sc-purple to-sc-coral hover:from-sc-purple/90 hover:to-sc-coral/90',
-  'cyan-coral': 'bg-gradient-to-r from-sc-cyan to-sc-coral hover:from-sc-cyan/90 hover:to-sc-coral/90',
+  'purple-cyan':
+    'bg-gradient-to-r from-sc-purple to-sc-cyan hover:from-sc-purple/90 hover:to-sc-cyan/90',
+  'purple-coral':
+    'bg-gradient-to-r from-sc-purple to-sc-coral hover:from-sc-purple/90 hover:to-sc-coral/90',
+  'cyan-coral':
+    'bg-gradient-to-r from-sc-cyan to-sc-coral hover:from-sc-cyan/90 hover:to-sc-coral/90',
 };
 
 export function GradientButton({

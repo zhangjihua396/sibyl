@@ -52,14 +52,10 @@ export function CardHeader({ title, description, action, icon }: CardHeaderProps
   return (
     <div className="flex items-start justify-between gap-4 mb-4">
       <div className="flex items-start gap-3">
-        {icon && (
-          <div className="flex-shrink-0 text-sc-purple text-xl">{icon}</div>
-        )}
+        {icon && <div className="flex-shrink-0 text-sc-purple text-xl">{icon}</div>}
         <div>
           <h3 className="text-lg font-semibold text-sc-fg-primary">{title}</h3>
-          {description && (
-            <p className="text-sm text-sc-fg-muted mt-0.5">{description}</p>
-          )}
+          {description && <p className="text-sm text-sc-fg-muted mt-0.5">{description}</p>}
         </div>
       </div>
       {action && <div className="flex-shrink-0">{action}</div>}
@@ -91,7 +87,11 @@ export function StatCard({ label, value, icon, trend, sublabel, loading }: StatC
       <div className="relative">
         <div className="flex items-center justify-between mb-4">
           <h4 className="text-sm font-medium text-sc-fg-muted">{label}</h4>
-          {icon && <span className="text-sc-purple group-hover:scale-110 transition-transform duration-200">{icon}</span>}
+          {icon && (
+            <span className="text-sc-purple group-hover:scale-110 transition-transform duration-200">
+              {icon}
+            </span>
+          )}
         </div>
         <div className="text-2xl font-bold text-sc-fg-primary">
           {loading ? (
@@ -119,13 +119,15 @@ interface FeatureCardProps {
   highlight?: boolean;
 }
 
-export function FeatureCard({ icon, title, description, action, highlight = false }: FeatureCardProps) {
+export function FeatureCard({
+  icon,
+  title,
+  description,
+  action,
+  highlight = false,
+}: FeatureCardProps) {
   return (
-    <Card
-      variant="interactive"
-      gradientBorder={highlight}
-      className="group"
-    >
+    <Card variant="interactive" gradientBorder={highlight} className="group">
       <div className="flex flex-col items-start gap-4">
         <div className="text-3xl group-hover:scale-110 group-hover:rotate-3 transition-all duration-300">
           {icon}
@@ -134,15 +136,9 @@ export function FeatureCard({ icon, title, description, action, highlight = fals
           <h3 className="text-lg font-semibold text-sc-fg-primary mb-2 group-hover:text-sc-purple transition-colors">
             {title}
           </h3>
-          <p className="text-sm text-sc-fg-muted">
-            {description}
-          </p>
+          <p className="text-sm text-sc-fg-muted">{description}</p>
         </div>
-        {action && (
-          <div className="mt-2 animate-slide-up">
-            {action}
-          </div>
-        )}
+        {action && <div className="mt-2 animate-slide-up">{action}</div>}
       </div>
     </Card>
   );
@@ -197,7 +193,7 @@ export function MetricCard({
   total,
   unit = '',
   color = 'purple',
-  icon
+  icon,
 }: MetricCardProps) {
   const colorConfig = metricColors[color];
   const percentage = total ? (current / total) * 100 : undefined;
@@ -214,14 +210,22 @@ export function MetricCard({
       <div className="flex items-center justify-between mb-3">
         <span className="text-sm font-medium text-sc-fg-muted">{label}</span>
         {icon && (
-          <span className={`${colorConfig.text} group-hover:scale-110 transition-transform duration-200`}>
+          <span
+            className={`${colorConfig.text} group-hover:scale-110 transition-transform duration-200`}
+          >
             {icon}
           </span>
         )}
       </div>
       <div className={`text-2xl font-bold ${colorConfig.text} mb-2 animate-fade-in`}>
-        {current}{unit}
-        {total && <span className="text-sm text-sc-fg-subtle ml-1">/ {total}{unit}</span>}
+        {current}
+        {unit}
+        {total && (
+          <span className="text-sm text-sc-fg-subtle ml-1">
+            / {total}
+            {unit}
+          </span>
+        )}
       </div>
       {percentage !== undefined && (
         <div className="w-full h-1.5 bg-sc-bg-highlight rounded-full overflow-hidden">
@@ -276,7 +280,7 @@ export function NotificationCard({
   message,
   type = 'info',
   action,
-  onDismiss
+  onDismiss,
 }: NotificationCardProps) {
   const style = notificationStyles[type];
 
@@ -288,17 +292,11 @@ export function NotificationCard({
       `}
     >
       <div className="flex items-start gap-3">
-        <span className="text-2xl flex-shrink-0 animate-bounce-in">
-          {style.icon}
-        </span>
+        <span className="text-2xl flex-shrink-0 animate-bounce-in">{style.icon}</span>
         <div className="flex-1 min-w-0">
           <h4 className={`font-semibold ${style.text} mb-1`}>{title}</h4>
           <p className="text-sm text-sc-fg-muted">{message}</p>
-          {action && (
-            <div className="mt-3">
-              {action}
-            </div>
-          )}
+          {action && <div className="mt-3">{action}</div>}
         </div>
         {onDismiss && (
           <button

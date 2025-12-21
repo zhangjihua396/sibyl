@@ -1,7 +1,7 @@
 'use client';
 
-import { memo } from 'react';
 import Link from 'next/link';
+import { memo } from 'react';
 import { EntityBadge } from '@/components/ui/badge';
 import { getEntityStyles } from '@/lib/constants';
 
@@ -19,7 +19,11 @@ interface EntityCardProps {
   showActions?: boolean;
 }
 
-export const EntityCard = memo(function EntityCard({ entity, onDelete, showActions = true }: EntityCardProps) {
+export const EntityCard = memo(function EntityCard({
+  entity,
+  onDelete,
+  showActions = true,
+}: EntityCardProps) {
   const styles = getEntityStyles(entity.entity_type);
 
   return (
@@ -40,14 +44,10 @@ export const EntityCard = memo(function EntityCard({ entity, onDelete, showActio
             href={`/entities/${entity.id}`}
             className="block group-hover:text-sc-purple transition-colors"
           >
-            <h3 className="text-lg font-semibold text-sc-fg-primary truncate">
-              {entity.name}
-            </h3>
+            <h3 className="text-lg font-semibold text-sc-fg-primary truncate">{entity.name}</h3>
           </Link>
           {entity.description && (
-            <p className="text-sc-fg-muted text-sm mt-1 line-clamp-2">
-              {entity.description}
-            </p>
+            <p className="text-sc-fg-muted text-sm mt-1 line-clamp-2">{entity.description}</p>
           )}
           {entity.source_file && (
             <p className="text-sc-fg-subtle text-xs mt-2 font-mono truncate">

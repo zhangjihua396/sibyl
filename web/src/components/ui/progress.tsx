@@ -75,7 +75,9 @@ export function ScoreBar({ score, size = 'sm', className = '' }: ScoreBarProps) 
   const height = size === 'sm' ? 'h-1' : 'h-1.5';
 
   return (
-    <div className={`${width} ${height} bg-sc-bg-highlight rounded-full overflow-hidden ${className}`}>
+    <div
+      className={`${width} ${height} bg-sc-bg-highlight rounded-full overflow-hidden ${className}`}
+    >
       <div
         className="h-full bg-sc-purple rounded-full transition-all"
         style={{ width: `${percentage}%` }}
