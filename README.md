@@ -1,200 +1,277 @@
 <h1 align="center">
-  Sibyl
+  <br>
+  🔮 Sibyl
+  <br>
 </h1>
 
 <p align="center">
-  <strong>Graph-RAG Knowledge Oracle for AI Agents</strong>
+  <strong>Your AI agent's persistent memory</strong>
+</p>
+
+<p align="center">
+  <a href="#-what-sibyl-does">
+    <img src="https://img.shields.io/badge/Knowledge-Graph_RAG-e135ff?style=for-the-badge&logo=graphql&logoColor=white" alt="Graph-RAG">
+  </a>
+  <a href="#-the-4-tool-api">
+    <img src="https://img.shields.io/badge/Interface-4_Tools-80ffea?style=for-the-badge&logo=openai&logoColor=white" alt="4 Tools">
+  </a>
+  <a href="#-the-cli">
+    <img src="https://img.shields.io/badge/CLI-First-ff6ac1?style=for-the-badge&logo=gnubash&logoColor=white" alt="CLI First">
+  </a>
 </p>
 
 <p align="center">
   <a href="https://github.com/hyperb1iss/sibyl/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/hyperb1iss/sibyl/ci.yml?branch=main&style=for-the-badge&logo=github&logoColor=white&label=CI" alt="CI Status">
+    <img src="https://img.shields.io/github/actions/workflow/status/hyperb1iss/sibyl/ci.yml?branch=main&style=flat-square&logo=github&logoColor=white&label=CI" alt="CI Status">
   </a>
   <a href="https://github.com/hyperb1iss/sibyl/releases">
-    <img src="https://img.shields.io/github/v/release/hyperb1iss/sibyl?style=for-the-badge&logo=github&logoColor=white" alt="Latest Release">
+    <img src="https://img.shields.io/github/v/release/hyperb1iss/sibyl?style=flat-square&logo=github&logoColor=white" alt="Latest Release">
   </a>
   <a href="https://github.com/hyperb1iss/sibyl/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/hyperb1iss/sibyl?style=for-the-badge&logo=apache&logoColor=white" alt="License">
+    <img src="https://img.shields.io/github/license/hyperb1iss/sibyl?style=flat-square&logo=apache&logoColor=white" alt="License">
   </a>
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/sibyl">
-    <img src="https://img.shields.io/pypi/v/sibyl?style=for-the-badge&logo=pypi&logoColor=white" alt="PyPI">
-  </a>
-  <a href="https://pypi.org/project/sibyl">
-    <img src="https://img.shields.io/pypi/pyversions/sibyl?style=for-the-badge&logo=python&logoColor=white" alt="Python Version">
-  </a>
-</p>
-
-<p align="center">
-  <a href="#features">Features</a> •
-  <a href="#the-4-tool-architecture">Architecture</a> •
-  <a href="#installation">Installation</a> •
-  <a href="#documentation">Documentation</a>
+  <a href="#-what-sibyl-does">What It Does</a> •
+  <a href="#-quickstart">Quickstart</a> •
+  <a href="#-the-cli">CLI</a> •
+  <a href="#-the-4-tool-api">API</a> •
+  <a href="#-the-web-ui">Web UI</a>
 </p>
 
 ---
 
-A Graphiti-powered MCP server that transforms scattered development wisdom into a queryable knowledge graph. Built for AI agents that need contextual, interconnected knowledge—not just documents.
+> **AI Agents:** Sibyl is your extended memory. Search before implementing. Capture what you learn.
+> Track your work. The graph should be smarter after every session.
 
-## Features
+## 💎 What Sibyl Does
 
-- **Unified Entity Model** — Patterns, rules, tasks, projects, and crawled documentation are all nodes in a single graph
-- **Semantic Discovery** — Find knowledge by meaning across all entity types
-- **Graph Traversal** — Navigate relationships to discover hidden connections
-- **Temporal Memory** — Graphiti-style episodic knowledge with versioning
-- **Auto-Linking** — New knowledge automatically connects to related entities
-- **Task Intelligence** — Workflow state machine with learning capture
+Sibyl transforms scattered development knowledge into a queryable graph. Patterns, learnings, tasks, documentation—all connected, all searchable by meaning.
 
-## The 4-Tool Architecture
+| Capability | What You Get |
+|------------|--------------|
+| **Semantic Search** | Find knowledge by meaning, not keywords |
+| **Task Tracking** | Full workflow with status, blockers, learnings |
+| **Auto-Linking** | New knowledge connects to related entities |
+| **Graph Traversal** | Navigate relationships to discover connections |
+| **Doc Ingestion** | Crawl and index external documentation |
+| **Persistent Memory** | What you learn today helps tomorrow |
 
-Sibyl exposes exactly 4 MCP tools. Agents auto-discover capabilities through rich descriptions:
+**Stack:** Python 3.11+ / FastMCP / Graphiti / FalkorDB / Next.js 16
 
-| Tool | Purpose | Use For |
-|------|---------|---------|
-| `search` | Semantic discovery | Find knowledge by meaning across all entity types |
-| `explore` | Graph navigation | List, traverse, and discover relationships |
-| `add` | Knowledge creation | Create entities with auto-discovered links |
-| `manage` | Lifecycle & admin | Task workflows, crawling, health checks |
-
-### search
-
-Find knowledge by meaning across all entity types:
-
-```python
-# Find authentication patterns
-search("OAuth 2.0 implementation", types=["pattern", "template"])
-
-# Find open tasks
-search("", types=["task"], status="doing", assignee="alice")
-
-# Search crawled documentation
-search("hooks state management", source="react-docs")
-```
-
-### explore
-
-Navigate the knowledge graph structure:
-
-```python
-# List all projects
-explore(mode="list", types=["project"])
-
-# Find knowledge related to an entity
-explore(mode="related", entity_id="pattern_oauth")
-
-# Task dependency chains
-explore(mode="dependencies", entity_id="task_abc")
-```
-
-### add
-
-Create new knowledge with auto-discovered relationships:
-
-```python
-# Record a learning (creates episode)
-add("Redis connection pooling insight",
-    "Discovered that connection pool needs...",
-    category="debugging", technologies=["redis", "python"])
-
-# Create a task
-add("Implement OAuth login", "Add Google and GitHub OAuth...",
-    entity_type="task", project="proj_auth", priority="high")
-```
-
-### manage
-
-Handle workflows and administrative operations:
-
-```python
-# Task workflow
-manage("start_task", entity_id="task_abc")
-manage("block_task", entity_id="task_abc", data={"reason": "Waiting on API keys"})
-manage("unblock_task", entity_id="task_abc")
-manage("submit_review", entity_id="task_abc", data={"pr_url": "github.com/..."})
-manage("complete_task", entity_id="task_abc", data={
-    "actual_hours": 4.5,
-    "learnings": "OAuth redirect URIs must match exactly..."
-})
-
-# Documentation crawling
-manage("crawl", data={"url": "https://vercel.com/docs", "depth": 3})
-manage("sync", entity_id="source_abc")  # Re-crawl existing source
-
-# Analysis
-manage("estimate", entity_id="task_abc")  # Effort estimation
-manage("detect_cycles", entity_id="proj_abc")  # Find circular dependencies
-manage("suggest", entity_id="task_abc")  # Get knowledge suggestions
-
-# Admin
-manage("health")  # Server health check
-manage("stats")   # Graph statistics
-```
-
-#### Task Workflow States
-
-```
-┌─────────┐    start     ┌───────┐    submit    ┌────────┐
-│ backlog │───────────────│ doing │──────────────│ review │
-└─────────┘               └───────┘              └────────┘
-     │                        │                       │
-     │                        │ block                 │ complete
-     v                        v                       v
-┌─────────┐               ┌─────────┐            ┌──────┐
-│  todo   │               │ blocked │            │ done │
-└─────────┘               └─────────┘            └──────┘
-                              │                       │
-                              │ unblock               │ archive
-                              v                       v
-                          ┌───────┐              ┌──────────┐
-                          │ doing │              │ archived │
-                          └───────┘              └──────────┘
-```
-
-**Actions:**
-| Action | Description | Creates Episode |
-|--------|-------------|-----------------|
-| `start_task` | Begin work (→ doing) | No |
-| `block_task` | Mark blocked with reason | No |
-| `unblock_task` | Resume work (→ doing) | No |
-| `submit_review` | Submit for review | No |
-| `complete_task` | Mark done with learnings | Yes |
-| `archive_task` | Archive without completing | No |
-| `update_task` | Update task fields | No |
-
-## Installation
-
-### Prerequisites
-
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv) package manager
-- Docker (for FalkorDB)
-- OpenAI API key (for embeddings)
-
-### Setup
+## ⚡ Quickstart
 
 ```bash
 # Start FalkorDB
 docker compose up -d
 
-# Install dependencies
+# Install
 uv sync --all-extras
 
-# Configure environment
+# Configure
 cp .env.example .env
-# Edit .env with your OpenAI API key
+# Add your SIBYL_OPENAI_API_KEY
 
-# Verify setup
-uv run sibyl setup
+# Verify
+uv run sibyl health
 
-# Start the server
+# Launch
 uv run sibyl serve
 ```
 
-### Claude Code Integration
+Server runs at `localhost:3334`. Web UI at `localhost:3337` (if running frontend).
 
-Add to your MCP configuration:
+## 🪄 The CLI
+
+**The CLI is the preferred interface.** Clean JSON output, optimized for AI agents.
+
+```bash
+# Search for knowledge
+uv run sibyl search "authentication patterns"
+uv run sibyl search "OAuth" --type pattern
+
+# List tasks
+uv run sibyl task list --status todo
+uv run sibyl task list --project proj_abc
+
+# Capture a learning
+uv run sibyl add "Redis insight" "Connection pool must be >= concurrent requests"
+
+# Task lifecycle
+uv run sibyl task start <id>
+uv run sibyl task complete <id> --learnings "Key insight: ..."
+
+# Direct updates (bulk/historical)
+uv run sibyl task update <id> --status done --priority high
+```
+
+### Task Workflow
+
+```
+backlog ──► todo ──► doing ──► review ──► done ──► archived
+                       │
+                       ▼
+                    blocked
+```
+
+Any state transition is allowed. Use workflow commands for semantics, `update` for direct changes.
+
+### Output Formats
+
+```bash
+uv run sibyl task list              # JSON (default, for agents)
+uv run sibyl task list --table      # Human-readable
+uv run sibyl task list --csv        # Spreadsheets
+```
+
+## 🔮 The 4-Tool API
+
+Sibyl exposes exactly 4 MCP tools. Simple surface, rich capabilities.
+
+| Tool | Purpose | Examples |
+|------|---------|----------|
+| `search` | Find by meaning | Patterns, tasks, docs, errors |
+| `explore` | Navigate structure | List entities, traverse relationships |
+| `add` | Create knowledge | Episodes, patterns, tasks |
+| `manage` | Lifecycle & admin | Task workflow, crawling, health |
+
+### search
+
+```python
+# Find patterns
+search("OAuth 2.0 implementation", types=["pattern"])
+
+# Find open tasks
+search("", types=["task"], status="doing")
+
+# Search crawled docs
+search("hooks state management", source="react-docs")
+```
+
+### explore
+
+```python
+# List all projects
+explore(mode="list", types=["project"])
+
+# Find related knowledge
+explore(mode="related", entity_id="pattern_oauth")
+
+# Task dependencies
+explore(mode="dependencies", entity_id="task_abc")
+```
+
+### add
+
+```python
+# Record a learning
+add("Redis connection pooling",
+    "Connection pool must be >= concurrent requests...",
+    category="debugging", technologies=["redis"])
+
+# Create a task
+add("Implement OAuth", "Add Google and GitHub...",
+    entity_type="task", project="proj_auth", priority="high")
+```
+
+### manage
+
+```python
+# Task workflow
+manage("start_task", entity_id="task_abc")
+manage("complete_task", entity_id="task_abc",
+       data={"learnings": "Token refresh needs exact URI match"})
+
+# Crawl documentation
+manage("crawl", data={"url": "https://docs.example.com", "depth": 3})
+
+# Health check
+manage("health")
+```
+
+## 🦋 The Web UI
+
+Full-featured dashboard at `localhost:3337`:
+
+- **Dashboard** — Stats, task overview, quick actions
+- **Projects** — Organize work into containers
+- **Tasks** — Kanban-style task management
+- **Entities** — Browse all knowledge types
+- **Graph** — Visual exploration of connections
+- **Search** — Semantic search with filters
+
+```bash
+cd web
+pnpm install
+pnpm dev
+```
+
+## 🧪 Entity Types
+
+| Type | What It Holds |
+|------|---------------|
+| `pattern` | Reusable coding patterns |
+| `episode` | Temporal learnings, discoveries |
+| `task` | Work items with workflow |
+| `project` | Container for related work |
+| `rule` | Sacred constraints, invariants |
+| `source` | Knowledge origins (URLs, repos) |
+| `document` | Crawled/ingested content |
+
+## 💜 Philosophy
+
+### Search Before Implementing
+
+The graph knows things. Before you code:
+
+```bash
+uv run sibyl search "what you're building"
+uv run sibyl search "error you hit" --type episode
+```
+
+### Work In Task Context
+
+Never do significant work outside a task. Tasks provide traceability, progress tracking, and knowledge linking.
+
+### Capture What You Learn
+
+If it took time to figure out, save it:
+
+```bash
+uv run sibyl add "Descriptive title" "What, why, how, caveats"
+```
+
+**Bad:** "Fixed the bug"
+**Good:** "JWT refresh fails when Redis TTL expires. Root cause: token service doesn't handle WRONGTYPE. Fix: try/except with regeneration fallback."
+
+### Complete With Learnings
+
+```bash
+uv run sibyl task complete <id> --learnings "Key insight: ..."
+```
+
+The graph should be smarter after every session.
+
+## 🔧 Configuration
+
+```bash
+# Required
+SIBYL_OPENAI_API_KEY=sk-...
+
+# FalkorDB (defaults work with docker-compose)
+SIBYL_FALKORDB_HOST=localhost
+SIBYL_FALKORDB_PORT=6380
+SIBYL_FALKORDB_PASSWORD=conventions
+
+# Optional
+SIBYL_LOG_LEVEL=INFO
+SIBYL_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+## 🔌 Integration
+
+### Claude Code (MCP)
 
 ```json
 {
@@ -207,7 +284,7 @@ Add to your MCP configuration:
 }
 ```
 
-Or subprocess mode:
+### Subprocess Mode
 
 ```json
 {
@@ -215,73 +292,35 @@ Or subprocess mode:
     "sibyl": {
       "command": "uv",
       "args": ["--directory", "/path/to/sibyl", "run", "sibyl", "serve", "-t", "stdio"],
-      "env": { "SIBYL_OPENAI_API_KEY": "your-api-key" }
+      "env": { "SIBYL_OPENAI_API_KEY": "sk-..." }
     }
   }
 }
 ```
 
-## Entity Types
+## 📚 Documentation
 
-| Type | Description |
-|------|-------------|
-| `pattern` | Coding patterns and best practices |
-| `rule` | Sacred rules and invariants |
-| `template` | Code templates and boilerplates |
-| `episode` | Temporal knowledge snapshots |
-| `task` | Work items with workflow states |
-| `project` | Container for related work |
-| `source` | Knowledge source (URL, repo, file path) |
-| `document` | Crawled/ingested content |
+| Doc | What's Inside |
+|-----|---------------|
+| [Architecture](docs/CONSOLIDATED_ARCHITECTURE.md) | System design deep dive |
+| [Agent Prompt](docs/agent-system-prompt.md) | How to integrate Sibyl in agent prompts |
+| [Graph-RAG Research](docs/graph-rag-sota-research.md) | SOTA research summary |
 
-## CLI Commands
+## 🛠️ Development
 
 ```bash
-sibyl serve           # Start MCP server (default: localhost:3334)
-sibyl serve -t stdio  # Subprocess mode for Claude Code
-sibyl setup           # Verify environment
-sibyl ingest          # Ingest wisdom documents
-sibyl search "query"  # Quick search
-sibyl health          # Health check
-sibyl stats           # Graph statistics
-```
+just lint          # ruff check + pyright
+just fix           # ruff fix + format
+just test          # pytest
+just serve         # Start server
 
-## Configuration
-
-Environment variables (prefix with `SIBYL_`):
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `FALKORDB_HOST` | `localhost` | FalkorDB host |
-| `FALKORDB_PORT` | `6380` | FalkorDB port |
-| `FALKORDB_PASSWORD` | `conventions` | FalkorDB password |
-| `FALKORDB_GRAPH_NAME` | `conventions` | Graph database name |
-| `OPENAI_API_KEY` | (required) | OpenAI API key for embeddings |
-| `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model |
-| `EMBEDDING_DIMENSIONS` | `1536` | Embedding vector size |
-| `LOG_LEVEL` | `INFO` | Logging level |
-
-## Documentation
-
-- **[Architecture](docs/CONSOLIDATED_ARCHITECTURE.md)** — Complete system design
-- **[Diagrams](docs/TASK_ARCHITECTURE_DIAGRAM.md)** — Visual architecture
-- **[Graph-RAG Research](docs/graph-rag-sota-research.md)** — SOTA research summary
-- **[Implementation Roadmap](docs/graph-rag-implementation-roadmap.md)** — Phase-by-phase plan
-- **[Examples](examples/)** — Sample scripts for common workflows
-
-## Development
-
-```bash
-uv sync --all-extras
-uv run pytest
-uv run mypy src
-uv run ruff check src tests
-uv run ruff format src tests
+# Frontend
+cd web && pnpm dev
 ```
 
 ## License
 
-Licensed under the Apache License 2.0. See [LICENSE](LICENSE) for details.
+Apache 2.0 — See [LICENSE](LICENSE)
 
 ---
 
