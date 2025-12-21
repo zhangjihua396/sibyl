@@ -13,8 +13,10 @@ from starlette.routing import WebSocketRoute
 
 from sibyl.api.routes import (
     admin_router,
+    crawler_router,
     entities_router,
     graph_router,
+    rag_router,
     search_router,
     tasks_router,
 )
@@ -73,6 +75,8 @@ def create_api_app() -> FastAPI:
     app.include_router(search_router)
     app.include_router(graph_router)
     app.include_router(admin_router)
+    app.include_router(crawler_router)
+    app.include_router(rag_router)
 
     # WebSocket route for realtime updates
     app.routes.append(WebSocketRoute("/ws", websocket_handler, name="websocket"))

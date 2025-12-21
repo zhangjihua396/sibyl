@@ -254,6 +254,263 @@ class WebSocketEvent(BaseModel):
         "ingest_progress",
         "ingest_complete",
         "health_update",
+        "crawl_started",
+        "crawl_progress",
+        "crawl_complete",
     ]
     data: dict[str, Any]
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
+
+# =============================================================================
+# Crawler Schemas
+# =============================================================================
+
+
+class CrawlSourceCreate(BaseModel):
+    """Create a crawl source."""
+
+    name: str = Field(..., description="Human-readable name")
+    url: str = Field(..., description="Base URL to crawl")
+    source_type: Literal["website", "github", "api_docs"] = Field(
+        default="website", description="Type of documentation source"
+    )
+    description: str | None = Field(default=None, description="Optional description")
+    crawl_depth: int = Field(default=2, ge=1, le=5, description="Maximum link depth")
+    include_patterns: list[str] = Field(
+        default_factory=list, description="URL patterns to include (regex)"
+    )
+    exclude_patterns: list[str] = Field(
+        default_factory=list, description="URL patterns to exclude (regex)"
+    )
+
+
+class CrawlSourceResponse(BaseModel):
+    """Crawl source with status."""
+
+    id: str
+    name: str
+    url: str
+    source_type: str
+    description: str | None = None
+    crawl_depth: int
+    crawl_status: str  # pending, in_progress, completed, failed, partial
+    document_count: int
+    chunk_count: int
+    last_crawled_at: datetime | None = None
+    last_error: str | None = None
+    created_at: datetime
+    include_patterns: list[str] = Field(default_factory=list)
+    exclude_patterns: list[str] = Field(default_factory=list)
+
+
+class CrawlSourceListResponse(BaseModel):
+    """List of crawl sources."""
+
+    sources: list[CrawlSourceResponse]
+    total: int
+
+
+class CrawlDocumentResponse(BaseModel):
+    """Crawled document summary."""
+
+    id: str
+    source_id: str
+    url: str
+    title: str
+    word_count: int
+    has_code: bool
+    is_index: bool
+    depth: int
+    crawled_at: datetime
+    headings: list[str] = Field(default_factory=list)
+    code_languages: list[str] = Field(default_factory=list)
+
+
+class CrawlDocumentListResponse(BaseModel):
+    """List of crawled documents."""
+
+    documents: list[CrawlDocumentResponse]
+    total: int
+
+
+class CrawlIngestRequest(BaseModel):
+    """Request to start crawling a source."""
+
+    max_pages: int = Field(default=50, ge=1, le=500, description="Maximum pages to crawl")
+    max_depth: int = Field(default=3, ge=1, le=5, description="Maximum link depth")
+    generate_embeddings: bool = Field(default=True, description="Generate embeddings for chunks")
+
+
+class CrawlIngestResponse(BaseModel):
+    """Response from starting a crawl."""
+
+    source_id: str
+    status: str  # started, already_running, error
+    message: str
+
+
+class CrawlStatsResponse(BaseModel):
+    """Crawler statistics."""
+
+    total_sources: int
+    total_documents: int
+    total_chunks: int
+    chunks_with_embeddings: int
+    sources_by_status: dict[str, int]
+
+
+class CrawlHealthResponse(BaseModel):
+    """Crawler health status."""
+
+    postgres_healthy: bool
+    postgres_version: str | None = None
+    pgvector_version: str | None = None
+    crawl4ai_available: bool
+    error: str | None = None
+
+
+# =============================================================================
+# RAG Search Schemas
+# =============================================================================
+
+
+class RAGSearchRequest(BaseModel):
+    """RAG search request for document chunks."""
+
+    query: str = Field(..., min_length=1, description="Natural language search query")
+    source_id: str | None = Field(default=None, description="Filter by source ID")
+    source_name: str | None = Field(default=None, description="Filter by source name (partial match)")
+    match_count: int = Field(default=10, ge=1, le=100, description="Number of results")
+    similarity_threshold: float = Field(
+        default=0.5, ge=0.0, le=1.0, description="Minimum similarity score"
+    )
+    return_mode: Literal["chunks", "pages"] = Field(
+        default="chunks", description="Return chunks or full pages"
+    )
+    include_context: bool = Field(
+        default=True, description="Include contextual prefix in results"
+    )
+
+
+class RAGChunkResult(BaseModel):
+    """Single chunk result from RAG search."""
+
+    chunk_id: str
+    document_id: str
+    source_id: str
+    source_name: str
+    url: str
+    title: str
+    content: str
+    context: str | None = None
+    similarity: float
+    chunk_type: str
+    chunk_index: int
+    heading_path: list[str] = Field(default_factory=list)
+    language: str | None = None
+
+
+class RAGPageResult(BaseModel):
+    """Full page result from RAG search."""
+
+    document_id: str
+    source_id: str
+    source_name: str
+    url: str
+    title: str
+    content: str
+    word_count: int
+    has_code: bool
+    headings: list[str] = Field(default_factory=list)
+    code_languages: list[str] = Field(default_factory=list)
+    best_chunk_similarity: float
+
+
+class RAGSearchResponse(BaseModel):
+    """RAG search response."""
+
+    results: list[RAGChunkResult | RAGPageResult]
+    total: int
+    query: str
+    source_filter: str | None = None
+    return_mode: str
+
+
+class CodeExampleRequest(BaseModel):
+    """Search for code examples."""
+
+    query: str = Field(..., min_length=1, description="Search query for code")
+    language: str | None = Field(default=None, description="Filter by programming language")
+    source_id: str | None = Field(default=None, description="Filter by source")
+    match_count: int = Field(default=10, ge=1, le=50, description="Number of results")
+
+
+class CodeExampleResult(BaseModel):
+    """Code example result."""
+
+    chunk_id: str
+    document_id: str
+    source_name: str
+    url: str
+    title: str
+    code: str
+    context: str | None = None
+    language: str | None = None
+    similarity: float
+    heading_path: list[str] = Field(default_factory=list)
+
+
+class CodeExampleResponse(BaseModel):
+    """Code example search response."""
+
+    examples: list[CodeExampleResult]
+    total: int
+    query: str
+    language_filter: str | None = None
+
+
+class FullPageRequest(BaseModel):
+    """Request full page content."""
+
+    document_id: str | None = Field(default=None, description="Get by document ID")
+    url: str | None = Field(default=None, description="Get by URL")
+
+
+class FullPageResponse(BaseModel):
+    """Full page content response."""
+
+    document_id: str
+    source_id: str
+    source_name: str
+    url: str
+    title: str
+    content: str
+    raw_content: str | None = None
+    word_count: int
+    token_count: int
+    has_code: bool
+    headings: list[str] = Field(default_factory=list)
+    code_languages: list[str] = Field(default_factory=list)
+    links: list[str] = Field(default_factory=list)
+    crawled_at: datetime
+
+
+class SourcePagesRequest(BaseModel):
+    """Request to list pages for a source."""
+
+    source_id: str = Field(..., description="Source ID")
+    limit: int = Field(default=50, ge=1, le=200, description="Maximum pages")
+    offset: int = Field(default=0, ge=0, description="Offset for pagination")
+    has_code: bool | None = Field(default=None, description="Filter by code presence")
+    is_index: bool | None = Field(default=None, description="Filter index pages")
+
+
+class SourcePagesResponse(BaseModel):
+    """List of pages for a source."""
+
+    source_id: str
+    source_name: str
+    pages: list[CrawlDocumentResponse]
+    total: int
+    has_more: bool

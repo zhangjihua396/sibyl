@@ -325,16 +325,24 @@ class DocumentChunker:
         start = 0
         step = self.max_chunk_chars - self.overlap_chars
 
+        # Ensure step is at least 1 to prevent infinite loops
+        if step <= 0:
+            step = max(1, self.max_chunk_chars // 2)
+
         while start < len(content):
             end = min(start + self.max_chunk_chars, len(content))
 
             # Try to break at word boundary
-            if end < len(content):
-                # Look for space near the end
-                for i in range(end, max(start + step, end - 100), -1):
-                    if content[i] == " ":
-                        end = i
-                        break
+            if end < len(content) and len(content) > 0:
+                # Look for space near the end (start from end-1 since end might be beyond last char)
+                search_start = min(end - 1, len(content) - 1)
+                search_end = max(start + step, end - 100, 0)
+                # Ensure we have a valid range
+                if search_start >= 0 and search_start > search_end:
+                    for i in range(search_start, search_end, -1):
+                        if content[i] == " ":
+                            end = i
+                            break
 
             chunk_content = content[start:end].strip()
             if chunk_content:

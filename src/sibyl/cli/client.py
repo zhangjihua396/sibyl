@@ -372,6 +372,100 @@ class SibylClient:
             metadata=metadata if metadata else None,
         )
 
+    # =========================================================================
+    # Crawler Operations
+    # =========================================================================
+
+    async def create_crawl_source(
+        self,
+        name: str,
+        url: str,
+        source_type: str = "website",
+        description: str | None = None,
+        crawl_depth: int = 2,
+        include_patterns: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Create a new crawl source."""
+        data: dict[str, Any] = {
+            "name": name,
+            "url": url,
+            "source_type": source_type,
+            "crawl_depth": crawl_depth,
+        }
+        if description:
+            data["description"] = description
+        if include_patterns:
+            data["include_patterns"] = include_patterns
+        if exclude_patterns:
+            data["exclude_patterns"] = exclude_patterns
+
+        return await self._request("POST", "/crawler/sources", json=data)
+
+    async def list_crawl_sources(
+        self,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """List crawl sources."""
+        params: dict[str, Any] = {"limit": limit}
+        if status:
+            params["status"] = status
+        return await self._request("GET", "/crawler/sources", params=params)
+
+    async def get_crawl_source(self, source_id: str) -> dict[str, Any]:
+        """Get a crawl source by ID."""
+        return await self._request("GET", f"/crawler/sources/{source_id}")
+
+    async def delete_crawl_source(self, source_id: str) -> dict[str, Any]:
+        """Delete a crawl source."""
+        return await self._request("DELETE", f"/crawler/sources/{source_id}")
+
+    async def start_crawl(
+        self,
+        source_id: str,
+        max_pages: int = 50,
+        max_depth: int = 3,
+        generate_embeddings: bool = True,
+    ) -> dict[str, Any]:
+        """Start crawling a source."""
+        data = {
+            "max_pages": max_pages,
+            "max_depth": max_depth,
+            "generate_embeddings": generate_embeddings,
+        }
+        return await self._request("POST", f"/crawler/sources/{source_id}/ingest", json=data)
+
+    async def get_crawl_status(self, source_id: str) -> dict[str, Any]:
+        """Get status of a crawl job."""
+        return await self._request("GET", f"/crawler/sources/{source_id}/status")
+
+    async def list_crawl_documents(
+        self,
+        source_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """List crawled documents."""
+        params: dict[str, Any] = {"limit": limit, "offset": offset}
+        if source_id:
+            return await self._request(
+                "GET", f"/crawler/sources/{source_id}/documents", params=params
+            )
+        return await self._request("GET", "/crawler/documents", params=params)
+
+    async def get_crawl_document(self, document_id: str) -> dict[str, Any]:
+        """Get a crawled document by ID."""
+        return await self._request("GET", f"/crawler/documents/{document_id}")
+
+    async def crawler_stats(self) -> dict[str, Any]:
+        """Get crawler statistics."""
+        return await self._request("GET", "/crawler/stats")
+
+    async def crawler_health(self) -> dict[str, Any]:
+        """Get crawler health status."""
+        return await self._request("GET", "/crawler/health")
+
 
 # Singleton client instance
 _client: SibylClient | None = None
