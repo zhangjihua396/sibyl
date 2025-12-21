@@ -18,7 +18,6 @@ import pytest
 
 from sibyl.retrieval import (
     BM25Index,
-    HybridConfig,
     rrf_merge,
     temporal_boost,
 )
@@ -183,7 +182,7 @@ class TestHybridSearchPipeline:
         )
 
         # Find e2's metadata (appears in both)
-        e2_entry = [(e, s, m) for e, s, m in merged if e["id"] == "e2"][0]
+        e2_entry = next((e, s, m) for e, s, m in merged if e["id"] == "e2")
         _, _, metadata = e2_entry
 
         assert "vector" in metadata["sources"]
@@ -250,7 +249,7 @@ class TestBM25Integration:
 
         # Python Async Programming has both terms
         result_ids = [e["id"] for e, _ in results]
-        scores = {e["id"]: s for e, s in results}
+        {e["id"]: s for e, s in results}
 
         # Entity 3 (Python Async) should score highest
         assert result_ids[0] == "3"

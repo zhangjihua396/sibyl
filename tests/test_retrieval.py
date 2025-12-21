@@ -187,7 +187,7 @@ class TestRRFMerge:
         )
 
         # Check metadata for 'a'
-        entity_a = [m for e, s, m in merged if e["id"] == "a"][0]
+        entity_a = next(m for e, s, m in merged if e["id"] == "a")
         assert "vector" in entity_a["sources"]
         assert "graph" in entity_a["sources"]
         assert entity_a["ranks"]["vector"] == 1

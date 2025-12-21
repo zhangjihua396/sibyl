@@ -3,7 +3,7 @@
 import pytest
 
 from sibyl.errors import InvalidTransitionError
-from sibyl.models.tasks import Task, TaskStatus, TaskComplexity
+from sibyl.models.tasks import Task, TaskComplexity, TaskStatus
 from sibyl.tasks.workflow import (
     VALID_TRANSITIONS,
     get_allowed_transitions,

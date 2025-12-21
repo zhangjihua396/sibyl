@@ -1,6 +1,5 @@
 """Tests for task dependency detection and cycle checking."""
 
-import pytest
 
 from sibyl.tasks.dependencies import (
     CycleResult,

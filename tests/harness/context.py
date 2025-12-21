@@ -4,9 +4,10 @@ Provides context managers that patch graph client and managers
 for isolated tool testing.
 """
 
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any, AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Any
+from unittest.mock import patch
 
 from tests.harness.mocks import (
     MockEntityManager,

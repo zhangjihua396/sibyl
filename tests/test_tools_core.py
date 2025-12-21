@@ -117,7 +117,7 @@ class TestValidEntityTypes:
     def test_valid_types_matches_enum(self) -> None:
         """VALID_ENTITY_TYPES should match EntityType enum values."""
         enum_values = {t.value for t in EntityType}
-        assert VALID_ENTITY_TYPES == enum_values
+        assert enum_values == VALID_ENTITY_TYPES
 
     def test_types_are_lowercase(self) -> None:
         """Entity types should be lowercase."""

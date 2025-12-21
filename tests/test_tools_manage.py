@@ -1,6 +1,6 @@
 """Tests for the manage() tool."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 import pytest
 
@@ -67,22 +67,22 @@ class TestActionCategories:
             "archive_task",
             "update_task",
         }
-        assert TASK_ACTIONS == expected
+        assert expected == TASK_ACTIONS
 
     def test_source_actions_defined(self) -> None:
         """Verify all source actions are defined."""
         expected = {"crawl", "sync", "refresh"}
-        assert SOURCE_ACTIONS == expected
+        assert expected == SOURCE_ACTIONS
 
     def test_analysis_actions_defined(self) -> None:
         """Verify all analysis actions are defined."""
         expected = {"estimate", "prioritize", "detect_cycles", "suggest"}
-        assert ANALYSIS_ACTIONS == expected
+        assert expected == ANALYSIS_ACTIONS
 
     def test_admin_actions_defined(self) -> None:
         """Verify all admin actions are defined."""
         expected = {"health", "stats", "rebuild_index"}
-        assert ADMIN_ACTIONS == expected
+        assert expected == ADMIN_ACTIONS
 
     def test_all_actions_combined(self) -> None:
         """Verify ALL_ACTIONS includes all categories."""

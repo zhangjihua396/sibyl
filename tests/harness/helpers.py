@@ -4,7 +4,6 @@ Provides high-level helper functions for calling each tool and
 validating response schemas.
 """
 
-from dataclasses import fields
 from typing import Any
 
 from sibyl.models.entities import EntityType
@@ -17,14 +16,11 @@ from sibyl.tools.core import (
     search,
 )
 from sibyl.tools.manage import ManageResponse, manage
-
-from tests.harness.context import ToolTestContext, mock_tools
+from tests.harness.context import ToolTestContext
 from tests.harness.mocks import (
-    MockEntityManager,
     create_test_entity,
     create_test_relationship,
 )
-
 
 # =============================================================================
 # Search Tool Helpers

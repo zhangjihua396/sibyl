@@ -1,6 +1,5 @@
 """Tests for task effort estimation."""
 
-import pytest
 
 from sibyl.tasks.estimation import (
     SimilarTask,

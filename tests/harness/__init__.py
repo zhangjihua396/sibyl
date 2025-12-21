@@ -26,14 +26,6 @@ Or using the convenience context manager:
 """
 
 # Mocks
-from tests.harness.mocks import (
-    MockEntityManager,
-    MockGraphClient,
-    MockRelationshipManager,
-    create_test_entity,
-    create_test_relationship,
-)
-
 # Context managers
 from tests.harness.context import (
     ToolTestContext,
@@ -44,21 +36,28 @@ from tests.harness.context import (
 
 # Helpers
 from tests.harness.helpers import (
-    # Search
-    call_search,
-    setup_search_results,
-    validate_search_response,
-    # Explore
-    call_explore,
-    setup_entity_graph,
-    validate_explore_response,
     # Add
     call_add,
-    validate_add_response,
+    # Explore
+    call_explore,
     # Manage
     call_manage,
+    # Search
+    call_search,
+    setup_entity_graph,
+    setup_search_results,
     setup_task_workflow,
+    validate_add_response,
+    validate_explore_response,
     validate_manage_response,
+    validate_search_response,
+)
+from tests.harness.mocks import (
+    MockEntityManager,
+    MockGraphClient,
+    MockRelationshipManager,
+    create_test_entity,
+    create_test_relationship,
 )
 
 __all__ = [

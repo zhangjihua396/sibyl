@@ -173,6 +173,12 @@ ignore = [
     "S101",    # Assert allowed in tests
     "ARG001",  # Unused function args (fixtures)
     "PLR2004", # Magic values in tests OK
+    "SLF001",  # Private member access OK in tests
+    "N806",    # Variable naming (G for NetworkX is convention)
+    "SIM105",  # try-except-pass sometimes clearer than contextlib.suppress
+    "B017",    # Blind exception assertion sometimes needed
+    "PT011",   # Broad pytest.raises sometimes needed
+    "ERA001",  # Commented code OK for documentation in tests
 ]
 "examples/**/*.py" = [
     "T201",    # Print statements OK in examples

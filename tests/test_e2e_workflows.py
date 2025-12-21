@@ -7,14 +7,13 @@ Tests complete user journeys through the 4-tool API:
 4. Knowledge creation and discovery
 """
 
-import pytest
-from datetime import UTC, datetime
 
-from sibyl.models.entities import Entity, EntityType, RelationshipType
+import pytest
+
+from sibyl.models.entities import EntityType, RelationshipType
 from sibyl.models.tasks import TaskStatus
 from sibyl.tools.core import add, explore, search
 from sibyl.tools.manage import manage
-
 from tests.harness import (
     ToolTestContext,
     create_test_entity,

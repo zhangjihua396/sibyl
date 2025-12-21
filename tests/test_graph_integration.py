@@ -4,12 +4,12 @@ import uuid
 
 import pytest
 
+from sibyl.config import settings
 from sibyl.errors import GraphConnectionError
 from sibyl.graph.client import get_graph_client, reset_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, Pattern, Relationship, RelationshipType
-from sibyl.config import settings
 
 
 async def _ensure_graph_client():

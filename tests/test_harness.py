@@ -6,19 +6,14 @@ and provides useful helpers for testing MCP tools.
 
 import pytest
 
-from sibyl.models.entities import EntityType, RelationshipType
+from sibyl.models.entities import EntityType
 from sibyl.tools.core import AddResponse, ExploreResponse, SearchResponse
 from sibyl.tools.manage import ManageResponse
-
 from tests.harness import (
     MockEntityManager,
     MockGraphClient,
     MockRelationshipManager,
     ToolTestContext,
-    call_add,
-    call_explore,
-    call_manage,
-    call_search,
     create_test_entity,
     create_test_relationship,
     mock_tools,
@@ -255,7 +250,6 @@ class TestValidators:
 
     def test_validate_search_response_valid(self) -> None:
         """Should return empty list for valid response."""
-        from datetime import UTC, datetime
 
         response = SearchResponse(results=[], total=0, query="test", filters={})
 
