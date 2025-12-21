@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Fira_Code, Space_Grotesk } from 'next/font/google';
 import type { ReactNode } from 'react';
+import { Toaster } from 'sonner';
 
 import { AsyncBoundary } from '@/components/error-boundary';
 import { Header } from '@/components/layout/header';
@@ -40,6 +41,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               </main>
             </div>
           </div>
+          <Toaster
+            theme="dark"
+            position="bottom-right"
+            toastOptions={{
+              style: {
+                background: 'var(--sc-bg-elevated)',
+                border: '1px solid rgba(255,255,255,0.1)',
+                color: 'var(--sc-fg-primary)',
+              },
+            }}
+          />
         </Providers>
       </body>
     </html>
