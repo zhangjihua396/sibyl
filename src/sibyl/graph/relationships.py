@@ -347,16 +347,21 @@ class RelationshipManager:
             log.warning("Failed to delete relationships for entity", error=str(e))
             return 0
 
-    async def list_all(self, limit: int = 100) -> list[Relationship]:
+    async def list_all(
+        self,
+        relationship_types: list[RelationshipType] | None = None,
+        limit: int = 100,
+    ) -> list[Relationship]:
         """List all relationships in the graph.
 
         Args:
+            relationship_types: Optional list of relationship types to filter by.
             limit: Maximum number to return.
 
         Returns:
             List of relationships.
         """
-        log.debug("Listing all relationships", limit=limit)
+        log.debug("Listing all relationships", limit=limit, types=relationship_types)
 
         try:
             # Use Graphiti's search to find edges
@@ -365,10 +370,17 @@ class RelationshipManager:
             edges = await EntityEdge.get_by_group_ids(
                 self._client.driver,
                 group_ids=["conventions"],
-                limit=limit,
+                limit=limit * 2 if relationship_types else limit,  # Over-fetch if filtering
             )
 
             relationships = [self._from_graphiti_edge(edge) for edge in edges]
+
+            # Apply relationship type filter if specified
+            if relationship_types:
+                type_set = set(relationship_types)
+                relationships = [r for r in relationships if r.relationship_type in type_set]
+                relationships = relationships[:limit]
+
             log.debug("Listed relationships", count=len(relationships))
             return relationships
 

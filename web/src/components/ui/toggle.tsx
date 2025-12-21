@@ -1,3 +1,5 @@
+import { ENTITY_COLORS, ENTITY_ICONS, type EntityType } from '@/lib/constants';
+
 interface ToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
@@ -218,6 +220,84 @@ export function TagChip({ tag, active, onClick, disabled }: TagChipProps) {
       `}
     >
       {tag}
+    </button>
+  );
+}
+
+// Entity type filter chip with SilkCircuit colors
+interface EntityTypeChipProps {
+  entityType: string;
+  active: boolean;
+  onClick: () => void;
+  count?: number;
+  disabled?: boolean;
+}
+
+export function EntityTypeChip({
+  entityType,
+  active,
+  onClick,
+  count,
+  disabled,
+}: EntityTypeChipProps) {
+  const icon = ENTITY_ICONS[entityType as EntityType] ?? '◇';
+  const color = ENTITY_COLORS[entityType as EntityType] ?? '#8b85a0';
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`
+        group relative px-3 py-1.5 rounded-lg text-sm font-medium capitalize
+        transition-all duration-200 border overflow-hidden
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+      `}
+      style={{
+        background: active
+          ? `linear-gradient(135deg, ${color}30 0%, ${color}15 100%)`
+          : `linear-gradient(135deg, ${color}12 0%, transparent 100%)`,
+        borderColor: active ? `${color}50` : `${color}25`,
+        color: active ? color : undefined,
+        boxShadow: active ? `0 0 16px ${color}30, 0 0 4px ${color}20` : `0 0 0 1px ${color}08`,
+      }}
+      onMouseEnter={e => {
+        if (!active) {
+          e.currentTarget.style.background = `linear-gradient(135deg, ${color}20 0%, ${color}08 100%)`;
+          e.currentTarget.style.borderColor = `${color}40`;
+          e.currentTarget.style.boxShadow = `0 0 12px ${color}20`;
+        }
+      }}
+      onMouseLeave={e => {
+        if (!active) {
+          e.currentTarget.style.background = `linear-gradient(135deg, ${color}12 0%, transparent 100%)`;
+          e.currentTarget.style.borderColor = `${color}25`;
+          e.currentTarget.style.boxShadow = `0 0 0 1px ${color}08`;
+        }
+      }}
+    >
+      <span className="relative flex items-center gap-1.5">
+        <span
+          className="text-sm transition-transform duration-200 group-hover:scale-110"
+          style={{ color }}
+        >
+          {icon}
+        </span>
+        <span style={{ color: active ? color : 'var(--sc-fg-muted)' }}>
+          {entityType.replace(/_/g, ' ')}
+        </span>
+        {count !== undefined && count > 0 && (
+          <span
+            className="ml-0.5 text-xs px-1.5 py-0.5 rounded-full font-semibold"
+            style={{
+              backgroundColor: active ? `${color}30` : `${color}15`,
+              color: active ? color : `${color}cc`,
+            }}
+          >
+            {count}
+          </span>
+        )}
+      </span>
     </button>
   );
 }

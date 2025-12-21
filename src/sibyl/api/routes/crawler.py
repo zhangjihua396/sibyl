@@ -7,6 +7,7 @@ Provides REST API for:
 - Crawler health and stats
 """
 
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -422,6 +423,82 @@ async def get_ingestion_status(source_id: str) -> dict[str, Any]:
         return {"source_id": source_id, "running": False, "message": "No ingestion job found"}
 
     return {"source_id": source_id, **_ingestion_jobs[source_id]}
+
+
+@router.post("/{source_id}/sync")
+async def sync_source(source_id: str) -> dict[str, Any]:
+    """Sync source stats from actual document/chunk counts.
+
+    Useful for fixing stuck sources or after manual data changes.
+    Recalculates document_count, chunk_count, and fixes status if stuck.
+    """
+    async with get_session() as session:
+        source = await session.get(CrawlSource, UUID(source_id))
+        if not source:
+            raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
+
+        # Count actual documents
+        doc_count_result = await session.execute(
+            select(func.count(CrawledDocument.id)).where(
+                col(CrawledDocument.source_id) == UUID(source_id)
+            )
+        )
+        actual_doc_count = doc_count_result.scalar() or 0
+
+        # Count actual chunks
+        chunk_count_result = await session.execute(
+            select(func.count(DocumentChunk.id))
+            .join(CrawledDocument)
+            .where(col(CrawledDocument.source_id) == UUID(source_id))
+        )
+        actual_chunk_count = chunk_count_result.scalar() or 0
+
+        # Determine correct status
+        old_status = source.crawl_status
+        if actual_doc_count > 0:
+            # Has documents - should be completed or partial
+            if source.crawl_status == CrawlStatus.IN_PROGRESS:
+                source.crawl_status = CrawlStatus.COMPLETED
+                if source.last_crawled_at is None:
+                    source.last_crawled_at = datetime.now(UTC)
+        elif source.crawl_status == CrawlStatus.IN_PROGRESS:
+            # No documents but stuck in progress - reset to pending
+            source.crawl_status = CrawlStatus.PENDING
+
+        # Update counts
+        old_doc_count = source.document_count
+        old_chunk_count = source.chunk_count
+        source.document_count = actual_doc_count
+        source.chunk_count = actual_chunk_count
+
+        # Capture values before session closes
+        new_status = source.crawl_status
+
+        log.info(
+            "Synced source stats",
+            source_id=source_id,
+            old_status=old_status.value,
+            new_status=new_status.value,
+            old_doc_count=old_doc_count,
+            new_doc_count=actual_doc_count,
+            old_chunk_count=old_chunk_count,
+            new_chunk_count=actual_chunk_count,
+        )
+
+    await broadcast_event("entity_updated", {"type": "crawl_source", "id": source_id})
+
+    return {
+        "source_id": source_id,
+        "synced": True,
+        "document_count": actual_doc_count,
+        "chunk_count": actual_chunk_count,
+        "status": new_status.value,
+        "changes": {
+            "status": f"{old_status.value} -> {new_status.value}" if old_status != new_status else None,
+            "document_count": f"{old_doc_count} -> {actual_doc_count}" if old_doc_count != actual_doc_count else None,
+            "chunk_count": f"{old_chunk_count} -> {actual_chunk_count}" if old_chunk_count != actual_chunk_count else None,
+        },
+    }
 
 
 @router.get("/{source_id}/documents", response_model=CrawlDocumentListResponse)

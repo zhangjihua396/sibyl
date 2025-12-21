@@ -9,7 +9,7 @@ import { Button, ColorButton } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input, Textarea } from '@/components/ui/input';
 import type { Entity } from '@/lib/api';
-import { formatDateTime } from '@/lib/constants';
+import { ENTITY_ICONS, formatDateTime, getEntityStyles, type EntityType } from '@/lib/constants';
 import { useDeleteEntity, useEntity, useUpdateEntity } from '@/lib/hooks';
 
 interface EntityDetailContentProps {
@@ -32,6 +32,8 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
 
   // Use entity from query (may be more up-to-date) or fall back to initial
   const currentEntity = entity ?? initialEntity;
+  const styles = getEntityStyles(currentEntity.entity_type);
+  const icon = ENTITY_ICONS[currentEntity.entity_type as EntityType] ?? '◇';
 
   const handleStartEdit = () => {
     setEditedName(currentEntity.name);
@@ -67,49 +69,67 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
     <div className="space-y-4 animate-fade-in">
       <EntityBreadcrumb entityType="entity" entityName={currentEntity.name} />
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-2">
-            <EntityBadge type={currentEntity.entity_type} size="md" />
-          </div>
-          {isEditing ? (
-            <Input
-              type="text"
-              value={editedName}
-              onChange={e => setEditedName(e.target.value)}
-              className="text-2xl font-bold"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold text-sc-fg-primary">{currentEntity.name}</h1>
-          )}
-        </div>
+      {/* Hero Header */}
+      <div
+        className={`
+          relative overflow-hidden rounded-xl
+          bg-gradient-to-br ${styles.gradient}
+          border ${styles.border}
+        `}
+      >
+        {/* Accent bar */}
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${styles.accent}`} />
 
-        <div className="flex items-center gap-2">
-          {isEditing ? (
-            <>
-              <Button variant="secondary" onClick={handleCancel}>
-                Cancel
-              </Button>
-              <ColorButton color="green" onClick={handleSave} disabled={updateEntity.isPending}>
-                {updateEntity.isPending ? 'Saving...' : 'Save'}
-              </ColorButton>
-            </>
-          ) : (
-            <>
-              <Link href={`/graph?selected=${entityId}`}>
-                <ColorButton color="purple" icon="⬡">
-                  View in Graph
-                </ColorButton>
-              </Link>
-              <ColorButton color="cyan" onClick={handleStartEdit}>
-                Edit
-              </ColorButton>
-              <ColorButton color="red" onClick={handleDelete} disabled={deleteEntity.isPending}>
-                {deleteEntity.isPending ? 'Deleting...' : 'Delete'}
-              </ColorButton>
-            </>
-          )}
+        <div className="pl-5 pr-4 py-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              {/* Icon + Badge */}
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`text-2xl ${styles.dot.replace('bg-', 'text-')}`}>{icon}</span>
+                <EntityBadge type={currentEntity.entity_type} size="md" showIcon />
+              </div>
+
+              {/* Title */}
+              {isEditing ? (
+                <Input
+                  type="text"
+                  value={editedName}
+                  onChange={e => setEditedName(e.target.value)}
+                  className="text-2xl font-bold"
+                />
+              ) : (
+                <h1 className="text-2xl font-bold text-sc-fg-primary">{currentEntity.name}</h1>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              {isEditing ? (
+                <>
+                  <Button variant="secondary" onClick={handleCancel}>
+                    Cancel
+                  </Button>
+                  <ColorButton color="green" onClick={handleSave} disabled={updateEntity.isPending}>
+                    {updateEntity.isPending ? 'Saving...' : 'Save'}
+                  </ColorButton>
+                </>
+              ) : (
+                <>
+                  <Link href={`/graph?selected=${entityId}`}>
+                    <ColorButton color="purple" icon="⬡">
+                      View in Graph
+                    </ColorButton>
+                  </Link>
+                  <ColorButton color="cyan" onClick={handleStartEdit}>
+                    Edit
+                  </ColorButton>
+                  <ColorButton color="red" onClick={handleDelete} disabled={deleteEntity.isPending}>
+                    {deleteEntity.isPending ? 'Deleting...' : 'Delete'}
+                  </ColorButton>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

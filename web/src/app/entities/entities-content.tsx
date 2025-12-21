@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/ui/spinner';
-import { FilterChip } from '@/components/ui/toggle';
+import { EntityTypeChip, FilterChip } from '@/components/ui/toggle';
 import { EmptyState, ErrorState } from '@/components/ui/tooltip';
 import type { EntityListResponse, StatsResponse } from '@/lib/api';
 import { useDeleteEntity, useEntities, useStats } from '@/lib/hooks';
@@ -113,13 +113,13 @@ export function EntitiesContent({
             All
           </FilterChip>
           {entityTypes.map(type => (
-            <FilterChip
+            <EntityTypeChip
               key={type}
+              entityType={type}
               active={typeFilter === type}
               onClick={() => handleTypeFilter(type)}
-            >
-              {type.replace(/_/g, ' ')}
-            </FilterChip>
+              count={stats?.entity_counts[type]}
+            />
           ))}
         </div>
       </div>

@@ -1,22 +1,24 @@
-import type { EntityType } from '@/lib/constants';
-import { ENTITY_STYLES } from '@/lib/constants';
+import { ENTITY_ICONS, ENTITY_STYLES, type EntityType } from '@/lib/constants';
 
-type BadgeSize = 'sm' | 'md';
+type BadgeSize = 'sm' | 'md' | 'lg';
 
 const sizes: Record<BadgeSize, string> = {
-  sm: 'px-2 py-0.5 text-xs',
-  md: 'px-3 py-1 text-sm',
+  sm: 'px-2 py-0.5 text-xs gap-1',
+  md: 'px-2.5 py-1 text-sm gap-1.5',
+  lg: 'px-3 py-1.5 text-sm gap-2',
 };
 
 // Entity type badge with SilkCircuit colors
 interface EntityBadgeProps {
   type: string;
   size?: BadgeSize;
+  showIcon?: boolean;
   className?: string;
 }
 
-export function EntityBadge({ type, size = 'sm', className = '' }: EntityBadgeProps) {
+export function EntityBadge({ type, size = 'sm', showIcon = false, className = '' }: EntityBadgeProps) {
   const style = ENTITY_STYLES[type as EntityType] ?? ENTITY_STYLES.knowledge_source;
+  const icon = ENTITY_ICONS[type as EntityType] ?? '◇';
 
   return (
     <span
@@ -27,6 +29,7 @@ export function EntityBadge({ type, size = 'sm', className = '' }: EntityBadgePr
         ${className}
       `}
     >
+      {showIcon && <span className="opacity-80">{icon}</span>}
       {type.replace(/_/g, ' ')}
     </span>
   );
