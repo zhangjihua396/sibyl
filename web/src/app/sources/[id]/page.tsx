@@ -3,6 +3,7 @@
 import {
   ArrowLeft,
   Calendar,
+  ChevronRight,
   Clock,
   ExternalLink,
   FileText,
@@ -298,12 +299,15 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
         ) : (
           <div className="space-y-2">
             {pages.map((page) => (
-              <div
+              <Link
                 key={page.id}
-                className="flex items-center justify-between gap-4 p-3 bg-sc-bg-dark rounded-xl hover:bg-sc-bg-highlight transition-colors"
+                href={`/sources/${id}/documents/${page.id}`}
+                className="flex items-center justify-between gap-4 p-3 bg-sc-bg-dark rounded-xl hover:bg-sc-bg-highlight transition-colors group"
               >
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sc-fg-primary truncate">{page.title}</p>
+                  <p className="font-medium text-sc-fg-primary truncate group-hover:text-sc-cyan transition-colors">
+                    {page.title}
+                  </p>
                   <p className="text-xs text-sc-fg-subtle truncate">{page.url}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
@@ -320,16 +324,24 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
                   <span className="text-xs text-sc-fg-subtle">
                     {page.word_count.toLocaleString()} words
                   </span>
-                  <a
-                    href={page.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      window.open(page.url, '_blank', 'noopener,noreferrer');
+                    }}
                     className="p-1.5 text-sc-fg-subtle hover:text-sc-cyan transition-colors"
                   >
                     <ExternalLink width={14} height={14} />
-                  </a>
+                  </button>
+                  <ChevronRight
+                    width={16}
+                    height={16}
+                    className="text-sc-fg-subtle group-hover:text-sc-cyan transition-colors"
+                  />
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

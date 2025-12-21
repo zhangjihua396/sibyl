@@ -1,5 +1,16 @@
 'use client';
 
+import { AnimatePresence, motion } from 'motion/react';
+import { useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { PageHeader } from '@/components/layout/page-header';
+import {
+  AddSourceDialog,
+  SourceCardEnhanced,
+  SourceCardSkeleton,
+  type UrlSourceData,
+} from '@/components/sources';
 import {
   Database,
   Filter,
@@ -10,35 +21,30 @@ import {
   RefreshCw,
   Search,
 } from '@/components/ui/icons';
-import { AnimatePresence, motion } from 'motion/react';
-import { useRouter } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
-import { toast } from 'sonner';
-
-import { Breadcrumb } from '@/components/layout/breadcrumb';
-import { PageHeader } from '@/components/layout/page-header';
-import {
-  AddSourceDialog,
-  SourceCardEnhanced,
-  SourceCardSkeleton,
-  type UrlSourceData,
-} from '@/components/sources';
 import { EmptyState } from '@/components/ui/tooltip';
 import type { CrawlStatusType, SourceTypeValue } from '@/lib/constants';
-import { useCancelCrawl, useCrawlSource, useCreateSource, useDeleteSource, useSources, useSyncSource } from '@/lib/hooks';
+import {
+  useAllCrawlProgress,
+  useCancelCrawl,
+  useCrawlSource,
+  useCreateSource,
+  useDeleteSource,
+  useSources,
+  useSyncSource,
+} from '@/lib/hooks';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'updated' | 'documents';
 type FilterStatus = 'all' | CrawlStatusType;
 
 export default function SourcesPage() {
-  const router = useRouter();
   const { data: sourcesData, isLoading, error, refetch } = useSources();
   const createSource = useCreateSource();
   const deleteSource = useDeleteSource();
   const crawlSource = useCrawlSource();
   const syncSource = useSyncSource();
   const cancelCrawl = useCancelCrawl();
+  const crawlProgressMap = useAllCrawlProgress();
 
   // UI State
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -143,10 +149,7 @@ export default function SourcesPage() {
       if (!source) return;
 
       // Check if already crawling
-      if (
-        crawlingSourceIds.has(id) ||
-        source.metadata.crawl_status === 'in_progress'
-      ) {
+      if (crawlingSourceIds.has(id) || source.metadata.crawl_status === 'in_progress') {
         toast.info('Crawl already in progress');
         return;
       }
@@ -303,7 +306,8 @@ export default function SourcesPage() {
         {/* Search */}
         <div className="relative flex-1 sm:max-w-md">
           <Search
-            width={16} height={16}
+            width={16}
+            height={16}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-sc-fg-subtle"
           />
           <input
@@ -501,20 +505,34 @@ export default function SourcesPage() {
           }
         >
           <AnimatePresence mode="popLayout">
-            {filteredSources.map(source => (
-              <SourceCardEnhanced
-                key={source.id}
-                source={source}
-                onCrawl={handleCrawl}
-                onCancel={handleCancel}
-                onDelete={handleDelete}
-                onRefresh={handleSync}
-                isCrawling={
-                  crawlingSourceIds.has(source.id) ||
-                  source.metadata.crawl_status === 'in_progress'
-                }
-              />
-            ))}
+            {filteredSources.map(source => {
+              const progressData = crawlProgressMap.get(source.id);
+              const progress = progressData
+                ? {
+                    percentage: progressData.percentage,
+                    pagesProcessed: progressData.pages_crawled,
+                    documentsCreated: progressData.pages_crawled, // Use pages as docs
+                    currentUrl: progressData.current_url,
+                    status: `Crawling ${progressData.pages_crawled}/${progressData.max_pages} pages`,
+                  }
+                : undefined;
+
+              return (
+                <SourceCardEnhanced
+                  key={source.id}
+                  source={source}
+                  onCrawl={handleCrawl}
+                  onCancel={handleCancel}
+                  onDelete={handleDelete}
+                  onRefresh={handleSync}
+                  isCrawling={
+                    crawlingSourceIds.has(source.id) ||
+                    source.metadata.crawl_status === 'in_progress'
+                  }
+                  progress={progress}
+                />
+              );
+            })}
           </AnimatePresence>
         </motion.div>
       )}
