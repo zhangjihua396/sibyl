@@ -311,6 +311,8 @@ async def _generate_embedding(text: str) -> list[float] | None:
 
         from sibyl.config import settings
 
+        target_dim = int(os.getenv("EMBEDDING_DIM", str(settings.graph_embedding_dimensions)))
+
         api_key = settings.openai_api_key.get_secret_value()
         if not api_key:
             api_key = os.getenv("OPENAI_API_KEY", "")
@@ -320,11 +322,20 @@ async def _generate_embedding(text: str) -> list[float] | None:
             return None
 
         client = AsyncOpenAI(api_key=api_key)
-        response = await client.embeddings.create(
-            model=settings.embedding_model,
-            input=text[:8000],  # Truncate to avoid token limits
-        )
-        return response.data[0].embedding
+        try:
+            response = await client.embeddings.create(
+                model=settings.embedding_model,
+                input=text[:8000],  # Truncate to avoid token limits
+                dimensions=target_dim,
+            )
+            return response.data[0].embedding
+        except TypeError:
+            # Some embedding models/clients don't support the `dimensions` parameter.
+            response = await client.embeddings.create(
+                model=settings.embedding_model,
+                input=text[:8000],
+            )
+            return response.data[0].embedding[:target_dim]
 
     except Exception as e:
         log.exception("Embedding generation failed", error=str(e))

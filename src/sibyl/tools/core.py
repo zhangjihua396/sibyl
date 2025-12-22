@@ -632,6 +632,7 @@ async def search(  # noqa: PLR0915
     include_graph: bool = True,
     use_enhanced: bool = True,
     boost_recent: bool = True,
+    organization_id: str | None = None,
 ) -> SearchResponse:
     """Unified semantic search across knowledge graph AND documentation.
 
@@ -748,7 +749,8 @@ async def search(  # noqa: PLR0915
     if search_graph and query:
         try:
             client = await get_graph_client()
-            entity_manager = EntityManager(client)
+            group_id = organization_id or "conventions"
+            entity_manager = EntityManager(client, group_id=group_id)
 
             # Determine entity types to search (exclude 'document' - that's for doc search)
             entity_types = None
@@ -785,6 +787,7 @@ async def search(  # noqa: PLR0915
                             entity_types=entity_types,
                             limit=limit * 3,
                             config=hybrid_config,
+                            group_id=group_id,
                         ),
                         timeout_seconds=TIMEOUTS["search"],
                         operation_name="hybrid_search",
@@ -935,6 +938,7 @@ async def explore(
     project: str | None = None,
     status: str | None = None,
     limit: int = 50,
+    organization_id: str | None = None,
 ) -> ExploreResponse:
     """Navigate and browse the Sibyl knowledge graph structure.
 
@@ -951,7 +955,7 @@ async def explore(
     For task operations, always use project-first approach:
     1. First: explore(mode="list", types=["project"]) - Find relevant project
     2. Then: explore(mode="list", types=["task"], project="<project_id>") - List tasks in project
-    Never list all tasks without a project filter - use project context.
+    Prefer listing tasks with a project filter to keep results focused.
 
     USE CASES:
     • List projects first: explore(mode="list", types=["project"])
@@ -969,7 +973,7 @@ async def explore(
         depth: Traversal depth for traverse mode (1-3, default 1).
         language: Filter by programming language.
         category: Filter by category/domain.
-        project: Filter by project_id (REQUIRED for task listing - use project-first workflow).
+        project: Optional project filter (recommended for task listing).
         status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
         limit: Maximum results (1-200, default 50).
 
@@ -1015,6 +1019,8 @@ async def explore(
     if status:
         filters["status"] = status
 
+    group_id = organization_id or "conventions"
+
     try:
         if mode == "dependencies":
             return await _explore_dependencies(
@@ -1022,6 +1028,7 @@ async def explore(
                 project=project,
                 limit=limit,
                 filters=filters,
+                group_id=group_id,
             )
         if mode in ("related", "traverse"):
             return await _explore_related(
@@ -1031,6 +1038,7 @@ async def explore(
                 limit=limit,
                 filters=filters,
                 mode=mode,
+                group_id=group_id,
             )
         return await _explore_list(
             types=types,
@@ -1040,6 +1048,7 @@ async def explore(
             status=status,
             limit=limit,
             filters=filters,
+            group_id=group_id,
         )
 
     except Exception as e:
@@ -1055,10 +1064,11 @@ async def _explore_list(
     status: str | None,
     limit: int,
     filters: dict[str, Any],
+    group_id: str,
 ) -> ExploreResponse:
     """List entities by type with filters."""
     client = await get_graph_client()
-    entity_manager = EntityManager(client)
+    entity_manager = EntityManager(client, group_id=group_id)
 
     # Default to listing all types if none specified
     target_types = []
@@ -1156,6 +1166,7 @@ async def _explore_dependencies(
     project: str | None,
     limit: int,
     filters: dict[str, Any],
+    group_id: str,
 ) -> ExploreResponse:
     """Traverse task dependency chains with topological sorting.
 
@@ -1171,8 +1182,8 @@ async def _explore_dependencies(
         )
 
     client = await get_graph_client()
-    relationship_manager = RelationshipManager(client)
-    entity_manager = EntityManager(client)
+    relationship_manager = RelationshipManager(client, group_id=group_id)
+    entity_manager = EntityManager(client, group_id=group_id)
 
     # Track visited nodes and detect cycles
     visited: set[str] = set()
@@ -1275,6 +1286,7 @@ async def _explore_related(
     limit: int,
     filters: dict[str, Any],
     mode: str,
+    group_id: str,
 ) -> ExploreResponse:
     """Find related entities via graph traversal."""
     if not entity_id:
@@ -1286,7 +1298,7 @@ async def _explore_related(
         )
 
     client = await get_graph_client()
-    relationship_manager = RelationshipManager(client)
+    relationship_manager = RelationshipManager(client, group_id=group_id)
 
     # Convert relationship type strings to enum
     rel_types = None
@@ -1452,7 +1464,12 @@ async def add(  # noqa: PLR0915
 
     try:
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
+        group_id = str(
+            (metadata or {}).get("organization_id")
+            or (metadata or {}).get("group_id")
+            or "conventions"
+        )
+        entity_manager = EntityManager(client, group_id=group_id)
 
         # Generate deterministic ID
         entity_id = _generate_id(entity_type, title, category or "general")
@@ -1463,23 +1480,15 @@ async def add(  # noqa: PLR0915
             "languages": languages or [],
             "tags": tags or [],
             "added_at": datetime.now(UTC).isoformat(),
+            "organization_id": group_id,
             **(metadata or {}),
         }
 
         # Create appropriate entity type
         entity: Episode | Pattern | Task | Project
-        relationship_manager = RelationshipManager(client)
+        relationship_manager = RelationshipManager(client, group_id=group_id)
 
         if entity_type == "task":
-            # Require project for tasks
-            if not project:
-                return AddResponse(
-                    success=False,
-                    id=None,
-                    message="Tasks require a project. Use project='project_id' or create a project first.",
-                    timestamp=datetime.now(UTC),
-                )
-
             # Parse due date if provided
             parsed_due_date = None
             if due_date:
@@ -1496,8 +1505,8 @@ async def add(  # noqa: PLR0915
                 except ValueError:
                     log.warning("invalid_priority", priority=priority)
 
-            # Get existing project tags for consistency
-            project_tags = await get_project_tags(client, project)
+            # Get existing project tags for consistency (when project-scoped)
+            project_tags = await get_project_tags(client, project) if project else []
 
             # Auto-generate tags based on task content + project context
             task_technologies = technologies or languages or []
@@ -1524,7 +1533,7 @@ async def add(  # noqa: PLR0915
                 description=content,
                 status=TaskStatus.TODO,
                 priority=task_priority,
-                project_id=project,
+                project_id=project or None,
                 assignees=assignees or [],
                 due_date=parsed_due_date,
                 technologies=task_technologies,

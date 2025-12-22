@@ -399,3 +399,279 @@ async def migrate_add_group_ids() -> MigrationResult:
             message=f"Migration failed: {e}",
             duration_seconds=time.time() - start_time,
         )
+
+
+async def _cast_name_embeddings_to_vecf32(
+    client: object,
+    *,
+    batch_size: int,
+    max_entities: int,
+) -> int:
+    entities_updated = 0
+    offset = 0
+    scanned = 0
+
+    while scanned < max_entities:
+        result = await client.driver.execute_query(
+            """
+            MATCH (n)
+            WHERE (n:Entity OR n:Community)
+              AND n.name_embedding IS NOT NULL
+            RETURN n.uuid AS uuid
+            ORDER BY uuid
+            SKIP $offset
+            LIMIT $limit
+            """,
+            offset=offset,
+            limit=batch_size,
+        )
+
+        records = result[0] if result and len(result) > 0 else []
+        if not records:
+            break
+
+        uuids = [r.get("uuid") for r in records if isinstance(r, dict) and r.get("uuid")]
+        scanned += len(uuids)
+
+        for uuid in uuids:
+            try:
+                await client.driver.execute_query(
+                    """
+                    MATCH (n {uuid: $uuid})
+                    SET n.name_embedding = vecf32(n.name_embedding)
+                    RETURN n.uuid AS uuid
+                    """,
+                    uuid=uuid,
+                )
+                entities_updated += 1
+            except Exception as e:
+                # Already Vectorf32 (expected), skip silently.
+                if "expected List or Null but was Vectorf32" in str(e):
+                    continue
+                log.warning("embedding_cast_failed", uuid=uuid, error=str(e))
+
+        offset += batch_size
+
+    return entities_updated
+
+
+async def _clear_mismatched_name_embedding_dimensions(
+    client: object,
+    *,
+    expected_dim: int,
+    batch_size: int,
+    max_entities: int,
+) -> int:
+    embeddings_cleared = 0
+    offset = 0
+    scanned = 0
+
+    while scanned < max_entities:
+        result = await client.driver.execute_query(
+            """
+            MATCH (n)
+            WHERE (n:Entity OR n:Community)
+              AND n.name_embedding IS NOT NULL
+            RETURN n.uuid AS uuid, n.name_embedding AS emb
+            ORDER BY uuid
+            SKIP $offset
+            LIMIT $limit
+            """,
+            offset=offset,
+            limit=batch_size,
+        )
+
+        records = result[0] if result and len(result) > 0 else []
+        if not records:
+            break
+
+        scanned += len(records)
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+
+            uuid = record.get("uuid")
+            emb = record.get("emb")
+            if not uuid or emb is None:
+                continue
+
+            if isinstance(emb, list):
+                dim = len(emb)
+            elif isinstance(emb, str):
+                dim = len([x for x in emb.split(",") if x])
+            else:
+                dim = None
+
+            if dim is None or dim == expected_dim:
+                continue
+
+            try:
+                await client.driver.execute_query(
+                    """
+                    MATCH (n {uuid: $uuid})
+                    SET n.name_embedding = NULL
+                    RETURN n.uuid AS uuid
+                    """,
+                    uuid=uuid,
+                )
+                embeddings_cleared += 1
+            except Exception as e:
+                log.warning("embedding_clear_failed", uuid=uuid, error=str(e))
+
+        offset += batch_size
+
+    return embeddings_cleared
+
+
+async def migrate_fix_name_embedding_types(
+    batch_size: int = 250,
+    max_entities: int = 20_000,
+) -> MigrationResult:
+    """Fix nodes with list-typed `name_embedding` by casting to Vectorf32.
+
+    FalkorDB vector functions (vec.cosineDistance) expect Vectorf32. Some
+    legacy writes stored `name_embedding` as a plain List[float], which breaks
+    vector queries and can cascade into unrelated flows (e.g. auto-link search).
+
+    We detect list-typed embeddings opportunistically by attempting:
+        SET n.name_embedding = vecf32(n.name_embedding)
+    This succeeds for list embeddings and fails (with a type mismatch) for
+    nodes that already have Vectorf32. Those are safely skipped.
+
+    Args:
+        batch_size: Number of candidate nodes to scan per page.
+        max_entities: Safety cap to avoid unbounded scans.
+
+    Returns:
+        MigrationResult summarizing how many nodes were updated.
+    """
+    log.info(
+        "Running migration: fix name_embedding types",
+        batch_size=batch_size,
+        max_entities=max_entities,
+    )
+
+    start_time = time.time()
+
+    try:
+        client = await get_graph_client()
+        expected_dim = settings.graph_embedding_dimensions
+
+        entities_updated = await _cast_name_embeddings_to_vecf32(
+            client,
+            batch_size=batch_size,
+            max_entities=max_entities,
+        )
+        embeddings_cleared = await _clear_mismatched_name_embedding_dimensions(
+            client,
+            expected_dim=expected_dim,
+            batch_size=batch_size,
+            max_entities=max_entities,
+        )
+
+        duration = time.time() - start_time
+        return MigrationResult(
+            success=True,
+            entities_updated=entities_updated + embeddings_cleared,
+            message=(
+                f"Fixed name_embedding for {entities_updated} node(s) (Vectorf32 cast), "
+                f"cleared {embeddings_cleared} mismatched-dimension embedding(s) "
+                f"(expected {expected_dim})"
+            ),
+            duration_seconds=duration,
+        )
+
+    except Exception as e:
+        log.exception("Migration failed", error=str(e))
+        return MigrationResult(
+            success=False,
+            entities_updated=0,
+            message=f"Migration failed: {e}",
+            duration_seconds=time.time() - start_time,
+        )
+
+
+async def migrate_backfill_graph_group_id(
+    org_id: str | None = None,
+) -> MigrationResult:
+    """Backfill FalkorDB `group_id` to the current/default organization id.
+
+    Sibyl treats Graphiti `group_id` as the tenant boundary. Early nodes/edges
+    may have been written under the shared default group ("conventions"). This
+    migration rewrites group_id for those records so authenticated org-scoped
+    requests can see legacy data.
+    """
+    start_time = time.time()
+
+    try:
+        target_group_id = org_id
+        if not target_group_id:
+            from sqlalchemy import select
+
+            from sibyl.db.connection import get_session
+            from sibyl.db.models import Organization
+
+            async with get_session() as session:
+                result = await session.execute(
+                    select(Organization.id).order_by(Organization.created_at).limit(1)
+                )
+                org_uuid = result.scalar_one_or_none()
+                if org_uuid is not None:
+                    target_group_id = str(org_uuid)
+
+        if not target_group_id:
+            return MigrationResult(
+                success=False,
+                entities_updated=0,
+                message="No organizations found; create an org before backfilling group_id",
+                duration_seconds=time.time() - start_time,
+            )
+
+        client = await get_graph_client()
+
+        node_result = await client.driver.execute_query(
+            """
+            MATCH (n)
+            WHERE (n:Entity OR n:Episodic OR n:Community)
+              AND (n.group_id IS NULL OR n.group_id = "conventions")
+            SET n.group_id = $group_id
+            RETURN count(n) AS updated
+            """,
+            group_id=target_group_id,
+        )
+        edge_result = await client.driver.execute_query(
+            """
+            MATCH ()-[r]->()
+            WHERE r.group_id IS NULL OR r.group_id = "conventions"
+            SET r.group_id = $group_id
+            RETURN count(r) AS updated
+            """,
+            group_id=target_group_id,
+        )
+
+        nodes_updated = 0
+        edges_updated = 0
+        if node_result and node_result[0]:
+            nodes_updated = int(node_result[0][0].get("updated", 0))
+        if edge_result and edge_result[0]:
+            edges_updated = int(edge_result[0][0].get("updated", 0))
+
+        duration = time.time() - start_time
+        return MigrationResult(
+            success=True,
+            entities_updated=nodes_updated + edges_updated,
+            message=(
+                f"Rewrote group_id to {target_group_id} for {nodes_updated} node(s) "
+                f"and {edges_updated} edge(s)"
+            ),
+            duration_seconds=duration,
+        )
+
+    except Exception as e:
+        log.exception("Migration failed", error=str(e))
+        return MigrationResult(
+            success=False,
+            entities_updated=0,
+            message=f"Migration failed: {e}",
+            duration_seconds=time.time() - start_time,
+        )

@@ -1,9 +1,10 @@
 """Graph visualization data endpoints."""
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from sibyl.api.schemas import GraphData, GraphEdge, GraphNode, SubgraphRequest
+from sibyl.auth.tenancy import resolve_group_id
 from sibyl.graph.client import GraphClient, get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
@@ -14,27 +15,28 @@ router = APIRouter(prefix="/graph", tags=["graph"])
 
 
 @router.get("/debug")
-async def debug_graph():
+async def debug_graph(request: Request):
     """Debug endpoint to trace graph data issue."""
     client = await get_graph_client()
+    group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
 
     # Get nodes
     node_query = """
         MATCH (n)
-        WHERE (n:Episodic OR n:Entity) AND n.group_id = 'conventions'
+        WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
         RETURN n.uuid as id LIMIT 500
     """
-    node_result = await client.driver.execute_query(node_query)
+    node_result = await client.driver.execute_query(node_query, group_id=group_id)
     node_rows = GraphClient.normalize_result(node_result)
     node_ids = {row.get("id") for row in node_rows if row.get("id")}
 
     # Get edges
     edge_query = """
         MATCH (s)-[r]->(t)
-        WHERE r.group_id = 'conventions'
+        WHERE r.group_id = $group_id
         RETURN s.uuid as src, t.uuid as tgt LIMIT 1000
     """
-    edge_result = await client.driver.execute_query(edge_query)
+    edge_result = await client.driver.execute_query(edge_query, group_id=group_id)
     edge_rows = GraphClient.normalize_result(edge_result)
 
     # Check overlap
@@ -84,6 +86,7 @@ def get_entity_color(entity_type: EntityType) -> str:
 
 @router.get("/nodes", response_model=list[GraphNode])
 async def get_all_nodes(
+    request: Request,
     types: list[EntityType] | None = Query(default=None, description="Filter by entity types"),
     limit: int = Query(default=500, ge=1, le=2000, description="Maximum nodes"),
 ) -> list[GraphNode]:
@@ -92,6 +95,7 @@ async def get_all_nodes(
     Queries the graph directly to get actual node UUIDs that match edge references.
     """
     try:
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
         client = await get_graph_client()
 
         # Build type filter for Cypher query
@@ -104,7 +108,7 @@ async def get_all_nodes(
         query = f"""
             MATCH (n)
             WHERE (n:Episodic OR n:Entity)
-            AND n.group_id = 'conventions'
+            AND n.group_id = $group_id
             {type_filter}
             RETURN n.uuid as id,
                    n.name as name,
@@ -113,7 +117,7 @@ async def get_all_nodes(
             LIMIT {limit}
         """
 
-        result = await client.driver.execute_query(query)
+        result = await client.driver.execute_query(query, group_id=group_id)
         rows = GraphClient.normalize_result(result)
 
         # Count connections for sizing
@@ -121,10 +125,10 @@ async def get_all_nodes(
         try:
             conn_query = """
                 MATCH (n)-[r]-(m)
-                WHERE n.group_id = 'conventions'
+                WHERE n.group_id = $group_id
                 RETURN n.uuid as id, count(r) as cnt
             """
-            conn_result = await client.driver.execute_query(conn_query)
+            conn_result = await client.driver.execute_query(conn_query, group_id=group_id)
             for row in GraphClient.normalize_result(conn_result):
                 connection_counts[row.get("id", "")] = row.get("cnt", 0)
         except Exception:
@@ -171,6 +175,7 @@ async def get_all_nodes(
 
 @router.get("/edges", response_model=list[GraphEdge])
 async def get_all_edges(
+    request: Request,
     relationship_types: list[RelationshipType] | None = Query(
         default=None, description="Filter by relationship types"
     ),
@@ -178,8 +183,9 @@ async def get_all_edges(
 ) -> list[GraphEdge]:
     """Get all edges for graph visualization."""
     try:
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
         client = await get_graph_client()
-        relationship_manager = RelationshipManager(client)
+        relationship_manager = RelationshipManager(client, group_id=group_id)
 
         # Get all relationships
         all_relationships = await relationship_manager.list_all(
@@ -209,6 +215,7 @@ async def get_all_edges(
 
 @router.get("/full", response_model=GraphData)
 async def get_full_graph(
+    request: Request,
     types: list[EntityType] | None = Query(default=None, description="Filter by entity types"),
     max_nodes: int = Query(default=500, ge=1, le=1000, description="Maximum nodes"),
     max_edges: int = Query(default=1000, ge=1, le=5000, description="Maximum edges"),
@@ -217,6 +224,7 @@ async def get_full_graph(
     try:
         # Fetch nodes and edges - call underlying logic directly
         client = await get_graph_client()
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
 
         # === NODES: Direct Cypher query ===
         type_filter = ""
@@ -227,7 +235,7 @@ async def get_full_graph(
         node_query = f"""
             MATCH (n)
             WHERE (n:Episodic OR n:Entity)
-            AND n.group_id = 'conventions'
+            AND n.group_id = $group_id
             {type_filter}
             RETURN n.uuid as id,
                    n.name as name,
@@ -235,7 +243,7 @@ async def get_full_graph(
                    n.summary as summary
             LIMIT {max_nodes}
         """
-        node_result = await client.driver.execute_query(node_query)
+        node_result = await client.driver.execute_query(node_query, group_id=group_id)
         node_rows = GraphClient.normalize_result(node_result)
 
         nodes = []
@@ -267,14 +275,14 @@ async def get_full_graph(
         # Use r.name for semantic type (BELONGS_TO, etc), not type(r) which returns graph label
         edge_query = f"""
             MATCH (source)-[r]->(target)
-            WHERE r.group_id = 'conventions'
+            WHERE r.group_id = $group_id
             RETURN r.uuid as id,
                    source.uuid as source_id,
                    target.uuid as target_id,
                    COALESCE(r.name, type(r)) as rel_type
             LIMIT {max_edges}
         """
-        edge_result = await client.driver.execute_query(edge_query)
+        edge_result = await client.driver.execute_query(edge_query, group_id=group_id)
         edge_rows = GraphClient.normalize_result(edge_result)
 
         log.info(
@@ -316,26 +324,27 @@ async def get_full_graph(
 
 
 @router.post("/subgraph", response_model=GraphData)
-async def get_subgraph(request: SubgraphRequest) -> GraphData:
+async def get_subgraph(http_request: Request, payload: SubgraphRequest) -> GraphData:
     """Get a subgraph centered on a specific entity."""
     try:
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
-        relationship_manager = RelationshipManager(client)
+        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        entity_manager = EntityManager(client, group_id=group_id)
+        relationship_manager = RelationshipManager(client, group_id=group_id)
 
         # Get center entity
-        center = await entity_manager.get(request.entity_id)
+        center = await entity_manager.get(payload.entity_id)
         if not center:
-            raise HTTPException(status_code=404, detail=f"Entity not found: {request.entity_id}")
+            raise HTTPException(status_code=404, detail=f"Entity not found: {payload.entity_id}")
 
         # Build subgraph via traversal
         visited_nodes: dict[str, GraphNode] = {}
         edges: list[GraphEdge] = []
 
         async def traverse(entity_id: str, current_depth: int) -> None:
-            if current_depth > request.depth:
+            if current_depth > payload.depth:
                 return
-            if len(visited_nodes) >= request.max_nodes:
+            if len(visited_nodes) >= payload.max_nodes:
                 return
             if entity_id in visited_nodes:
                 return
@@ -350,7 +359,7 @@ async def get_subgraph(request: SubgraphRequest) -> GraphData:
                 type=entity.entity_type.value,
                 label=entity.name[:50],
                 color=get_entity_color(entity.entity_type),
-                size=2.0 if entity_id == request.entity_id else 1.5,  # Center node larger
+                size=2.0 if entity_id == payload.entity_id else 1.5,  # Center node larger
                 metadata={
                     "description": entity.description[:100] if entity.description else "",
                     "depth": current_depth,
@@ -360,7 +369,7 @@ async def get_subgraph(request: SubgraphRequest) -> GraphData:
             # Get related entities
             related = await relationship_manager.get_related_entities(
                 entity_id=entity_id,
-                relationship_types=request.relationship_types,
+                relationship_types=payload.relationship_types,
                 depth=1,
                 limit=50,
             )
@@ -382,7 +391,7 @@ async def get_subgraph(request: SubgraphRequest) -> GraphData:
                 await traverse(related_entity.id, current_depth + 1)
 
         # Start traversal from center
-        await traverse(request.entity_id, 0)
+        await traverse(payload.entity_id, 0)
 
         # Deduplicate edges
         seen_edges: set[str] = set()
@@ -403,5 +412,5 @@ async def get_subgraph(request: SubgraphRequest) -> GraphData:
     except HTTPException:
         raise
     except Exception as e:
-        log.exception("get_subgraph_failed", entity_id=request.entity_id, error=str(e))
+        log.exception("get_subgraph_failed", entity_id=payload.entity_id, error=str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e

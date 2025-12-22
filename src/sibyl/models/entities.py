@@ -79,6 +79,18 @@ class Entity(BaseModel):
     name: str = Field(description="Human-readable name")
     description: str = Field(default="", description="Detailed description")
     content: str = Field(default="", description="Full content/body")
+    organization_id: str | None = Field(
+        default=None,
+        description="Organization/tenant id for scoping (typically UUID as string)",
+    )
+    created_by: str | None = Field(
+        default=None,
+        description="Creator identity (user id/email) when known",
+    )
+    modified_by: str | None = Field(
+        default=None,
+        description="Last modifier identity (user id/email) when known",
+    )
     metadata: dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

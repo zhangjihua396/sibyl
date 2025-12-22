@@ -39,9 +39,10 @@ def sanitize_search_query(query: str) -> str:
 class EntityManager:
     """Manages entity CRUD operations in the knowledge graph."""
 
-    def __init__(self, client: "GraphClient") -> None:
+    def __init__(self, client: "GraphClient", *, group_id: str = "conventions") -> None:
         """Initialize entity manager with graph client."""
         self._client = client
+        self._group_id = group_id
 
     async def create(self, entity: Entity) -> str:
         """Create a new entity in the graph.
@@ -76,7 +77,7 @@ class EntityManager:
                 episode_body=episode_body,
                 source_description=f"MCP Entity: {entity.entity_type}",
                 reference_time=entity.created_at or datetime.now(UTC),
-                group_id="conventions",
+                group_id=self._group_id,
                 entity_types=entity_types,
             )
 
@@ -154,7 +155,7 @@ class EntityManager:
             node = EntityNode(
                 uuid=entity.id,
                 name=entity.name,
-                group_id="conventions",
+                group_id=self._group_id,
                 labels=[entity.entity_type.value],
                 created_at=entity.created_at or datetime.now(UTC),
                 summary=entity.description[:500] if entity.description else entity.name,
@@ -203,7 +204,7 @@ class EntityManager:
             # Try EntityNode first (nodes created via create_direct or extracted)
             try:
                 node = await EntityNode.get_by_uuid(self._client.driver, entity_id)
-                if node:
+                if node and node.group_id == self._group_id:
                     entity = self._node_to_entity(node)
                     log.debug(
                         "Entity retrieved via EntityNode",
@@ -221,7 +222,7 @@ class EntityManager:
             # Try EpisodicNode (nodes created via add_episode)
             try:
                 episodic = await EpisodicNode.get_by_uuid(self._client.driver, entity_id)
-                if episodic:
+                if episodic and episodic.group_id == self._group_id:
                     entity = self._episodic_to_entity(episodic)
                     log.debug(
                         "Entity retrieved via EpisodicNode",
@@ -264,7 +265,7 @@ class EntityManager:
             # Perform hybrid search using Graphiti
             edges = await self._client.client.search(
                 query=safe_query,
-                group_ids=["conventions"],
+                group_ids=[self._group_id],
                 num_results=limit * 3,  # Get more results for filtering
             )
 
@@ -389,13 +390,25 @@ class EntityManager:
             await self._persist_entity_attributes(entity_id, updated_entity)
 
             # Store embedding as direct node property (not in metadata to avoid bloating LLM context)
-            if updates.get("embedding"):
-                await self._client.client.driver.execute_query(
-                    "MATCH (n {uuid: $entity_id}) SET n.name_embedding = $embedding",
-                    entity_id=entity_id,
-                    embedding=updates.get("embedding"),
-                )
-                log.debug("Stored embedding on node", entity_id=entity_id)
+            if "embedding" in updates:
+                embedding = updates.get("embedding")
+
+                # FalkorDB expects Vectorf32 for vector ops. Casting via vecf32() avoids
+                # "expected Null or Vectorf32 but was List" type mismatches.
+                if embedding and isinstance(embedding, list):
+                    await self._client.client.driver.execute_query(
+                        "MATCH (n {uuid: $entity_id}) SET n.name_embedding = vecf32($embedding)",
+                        entity_id=entity_id,
+                        embedding=embedding,
+                    )
+                    log.debug("Stored embedding on node", entity_id=entity_id)
+                else:
+                    # Allow clearing embeddings by passing null/empty.
+                    await self._client.client.driver.execute_query(
+                        "MATCH (n {uuid: $entity_id}) SET n.name_embedding = NULL",
+                        entity_id=entity_id,
+                    )
+                    log.debug("Cleared embedding on node", entity_id=entity_id)
 
             log.info("Entity updated successfully", entity_id=entity_id)
             return updated_entity
@@ -423,7 +436,7 @@ class EntityManager:
             # Try to delete as EntityNode first
             try:
                 node = await EntityNode.get_by_uuid(self._client.driver, entity_id)
-                if node:
+                if node and node.group_id == self._group_id:
                     await node.delete(self._client.driver)
                     log.info("Entity deleted via EntityNode", entity_id=entity_id)
                     return True
@@ -437,7 +450,7 @@ class EntityManager:
             # Try to delete as EpisodicNode
             try:
                 episodic = await EpisodicNode.get_by_uuid(self._client.driver, entity_id)
-                if episodic:
+                if episodic and episodic.group_id == self._group_id:
                     await episodic.delete(self._client.driver)
                     log.info("Entity deleted via EpisodicNode", entity_id=entity_id)
                     return True
@@ -480,10 +493,11 @@ class EntityManager:
             result = await self._client.client.driver.execute_query(
                 """
                 MATCH (n)
-                WHERE n.entity_type = $entity_type AND n.group_id = 'conventions'
+                WHERE n.entity_type = $entity_type AND n.group_id = $group_id
                 RETURN n.uuid AS uuid,
                        n.name AS name,
                        n.entity_type AS entity_type,
+                       n.group_id AS group_id,
                        n.content AS content,
                        n.description AS description,
                        n.summary AS summary,
@@ -506,6 +520,7 @@ class EntityManager:
                 LIMIT $limit
                 """,
                 entity_type=entity_type.value,
+                group_id=self._group_id,
                 offset=offset,
                 limit=limit,
             )
@@ -564,6 +579,9 @@ class EntityManager:
             entity_type=entity_type,
             description=node_data.get("description") or node_data.get("summary", ""),
             content=node_data.get("content", ""),
+            organization_id=node_data.get("group_id") or metadata.get("organization_id"),
+            created_by=metadata.get("created_by"),
+            modified_by=metadata.get("modified_by"),
             metadata=metadata,
             created_at=self._parse_datetime(node_data.get("created_at")),
             updated_at=self._parse_datetime(node_data.get("updated_at")),
@@ -626,6 +644,9 @@ class EntityManager:
             "category",
             "languages",
             "tags",
+            "organization_id",
+            "created_by",
+            "modified_by",
             "severity",
             "template_type",
             "file_extension",
@@ -977,6 +998,9 @@ class EntityManager:
             name=node.name,
             description=description,
             content=content,
+            organization_id=node.group_id,
+            created_by=metadata.get("created_by"),
+            modified_by=metadata.get("modified_by"),
             metadata=metadata,
             created_at=node.created_at,
             updated_at=node.created_at,  # Graphiti doesn't track updated_at
@@ -1034,6 +1058,7 @@ class EntityManager:
             name=name,
             description=description,
             content=content,
+            organization_id=getattr(node, "group_id", None),
             metadata=metadata,
             created_at=node.created_at if hasattr(node, "created_at") else None,
             updated_at=node.created_at if hasattr(node, "created_at") else None,

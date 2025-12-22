@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 
 from sibyl.api.schemas import (
     EntityCreate,
@@ -16,6 +16,7 @@ from sibyl.api.schemas import (
     EntityUpdate,
 )
 from sibyl.api.websocket import broadcast_event
+from sibyl.auth.tenancy import resolve_group_id
 from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.models.entities import EntityType
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/entities", tags=["entities"])
 
 @router.get("", response_model=EntityListResponse)
 async def list_entities(
+    request: Request,
     entity_type: EntityType | None = Query(default=None, description="Filter by entity type"),
     language: str | None = Query(default=None, description="Filter by programming language"),
     category: str | None = Query(default=None, description="Filter by category"),
@@ -39,8 +41,9 @@ async def list_entities(
 ) -> EntityListResponse:
     """List entities with optional filters and pagination."""
     try:
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
+        entity_manager = EntityManager(client, group_id=group_id)
 
         # Get all entities of specified type(s)
         if entity_type:
@@ -111,11 +114,12 @@ async def list_entities(
 
 
 @router.get("/{entity_id}", response_model=EntityResponse)
-async def get_entity(entity_id: str) -> EntityResponse:
+async def get_entity(request: Request, entity_id: str) -> EntityResponse:
     """Get a single entity by ID."""
     try:
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
+        entity_manager = EntityManager(client, group_id=group_id)
 
         entity = await entity_manager.get(entity_id)
         if not entity:
@@ -151,18 +155,23 @@ async def get_entity(entity_id: str) -> EntityResponse:
 
 
 @router.post("", response_model=EntityResponse, status_code=201)
-async def create_entity(entity: EntityCreate) -> EntityResponse:
+async def create_entity(request: Request, entity: EntityCreate) -> EntityResponse:
     """Create a new entity."""
     try:
         from sibyl.tools.core import add
+
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
 
         # Extract task-specific fields from metadata if present
         project = entity.metadata.get("project_id") if entity.metadata else None
         priority = entity.metadata.get("priority") if entity.metadata else None
         assignees = entity.metadata.get("assignees") if entity.metadata else None
+        auto_link = bool(entity.metadata.get("auto_link")) if entity.metadata else False
 
         # Use description as content fallback (frontend sends description, add() needs content)
         content = entity.content or entity.description or entity.name
+
+        merged_metadata: dict[str, Any] = {**(entity.metadata or {}), "organization_id": group_id}
 
         result = await add(
             title=entity.name,
@@ -171,11 +180,13 @@ async def create_entity(entity: EntityCreate) -> EntityResponse:
             category=entity.category,
             languages=entity.languages,
             tags=entity.tags,
-            metadata=entity.metadata,
+            metadata=merged_metadata,
             # Task-specific fields
             project=project,
             priority=priority,
             assignees=assignees,
+            # Auto-link
+            auto_link=auto_link,
         )
 
         if not result.success or not result.id:
@@ -183,7 +194,7 @@ async def create_entity(entity: EntityCreate) -> EntityResponse:
 
         # Fetch the created entity
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
+        entity_manager = EntityManager(client, group_id=group_id)
         created = await entity_manager.get(result.id)
 
         if not created:
@@ -224,11 +235,12 @@ async def create_entity(entity: EntityCreate) -> EntityResponse:
 
 
 @router.patch("/{entity_id}", response_model=EntityResponse)
-async def update_entity(entity_id: str, update: EntityUpdate) -> EntityResponse:
+async def update_entity(request: Request, entity_id: str, update: EntityUpdate) -> EntityResponse:
     """Update an existing entity."""
     try:
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
+        entity_manager = EntityManager(client, group_id=group_id)
 
         # Get existing entity
         existing = await entity_manager.get(entity_id)
@@ -297,11 +309,12 @@ async def update_entity(entity_id: str, update: EntityUpdate) -> EntityResponse:
 
 
 @router.delete("/{entity_id}", status_code=204)
-async def delete_entity(entity_id: str) -> None:
+async def delete_entity(request: Request, entity_id: str) -> None:
     """Delete an entity."""
     try:
+        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
         client = await get_graph_client()
-        entity_manager = EntityManager(client)
+        entity_manager = EntityManager(client, group_id=group_id)
 
         # Check existence
         existing = await entity_manager.get(entity_id)

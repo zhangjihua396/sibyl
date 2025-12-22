@@ -429,19 +429,14 @@ class SibylClient:
         auto_link: bool = False,
     ) -> dict[str, Any]:
         """Add knowledge to the graph (via create_entity with knowledge semantics)."""
-        metadata: dict[str, Any] = {}
-        if category:
-            metadata["category"] = category
-        if tags:
-            metadata["tags"] = tags
-        if auto_link:
-            metadata["auto_link"] = auto_link
-
+        metadata: dict[str, Any] = {"auto_link": True} if auto_link else {}
         return await self.create_entity(
             name=title,
             content=content,
             entity_type=entity_type,
+            category=category,
             languages=languages,
+            tags=tags,
             metadata=metadata if metadata else None,
         )
 

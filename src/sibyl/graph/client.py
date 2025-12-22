@@ -20,6 +20,12 @@ if _env_path.exists():
 if not os.getenv("SEMAPHORE_LIMIT"):
     os.environ["SEMAPHORE_LIMIT"] = "1"
 
+# Graphiti's OpenAI embedder reads EMBEDDING_DIM at import time. If unset, Graphiti
+# defaults to 1024, but we pin it explicitly to avoid "mixed-dimension" graphs when
+# a different EMBEDDING_DIM leaks in from the shell environment.
+if not os.getenv("EMBEDDING_DIM"):
+    os.environ["EMBEDDING_DIM"] = str(settings.graph_embedding_dimensions)
+
 from sibyl.errors import GraphConnectionError  # noqa: E402
 from sibyl.utils.resilience import GRAPH_RETRY, TIMEOUTS, retry, with_timeout  # noqa: E402
 

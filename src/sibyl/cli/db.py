@@ -295,3 +295,90 @@ def db_migrate() -> None:
             print_db_hint()
 
     _migrate()
+
+
+@app.command("fix-embeddings")
+def db_fix_embeddings(
+    batch_size: Annotated[
+        int,
+        typer.Option(
+            "--batch-size",
+            help="Batch size for scanning candidate nodes",
+            min=1,
+            max=5000,
+        ),
+    ] = 250,
+    max_entities: Annotated[
+        int,
+        typer.Option(
+            "--max-entities",
+            help="Safety cap for maximum nodes scanned",
+            min=1,
+            max=1_000_000,
+        ),
+    ] = 20_000,
+) -> None:
+    """Fix legacy list-typed embeddings for FalkorDB vector search.
+
+    Some older writes stored `name_embedding` as a plain List[float] instead of
+    a Vectorf32 value. FalkorDB vector functions require Vectorf32, so this
+    migration recasts `name_embedding` via `vecf32()`.
+    """
+
+    @run_async
+    async def _fix() -> None:
+        from sibyl.tools.admin import migrate_fix_name_embedding_types
+
+        try:
+            warn("Running embedding repair migration (this mutates graph data)")
+
+            with spinner("Fixing embeddings...") as progress:
+                task = progress.add_task("Casting name_embedding to Vectorf32...", total=None)
+                result = await migrate_fix_name_embedding_types(
+                    batch_size=batch_size,
+                    max_entities=max_entities,
+                )
+                progress.update(task, description="Embedding repair complete")
+
+            if result.success:
+                success(result.message)
+                info(f"Duration: {result.duration_seconds:.2f}s")
+            else:
+                error(f"Embedding repair failed: {result.message}")
+
+        except Exception as e:
+            error(f"Embedding repair failed: {e}")
+            print_db_hint()
+
+    _fix()
+
+
+@app.command("backfill-org-group")
+def db_backfill_org_group(
+    org_id: Annotated[
+        str | None,
+        typer.Option("--org-id", help="Organization UUID to use as graph group_id"),
+    ] = None,
+) -> None:
+    """Rewrite legacy graph `group_id` ("conventions") to an organization UUID."""
+
+    @run_async
+    async def _run() -> None:
+        from sibyl.tools.admin import migrate_backfill_graph_group_id
+
+        try:
+            with spinner("Backfilling graph group_id...") as progress:
+                task = progress.add_task("Rewriting group_id...", total=None)
+                result = await migrate_backfill_graph_group_id(org_id=org_id)
+                progress.update(task, description="Backfill complete")
+
+            if result.success:
+                success(result.message)
+                info(f"Duration: {result.duration_seconds:.2f}s")
+            else:
+                error(f"Backfill failed: {result.message}")
+        except Exception as e:
+            error(f"Backfill failed: {e}")
+            print_db_hint()
+
+    _run()

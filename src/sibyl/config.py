@@ -158,6 +158,10 @@ class Settings(BaseSettings):
         description="OpenAI embedding model",
     )
     embedding_dimensions: int = Field(default=1536, description="Embedding vector dimensions")
+    graph_embedding_dimensions: int = Field(
+        default=1024,
+        description="Graph (Graphiti) embedding dimensions; sets EMBEDDING_DIM for vector search",
+    )
 
     # Conventions repository configuration
     conventions_repo_path: Path = Field(

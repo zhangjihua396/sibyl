@@ -7,16 +7,17 @@ merging results by relevance score.
 from dataclasses import asdict
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from sibyl.api.schemas import ExploreRequest, ExploreResponse, SearchRequest, SearchResponse
+from sibyl.auth.tenancy import resolve_group_id
 
 log = structlog.get_logger()
 router = APIRouter(prefix="/search", tags=["search"])
 
 
 @router.post("", response_model=SearchResponse)
-async def search(request: SearchRequest) -> SearchResponse:
+async def search(http_request: Request, request: SearchRequest) -> SearchResponse:
     """Unified semantic search across knowledge graph AND documentation.
 
     Searches both Sibyl's knowledge graph (patterns, rules, episodes, tasks)
@@ -31,6 +32,7 @@ async def search(request: SearchRequest) -> SearchResponse:
     try:
         from sibyl.tools.core import search as core_search
 
+        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
         result = await core_search(
             query=request.query,
             types=request.types,
@@ -49,6 +51,7 @@ async def search(request: SearchRequest) -> SearchResponse:
             include_graph=request.include_graph,
             use_enhanced=request.use_enhanced,
             boost_recent=request.boost_recent,
+            organization_id=group_id,
         )
 
         return SearchResponse(**asdict(result))
@@ -59,11 +62,12 @@ async def search(request: SearchRequest) -> SearchResponse:
 
 
 @router.post("/explore", response_model=ExploreResponse)
-async def explore(request: ExploreRequest) -> ExploreResponse:
+async def explore(http_request: Request, request: ExploreRequest) -> ExploreResponse:
     """Explore and traverse the knowledge graph."""
     try:
         from sibyl.tools.core import explore as core_explore
 
+        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
         result = await core_explore(
             mode=request.mode,
             types=request.types,
@@ -75,6 +79,7 @@ async def explore(request: ExploreRequest) -> ExploreResponse:
             project=request.project,
             status=request.status,
             limit=request.limit,
+            organization_id=group_id,
         )
 
         # Convert dataclass to dict, handling nested dataclasses

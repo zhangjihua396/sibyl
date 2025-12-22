@@ -26,9 +26,10 @@ log = structlog.get_logger()
 class RelationshipManager:
     """Manages relationship operations using Graphiti's EntityEdge API."""
 
-    def __init__(self, client: GraphClient) -> None:
+    def __init__(self, client: GraphClient, *, group_id: str = "conventions") -> None:
         """Initialize relationship manager with graph client."""
         self._client = client
+        self._group_id = group_id
 
     def _to_graphiti_edge(self, relationship: Relationship) -> EntityEdge:
         """Convert our Relationship model to Graphiti's EntityEdge.
@@ -41,7 +42,7 @@ class RelationshipManager:
         """
         return EntityEdge(
             uuid=relationship.id or str(uuid4()),
-            group_id="conventions",
+            group_id=self._group_id,
             source_node_uuid=relationship.source_id,
             target_node_uuid=relationship.target_id,
             created_at=datetime.now(UTC),
@@ -202,6 +203,8 @@ class RelationshipManager:
 
             relationships = []
             for edge in edges:
+                if edge.group_id != self._group_id:
+                    continue
                 # Filter by direction
                 if direction == "outgoing" and edge.source_node_uuid != entity_id:
                     continue
@@ -266,7 +269,7 @@ class RelationshipManager:
             )
 
             # Get the other entity for each relationship
-            entity_manager = EntityManager(self._client)
+            entity_manager = EntityManager(self._client, group_id=self._group_id)
             results: list[tuple[Entity, Relationship]] = []
 
             for rel in relationships[:limit]:
@@ -383,7 +386,7 @@ class RelationshipManager:
 
             query = f"""
                 MATCH (source)-[r]->(target)
-                WHERE r.group_id = 'conventions'
+                WHERE r.group_id = $group_id
                 {type_filter}
                 RETURN r.uuid as id,
                        source.uuid as source_id,
@@ -393,7 +396,7 @@ class RelationshipManager:
                 LIMIT {limit}
             """
 
-            result = await self._client.driver.execute_query(query)
+            result = await self._client.driver.execute_query(query, group_id=self._group_id)
             rows = GraphClient.normalize_result(result)
 
             relationships = []

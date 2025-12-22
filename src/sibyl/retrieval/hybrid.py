@@ -108,6 +108,7 @@ async def graph_traversal(
     client: GraphClient,
     depth: int = 2,
     limit: int = 20,
+    group_id: str | None = None,
 ) -> list[tuple[Any, float]]:
     """Traverse graph from seed entities.
 
@@ -127,11 +128,18 @@ async def graph_traversal(
         return []
 
     try:
+        group_filter = ""
+        params: dict[str, Any] = {"seed_ids": seed_ids, "limit": limit}
+        if group_id:
+            group_filter = "AND seed.group_id = $group_id AND related.group_id = $group_id"
+            params["group_id"] = group_id
+
         # Query for related entities up to depth
         query = f"""
         MATCH (seed)-[r:RELATIONSHIP*1..{depth}]-(related)
         WHERE seed.uuid IN $seed_ids
-          AND related.uuid NOT IN $seed_ids
+          AND NOT related.uuid IN $seed_ids
+          {group_filter}
         RETURN DISTINCT related.uuid as id,
                related.name as name,
                related.entity_type as type,
@@ -143,11 +151,7 @@ async def graph_traversal(
 
         from sibyl.graph.client import GraphClient
 
-        result = await client.client.driver.execute_query(
-            query,
-            seed_ids=seed_ids,
-            limit=limit,
-        )
+        result = await client.client.driver.execute_query(query, **params)
         rows = GraphClient.normalize_result(result)
 
         # Convert to Entity objects with distance-based scores
@@ -205,6 +209,7 @@ async def hybrid_search(
     limit: int = 10,
     config: HybridConfig | None = None,
     include_metadata: bool = False,
+    group_id: str | None = None,
 ) -> HybridResult:
     """Perform hybrid search combining multiple retrieval strategies.
 
@@ -252,6 +257,7 @@ async def hybrid_search(
                 client,
                 depth=config.graph_depth,
                 limit=limit * 2,
+                group_id=group_id,
             )
 
     # Phase 3: Merge results using RRF
