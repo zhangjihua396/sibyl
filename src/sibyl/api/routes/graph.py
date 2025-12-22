@@ -4,7 +4,7 @@ import structlog
 from fastapi import APIRouter, HTTPException, Query
 
 from sibyl.api.schemas import GraphData, GraphEdge, GraphNode, SubgraphRequest
-from sibyl.graph.client import get_graph_client
+from sibyl.graph.client import GraphClient, get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, RelationshipType
@@ -25,7 +25,7 @@ async def debug_graph():
         RETURN n.uuid as id LIMIT 500
     """
     node_result = await client.driver.execute_query(node_query)
-    node_rows = node_result[0] if node_result else []
+    node_rows = GraphClient.normalize_result(node_result)
     node_ids = {row.get("id") for row in node_rows if row.get("id")}
 
     # Get edges
@@ -35,12 +35,11 @@ async def debug_graph():
         RETURN s.uuid as src, t.uuid as tgt LIMIT 1000
     """
     edge_result = await client.driver.execute_query(edge_query)
-    edge_rows = edge_result[0] if edge_result else []
+    edge_rows = GraphClient.normalize_result(edge_result)
 
     # Check overlap
     matching = sum(
-        1 for row in edge_rows
-        if row.get("src") in node_ids and row.get("tgt") in node_ids
+        1 for row in edge_rows if row.get("src") in node_ids and row.get("tgt") in node_ids
     )
 
     sample_edges = edge_rows[:3] if edge_rows else []
@@ -55,6 +54,7 @@ async def debug_graph():
         "first_edge_src_in_nodes": sample_edges[0].get("src") in node_ids if sample_edges else None,
         "first_edge_tgt_in_nodes": sample_edges[0].get("tgt") in node_ids if sample_edges else None,
     }
+
 
 # SilkCircuit color palette for entity types
 ENTITY_COLORS: dict[EntityType, str] = {
@@ -114,7 +114,7 @@ async def get_all_nodes(
         """
 
         result = await client.driver.execute_query(query)
-        rows = result[0] if result else []
+        rows = GraphClient.normalize_result(result)
 
         # Count connections for sizing
         connection_counts: dict[str, int] = {}
@@ -125,7 +125,7 @@ async def get_all_nodes(
                 RETURN n.uuid as id, count(r) as cnt
             """
             conn_result = await client.driver.execute_query(conn_query)
-            for row in conn_result[0] if conn_result else []:
+            for row in GraphClient.normalize_result(conn_result):
                 connection_counts[row.get("id", "")] = row.get("cnt", 0)
         except Exception:
             log.debug("connection_count_failed", msg="falling back to zero")
@@ -236,7 +236,7 @@ async def get_full_graph(
             LIMIT {max_nodes}
         """
         node_result = await client.driver.execute_query(node_query)
-        node_rows = node_result[0] if node_result else []
+        node_rows = GraphClient.normalize_result(node_result)
 
         nodes = []
         node_ids: set[str] = set()
@@ -274,9 +274,14 @@ async def get_full_graph(
             LIMIT {max_edges}
         """
         edge_result = await client.driver.execute_query(edge_query)
-        edge_rows = edge_result[0] if edge_result else []
+        edge_rows = GraphClient.normalize_result(edge_result)
 
-        log.info("graph_full_raw", node_count=len(nodes), edge_rows=len(edge_rows), node_ids_sample=list(node_ids)[:3])
+        log.info(
+            "graph_full_raw",
+            node_count=len(nodes),
+            edge_rows=len(edge_rows),
+            node_ids_sample=list(node_ids)[:3],
+        )
 
         # Filter edges to nodes we have
         edges = []

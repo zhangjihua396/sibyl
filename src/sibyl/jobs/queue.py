@@ -214,7 +214,11 @@ async def list_jobs(
 
     jobs = []
     for key in job_ids[:limit]:
-        job_id = key.decode().replace("arq:job:", "") if isinstance(key, bytes) else key.replace("arq:job:", "")
+        job_id = (
+            key.decode().replace("arq:job:", "")
+            if isinstance(key, bytes)
+            else key.replace("arq:job:", "")
+        )
         try:
             info = await get_job_status(job_id)
             if function is None or info.function == function:

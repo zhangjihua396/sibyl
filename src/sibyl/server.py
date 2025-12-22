@@ -74,14 +74,19 @@ def _register_tools(mcp: FastMCP) -> None:
         types: list[str] | None = None,
         language: str | None = None,
         category: str | None = None,
+        status: str | None = None,
+        project: str | None = None,
+        source: str | None = None,
         source_id: str | None = None,
         source_name: str | None = None,
-        project: str | None = None,
-        status: str | None = None,
+        assignee: str | None = None,
+        since: str | None = None,
         limit: int = 10,
         include_content: bool = True,
         include_documents: bool = True,
         include_graph: bool = True,
+        use_enhanced: bool = True,
+        boost_recent: bool = True,
     ) -> dict[str, Any]:
         """Unified semantic search across knowledge graph AND documentation.
 
@@ -96,14 +101,19 @@ def _register_tools(mcp: FastMCP) -> None:
                    Include 'document' to search crawled docs.
             language: Filter by programming language (python, typescript, etc.)
             category: Filter by category/domain (authentication, database, etc.)
+            status: Filter tasks by status (backlog, todo, doing, blocked, review, done)
+            project: Filter tasks by project ID
+            source: Alias for source_name (for convenience)
             source_id: Filter documents by source UUID
             source_name: Filter documents by source name (partial match)
-            project: Filter tasks by project ID
-            status: Filter tasks by status (backlog, todo, doing, blocked, review, done)
+            assignee: Filter tasks by assignee name
+            since: Filter by creation date (ISO format: 2024-03-15 or relative: 7d, 2w)
             limit: Maximum results to return (1-50, default: 10)
             include_content: Include full content in results (default: True)
             include_documents: Search crawled documentation (default: True)
             include_graph: Search knowledge graph entities (default: True)
+            use_enhanced: Use enhanced retrieval with reranking (default: True)
+            boost_recent: Boost recent results in ranking (default: True)
 
         Returns:
             Unified search results with id, type, name, content, score, url,
@@ -133,14 +143,19 @@ def _register_tools(mcp: FastMCP) -> None:
             types=types,
             language=language,
             category=category,
+            status=status,
+            project=project,
+            source=source,
             source_id=source_id,
             source_name=source_name,
-            project=project,
-            status=status,
+            assignee=assignee,
+            since=since,
             limit=limit,
             include_content=include_content,
             include_documents=include_documents,
             include_graph=include_graph,
+            use_enhanced=use_enhanced,
+            boost_recent=boost_recent,
         )
         return _to_dict(result)
 
@@ -150,26 +165,29 @@ def _register_tools(mcp: FastMCP) -> None:
 
     @mcp.tool()
     async def explore(
-        mode: Literal["list", "related", "traverse"] = "list",
+        mode: Literal["list", "related", "traverse", "dependencies"] = "list",
         types: list[str] | None = None,
         entity_id: str | None = None,
         relationship_types: list[str] | None = None,
         depth: int = 1,
         language: str | None = None,
         category: str | None = None,
+        project: str | None = None,
+        status: str | None = None,
         limit: int = 50,
     ) -> dict[str, Any]:
         """Explore and browse the knowledge graph.
 
-        Three modes of exploration:
+        Four modes of exploration:
         - list: Browse entities by type with optional filters
         - related: Find entities directly connected to a specific entity
         - traverse: Multi-hop graph traversal from an entity
+        - dependencies: Task dependency chains in topological order
 
         Args:
-            mode: Exploration mode - "list", "related", or "traverse"
+            mode: Exploration mode - "list", "related", "traverse", or "dependencies"
             types: Entity types to explore (for list mode)
-            entity_id: Starting entity ID (required for related/traverse modes)
+            entity_id: Starting entity ID (required for related/traverse/dependencies modes)
             relationship_types: Filter by relationship types
                                (APPLIES_TO, REQUIRES, CONFLICTS_WITH, SUPERSEDES,
                                 DOCUMENTED_IN, ENABLES, BREAKS, PART_OF, RELATED_TO,
@@ -177,6 +195,8 @@ def _register_tools(mcp: FastMCP) -> None:
             depth: Traversal depth for traverse mode (1-3, default: 1)
             language: Filter by programming language
             category: Filter by category
+            project: Filter tasks by project ID (for list mode with tasks)
+            status: Filter tasks by status (for list mode with tasks)
             limit: Maximum results (1-200, default: 50)
 
         Returns:
@@ -184,8 +204,10 @@ def _register_tools(mcp: FastMCP) -> None:
 
         Examples:
             explore(mode="list", types=["pattern"], language="typescript")
+            explore(mode="list", types=["task"], project="proj_abc", status="todo")
             explore(mode="related", entity_id="pattern:error-handling")
             explore(mode="traverse", entity_id="topic:auth", depth=2)
+            explore(mode="dependencies", entity_id="task_xyz")
         """
         from sibyl.tools.core import explore as _explore
 
@@ -197,6 +219,8 @@ def _register_tools(mcp: FastMCP) -> None:
             depth=depth,
             language=language,
             category=category,
+            project=project,
+            status=status,
             limit=limit,
         )
         return _to_dict(result)

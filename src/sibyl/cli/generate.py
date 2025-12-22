@@ -459,16 +459,16 @@ def clean_generated(
 
                 if preserve_real:
                     # Delete only generated entities
-                    result = await client.driver.execute_query(
+                    rows = await client.execute_write(
                         "MATCH (n) WHERE n._generated = true DETACH DELETE n RETURN count(n) as deleted"
                     )
-                    deleted = result.result_set[0][0] if result.result_set else 0
+                    deleted = rows[0][0] if rows else 0
                 else:
                     # Delete everything
-                    result = await client.driver.execute_query(
+                    rows = await client.execute_write(
                         "MATCH (n) DETACH DELETE n RETURN count(n) as deleted"
                     )
-                    deleted = result.result_set[0][0] if result.result_set else 0
+                    deleted = rows[0][0] if rows else 0
 
             success(f"Removed {deleted:,} entities")
 

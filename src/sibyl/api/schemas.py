@@ -87,16 +87,23 @@ class SearchRequest(BaseModel):
     )
     language: str | None = Field(default=None, description="Filter by programming language")
     category: str | None = Field(default=None, description="Filter by category")
+    status: str | None = Field(default=None, description="Filter tasks by status")
+    project: str | None = Field(default=None, description="Filter tasks by project ID")
+    source: str | None = Field(default=None, description="Alias for source_name")
     source_id: str | None = Field(default=None, description="Filter documents by source ID")
     source_name: str | None = Field(default=None, description="Filter documents by source name")
-    project: str | None = Field(default=None, description="Filter tasks by project ID")
-    status: str | None = Field(default=None, description="Filter tasks by status")
+    assignee: str | None = Field(default=None, description="Filter tasks by assignee name")
+    since: str | None = Field(
+        default=None, description="Filter by creation date (ISO: 2024-03-15 or relative: 7d, 2w)"
+    )
     limit: int = Field(default=10, ge=1, le=50, description="Maximum results")
     include_content: bool = Field(default=True, description="Include full content in results")
     include_documents: bool = Field(
         default=True, description="Include crawled documentation in search"
     )
     include_graph: bool = Field(default=True, description="Include knowledge graph entities")
+    use_enhanced: bool = Field(default=True, description="Use enhanced retrieval with reranking")
+    boost_recent: bool = Field(default=True, description="Boost recent results in ranking")
 
 
 class SearchResult(BaseModel):
@@ -433,7 +440,9 @@ class RAGSearchRequest(BaseModel):
 
     query: str = Field(..., min_length=1, description="Natural language search query")
     source_id: str | None = Field(default=None, description="Filter by source ID")
-    source_name: str | None = Field(default=None, description="Filter by source name (partial match)")
+    source_name: str | None = Field(
+        default=None, description="Filter by source name (partial match)"
+    )
     match_count: int = Field(default=10, ge=1, le=100, description="Number of results")
     similarity_threshold: float = Field(
         default=0.5, ge=0.0, le=1.0, description="Minimum similarity score"
@@ -441,9 +450,7 @@ class RAGSearchRequest(BaseModel):
     return_mode: Literal["chunks", "pages"] = Field(
         default="chunks", description="Return chunks or full pages"
     )
-    include_context: bool = Field(
-        default=True, description="Include contextual prefix in results"
-    )
+    include_context: bool = Field(default=True, description="Include contextual prefix in results")
 
 
 class RAGChunkResult(BaseModel):

@@ -5,61 +5,36 @@ import pytest
 from sibyl.errors import InvalidTransitionError
 from sibyl.models.tasks import Task, TaskComplexity, TaskStatus
 from sibyl.tasks.workflow import (
-    VALID_TRANSITIONS,
+    ALL_STATUSES,
     get_allowed_transitions,
     is_valid_transition,
 )
 
 
 class TestStateMachineDefinition:
-    """Tests for the state machine constants and structure."""
+    """Tests for the state machine constants and structure.
 
-    def test_all_statuses_have_transitions_defined(self) -> None:
-        """Verify every TaskStatus has a transition entry."""
-        for status in TaskStatus:
-            assert status in VALID_TRANSITIONS, f"Missing transition entry for {status}"
+    The workflow uses a permissive state machine - any transition is allowed
+    EXCEPT from ARCHIVED (which is terminal).
+    """
 
     def test_archived_is_terminal_state(self) -> None:
         """Verify ARCHIVED has no outgoing transitions."""
-        assert VALID_TRANSITIONS[TaskStatus.ARCHIVED] == set()
+        assert get_allowed_transitions(TaskStatus.ARCHIVED) == set()
 
-    def test_done_only_allows_archive(self) -> None:
-        """Verify DONE can only transition to ARCHIVED."""
-        assert VALID_TRANSITIONS[TaskStatus.DONE] == {TaskStatus.ARCHIVED}
-
-    def test_backlog_can_transition_to_todo(self) -> None:
-        """Verify backlog can be promoted to todo."""
-        assert TaskStatus.TODO in VALID_TRANSITIONS[TaskStatus.BACKLOG]
-
-    def test_todo_can_transition_to_doing(self) -> None:
-        """Verify todo can be started."""
-        assert TaskStatus.DOING in VALID_TRANSITIONS[TaskStatus.TODO]
-
-    def test_doing_can_transition_to_blocked(self) -> None:
-        """Verify doing can be blocked."""
-        assert TaskStatus.BLOCKED in VALID_TRANSITIONS[TaskStatus.DOING]
-
-    def test_doing_can_transition_to_review(self) -> None:
-        """Verify doing can be submitted for review."""
-        assert TaskStatus.REVIEW in VALID_TRANSITIONS[TaskStatus.DOING]
-
-    def test_blocked_can_transition_to_doing(self) -> None:
-        """Verify blocked can be unblocked."""
-        assert TaskStatus.DOING in VALID_TRANSITIONS[TaskStatus.BLOCKED]
-
-    def test_review_can_transition_to_done(self) -> None:
-        """Verify review can be completed."""
-        assert TaskStatus.DONE in VALID_TRANSITIONS[TaskStatus.REVIEW]
-
-    def test_review_can_transition_to_doing(self) -> None:
-        """Verify review can be sent back for revision."""
-        assert TaskStatus.DOING in VALID_TRANSITIONS[TaskStatus.REVIEW]
+    def test_all_active_states_can_transition_anywhere(self) -> None:
+        """Verify non-archived states can transition to any status."""
+        for status in TaskStatus:
+            if status != TaskStatus.ARCHIVED:
+                allowed = get_allowed_transitions(status)
+                # All statuses plus archived
+                assert allowed == ALL_STATUSES | {TaskStatus.ARCHIVED}
 
     def test_all_active_states_can_archive(self) -> None:
         """Verify all non-terminal states can transition to archived."""
         non_terminal = [s for s in TaskStatus if s != TaskStatus.ARCHIVED]
         for status in non_terminal:
-            allowed = VALID_TRANSITIONS[status]
+            allowed = get_allowed_transitions(status)
             assert TaskStatus.ARCHIVED in allowed, f"{status} cannot archive"
 
 
@@ -95,17 +70,17 @@ class TestIsValidTransition:
         """Test review -> done is valid."""
         assert is_valid_transition(TaskStatus.REVIEW, TaskStatus.DONE)
 
-    def test_todo_to_done_invalid(self) -> None:
-        """Test todo -> done is invalid (can't skip work)."""
-        assert not is_valid_transition(TaskStatus.TODO, TaskStatus.DONE)
+    def test_todo_to_done_valid_permissive(self) -> None:
+        """Test todo -> done is valid (permissive state machine allows skipping)."""
+        assert is_valid_transition(TaskStatus.TODO, TaskStatus.DONE)
 
-    def test_backlog_to_done_invalid(self) -> None:
-        """Test backlog -> done is invalid (can't skip work)."""
-        assert not is_valid_transition(TaskStatus.BACKLOG, TaskStatus.DONE)
+    def test_backlog_to_done_valid_permissive(self) -> None:
+        """Test backlog -> done is valid (permissive state machine allows skipping)."""
+        assert is_valid_transition(TaskStatus.BACKLOG, TaskStatus.DONE)
 
-    def test_done_to_doing_invalid(self) -> None:
-        """Test done -> doing is invalid (can't reopen)."""
-        assert not is_valid_transition(TaskStatus.DONE, TaskStatus.DOING)
+    def test_done_to_doing_valid_permissive(self) -> None:
+        """Test done -> doing is valid (permissive state machine allows reopening)."""
+        assert is_valid_transition(TaskStatus.DONE, TaskStatus.DOING)
 
     def test_archived_to_anything_invalid(self) -> None:
         """Test archived can't transition to any state."""
@@ -120,7 +95,10 @@ class TestGetAllowedTransitions:
     def test_backlog_allowed_transitions(self) -> None:
         """Test allowed transitions from backlog."""
         allowed = get_allowed_transitions(TaskStatus.BACKLOG)
-        assert allowed == {TaskStatus.TODO, TaskStatus.ARCHIVED}
+        # Permissive - all statuses
+        assert TaskStatus.TODO in allowed
+        assert TaskStatus.DOING in allowed
+        assert TaskStatus.ARCHIVED in allowed
 
     def test_todo_allowed_transitions(self) -> None:
         """Test allowed transitions from todo."""
@@ -139,7 +117,8 @@ class TestGetAllowedTransitions:
     def test_blocked_allowed_transitions(self) -> None:
         """Test allowed transitions from blocked."""
         allowed = get_allowed_transitions(TaskStatus.BLOCKED)
-        assert allowed == {TaskStatus.DOING, TaskStatus.ARCHIVED}
+        assert TaskStatus.DOING in allowed
+        assert TaskStatus.ARCHIVED in allowed
 
     def test_review_allowed_transitions(self) -> None:
         """Test allowed transitions from review."""
@@ -151,7 +130,9 @@ class TestGetAllowedTransitions:
     def test_done_allowed_transitions(self) -> None:
         """Test allowed transitions from done."""
         allowed = get_allowed_transitions(TaskStatus.DONE)
-        assert allowed == {TaskStatus.ARCHIVED}
+        # Permissive - can reopen
+        assert TaskStatus.DOING in allowed
+        assert TaskStatus.ARCHIVED in allowed
 
     def test_archived_no_allowed_transitions(self) -> None:
         """Test archived has no allowed transitions."""
@@ -323,6 +304,32 @@ class TestWorkflowTransitionCoverage:
         for from_status, to_status in path:
             assert is_valid_transition(from_status, to_status)
 
+    def test_revision_path(self) -> None:
+        """Verify: doing -> review -> doing (revision) -> review -> done."""
+        path = [
+            (TaskStatus.DOING, TaskStatus.REVIEW),
+            (TaskStatus.REVIEW, TaskStatus.DOING),  # Sent back for revision
+            (TaskStatus.DOING, TaskStatus.REVIEW),  # Fixed and resubmitted
+            (TaskStatus.REVIEW, TaskStatus.DONE),
+        ]
+
+        for from_status, to_status in path:
+            assert is_valid_transition(from_status, to_status)
+
+    def test_early_cancellation_paths(self) -> None:
+        """Verify tasks can be archived from any active state."""
+        active_states = [
+            TaskStatus.BACKLOG,
+            TaskStatus.TODO,
+            TaskStatus.DOING,
+            TaskStatus.BLOCKED,
+            TaskStatus.REVIEW,
+            TaskStatus.DONE,
+        ]
+
+        for status in active_states:
+            assert is_valid_transition(status, TaskStatus.ARCHIVED)
+
 
 # =============================================================================
 # Integration-ish workflow tests with in-memory fakes
@@ -393,6 +400,22 @@ class _FakeGraphClient:
     def __init__(self) -> None:
         self.client = type("Graph", (), {"driver": _FakeDriver()})()
 
+    @staticmethod
+    def normalize_result(result):
+        """Normalize query results."""
+        if result is None:
+            return []
+        if isinstance(result, tuple):
+            return result[0] if result else []
+        if isinstance(result, list):
+            return result
+        return []
+
+    async def execute_read(self, query: str, **params):
+        """Execute a read query."""
+        result = await self.client.driver.execute_query(query, **params)
+        return self.normalize_result(result)
+
 
 @pytest.mark.asyncio
 async def test_workflow_transitions_persist_status_and_branch() -> None:
@@ -426,29 +449,3 @@ async def test_workflow_transitions_persist_status_and_branch() -> None:
     assert completed.status == TaskStatus.DONE
     assert completed.learnings == "use cache"
     assert completed.actual_hours == 3.5
-
-    def test_revision_path(self) -> None:
-        """Verify: doing -> review -> doing (revision) -> review -> done."""
-        path = [
-            (TaskStatus.DOING, TaskStatus.REVIEW),
-            (TaskStatus.REVIEW, TaskStatus.DOING),  # Sent back for revision
-            (TaskStatus.DOING, TaskStatus.REVIEW),  # Fixed and resubmitted
-            (TaskStatus.REVIEW, TaskStatus.DONE),
-        ]
-
-        for from_status, to_status in path:
-            assert is_valid_transition(from_status, to_status)
-
-    def test_early_cancellation_paths(self) -> None:
-        """Verify tasks can be archived from any active state."""
-        active_states = [
-            TaskStatus.BACKLOG,
-            TaskStatus.TODO,
-            TaskStatus.DOING,
-            TaskStatus.BLOCKED,
-            TaskStatus.REVIEW,
-            TaskStatus.DONE,
-        ]
-
-        for status in active_states:
-            assert is_valid_transition(status, TaskStatus.ARCHIVED)

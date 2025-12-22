@@ -11,16 +11,16 @@ from typing import TYPE_CHECKING, Any, Literal
 
 import structlog
 
-from sibyl.graph.client import get_graph_client
+from sibyl.graph.client import GraphClient, get_graph_client
 
 if TYPE_CHECKING:
-    from sibyl.graph.client import GraphClient
+    pass  # GraphClient imported above
+
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, Episode, Pattern, Relationship, RelationshipType
 from sibyl.models.tasks import Project, ProjectStatus, Task, TaskPriority, TaskStatus
 from sibyl.retrieval import HybridConfig, hybrid_search, temporal_boost
-from sibyl.tasks.workflow import TaskWorkflowEngine
 from sibyl.utils.resilience import TIMEOUTS, with_timeout
 
 log = structlog.get_logger()
@@ -597,7 +597,9 @@ async def _search_documents(
                         metadata={
                             "document_id": str(doc.id),
                             "source_id": str(src_id),
-                            "chunk_type": chunk.chunk_type.value if hasattr(chunk.chunk_type, "value") else str(chunk.chunk_type),
+                            "chunk_type": chunk.chunk_type.value
+                            if hasattr(chunk.chunk_type, "value")
+                            else str(chunk.chunk_type),
                             "chunk_index": chunk.chunk_index,
                             "heading_path": chunk.heading_path or [],
                             "language": chunk.language,
@@ -1796,232 +1798,15 @@ async def _auto_discover_links(
 
 
 # =============================================================================
-# TOOL 4: manage
+# TOOL 4: manage - MOVED to sibyl/tools/manage.py
 # =============================================================================
+# The canonical manage() implementation with all action categories
+# (task workflow, source operations, analysis, admin) is in tools/manage.py.
+# Import from there: from sibyl.tools.manage import manage, ManageResponse
 
 
-@dataclass
-class ManageResponse:
-    """Response from manage operation."""
-
-    success: bool
-    action: str
-    entity_id: str | None
-    message: str
-    data: dict[str, Any] = field(default_factory=dict)
-
-
-async def manage(
-    action: Literal[
-        "start_task",
-        "block_task",
-        "unblock_task",
-        "submit_review",
-        "complete_task",
-        "archive",
-        "health",
-    ],
-    entity_id: str | None = None,
-    # Task workflow parameters
-    assignee: str | None = None,
-    blocker: str | None = None,
-    commit_shas: list[str] | None = None,
-    pr_url: str | None = None,
-    actual_hours: float | None = None,
-    learnings: str | None = None,
-) -> ManageResponse:
-    """Manage task workflows and administrative operations.
-
-    Use this tool for task state machine transitions and system management.
-    Provides structured workflow actions with automatic metadata capture.
-
-    TASK WORKFLOW (state machine):
-    backlog → todo → doing → blocked ↔ doing → review → done → archived
-
-    ACTIONS:
-    • start_task: Begin work (backlog/todo→doing), auto-generates branch name
-    • block_task: Mark blocked with reason (doing→blocked)
-    • unblock_task: Resume work (blocked→doing)
-    • submit_review: Submit for review with commits/PR (doing→review)
-    • complete_task: Mark done with learnings captured (review→done)
-    • archive: Archive completed task (done→archived)
-    • health: System health check (no entity_id needed)
-
-    USE CASES:
-    • Start working on a task: manage("start_task", entity_id="task_abc", assignee="alice")
-    • Block with reason: manage("block_task", entity_id="task_abc", blocker="Waiting on API access")
-    • Submit for review: manage("submit_review", entity_id="task_abc", pr_url="github.com/.../pull/42")
-    • Complete with learnings: manage("complete_task", entity_id="task_abc", actual_hours=4.5, learnings="...")
-    • Check system health: manage("health")
-
-    Args:
-        action: Workflow action to perform.
-        entity_id: Task ID (required for task actions, optional for health).
-        assignee: User starting the task (for start_task).
-        blocker: Description of blocking issue (for block_task).
-        commit_shas: Git commit SHAs associated with work (for submit_review).
-        pr_url: Pull request URL for review (for submit_review).
-        actual_hours: Actual time spent in hours (for complete_task).
-        learnings: Knowledge captured during task (for complete_task, stored as episode).
-
-    Returns:
-        ManageResponse with success status, action result, and any generated data
-        (e.g., branch name for start_task, captured learnings for complete_task).
-
-    EXAMPLES:
-        manage("start_task", entity_id="task_123", assignee="alice")
-        manage("block_task", entity_id="task_123", blocker="Need design approval")
-        manage("submit_review", entity_id="task_123", commit_shas=["abc123"], pr_url="...")
-        manage("complete_task", entity_id="task_123", actual_hours=3.0, learnings="OAuth requires...")
-        manage("health")
-    """
-    log.info(
-        "manage",
-        action=action,
-        entity_id=entity_id,
-    )
-
-    try:
-        # Health check doesn't need entity_id
-        if action == "health":
-            health_data = await get_health()
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=None,
-                message=f"System status: {health_data.get('status', 'unknown')}",
-                data=health_data,
-            )
-
-        # All other actions require entity_id
-        if not entity_id:
-            return ManageResponse(
-                success=False,
-                action=action,
-                entity_id=None,
-                message="entity_id is required for this action",
-            )
-
-        client = await get_graph_client()
-        entity_manager = EntityManager(client)
-        relationship_manager = RelationshipManager(client)
-        workflow = TaskWorkflowEngine(entity_manager, relationship_manager, client)
-
-        if action == "start_task":
-            if not assignee:
-                return ManageResponse(
-                    success=False,
-                    action=action,
-                    entity_id=entity_id,
-                    message="assignee is required for start_task",
-                )
-            task = await workflow.start_task(entity_id, assignee)
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=entity_id,
-                message=f"Task started: {task.title}",
-                data={
-                    "status": task.status.value,
-                    "branch_name": task.branch_name,
-                    "assignees": task.assignees,
-                    "started_at": task.started_at.isoformat() if task.started_at else None,
-                },
-            )
-
-        if action == "block_task":
-            if not blocker:
-                return ManageResponse(
-                    success=False,
-                    action=action,
-                    entity_id=entity_id,
-                    message="blocker description is required for block_task",
-                )
-            task = await workflow.block_task(entity_id, blocker)
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=entity_id,
-                message=f"Task blocked: {blocker}",
-                data={
-                    "status": task.status.value,
-                    "blockers": task.blockers_encountered,
-                },
-            )
-
-        if action == "unblock_task":
-            task = await workflow.unblock_task(entity_id)
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=entity_id,
-                message="Task unblocked",
-                data={"status": task.status.value},
-            )
-
-        if action == "submit_review":
-            task = await workflow.submit_for_review(
-                entity_id,
-                commit_shas=commit_shas or [],
-                pr_url=pr_url,
-            )
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=entity_id,
-                message="Task submitted for review",
-                data={
-                    "status": task.status.value,
-                    "pr_url": task.pr_url,
-                    "commit_shas": task.commit_shas,
-                },
-            )
-
-        if action == "complete_task":
-            task = await workflow.complete_task(
-                entity_id,
-                actual_hours=actual_hours,
-                learnings=learnings or "",
-            )
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=entity_id,
-                message=f"Task completed: {task.title}",
-                data={
-                    "status": task.status.value,
-                    "actual_hours": task.actual_hours,
-                    "completed_at": task.completed_at.isoformat() if task.completed_at else None,
-                    "learnings_captured": bool(learnings),
-                },
-            )
-
-        if action == "archive":
-            # Generic archive - update status to archived
-            await entity_manager.update(entity_id, {"status": TaskStatus.ARCHIVED})
-            return ManageResponse(
-                success=True,
-                action=action,
-                entity_id=entity_id,
-                message="Entity archived",
-                data={"status": "archived"},
-            )
-
-        return ManageResponse(
-            success=False,
-            action=action,
-            entity_id=entity_id,
-            message=f"Unknown action: {action}",
-        )
-
-    except Exception as e:
-        log.warning("manage_failed", error=str(e), action=action)
-        return ManageResponse(
-            success=False,
-            action=action,
-            entity_id=entity_id,
-            message=f"Failed: {e}",
-        )
+# Removed: ManageResponse class (duplicate of manage.py)
+# Removed: manage() function (duplicate with limited actions)
 
 
 # Resource functions (Admin-only, exposed as MCP resources)
@@ -2100,18 +1885,17 @@ async def get_stats() -> dict[str, Any]:
             stats["entity_counts"][entity_type.value] = 0
 
         # Fill in actual counts from query
-        if result and len(result) > 0:
-            data = result[0] if isinstance(result, tuple) else result
-            for row in data:
-                if isinstance(row, dict):
-                    etype = row.get("type")
-                    count = row.get("count", 0)
-                else:
-                    etype, count = row[0], row[1]
+        data = GraphClient.normalize_result(result)
+        for row in data:
+            if isinstance(row, dict):
+                etype = row.get("type")
+                count = row.get("count", 0)
+            else:
+                etype, count = row[0], row[1]
 
-                if etype:
-                    stats["entity_counts"][etype] = count
-                    stats["total_entities"] += count
+            if etype:
+                stats["entity_counts"][etype] = count
+                stats["total_entities"] += count
 
         return stats
 

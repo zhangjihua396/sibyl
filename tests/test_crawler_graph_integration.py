@@ -4,20 +4,20 @@ Tests entity extraction, linking, and bidirectional relationships
 between crawled documents and the knowledge graph.
 """
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 from sibyl.crawler.graph_integration import (
     EntityExtractor,
+    EntityLink,
     EntityLinker,
     ExtractedEntity,
-    EntityLink,
     GraphIntegrationService,
     IntegrationStats,
     integrate_document_with_graph,
 )
-
 
 # =============================================================================
 # Fixtures
@@ -65,8 +65,7 @@ def mock_graph_client():
 @pytest.fixture
 def mock_openai_client():
     """Create a mock OpenAI client."""
-    client = MagicMock()
-    return client
+    return MagicMock()
 
 
 # =============================================================================
@@ -80,18 +79,15 @@ class TestEntityExtractor:
     @pytest.mark.asyncio
     async def test_extract_from_chunk_success(self, sample_chunk_content):
         """Test successful entity extraction from chunk."""
-        # Mock OpenAI response
+        # Mock Anthropic API response format (response.content[0].text)
+        mock_content_block = MagicMock()
+        mock_content_block.text = '{"entities": [{"name": "FastAPI", "type": "tool", "description": "Web framework", "confidence": 0.9}]}'
+
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content='{"entities": [{"name": "FastAPI", "type": "tool", "description": "Web framework", "confidence": 0.9}]}'
-                )
-            )
-        ]
+        mock_response.content = [mock_content_block]
 
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         extractor = EntityExtractor()
 
@@ -110,13 +106,15 @@ class TestEntityExtractor:
     @pytest.mark.asyncio
     async def test_extract_from_chunk_empty_content(self):
         """Test extraction from empty content."""
+        # Mock Anthropic API response format
+        mock_content_block = MagicMock()
+        mock_content_block.text = '{"entities": []}'
+
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(message=MagicMock(content='{"entities": []}'))
-        ]
+        mock_response.content = [mock_content_block]
 
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         extractor = EntityExtractor()
 
@@ -128,9 +126,7 @@ class TestEntityExtractor:
     async def test_extract_from_chunk_error_handling(self, sample_chunk_content):
         """Test error handling during extraction."""
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(
-            side_effect=Exception("API Error")
-        )
+        mock_client.messages.create = AsyncMock(side_effect=Exception("API Error"))
 
         extractor = EntityExtractor()
 
@@ -146,17 +142,15 @@ class TestEntityExtractor:
     @pytest.mark.asyncio
     async def test_extract_batch(self, sample_chunk_content, sample_code_chunk):
         """Test batch entity extraction."""
+        # Mock Anthropic API response format
+        mock_content_block = MagicMock()
+        mock_content_block.text = '{"entities": [{"name": "Entity1", "type": "tool", "description": "Test", "confidence": 0.8}]}'
+
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content='{"entities": [{"name": "Entity1", "type": "tool", "description": "Test", "confidence": 0.8}]}'
-                )
-            )
-        ]
+        mock_response.content = [mock_content_block]
 
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         extractor = EntityExtractor()
 
@@ -174,23 +168,21 @@ class TestEntityExtractor:
     @pytest.mark.asyncio
     async def test_extract_with_different_entity_types(self):
         """Test extraction of various entity types."""
+        # Mock Anthropic API response format
+        mock_content_block = MagicMock()
+        mock_content_block.text = """{
+            "entities": [
+                {"name": "FastAPI", "type": "tool", "description": "Framework", "confidence": 0.9},
+                {"name": "async/await", "type": "pattern", "description": "Async pattern", "confidence": 0.85},
+                {"name": "Python", "type": "language", "description": "Programming language", "confidence": 0.95}
+            ]
+        }"""
+
         mock_response = MagicMock()
-        mock_response.choices = [
-            MagicMock(
-                message=MagicMock(
-                    content="""{
-                        "entities": [
-                            {"name": "FastAPI", "type": "tool", "description": "Framework", "confidence": 0.9},
-                            {"name": "async/await", "type": "pattern", "description": "Async pattern", "confidence": 0.85},
-                            {"name": "Python", "type": "language", "description": "Programming language", "confidence": 0.95}
-                        ]
-                    }"""
-                )
-            )
-        ]
+        mock_response.content = [mock_content_block]
 
         mock_client = AsyncMock()
-        mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+        mock_client.messages.create = AsyncMock(return_value=mock_response)
 
         extractor = EntityExtractor()
 
@@ -219,7 +211,11 @@ class TestEntityLinker:
     async def test_link_entity_exact_match(self, mock_graph_client):
         """Test linking with exact name match."""
         # Mock graph query response
-        mock_result = ([{"uuid": "entity-123", "name": "FastAPI", "entity_type": "tool"}], None, None)
+        mock_result = (
+            [{"uuid": "entity-123", "name": "FastAPI", "entity_type": "tool"}],
+            None,
+            None,
+        )
         mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
 
         linker = EntityLinker(mock_graph_client)
@@ -242,7 +238,11 @@ class TestEntityLinker:
         """Test linking with partial name match."""
         # Use a candidate name closer in length for a higher similarity score
         # "FastAPI" (7 chars) vs "FastAPI v3" (10 chars) = 7/10 = 0.7
-        mock_result = ([{"uuid": "entity-456", "name": "FastAPI v3", "entity_type": "tool"}], None, None)
+        mock_result = (
+            [{"uuid": "entity-456", "name": "FastAPI v3", "entity_type": "tool"}],
+            None,
+            None,
+        )
         mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
 
         linker = EntityLinker(mock_graph_client, similarity_threshold=0.5)
@@ -374,7 +374,9 @@ class TestGraphIntegrationService:
         assert stats.entities_extracted == 1
 
     @pytest.mark.asyncio
-    async def test_process_chunks_disabled_extraction(self, mock_graph_client, mock_document_chunks):
+    async def test_process_chunks_disabled_extraction(
+        self, mock_graph_client, mock_document_chunks
+    ):
         """Test processing with extraction disabled."""
         service = GraphIntegrationService(mock_graph_client, extract_entities=False)
 
@@ -463,17 +465,25 @@ class TestConvenienceFunctions:
             chunk.document_id = uuid4()
 
         # Patch at the import location inside the function
-        with patch("sibyl.graph.client.get_graph_client", new_callable=AsyncMock, return_value=mock_client):
-            with patch.object(GraphIntegrationService, "process_chunks", new_callable=AsyncMock) as mock_process:
-                mock_process.return_value = IntegrationStats(chunks_processed=3)
+        with (
+            patch(
+                "sibyl.graph.client.get_graph_client",
+                new_callable=AsyncMock,
+                return_value=mock_client,
+            ),
+            patch.object(
+                GraphIntegrationService, "process_chunks", new_callable=AsyncMock
+            ) as mock_process,
+        ):
+            mock_process.return_value = IntegrationStats(chunks_processed=3)
 
-                stats = await integrate_document_with_graph(
-                    document_id=uuid4(),
-                    chunks=chunks,
-                    source_name="Test Source",
-                )
+            stats = await integrate_document_with_graph(
+                uuid4(),  # document_id (positional)
+                chunks=chunks,
+                source_name="Test Source",
+            )
 
-                assert stats.chunks_processed == 3
+            assert stats.chunks_processed == 3
 
     @pytest.mark.asyncio
     async def test_integrate_document_graph_unavailable(self):
@@ -487,7 +497,7 @@ class TestConvenienceFunctions:
             side_effect=Exception("Graph unavailable"),
         ):
             stats = await integrate_document_with_graph(
-                document_id=uuid4(),
+                uuid4(),  # document_id (positional)
                 chunks=chunks,
                 source_name="Test Source",
             )

@@ -4,6 +4,7 @@ This is the entry point for the sibyl CLI.
 All commands communicate with the REST API to ensure proper event broadcasting.
 """
 
+import contextlib
 from pathlib import Path
 from typing import Annotated
 
@@ -147,7 +148,7 @@ def dev(
             "--log-level",
             "warning",
         ],
-        preexec_fn=os.setsid,  # New process group
+        start_new_session=True,  # New process group (thread-safe)
     )
 
     def kill_process_group() -> None:
@@ -157,10 +158,8 @@ def dev(
             os.killpg(pgid, signal.SIGTERM)
             process.wait(timeout=3)
         except (ProcessLookupError, OSError, subprocess.TimeoutExpired):
-            try:
+            with contextlib.suppress(ProcessLookupError, OSError):
                 os.killpg(os.getpgid(process.pid), signal.SIGKILL)
-            except (ProcessLookupError, OSError):
-                pass
 
     try:
         process.wait()
@@ -191,7 +190,6 @@ def health(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(status)
                 return
 
@@ -255,7 +253,6 @@ def ingest(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(result)
                 return
 
@@ -314,7 +311,6 @@ def search(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(response)
                 return
 
@@ -380,7 +376,6 @@ def add_knowledge(
 
     @run_async
     async def run_add() -> None:
-
         client = get_client()
 
         try:
@@ -452,7 +447,6 @@ def stats(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(stats_data)
                 return
 

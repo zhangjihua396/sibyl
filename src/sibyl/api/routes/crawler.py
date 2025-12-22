@@ -54,10 +54,14 @@ def _source_to_response(source: CrawlSource) -> CrawlSourceResponse:
         id=str(source.id),
         name=source.name,
         url=source.url,
-        source_type=source.source_type.value if hasattr(source.source_type, "value") else str(source.source_type),
+        source_type=source.source_type.value
+        if hasattr(source.source_type, "value")
+        else str(source.source_type),
         description=source.description,
         crawl_depth=source.crawl_depth,
-        crawl_status=source.crawl_status.value if hasattr(source.crawl_status, "value") else str(source.crawl_status),
+        crawl_status=source.crawl_status.value
+        if hasattr(source.crawl_status, "value")
+        else str(source.crawl_status),
         document_count=source.document_count,
         chunk_count=source.chunk_count,
         last_crawled_at=source.last_crawled_at,
@@ -228,7 +232,9 @@ async def preview_url(url: str) -> dict[str, str | None]:
         suggested_name = None
         if title:
             # Remove common suffixes like "| Company" or "- Docs"
-            suggested_name = re.sub(r"\s*[\|\-–—]\s*[^|\-–—]+$", "", title).strip()
+            suggested_name = re.sub(
+                r"\s*[\|\-\u2013\u2014]\s*[^|\-\u2013\u2014]+$", "", title
+            ).strip()
             # If still too generic, use domain + title
             if len(suggested_name) < 3:
                 suggested_name = f"{parsed.netloc} - {title}"
@@ -274,7 +280,9 @@ async def create_source(request: CrawlSourceCreate) -> CrawlSourceResponse:
             select(CrawlSource).where(col(CrawlSource.url) == request.url.rstrip("/"))
         )
         if existing.scalar_one_or_none():
-            raise HTTPException(status_code=409, detail=f"Source with URL {request.url} already exists")
+            raise HTTPException(
+                status_code=409, detail=f"Source with URL {request.url} already exists"
+            )
 
         source = CrawlSource(
             name=request.name,
@@ -343,9 +351,9 @@ async def delete_source(source_id: str) -> dict[str, Any]:
 
         # Delete chunks first (foreign key constraint)
         chunks_deleted = await session.execute(
-            select(DocumentChunk).join(CrawledDocument).where(
-                col(CrawledDocument.source_id) == UUID(source_id)
-            )
+            select(DocumentChunk)
+            .join(CrawledDocument)
+            .where(col(CrawledDocument.source_id) == UUID(source_id))
         )
         for chunk in chunks_deleted.scalars():
             await session.delete(chunk)
@@ -455,7 +463,9 @@ async def get_ingestion_status(source_id: str) -> dict[str, Any]:
             "current_job_id": source.current_job_id,
             "document_count": source.document_count,
             "chunk_count": source.chunk_count,
-            "last_crawled_at": source.last_crawled_at.isoformat() if source.last_crawled_at else None,
+            "last_crawled_at": source.last_crawled_at.isoformat()
+            if source.last_crawled_at
+            else None,
             "last_error": source.last_error,
         }
 
@@ -580,9 +590,15 @@ async def sync_source(source_id: str) -> dict[str, Any]:
         "chunk_count": actual_chunk_count,
         "status": new_status.value,
         "changes": {
-            "status": f"{old_status.value} -> {new_status.value}" if old_status != new_status else None,
-            "document_count": f"{old_doc_count} -> {actual_doc_count}" if old_doc_count != actual_doc_count else None,
-            "chunk_count": f"{old_chunk_count} -> {actual_chunk_count}" if old_chunk_count != actual_chunk_count else None,
+            "status": f"{old_status.value} -> {new_status.value}"
+            if old_status != new_status
+            else None,
+            "document_count": f"{old_doc_count} -> {actual_doc_count}"
+            if old_doc_count != actual_doc_count
+            else None,
+            "chunk_count": f"{old_chunk_count} -> {actual_chunk_count}"
+            if old_chunk_count != actual_chunk_count
+            else None,
         },
     }
 
@@ -623,10 +639,7 @@ async def get_link_graph_status() -> LinkGraphStatusResponse:
             .group_by(CrawlSource.name)
         )
         pending_result = await session.execute(pending_query)
-        sources = [
-            {"name": row.name, "pending": row.pending}
-            for row in pending_result.all()
-        ]
+        sources = [{"name": row.name, "pending": row.pending} for row in pending_result.all()]
 
     return LinkGraphStatusResponse(
         total_chunks=total_chunks,
@@ -747,9 +760,8 @@ async def _process_graph_linking(
             col(DocumentChunk.has_entities) == False  # noqa: E712
         )
         if source_id:
-            remaining_query = (
-                remaining_query.join(CrawledDocument)
-                .where(col(CrawledDocument.source_id) == UUID(source_id))
+            remaining_query = remaining_query.join(CrawledDocument).where(
+                col(CrawledDocument.source_id) == UUID(source_id)
             )
         remaining_result = await session.execute(remaining_query)
         chunks_remaining = remaining_result.scalar() or 0

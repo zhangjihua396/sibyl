@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import ARRAY, Column, Index, String, Text, text
 from pydantic import field_validator
+from sqlalchemy import ARRAY, Column, Index, String, Text, text
 from sqlmodel import Field, Relationship, SQLModel
 
 if TYPE_CHECKING:
@@ -117,7 +117,9 @@ class CrawlSource(TimestampMixin, table=True):
 
     # Crawl status
     crawl_status: CrawlStatus = Field(default=CrawlStatus.PENDING, description="Current status")
-    current_job_id: str | None = Field(default=None, max_length=64, description="Active crawl job ID")
+    current_job_id: str | None = Field(
+        default=None, max_length=64, description="Active crawl job ID"
+    )
     last_crawled_at: datetime | None = Field(default=None, description="Last successful crawl")
     last_error: str | None = Field(default=None, sa_type=Text, description="Last error message")
 
@@ -185,8 +187,12 @@ class CrawledDocument(TimestampMixin, table=True):
     is_index: bool = Field(default=False, description="Is an index/listing page")
 
     # Extracted data
-    headings: list[str] = Field(default_factory=list, sa_type=ARRAY(String), description="Page headings")
-    links: list[str] = Field(default_factory=list, sa_type=ARRAY(String), description="Outgoing links")
+    headings: list[str] = Field(
+        default_factory=list, sa_type=ARRAY(String), description="Page headings"
+    )
+    links: list[str] = Field(
+        default_factory=list, sa_type=ARRAY(String), description="Outgoing links"
+    )
     code_languages: list[str] = Field(
         default_factory=list, sa_type=ARRAY(String), description="Languages in code blocks"
     )

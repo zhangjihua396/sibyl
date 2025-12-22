@@ -206,7 +206,7 @@ def clear_db(
 
                 client = await get_graph_client()
                 # Delete all nodes and relationships
-                await client.driver.execute_query("MATCH (n) DETACH DELETE n")
+                await client.execute_write("MATCH (n) DETACH DELETE n")
 
             success("Database cleared")
             warn("All data has been deleted")
@@ -233,19 +233,15 @@ def db_stats() -> None:
                 client = await get_graph_client()
 
                 # Get node count
-                node_result = await client.driver.execute_query(
-                    "MATCH (n) RETURN count(n) as count"
-                )
-                node_count = node_result.result_set[0][0] if node_result.result_set else 0
+                node_rows = await client.execute_read("MATCH (n) RETURN count(n) as count")
+                node_count = node_rows[0][0] if node_rows else 0
 
                 # Get relationship count
-                rel_result = await client.driver.execute_query(
-                    "MATCH ()-[r]->() RETURN count(r) as count"
-                )
-                rel_count = rel_result.result_set[0][0] if rel_result.result_set else 0
+                rel_rows = await client.execute_read("MATCH ()-[r]->() RETURN count(r) as count")
+                rel_count = rel_rows[0][0] if rel_rows else 0
 
                 # Get node types
-                type_result = await client.driver.execute_query(
+                type_rows = await client.execute_read(
                     "MATCH (n) RETURN n.entity_type as type, count(*) as count ORDER BY count DESC"
                 )
 
@@ -253,9 +249,9 @@ def db_stats() -> None:
             console.print(f"  Total Nodes: {node_count}")
             console.print(f"  Total Relationships: {rel_count}")
 
-            if type_result.result_set:
+            if type_rows:
                 console.print("\n  [dim]By Entity Type:[/dim]")
-                for row in type_result.result_set:
+                for row in type_rows:
                     if row[0]:
                         console.print(f"    {row[0]}: {row[1]}")
 

@@ -4,13 +4,11 @@ Tests the RAG search, code example search, and page retrieval endpoints.
 Uses mocked database and embedding service.
 """
 
-import pytest
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
-from fastapi.testclient import TestClient
-
+import pytest
 
 # =============================================================================
 # Fixtures
@@ -20,6 +18,7 @@ from fastapi.testclient import TestClient
 @pytest.fixture
 def mock_embed_text():
     """Mock the embed_text function to return fake embeddings."""
+
     async def fake_embed(text: str) -> list[float]:
         # Return a fake 1536-dim embedding
         return [0.1] * 1536
@@ -176,9 +175,7 @@ class TestRAGSearchEndpoint:
             assert response.return_mode == "pages"
 
     @pytest.mark.asyncio
-    async def test_search_similarity_threshold(
-        self, mock_embed_text, mock_session
-    ):
+    async def test_search_similarity_threshold(self, mock_embed_text, mock_session):
         """Test that similarity threshold filters low-score results."""
         mock_result = MagicMock()
         mock_result.all.return_value = []  # No results above threshold
@@ -291,9 +288,7 @@ class TestPageRetrieval:
     """Tests for page listing and full page retrieval."""
 
     @pytest.mark.asyncio
-    async def test_list_source_pages(
-        self, mock_session, sample_document, sample_source
-    ):
+    async def test_list_source_pages(self, mock_session, sample_document, sample_source):
         """Test listing pages for a source."""
         # Mock source lookup
         mock_session.get = AsyncMock(return_value=sample_source)
@@ -322,9 +317,7 @@ class TestPageRetrieval:
             assert response.source_name == sample_source.name
 
     @pytest.mark.asyncio
-    async def test_get_full_page(
-        self, mock_session, sample_document, sample_source
-    ):
+    async def test_get_full_page(self, mock_session, sample_document, sample_source):
         """Test getting full page content."""
         mock_session.get = AsyncMock(side_effect=[sample_document, sample_source])
 
@@ -348,8 +341,9 @@ class TestPageRetrieval:
         with patch("sibyl.api.routes.rag.get_session") as mock_get_session:
             mock_get_session.return_value = mock_session
 
-            from sibyl.api.routes.rag import get_full_page
             from fastapi import HTTPException
+
+            from sibyl.api.routes.rag import get_full_page
 
             # Use a valid UUID format that doesn't exist
             with pytest.raises(HTTPException) as exc_info:
@@ -360,8 +354,9 @@ class TestPageRetrieval:
     @pytest.mark.asyncio
     async def test_get_page_invalid_uuid(self, mock_session):
         """Test 400 when document ID is not a valid UUID."""
-        from sibyl.api.routes.rag import get_full_page
         from fastapi import HTTPException
+
+        from sibyl.api.routes.rag import get_full_page
 
         with pytest.raises(HTTPException) as exc_info:
             await get_full_page(document_id="not-a-valid-uuid")
@@ -418,13 +413,15 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_embedding_error(self, mock_session):
         """Test handling of embedding generation errors."""
+
         async def failing_embed(text: str) -> list[float]:
             raise ValueError("Embedding service unavailable")
 
         with patch("sibyl.api.routes.rag.embed_text", failing_embed):
+            from fastapi import HTTPException
+
             from sibyl.api.routes.rag import rag_search
             from sibyl.api.schemas import RAGSearchRequest
-            from fastapi import HTTPException
 
             request = RAGSearchRequest(query="test")
 
@@ -442,8 +439,9 @@ class TestErrorHandling:
         with patch("sibyl.api.routes.rag.get_session") as mock_get_session:
             mock_get_session.return_value = mock_session
 
-            from sibyl.api.routes.rag import list_source_pages
             from fastapi import HTTPException
+
+            from sibyl.api.routes.rag import list_source_pages
 
             # Use a valid UUID format that doesn't exist
             with pytest.raises(HTTPException) as exc_info:
@@ -454,8 +452,9 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_source_invalid_uuid(self, mock_session):
         """Test 400 when source ID is not a valid UUID."""
-        from sibyl.api.routes.rag import list_source_pages
         from fastapi import HTTPException
+
+        from sibyl.api.routes.rag import list_source_pages
 
         with pytest.raises(HTTPException) as exc_info:
             await list_source_pages(source_id="invalid-source-id")
@@ -474,8 +473,9 @@ class TestSchemaValidation:
 
     def test_rag_search_request_validation(self):
         """Test RAGSearchRequest validation."""
-        from sibyl.api.schemas import RAGSearchRequest
         from pydantic import ValidationError
+
+        from sibyl.api.schemas import RAGSearchRequest
 
         # Valid request
         req = RAGSearchRequest(query="test query")
@@ -496,8 +496,9 @@ class TestSchemaValidation:
 
     def test_code_example_request_validation(self):
         """Test CodeExampleRequest validation."""
-        from sibyl.api.schemas import CodeExampleRequest
         from pydantic import ValidationError
+
+        from sibyl.api.schemas import CodeExampleRequest
 
         # Valid request
         req = CodeExampleRequest(query="auth function")
@@ -511,9 +512,9 @@ class TestSchemaValidation:
     def test_response_models(self):
         """Test response model structures."""
         from sibyl.api.schemas import (
+            CodeExampleResult,
             RAGChunkResult,
             RAGPageResult,
-            CodeExampleResult,
         )
 
         # RAGChunkResult

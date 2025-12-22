@@ -88,6 +88,7 @@ class Settings(BaseSettings):
                 object.__setattr__(self, "openai_api_key", SecretStr(fallback))
 
         return self
+
     embedding_model: str = Field(
         default="text-embedding-3-small",
         description="OpenAI embedding model",

@@ -88,7 +88,6 @@ def explore_related(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(entities)
                 return
 
@@ -156,7 +155,6 @@ def explore_traverse(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(entities)
                 return
 
@@ -237,7 +235,6 @@ def explore_dependencies(
 
             # JSON output (default)
             if not table_out:
-
                 output = {
                     "entities": entities,
                     "has_cycles": metadata.get("has_cycles", False),
@@ -326,7 +323,6 @@ def explore_path(
 
             # JSON output (default)
             if not table_out:
-
                 output = {
                     "from_id": from_id,
                     "to_id": to_id,

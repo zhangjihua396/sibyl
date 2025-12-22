@@ -595,8 +595,14 @@ class TaskWorkflowEngine:
         # Extract task-specific fields from metadata, excluding fields we pass explicitly
         metadata = entity.metadata or {}
         excluded_keys = {
-            "id", "entity_type", "title", "description", "name", "content",
-            "created_at", "updated_at",
+            "id",
+            "entity_type",
+            "title",
+            "description",
+            "name",
+            "content",
+            "created_at",
+            "updated_at",
         }
         task_fields = {k: v for k, v in metadata.items() if k not in excluded_keys}
 

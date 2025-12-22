@@ -76,7 +76,6 @@ def list_sources(
             entities = response.get("entities", [])
 
             if format_ == "json":
-
                 print_json(entities)
                 return
 
@@ -119,7 +118,6 @@ def add_source(
 
     @run_async
     async def _add() -> None:
-
         client = get_client()
 
         try:
@@ -193,7 +191,6 @@ def show_source(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(entity)
                 return
 
@@ -252,7 +249,6 @@ def source_status(
 
             # JSON output (default)
             if not table_out:
-
                 status_data = {
                     "id": entity.get("id"),
                     "name": entity.get("name"),
@@ -320,7 +316,6 @@ def list_documents(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(entities)
                 return
 
@@ -462,9 +457,7 @@ def link_graph(
             sources_processed = response.get("sources_processed", [])
             chunks = response.get("chunks_processed", 0)
             for src in sources_processed:
-                console.print(
-                    f"Would process chunks from [{NEON_CYAN}]{src}[/{NEON_CYAN}]"
-                )
+                console.print(f"Would process chunks from [{NEON_CYAN}]{src}[/{NEON_CYAN}]")
             console.print(f"\nTotal: [{CORAL}]{chunks}[/{CORAL}] chunks")
             return
 
@@ -477,15 +470,19 @@ def link_graph(
             return
 
         # Success
+        console.print(f"\n[{SUCCESS_GREEN}]✓[/{SUCCESS_GREEN}] Graph integration complete\n")
         console.print(
-            f"\n[{SUCCESS_GREEN}]✓[/{SUCCESS_GREEN}] Graph integration complete\n"
+            f"  Chunks processed: [{CORAL}]{response.get('chunks_processed', 0)}[/{CORAL}]"
         )
-        console.print(f"  Chunks processed: [{CORAL}]{response.get('chunks_processed', 0)}[/{CORAL}]")
-        console.print(f"  Entities extracted: [{CORAL}]{response.get('entities_extracted', 0)}[/{CORAL}]")
+        console.print(
+            f"  Entities extracted: [{CORAL}]{response.get('entities_extracted', 0)}[/{CORAL}]"
+        )
         console.print(f"  Entities linked: [{CORAL}]{response.get('entities_linked', 0)}[/{CORAL}]")
 
         remaining = response.get("chunks_remaining", 0)
         if remaining > 0:
-            console.print(f"\n  Remaining: [{NEON_CYAN}]{remaining}[/{NEON_CYAN}] chunks still pending")
+            console.print(
+                f"\n  Remaining: [{NEON_CYAN}]{remaining}[/{NEON_CYAN}] chunks still pending"
+            )
 
     _link()

@@ -17,7 +17,6 @@ from sibyl.crawler.chunker import (
 )
 from sibyl.db.models import ChunkType
 
-
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -325,8 +324,8 @@ class TestSlidingWindowChunking:
 
         # Check that consecutive chunks share some content
         for i in range(len(chunks) - 1):
-            current_end = chunks[i].content[-50:]  # Last 50 chars
-            next_start = chunks[i + 1].content[:100]  # First 100 chars
+            chunks[i].content[-50:]  # Last 50 chars
+            chunks[i + 1].content[:100]  # First 100 chars
 
             # There should be some overlap (not necessarily exact due to word boundaries)
             # Just verify chunks exist
@@ -539,7 +538,7 @@ class TestEdgeCases:
         from unittest.mock import MagicMock
 
         doc = MagicMock()
-        doc.content = '''# Example
+        doc.content = """# Example
 
 ```markdown
 Here's how to write code blocks:
@@ -550,7 +549,7 @@ x = 1
 
 That's all!
 ```
-'''
+"""
         doc.url = "https://example.com"
         doc.title = "Nested Example"
         doc.section_path = []
@@ -566,7 +565,9 @@ That's all!
         from unittest.mock import MagicMock
 
         doc = MagicMock()
-        doc.content = "# 日本語タイトル\n\nこれは日本語のテストです。\n\n## 絵文字 🎉\n\nEmoji: 🚀 💻 🔥"
+        doc.content = (
+            "# 日本語タイトル\n\nこれは日本語のテストです。\n\n## 絵文字 🎉\n\nEmoji: 🚀 💻 🔥"
+        )
         doc.url = "https://example.com"
         doc.title = "Unicode Test"
         doc.section_path = []

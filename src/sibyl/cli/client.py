@@ -449,9 +449,7 @@ class SibylClient:
         """List crawled documents."""
         params: dict[str, Any] = {"limit": limit, "offset": offset}
         if source_id:
-            return await self._request(
-                "GET", f"/sources/{source_id}/documents", params=params
-            )
+            return await self._request("GET", f"/sources/{source_id}/documents", params=params)
         return await self._request("GET", "/sources/documents", params=params)
 
     async def get_crawl_document(self, document_id: str) -> dict[str, Any]:

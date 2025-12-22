@@ -51,6 +51,7 @@ def print_json(data: object) -> None:
     clean_data = _strip_embeddings(data)
     print(json.dumps(clean_data, indent=2, default=str, ensure_ascii=False))  # noqa: T201
 
+
 # Type vars for async decorator
 P = ParamSpec("P")
 R = TypeVar("R")

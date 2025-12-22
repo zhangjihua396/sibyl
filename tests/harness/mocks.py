@@ -31,6 +31,11 @@ class MockGraphClient:
         """Return mock Graphiti client."""
         return MockGraphitiClient()
 
+    @property
+    def driver(self) -> "MockDriver":
+        """Return mock driver (shortcut to client.driver)."""
+        return self.client.driver
+
     async def connect(self) -> None:
         """Simulate connection."""
         self._connected = True
@@ -38,6 +43,28 @@ class MockGraphClient:
     async def disconnect(self) -> None:
         """Simulate disconnection."""
         self._connected = False
+
+    @staticmethod
+    def normalize_result(result: object) -> list[dict[str, Any]]:
+        """Normalize query results to a consistent format."""
+        if result is None:
+            return []
+        if isinstance(result, tuple):
+            records = result[0] if len(result) > 0 else []
+            return records if records else []
+        if isinstance(result, list):
+            return result
+        return []
+
+    async def execute_read(self, query: str, **params: object) -> list[dict[str, Any]]:
+        """Execute a read query and normalize results."""
+        result = await self.client.driver.execute_query(query, **params)
+        return self.normalize_result(result)
+
+    async def execute_write(self, query: str, **params: object) -> list[dict[str, Any]]:
+        """Execute a write query and normalize results."""
+        result = await self.client.driver.execute_query(query, **params)
+        return self.normalize_result(result)
 
 
 @dataclass
@@ -191,20 +218,36 @@ class MockRelationshipManager:
         self,
         entity_id: str,
         relationship_types: list[RelationshipType] | None = None,
-        direction: str = "both",
-        depth: int = 1,
-    ) -> list[tuple[str, RelationshipType]]:
-        """Get related entity IDs."""
-        results = []
-        for rel in self._relationships.values():
-            if direction in ("outgoing", "both") and rel.source_id == entity_id:
-                if relationship_types is None or rel.relationship_type in relationship_types:
-                    results.append((rel.target_id, rel.relationship_type))
-            if direction in ("incoming", "both") and rel.target_id == entity_id:
-                if relationship_types is None or rel.relationship_type in relationship_types:
-                    results.append((rel.source_id, rel.relationship_type))
+        max_depth: int = 1,
+        limit: int = 50,
+    ) -> list[tuple[Entity, Relationship]]:
+        """Get entities related to a given entity.
 
-        return results
+        Returns list of (Entity, Relationship) tuples matching the real implementation.
+        """
+        results: list[tuple[Entity, Relationship]] = []
+        for rel in self._relationships.values():
+            # Check source -> target direction
+            if rel.source_id == entity_id:
+                if relationship_types is None or rel.relationship_type in relationship_types:
+                    # Create a minimal Entity for the target
+                    entity = Entity(
+                        id=rel.target_id,
+                        name=f"Entity-{rel.target_id[:8]}",
+                        entity_type=EntityType.EPISODE,
+                    )
+                    results.append((entity, rel))
+            # Check target -> source direction
+            elif rel.target_id == entity_id:
+                if relationship_types is None or rel.relationship_type in relationship_types:
+                    entity = Entity(
+                        id=rel.source_id,
+                        name=f"Entity-{rel.source_id[:8]}",
+                        entity_type=EntityType.EPISODE,
+                    )
+                    results.append((entity, rel))
+
+        return results[:limit]
 
     async def delete(self, relationship_id: str) -> None:
         """Delete a relationship."""

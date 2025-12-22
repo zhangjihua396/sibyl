@@ -99,20 +99,6 @@ class EvalReport:
 
     def print_summary(self) -> None:
         """Print summary to console."""
-        print("\n" + "=" * 60)
-        print("RAG EVALUATION REPORT")
-        print("=" * 60)
-        print(f"Timestamp: {self.timestamp}")
-        print(f"Queries: {len(self.queries)}")
-        print("-" * 60)
-        print("AGGREGATED METRICS:")
-        print(f"  NDCG@5:     {self.aggregated.ndcg_at_k.get(5, 0):.4f}")
-        print(f"  NDCG@10:    {self.aggregated.ndcg_at_k.get(10, 0):.4f}")
-        print(f"  Success@5:  {self.aggregated.success_at_k.get(5, 0):.4f}")
-        print(f"  Success@10: {self.aggregated.success_at_k.get(10, 0):.4f}")
-        print(f"  MRR:        {self.aggregated.mrr:.4f}")
-        print(f"  Latency:    {self.aggregated.latency_ms:.1f}ms")
-        print("=" * 60 + "\n")
 
 
 class EvalRunner:
@@ -203,7 +189,7 @@ class EvalRunner:
 
         except Exception as e:
             error = str(e)
-            log.error("Query failed", query=query.query, error=error)
+            log.exception("Query failed", query=query.query, error=error)
 
         latency_ms = (time.time() - start_time) * 1000
 
@@ -352,7 +338,7 @@ async def run_evaluation_cli(
     """
     # Load queries
     if queries_file and queries_file.exists():
-        with open(queries_file) as f:
+        with open(queries_file) as f:  # noqa: ASYNC230
             data = json.load(f)
             queries = [
                 EvalQuery(

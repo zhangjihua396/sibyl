@@ -13,14 +13,27 @@ from graphiti_core.nodes import EntityNode, EpisodicNode
 from pydantic import BaseModel
 
 from sibyl.errors import EntityNotFoundError, SearchError
+from sibyl.graph.client import GraphClient
 from sibyl.models.entities import Entity, EntityType
 from sibyl.models.sources import Community, Document, Source
 from sibyl.models.tasks import ErrorPattern, Milestone, Project, Task, Team
 
 if TYPE_CHECKING:
-    from sibyl.graph.client import GraphClient
+    pass  # GraphClient imported above for normalize_result
 
 log = structlog.get_logger()
+
+# RediSearch special characters that need escaping in fulltext queries
+_REDISEARCH_SPECIAL_CHARS = re.compile(r"[|&\-@()~$:*\\]")
+
+
+def sanitize_search_query(query: str) -> str:
+    """Escape RediSearch special characters in a query string.
+
+    RediSearch treats |, &, -, @, (), ~, $, :, * as special operators.
+    When these appear in document titles or content, they cause syntax errors.
+    """
+    return _REDISEARCH_SPECIAL_CHARS.sub(r" ", query)
 
 
 class EntityManager:
@@ -198,8 +211,12 @@ class EntityManager:
                         entity_type=entity.entity_type,
                     )
                     return entity
-            except Exception:
-                pass  # Node might be Episodic, try that next
+            except Exception as e:
+                log.debug(
+                    "EntityNode lookup failed, trying EpisodicNode",
+                    entity_id=entity_id,
+                    error=str(e),
+                )
 
             # Try EpisodicNode (nodes created via add_episode)
             try:
@@ -212,8 +229,8 @@ class EntityManager:
                         entity_type=entity.entity_type,
                     )
                     return entity
-            except Exception:
-                pass  # Node doesn't exist
+            except Exception as e:
+                log.debug("EpisodicNode lookup failed", entity_id=entity_id, error=str(e))
 
             raise EntityNotFoundError("Entity", entity_id)
 
@@ -239,18 +256,23 @@ class EntityManager:
         Returns:
             List of (entity, score) tuples ordered by relevance.
         """
-        log.info("Searching entities", query=query, types=entity_types, limit=limit)
+        # Sanitize query to escape RediSearch special characters
+        safe_query = sanitize_search_query(query)
+        log.info("Searching entities", query=safe_query, types=entity_types, limit=limit)
 
         try:
             # Perform hybrid search using Graphiti
             edges = await self._client.client.search(
-                query=query,
+                query=safe_query,
                 group_ids=["conventions"],
                 num_results=limit * 3,  # Get more results for filtering
             )
 
             # Extract unique nodes from edges
-            node_uuids = list({edge.source_node_uuid for edge in edges} | {edge.target_node_uuid for edge in edges})
+            node_uuids = list(
+                {edge.source_node_uuid for edge in edges}
+                | {edge.target_node_uuid for edge in edges}
+            )
 
             if not node_uuids:
                 log.info("No search results found", query=query)
@@ -262,9 +284,7 @@ class EntityManager:
 
             # Get EntityNodes by UUIDs
             try:
-                entity_nodes = await EntityNode.get_by_uuids(
-                    self._client.driver, node_uuids
-                )
+                entity_nodes = await EntityNode.get_by_uuids(self._client.driver, node_uuids)
                 for node in entity_nodes:
                     try:
                         entity = self._node_to_entity(node)
@@ -285,9 +305,7 @@ class EntityManager:
 
             # Get EpisodicNodes by UUIDs
             try:
-                episodic_nodes = await EpisodicNode.get_by_uuids(
-                    self._client.driver, node_uuids
-                )
+                episodic_nodes = await EpisodicNode.get_by_uuids(self._client.driver, node_uuids)
                 for node in episodic_nodes:
                     try:
                         entity = self._episodic_to_entity(node)
@@ -391,8 +409,12 @@ class EntityManager:
                     await node.delete(self._client.driver)
                     log.info("Entity deleted via EntityNode", entity_id=entity_id)
                     return True
-            except Exception:
-                pass  # Might be EpisodicNode
+            except Exception as e:
+                log.debug(
+                    "EntityNode delete failed, trying EpisodicNode",
+                    entity_id=entity_id,
+                    error=str(e),
+                )
 
             # Try to delete as EpisodicNode
             try:
@@ -401,8 +423,8 @@ class EntityManager:
                     await episodic.delete(self._client.driver)
                     log.info("Entity deleted via EpisodicNode", entity_id=entity_id)
                     return True
-            except Exception:
-                pass  # Node doesn't exist
+            except Exception as e:
+                log.debug("EpisodicNode delete failed", entity_id=entity_id, error=str(e))
 
             raise EntityNotFoundError("Entity", entity_id)
 
@@ -472,16 +494,14 @@ class EntityManager:
 
             entities: list[Entity] = []
 
-            # Handle FalkorDB result format: (records, header, stats)
-            if result:
-                records = result[0] if isinstance(result, tuple) else result
-                if records and isinstance(records, list):
-                    for record in records:
-                        try:
-                            entity = self._record_to_entity(record)
-                            entities.append(entity)
-                        except Exception as e:
-                            log.debug("Failed to convert record to entity", error=str(e))
+            # Handle FalkorDB result format using normalize helper
+            records = GraphClient.normalize_result(result)
+            for record in records:
+                try:
+                    entity = self._record_to_entity(record)
+                    entities.append(entity)
+                except Exception as e:
+                    log.debug("Failed to convert record to entity", error=str(e))
 
             log.debug(
                 "Listed entities",

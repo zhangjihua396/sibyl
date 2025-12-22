@@ -36,14 +36,19 @@ async def search(request: SearchRequest) -> SearchResponse:
             types=request.types,
             language=request.language,
             category=request.category,
+            status=request.status,
+            project=request.project,
+            source=request.source,
             source_id=request.source_id,
             source_name=request.source_name,
-            project=request.project,
-            status=request.status,
+            assignee=request.assignee,
+            since=request.since,
             limit=request.limit,
             include_content=request.include_content,
             include_documents=request.include_documents,
             include_graph=request.include_graph,
+            use_enhanced=request.use_enhanced,
+            boost_recent=request.boost_recent,
         )
 
         return SearchResponse(**asdict(result))

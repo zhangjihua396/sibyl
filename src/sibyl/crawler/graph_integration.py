@@ -25,9 +25,10 @@ import structlog
 
 from sibyl.config import settings
 from sibyl.db import DocumentChunk, get_session
+from sibyl.graph.client import GraphClient
 
 if TYPE_CHECKING:
-    from sibyl.graph.client import GraphClient
+    pass  # GraphClient imported above for normalize_result
 
 log = structlog.get_logger()
 
@@ -86,7 +87,7 @@ class EntityExtractor:
 
     _api_key_validated: bool = False
 
-    EXTRACTION_PROMPT = '''Extract entities from this documentation chunk.
+    EXTRACTION_PROMPT = """Extract entities from this documentation chunk.
 
 Chunk Content:
 {content}
@@ -110,7 +111,7 @@ Return a JSON object with an "entities" array. Each entity should have:
 - confidence: 0.0-1.0 confidence score
 
 Only extract entities that are clearly mentioned or demonstrated.
-Do not infer entities that aren't explicitly present.'''
+Do not infer entities that aren't explicitly present."""
 
     def __init__(self, model: str | None = None):
         """Initialize the extractor.
@@ -241,10 +242,7 @@ Do not infer entities that aren't explicitly present.'''
             async with semaphore:
                 return await self.extract_from_chunk(content, context, url)
 
-        tasks = [
-            extract_with_limit(content, context, url)
-            for content, context, url in chunks
-        ]
+        tasks = [extract_with_limit(content, context, url) for content, context, url in chunks]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -321,10 +319,12 @@ class EntityLinker:
             if entity_type:
                 query += f" AND n.entity_type = '{entity_type}'"
 
-            query += " RETURN n.uuid AS uuid, n.name AS name, n.entity_type AS entity_type LIMIT 1000"
+            query += (
+                " RETURN n.uuid AS uuid, n.name AS name, n.entity_type AS entity_type LIMIT 1000"
+            )
 
             result = await self.graph_client.client.driver.execute_query(query)
-            records = result[0] if result else []
+            records = GraphClient.normalize_result(result)
 
             self._entity_cache[cache_key] = [
                 {"uuid": r["uuid"], "name": r["name"], "entity_type": r["entity_type"]}
@@ -474,10 +474,7 @@ class GraphIntegrationService:
             return stats
 
         # Extract entities from chunks
-        chunk_data = [
-            (chunk.content, chunk.context, str(chunk.document_id))
-            for chunk in chunks
-        ]
+        chunk_data = [(chunk.content, chunk.context, str(chunk.document_id)) for chunk in chunks]
 
         extracted = await self.extractor.extract_batch(chunk_data)
         stats.entities_extracted = len(extracted)
@@ -495,7 +492,8 @@ class GraphIntegrationService:
             for i, chunk in enumerate(chunks):
                 # Find links for this chunk
                 chunk_links = [
-                    link for link in linked
+                    link
+                    for link in linked
                     if str(chunk.id) in (link.chunk_id or "") or extracted[i].source_url
                 ]
 

@@ -286,7 +286,6 @@ class WorkerSettings:
     poll_delay = 0.5  # Check for jobs every 0.5s
 
 
-
 async def run_worker_async() -> None:
     """Run the arq worker in-process.
 

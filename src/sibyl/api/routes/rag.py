@@ -14,7 +14,7 @@ from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlmodel import col
 
 from sibyl.api.schemas import (
@@ -61,7 +61,7 @@ async def rag_search(request: RAGSearchRequest) -> RAGSearchResponse:
     try:
         query_embedding = await embed_text(request.query)
     except Exception as e:
-        log.error("Failed to generate query embedding", error=str(e))
+        log.exception("Failed to generate query embedding", error=str(e))
         raise HTTPException(status_code=500, detail=f"Embedding error: {e}") from e
 
     async with get_session() as session:
@@ -106,7 +106,10 @@ async def rag_search(request: RAGSearchRequest) -> RAGSearchResponse:
             page_results: dict[str, RAGPageResult] = {}
             for chunk, doc, source_name, source_id, similarity in rows:
                 doc_id = str(doc.id)
-                if doc_id not in page_results or similarity > page_results[doc_id].best_chunk_similarity:
+                if (
+                    doc_id not in page_results
+                    or similarity > page_results[doc_id].best_chunk_similarity
+                ):
                     page_results[doc_id] = RAGPageResult(
                         document_id=doc_id,
                         source_id=str(source_id),
@@ -134,7 +137,9 @@ async def rag_search(request: RAGSearchRequest) -> RAGSearchResponse:
                     content=chunk.content,
                     context=chunk.context if request.include_context else None,
                     similarity=similarity,
-                    chunk_type=chunk.chunk_type.value if hasattr(chunk.chunk_type, "value") else str(chunk.chunk_type),
+                    chunk_type=chunk.chunk_type.value
+                    if hasattr(chunk.chunk_type, "value")
+                    else str(chunk.chunk_type),
                     chunk_index=chunk.chunk_index,
                     heading_path=chunk.heading_path or [],
                     language=chunk.language,
@@ -173,7 +178,7 @@ async def search_code_examples(request: CodeExampleRequest) -> CodeExampleRespon
     try:
         query_embedding = await embed_text(request.query)
     except Exception as e:
-        log.error("Failed to generate query embedding", error=str(e))
+        log.exception("Failed to generate query embedding", error=str(e))
         raise HTTPException(status_code=500, detail=f"Embedding error: {e}") from e
 
     async with get_session() as session:
@@ -252,7 +257,9 @@ async def list_source_pages(
     try:
         source_uuid = UUID(source_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid source ID format: {source_id}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid source ID format: {source_id}"
+        ) from None
 
     async with get_session() as session:
         # Get source info
@@ -261,10 +268,7 @@ async def list_source_pages(
             raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
 
         # Build query
-        query = (
-            select(CrawledDocument)
-            .where(col(CrawledDocument.source_id) == source_uuid)
-        )
+        query = select(CrawledDocument).where(col(CrawledDocument.source_id) == source_uuid)
 
         if has_code is not None:
             query = query.where(col(CrawledDocument.has_code) == has_code)
@@ -314,7 +318,9 @@ async def get_full_page(document_id: str) -> FullPageResponse:
     try:
         doc_uuid = UUID(document_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid document ID format: {document_id}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid document ID format: {document_id}"
+        ) from None
 
     async with get_session() as session:
         doc = await session.get(CrawledDocument, doc_uuid)
@@ -394,13 +400,12 @@ async def hybrid_search(request: RAGSearchRequest) -> RAGSearchResponse:
     try:
         query_embedding = await embed_text(request.query)
     except Exception as e:
-        log.error("Failed to generate query embedding", error=str(e))
+        log.exception("Failed to generate query embedding", error=str(e))
         raise HTTPException(status_code=500, detail=f"Embedding error: {e}") from e
 
     async with get_session() as session:
         # Build hybrid query with RRF
         # RRF score = sum(1 / (k + rank)) for each retriever
-        k = 60  # RRF constant
 
         # Vector similarity score
         similarity_expr = 1 - DocumentChunk.embedding.cosine_distance(query_embedding)
@@ -457,7 +462,9 @@ async def hybrid_search(request: RAGSearchRequest) -> RAGSearchResponse:
                 content=chunk.content,
                 context=chunk.context if request.include_context else None,
                 similarity=similarity,
-                chunk_type=chunk.chunk_type.value if hasattr(chunk.chunk_type, "value") else str(chunk.chunk_type),
+                chunk_type=chunk.chunk_type.value
+                if hasattr(chunk.chunk_type, "value")
+                else str(chunk.chunk_type),
                 chunk_index=chunk.chunk_index,
                 heading_path=chunk.heading_path or [],
                 language=chunk.language,
@@ -514,12 +521,16 @@ async def update_document(document_id: str, request: DocumentUpdateRequest) -> F
     - has_code, headings
     """
     if request.title is None and request.content is None:
-        raise HTTPException(status_code=400, detail="At least one of title or content must be provided")
+        raise HTTPException(
+            status_code=400, detail="At least one of title or content must be provided"
+        )
 
     try:
         doc_uuid = UUID(document_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid document ID format: {document_id}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid document ID format: {document_id}"
+        ) from None
 
     async with get_session() as session:
         doc = await session.get(CrawledDocument, doc_uuid)
@@ -547,7 +558,12 @@ async def update_document(document_id: str, request: DocumentUpdateRequest) -> F
         source = await session.get(CrawlSource, doc.source_id)
         source_name = source.name if source else "Unknown"
 
-    log.info("Document updated", document_id=document_id, title_updated=request.title is not None, content_updated=request.content is not None)
+    log.info(
+        "Document updated",
+        document_id=document_id,
+        title_updated=request.title is not None,
+        content_updated=request.content is not None,
+    )
 
     return FullPageResponse(
         document_id=str(doc.id),
@@ -582,7 +598,9 @@ async def get_document_related_entities(document_id: str) -> DocumentRelatedEnti
     try:
         doc_uuid = UUID(document_id)
     except ValueError:
-        raise HTTPException(status_code=400, detail=f"Invalid document ID format: {document_id}")
+        raise HTTPException(
+            status_code=400, detail=f"Invalid document ID format: {document_id}"
+        ) from None
 
     async with get_session() as session:
         # Get the document
@@ -631,7 +649,9 @@ async def get_document_related_entities(document_id: str) -> DocumentRelatedEnti
             total=0,
         )
 
-    log.debug("document_entities_found", document_id=document_id, title=doc_title, count=len(entities))
+    log.debug(
+        "document_entities_found", document_id=document_id, title=doc_title, count=len(entities)
+    )
 
     return DocumentRelatedEntitiesResponse(
         document_id=document_id,

@@ -50,9 +50,7 @@ def _handle_client_error(e: SibylClientError) -> None:
 
 @app.command("sources")
 def list_sources(
-    status: Annotated[
-        str | None, typer.Option("--status", "-s", help="Filter by status")
-    ] = None,
+    status: Annotated[str | None, typer.Option("--status", "-s", help="Filter by status")] = None,
     limit: Annotated[int, typer.Option("--limit", "-n", help="Max results")] = 20,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
@@ -181,12 +179,8 @@ def ingest(
     max_pages: Annotated[
         int, typer.Option("--max-pages", "-p", help="Maximum pages to crawl")
     ] = 50,
-    max_depth: Annotated[
-        int, typer.Option("--depth", "-d", help="Maximum link depth")
-    ] = 3,
-    no_embed: Annotated[
-        bool, typer.Option("--no-embed", help="Skip embedding generation")
-    ] = False,
+    max_depth: Annotated[int, typer.Option("--depth", "-d", help="Maximum link depth")] = 3,
+    no_embed: Annotated[bool, typer.Option("--no-embed", help="Skip embedding generation")] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -286,7 +280,9 @@ def crawl_status(
             if response.get("chunks_created"):
                 console.print(f"  Chunks Created: [{CORAL}]{response['chunks_created']}[/{CORAL}]")
             if response.get("embeddings_generated"):
-                console.print(f"  Embeddings: [{CORAL}]{response['embeddings_generated']}[/{CORAL}]")
+                console.print(
+                    f"  Embeddings: [{CORAL}]{response['embeddings_generated']}[/{CORAL}]"
+                )
             if response.get("errors"):
                 console.print(f"  Errors: [{CORAL}]{response['errors']}[/{CORAL}]")
             if response.get("duration_seconds"):
@@ -320,9 +316,7 @@ def list_documents(
             if table_out:
                 with spinner("Loading documents...") as progress:
                     progress.add_task("Loading documents...", total=None)
-                    response = await client.list_crawl_documents(
-                        source_id=source_id, limit=limit
-                    )
+                    response = await client.list_crawl_documents(source_id=source_id, limit=limit)
             else:
                 response = await client.list_crawl_documents(source_id=source_id, limit=limit)
 

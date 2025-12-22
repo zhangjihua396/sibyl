@@ -1,6 +1,5 @@
 """Tests for RAG evaluation metrics."""
 
-import pytest
 from tests.evals.metrics import (
     EvalMetrics,
     EvalQuery,

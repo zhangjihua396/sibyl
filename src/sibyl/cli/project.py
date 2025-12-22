@@ -79,7 +79,6 @@ def list_projects(
             entities = response.get("entities", [])
 
             if format_ == "json":
-
                 print_json(entities)
                 return
 
@@ -159,7 +158,6 @@ def show_project(
 
             # JSON output (default)
             if not table_out:
-
                 # Include task summary in output
                 tasks = tasks_response.get("entities", [])
                 status_counts: dict[str, int] = {}
@@ -235,7 +233,6 @@ def create_project(
 
     @run_async
     async def _create() -> None:
-
         client = get_client()
 
         try:
@@ -321,7 +318,6 @@ def project_progress(
 
             # JSON output (default)
             if not table_out:
-
                 output = {
                     "project_id": project_id,
                     "total_tasks": total,

@@ -14,10 +14,11 @@ import structlog
 from graphiti_core.edges import EntityEdge
 
 from sibyl.errors import ConventionsMCPError
+from sibyl.graph.client import GraphClient
 from sibyl.models.entities import Entity, Relationship, RelationshipType
 
 if TYPE_CHECKING:
-    from sibyl.graph.client import GraphClient
+    pass  # GraphClient imported above for normalize_result
 
 log = structlog.get_logger()
 
@@ -139,9 +140,7 @@ class RelationshipManager:
                 },
             ) from e
 
-    async def create_bulk(
-        self, relationships: list[Relationship]
-    ) -> tuple[int, int]:
+    async def create_bulk(self, relationships: list[Relationship]) -> tuple[int, int]:
         """Create multiple relationships in bulk.
 
         Args:
@@ -271,9 +270,7 @@ class RelationshipManager:
             results: list[tuple[Entity, Relationship]] = []
 
             for rel in relationships[:limit]:
-                other_id = (
-                    rel.target_id if rel.source_id == entity_id else rel.source_id
-                )
+                other_id = rel.target_id if rel.source_id == entity_id else rel.source_id
                 try:
                     entity = await entity_manager.get(other_id)
                     if entity:
@@ -339,7 +336,9 @@ class RelationshipManager:
 
             # Defensive: ensure edges is iterable (FalkorDB can return Query object on connection issues)
             if not isinstance(edges, list):
-                log.warning("get_by_node_uuid returned non-list for delete", type=type(edges).__name__)
+                log.warning(
+                    "get_by_node_uuid returned non-list for delete", type=type(edges).__name__
+                )
                 return 0
 
             deleted = 0
@@ -395,8 +394,7 @@ class RelationshipManager:
             """
 
             result = await self._client.driver.execute_query(query)
-            # Result is a tuple: (rows, column_names, metadata)
-            rows = result[0] if result else []
+            rows = GraphClient.normalize_result(result)
 
             relationships = []
             for row in rows:

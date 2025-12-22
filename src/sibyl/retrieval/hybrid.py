@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 import structlog
 
+from sibyl.models.entities import Entity, EntityType
 from sibyl.retrieval.fusion import rrf_merge, rrf_merge_with_metadata
 from sibyl.retrieval.temporal import temporal_boost
 
@@ -140,15 +141,18 @@ async def graph_traversal(
         LIMIT $limit
         """
 
+        from sibyl.graph.client import GraphClient
+
         result = await client.client.driver.execute_query(
             query,
             seed_ids=seed_ids,
             limit=limit,
         )
+        rows = GraphClient.normalize_result(result)
 
-        # Convert to entity-like dicts with distance-based scores
-        results: list[tuple[dict[str, Any], float]] = []
-        for record in result:
+        # Convert to Entity objects with distance-based scores
+        results: list[tuple[Entity, float]] = []
+        for record in rows:
             if isinstance(record, (list, tuple)):
                 entity_id = record[0] if len(record) > 0 else None
                 name = record[1] if len(record) > 1 else ""
@@ -163,12 +167,18 @@ async def graph_traversal(
                 distance = record.get("distance", 1)
 
             if entity_id:
-                entity = {
-                    "id": entity_id,
-                    "name": name,
-                    "entity_type": entity_type,
-                    "description": description,
-                }
+                # Create proper Entity object to match vector search results
+                try:
+                    etype = EntityType(entity_type) if entity_type else EntityType.EPISODE
+                except ValueError:
+                    etype = EntityType.EPISODE
+
+                entity = Entity(
+                    id=entity_id,
+                    name=name or entity_id,
+                    entity_type=etype,
+                    description=description or "",
+                )
                 # Score decreases with distance
                 dist = int(distance) if distance else 1
                 score = 1.0 / (dist + 1)

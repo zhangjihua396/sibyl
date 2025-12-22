@@ -118,7 +118,6 @@ def list_entities(
             entities = response.get("entities", [])
 
             if format_ == "json":
-
                 print_json(entities)
                 return
 
@@ -183,7 +182,6 @@ def show_entity(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(entity)
                 return
 
@@ -245,7 +243,6 @@ def create_entity(
 
     @run_async
     async def _create() -> None:
-
         client = get_client()
 
         try:
@@ -311,7 +308,6 @@ def delete_entity(
 
     @run_async
     async def _delete() -> None:
-
         client = get_client()
 
         try:
@@ -371,7 +367,6 @@ def related_entities(
 
             # JSON output (default)
             if not table_out:
-
                 print_json(entities)
                 return
 

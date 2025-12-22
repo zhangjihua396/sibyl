@@ -254,7 +254,9 @@ class CrawlerService:
         async with get_session() as session:
             db_source = await session.get(CrawlSource, source_id)
             if db_source:
-                db_source.crawl_status = CrawlStatus.COMPLETED if error_count == 0 else CrawlStatus.PARTIAL
+                db_source.crawl_status = (
+                    CrawlStatus.COMPLETED if error_count == 0 else CrawlStatus.PARTIAL
+                )
                 db_source.current_job_id = None  # Clear job on completion
                 db_source.last_crawled_at = utcnow_naive()
                 db_source.document_count = crawled_count

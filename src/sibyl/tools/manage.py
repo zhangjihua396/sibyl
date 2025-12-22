@@ -343,9 +343,7 @@ async def _handle_source_action(
     data: dict[str, Any],
 ) -> ManageResponse:
     """Handle source operations (crawl, sync, refresh)."""
-    client = await get_graph_client()
-    entity_manager = EntityManager(client)
-
+    # Validate inputs BEFORE connecting to database
     if action == "crawl":
         url = data.get("url")
         if not url:
@@ -354,16 +352,24 @@ async def _handle_source_action(
                 action=action,
                 message="data.url required for crawl action",
             )
+
+    if action == "sync" and not entity_id:
+        return ManageResponse(
+            success=False,
+            action=action,
+            message="entity_id (source ID) required for sync action",
+        )
+
+    # Now connect after validation passes
+    client = await get_graph_client()
+    entity_manager = EntityManager(client)
+
+    if action == "crawl":
+        url = data.get("url")  # Already validated above
         depth = data.get("depth", 2)
         return await _crawl_source(entity_manager, url, depth, data)
 
     if action == "sync":
-        if not entity_id:
-            return ManageResponse(
-                success=False,
-                action=action,
-                message="entity_id (source ID) required for sync action",
-            )
         return await _sync_source(entity_manager, entity_id)
 
     if action == "refresh":

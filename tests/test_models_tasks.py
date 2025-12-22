@@ -115,7 +115,9 @@ class TestTask:
 
     def test_task_content_property(self) -> None:
         """Test that content property returns description."""
-        task = Task(id="t1", title="Test", description="Detailed description", project_id="proj-001")
+        task = Task(
+            id="t1", title="Test", description="Detailed description", project_id="proj-001"
+        )
         assert task.content == "Detailed description"
 
     def test_task_title_max_length(self) -> None:

@@ -43,7 +43,6 @@ async def list_jobs(
     limit: int = 50,
 ) -> dict[str, Any]:
     """List recent jobs."""
-    from sibyl.jobs import get_job_status
     from sibyl.jobs.queue import list_jobs as _list_jobs
 
     try:
