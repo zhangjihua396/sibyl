@@ -15,11 +15,12 @@ app = typer.Typer(help="Organizations")
 def list_cmd() -> None:
     client = get_client()
 
-    async def _run():
+    @run_async
+    async def _run() -> dict:
         return await client.list_orgs()
 
     try:
-        result = run_async(_run())
+        result = _run()
         print_json(result)
     except SibylClientError as e:
         error(str(e))
@@ -33,11 +34,12 @@ def create_cmd(
 ) -> None:
     client = get_client()
 
-    async def _run():
+    @run_async
+    async def _run() -> dict:
         return await client.create_org(name=name, slug=slug)
 
     try:
-        result = run_async(_run())
+        result = _run()
         if switch and "access_token" in result:
             set_access_token(str(result["access_token"]))
             success("Switched org (token saved to ~/.sibyl/auth.json)")
@@ -50,11 +52,12 @@ def create_cmd(
 def switch_cmd(slug: str) -> None:
     client = get_client()
 
-    async def _run():
+    @run_async
+    async def _run() -> dict:
         return await client.switch_org(slug)
 
     try:
-        result = run_async(_run())
+        result = _run()
         token = str(result.get("access_token", "")).strip()
         if token:
             set_access_token(token)

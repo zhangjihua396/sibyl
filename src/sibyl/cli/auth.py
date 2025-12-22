@@ -33,6 +33,53 @@ def clear_token_cmd() -> None:
     success("Auth token cleared")
 
 
+@app.command("local-signup")
+def local_signup_cmd(
+    email: str = typer.Option(..., "--email", "-e", help="Email address"),
+    password: str = typer.Option(..., "--password", "-p", help="Password (min 8 chars)"),
+    name: str = typer.Option(..., "--name", "-n", help="Display name"),
+) -> None:
+    """Create a local user and save the returned access token."""
+    client = get_client()
+
+    @run_async
+    async def _run() -> dict:
+        return await client.local_signup(email=email, password=password, name=name)
+
+    try:
+        result = _run()
+        token = str(result.get("access_token", "")).strip()
+        if token:
+            set_access_token(token)
+            success("Auth token saved to ~/.sibyl/auth.json")
+        print_json(result)
+    except SibylClientError as e:
+        error(str(e))
+
+
+@app.command("local-login")
+def local_login_cmd(
+    email: str = typer.Option(..., "--email", "-e", help="Email address"),
+    password: str = typer.Option(..., "--password", "-p", help="Password"),
+) -> None:
+    """Log in via local credentials and save the returned access token."""
+    client = get_client()
+
+    @run_async
+    async def _run() -> dict:
+        return await client.local_login(email=email, password=password)
+
+    try:
+        result = _run()
+        token = str(result.get("access_token", "")).strip()
+        if token:
+            set_access_token(token)
+            success("Auth token saved to ~/.sibyl/auth.json")
+        print_json(result)
+    except SibylClientError as e:
+        error(str(e))
+
+
 api_key_app = typer.Typer(help="API key management")
 app.add_typer(api_key_app, name="api-key")
 
@@ -41,11 +88,12 @@ app.add_typer(api_key_app, name="api-key")
 def api_key_list() -> None:
     client = get_client()
 
-    async def _run():
+    @run_async
+    async def _run() -> dict:
         return await client.list_api_keys()
 
     try:
-        result = run_async(_run())
+        result = _run()
         print_json(result)
     except SibylClientError as e:
         error(str(e))
@@ -58,11 +106,12 @@ def api_key_create(
 ) -> None:
     client = get_client()
 
-    async def _run():
+    @run_async
+    async def _run() -> dict:
         return await client.create_api_key(name=name, live=live)
 
     try:
-        result = run_async(_run())
+        result = _run()
         print_json(result)
     except SibylClientError as e:
         error(str(e))
@@ -72,11 +121,12 @@ def api_key_create(
 def api_key_revoke(api_key_id: str) -> None:
     client = get_client()
 
-    async def _run():
+    @run_async
+    async def _run() -> dict:
         return await client.revoke_api_key(api_key_id)
 
     try:
-        result = run_async(_run())
+        result = _run()
         print_json(result)
     except SibylClientError as e:
         error(str(e))

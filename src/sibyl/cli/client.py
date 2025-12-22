@@ -200,6 +200,31 @@ class SibylClient:
     async def revoke_api_key(self, api_key_id: str) -> dict[str, Any]:
         return await self._request("POST", f"/auth/api-keys/{api_key_id}/revoke")
 
+    async def local_signup(
+        self,
+        *,
+        email: str,
+        password: str,
+        name: str,
+        redirect: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"email": email, "password": password, "name": name}
+        if redirect is not None:
+            payload["redirect"] = redirect
+        return await self._request("POST", "/auth/local/signup", json=payload)
+
+    async def local_login(
+        self,
+        *,
+        email: str,
+        password: str,
+        redirect: str | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"email": email, "password": password}
+        if redirect is not None:
+            payload["redirect"] = redirect
+        return await self._request("POST", "/auth/local/login", json=payload)
+
     async def list_orgs(self) -> dict[str, Any]:
         return await self._request("GET", "/orgs")
 

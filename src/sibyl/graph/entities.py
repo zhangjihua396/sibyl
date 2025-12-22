@@ -579,6 +579,9 @@ class EntityManager:
             entity_type=entity_type,
             description=node_data.get("description") or node_data.get("summary", ""),
             content=node_data.get("content", ""),
+            workspace_id=node_data.get("group_id")
+            or metadata.get("workspace_id")
+            or metadata.get("organization_id"),
             organization_id=node_data.get("group_id") or metadata.get("organization_id"),
             created_by=metadata.get("created_by"),
             modified_by=metadata.get("modified_by"),
@@ -644,6 +647,7 @@ class EntityManager:
             "category",
             "languages",
             "tags",
+            "workspace_id",
             "organization_id",
             "created_by",
             "modified_by",
@@ -804,7 +808,7 @@ class EntityManager:
                     node = EntityNode(
                         uuid=entity.id,
                         name=entity.name,
-                        group_id="conventions",
+                        group_id=self._group_id,
                         labels=[entity.entity_type.value],
                         created_at=entity.created_at or datetime.now(UTC),
                         summary=entity.description[:500] if entity.description else entity.name,

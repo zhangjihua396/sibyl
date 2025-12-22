@@ -632,6 +632,7 @@ async def search(  # noqa: PLR0915
     include_graph: bool = True,
     use_enhanced: bool = True,
     boost_recent: bool = True,
+    workspace_id: str | None = None,
     organization_id: str | None = None,
 ) -> SearchResponse:
     """Unified semantic search across knowledge graph AND documentation.
@@ -749,7 +750,7 @@ async def search(  # noqa: PLR0915
     if search_graph and query:
         try:
             client = await get_graph_client()
-            group_id = organization_id or "conventions"
+            group_id = workspace_id or organization_id or "conventions"
             entity_manager = EntityManager(client, group_id=group_id)
 
             # Determine entity types to search (exclude 'document' - that's for doc search)
@@ -938,6 +939,7 @@ async def explore(
     project: str | None = None,
     status: str | None = None,
     limit: int = 50,
+    workspace_id: str | None = None,
     organization_id: str | None = None,
 ) -> ExploreResponse:
     """Navigate and browse the Sibyl knowledge graph structure.
@@ -1019,7 +1021,7 @@ async def explore(
     if status:
         filters["status"] = status
 
-    group_id = organization_id or "conventions"
+    group_id = workspace_id or organization_id or "conventions"
 
     try:
         if mode == "dependencies":
@@ -1465,7 +1467,8 @@ async def add(  # noqa: PLR0915
     try:
         client = await get_graph_client()
         group_id = str(
-            (metadata or {}).get("organization_id")
+            (metadata or {}).get("workspace_id")
+            or (metadata or {}).get("organization_id")
             or (metadata or {}).get("group_id")
             or "conventions"
         )
@@ -1480,6 +1483,7 @@ async def add(  # noqa: PLR0915
             "languages": languages or [],
             "tags": tags or [],
             "added_at": datetime.now(UTC).isoformat(),
+            "workspace_id": group_id,
             "organization_id": group_id,
             **(metadata or {}),
         }
