@@ -5,6 +5,7 @@ from sibyl.api.routes.crawler import router as crawler_router
 from sibyl.api.routes.entities import router as entities_router
 from sibyl.api.routes.graph import router as graph_router
 from sibyl.api.routes.jobs import router as jobs_router
+from sibyl.api.routes.manage import router as manage_router
 from sibyl.api.routes.rag import router as rag_router
 from sibyl.api.routes.search import router as search_router
 from sibyl.api.routes.tasks import router as tasks_router
@@ -15,6 +16,7 @@ __all__ = [
     "entities_router",
     "graph_router",
     "jobs_router",
+    "manage_router",
     "rag_router",
     "search_router",
     "tasks_router",

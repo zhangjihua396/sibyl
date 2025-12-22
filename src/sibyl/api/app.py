@@ -17,6 +17,7 @@ from sibyl.api.routes import (
     entities_router,
     graph_router,
     jobs_router,
+    manage_router,
     rag_router,
     search_router,
     tasks_router,
@@ -79,6 +80,7 @@ def create_api_app() -> FastAPI:
     app.include_router(crawler_router)
     app.include_router(rag_router)
     app.include_router(jobs_router)
+    app.include_router(manage_router)
 
     # WebSocket route for realtime updates
     app.routes.append(WebSocketRoute("/ws", websocket_handler, name="websocket"))

@@ -359,8 +359,17 @@ class EntityManager:
             merged_metadata = {**(existing.metadata or {}), **(updates.get("metadata") or {})}
 
             # Any non-core fields should be preserved in metadata so filters can read them
+            # Exclude embedding - it's stored as a direct node property, not in metadata
+            # (embeddings in metadata bloat Graphiti's LLM context ~30KB per entity)
             for key, value in updates.items():
-                if key not in {"name", "description", "content", "metadata", "source_file"}:
+                if key not in {
+                    "name",
+                    "description",
+                    "content",
+                    "metadata",
+                    "source_file",
+                    "embedding",
+                }:
                     merged_metadata[key] = value
 
             # Collect all properties, preserving existing values when not updated
@@ -378,6 +387,15 @@ class EntityManager:
 
             # Persist updates in-place to avoid changing UUIDs
             await self._persist_entity_attributes(entity_id, updated_entity)
+
+            # Store embedding as direct node property (not in metadata to avoid bloating LLM context)
+            if updates.get("embedding"):
+                await self._client.client.driver.execute_query(
+                    "MATCH (n {uuid: $entity_id}) SET n.name_embedding = $embedding",
+                    entity_id=entity_id,
+                    embedding=updates.get("embedding"),
+                )
+                log.debug("Stored embedding on node", entity_id=entity_id)
 
             log.info("Entity updated successfully", entity_id=entity_id)
             return updated_entity

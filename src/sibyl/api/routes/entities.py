@@ -161,9 +161,12 @@ async def create_entity(entity: EntityCreate) -> EntityResponse:
         priority = entity.metadata.get("priority") if entity.metadata else None
         assignees = entity.metadata.get("assignees") if entity.metadata else None
 
+        # Use description as content fallback (frontend sends description, add() needs content)
+        content = entity.content or entity.description or entity.name
+
         result = await add(
             title=entity.name,
-            content=entity.content,
+            content=content,
             entity_type=entity.entity_type.value,
             category=entity.category,
             languages=entity.languages,

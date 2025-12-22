@@ -75,13 +75,18 @@ export function EntitiesContent({
     [deleteEntity]
   );
 
-  const filteredEntities =
-    data?.entities.filter(
-      e =>
-        !searchQuery ||
-        e.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        e.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    ) || [];
+  // Deduplicate entities by ID (API may return duplicates) and filter by search
+  const filteredEntities = (() => {
+    if (!data?.entities) return [];
+    const seen = new Set<string>();
+    return data.entities.filter(e => {
+      if (seen.has(e.id)) return false;
+      seen.add(e.id);
+      if (!searchQuery) return true;
+      const query = searchQuery.toLowerCase();
+      return e.name.toLowerCase().includes(query) || e.description?.toLowerCase().includes(query);
+    });
+  })();
 
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
