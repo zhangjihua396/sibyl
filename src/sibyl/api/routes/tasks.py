@@ -136,7 +136,9 @@ async def start_task(
 
 
 @router.post("/{task_id}/block", response_model=TaskActionResponse)
-async def block_task(http_request: Request, task_id: str, request: BlockTaskRequest) -> TaskActionResponse:
+async def block_task(
+    http_request: Request, task_id: str, request: BlockTaskRequest
+) -> TaskActionResponse:
     """Mark a task as blocked with a reason."""
     try:
         group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))

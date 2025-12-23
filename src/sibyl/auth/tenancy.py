@@ -18,4 +18,3 @@ def resolve_group_id(claims: dict | None) -> str:
     if claims and claims.get("org"):
         return str(claims["org"])
     return DEFAULT_GRAPH_GROUP_ID
-

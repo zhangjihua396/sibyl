@@ -29,8 +29,12 @@ def upgrade() -> None:
         sa.Column("user_code", sa.String(length=16), nullable=False),
         sa.Column("client_name", sa.String(length=255), nullable=True),
         sa.Column("scope", sa.String(length=255), nullable=False, server_default=sa.text("'mcp'")),
-        sa.Column("status", sa.String(length=16), nullable=False, server_default=sa.text("'pending'")),
-        sa.Column("poll_interval_seconds", sa.Integer(), nullable=False, server_default=sa.text("5")),
+        sa.Column(
+            "status", sa.String(length=16), nullable=False, server_default=sa.text("'pending'")
+        ),
+        sa.Column(
+            "poll_interval_seconds", sa.Integer(), nullable=False, server_default=sa.text("5")
+        ),
         sa.Column("last_polled_at", sa.DateTime(), nullable=True),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.Column("approved_at", sa.DateTime(), nullable=True),
@@ -73,12 +77,19 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Drop device_authorization_requests table."""
-    op.drop_index(op.f("ix_device_authorization_requests_expires_at"), table_name="device_authorization_requests")
-    op.drop_index(op.f("ix_device_authorization_requests_status"), table_name="device_authorization_requests")
-    op.drop_index(op.f("ix_device_authorization_requests_user_code"), table_name="device_authorization_requests")
+    op.drop_index(
+        op.f("ix_device_authorization_requests_expires_at"),
+        table_name="device_authorization_requests",
+    )
+    op.drop_index(
+        op.f("ix_device_authorization_requests_status"), table_name="device_authorization_requests"
+    )
+    op.drop_index(
+        op.f("ix_device_authorization_requests_user_code"),
+        table_name="device_authorization_requests",
+    )
     op.drop_index(
         op.f("ix_device_authorization_requests_device_code_hash"),
         table_name="device_authorization_requests",
     )
     op.drop_table("device_authorization_requests")
-

@@ -127,9 +127,7 @@ def test_connection(url: str) -> bool:
                     f"Server version [bold]{version}[/bold]"
                 )
                 return True
-            console.print(
-                f"[yellow]⚠[/yellow] Server responded with status {response.status_code}"
-            )
+            console.print(f"[yellow]⚠[/yellow] Server responded with status {response.status_code}")
             return False
         except httpx.ConnectError:
             console.print(

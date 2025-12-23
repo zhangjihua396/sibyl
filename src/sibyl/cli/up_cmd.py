@@ -99,8 +99,7 @@ def up(
         raise typer.Exit(1)
 
     console.print(
-        f"\n[{ELECTRIC_PURPLE}]Starting Sibyl[/{ELECTRIC_PURPLE}] "
-        f"[dim]from {project_root}[/dim]\n"
+        f"\n[{ELECTRIC_PURPLE}]Starting Sibyl[/{ELECTRIC_PURPLE}] [dim]from {project_root}[/dim]\n"
     )
 
     # Check Docker
@@ -154,10 +153,14 @@ def _start_server_foreground(project_root: Path, with_worker: bool) -> None:
                 env[key.strip()] = value.strip().strip('"').strip("'")
 
     cmd = [
-        sys.executable, "-m", "uvicorn",
+        sys.executable,
+        "-m",
+        "uvicorn",
         "sibyl.main:app",
-        "--host", "0.0.0.0",  # noqa: S104 - intentional for local dev
-        "--port", "3334",
+        "--host",
+        "0.0.0.0",  # noqa: S104 - intentional for local dev
+        "--port",
+        "3334",
         "--reload",
     ]
 

@@ -634,7 +634,9 @@ async def device_verify_post(
     action = str(form.get("action") or "").strip()
     user_code = normalize_user_code(str(form.get("user_code") or "").strip())
     if not user_code:
-        return RedirectResponse(url="/api/auth/device/verify?error=missing_user_code", status_code=302)
+        return RedirectResponse(
+            url="/api/auth/device/verify?error=missing_user_code", status_code=302
+        )
 
     verify_url = f"/api/auth/device/verify?user_code={user_code}"
 

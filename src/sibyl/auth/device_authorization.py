@@ -111,7 +111,9 @@ class DeviceAuthorizationManager:
 
     async def get_by_user_code(self, user_code: str) -> DeviceAuthorizationRequest | None:
         result = await self._session.execute(
-            select(DeviceAuthorizationRequest).where(DeviceAuthorizationRequest.user_code == user_code)
+            select(DeviceAuthorizationRequest).where(
+                DeviceAuthorizationRequest.user_code == user_code
+            )
         )
         return result.scalar_one_or_none()
 

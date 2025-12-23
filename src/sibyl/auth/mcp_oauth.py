@@ -138,7 +138,9 @@ class SibylMcpOAuthProvider(
             return
         self._clients[str(client_info.client_id)] = client_info
 
-    async def authorize(self, client: OAuthClientInformationFull, params: AuthorizationParams) -> str:
+    async def authorize(
+        self, client: OAuthClientInformationFull, params: AuthorizationParams
+    ) -> str:
         request_id = secrets.token_urlsafe(24)
         self._pending[request_id] = _PendingAuth(
             client_id=str(client.client_id),
@@ -164,7 +166,9 @@ class SibylMcpOAuthProvider(
         self._codes.pop(authorization_code.code, None)
 
         user_id = UUID(authorization_code.user_id)
-        org_id = UUID(authorization_code.organization_id) if authorization_code.organization_id else None
+        org_id = (
+            UUID(authorization_code.organization_id) if authorization_code.organization_id else None
+        )
         scopes = authorization_code.scopes or [OAUTH_SCOPE]
 
         access = create_access_token(
@@ -181,7 +185,9 @@ class SibylMcpOAuthProvider(
         return OAuthToken(
             access_token=access,
             refresh_token=refresh,
-            expires_in=int(timedelta(hours=config_module.settings.jwt_expiry_hours).total_seconds()),
+            expires_in=int(
+                timedelta(hours=config_module.settings.jwt_expiry_hours).total_seconds()
+            ),
             scope=" ".join(scopes),
         )
 
@@ -235,7 +241,9 @@ class SibylMcpOAuthProvider(
         return OAuthToken(
             access_token=access,
             refresh_token=new_refresh,
-            expires_in=int(timedelta(hours=config_module.settings.jwt_expiry_hours).total_seconds()),
+            expires_in=int(
+                timedelta(hours=config_module.settings.jwt_expiry_hours).total_seconds()
+            ),
             scope=" ".join(scopes),
         )
 
@@ -245,7 +253,9 @@ class SibylMcpOAuthProvider(
                 auth = await ApiKeyManager.from_session(session).authenticate(token)
             if auth is None:
                 return None
-            return AccessToken(token=token, client_id=f"api_key:{auth.api_key_id}", scopes=[OAUTH_SCOPE])
+            return AccessToken(
+                token=token, client_id=f"api_key:{auth.api_key_id}", scopes=[OAUTH_SCOPE]
+            )
 
         try:
             claims = verify_access_token(token)
@@ -259,7 +269,9 @@ class SibylMcpOAuthProvider(
         exp = claims.get("exp")
         expires_at = exp if isinstance(exp, int) else None
         scopes = _parse_scopes_from_claims(claims)
-        return AccessToken(token=token, client_id=f"user:{sub}", scopes=scopes, expires_at=expires_at)
+        return AccessToken(
+            token=token, client_id=f"user:{sub}", scopes=scopes, expires_at=expires_at
+        )
 
     async def revoke_token(self, token: AccessToken | RefreshToken) -> None:
         if isinstance(token, RefreshToken):
@@ -345,7 +357,9 @@ class SibylMcpOAuthProvider(
         async with get_session() as session:
             user = await UserManager(session).authenticate_local(email=email, password=password)
             if user is None:
-                return RedirectResponse(url=_add_query_params("/_oauth/login", {"req": request_id}), status_code=302)
+                return RedirectResponse(
+                    url=_add_query_params("/_oauth/login", {"req": request_id}), status_code=302
+                )
 
             org = await OrganizationManager(session).create_personal_for_user(user)
             await OrganizationMembershipManager(session).add_member(
@@ -372,4 +386,6 @@ class SibylMcpOAuthProvider(
         params: dict[str, str] = {"code": code}
         if pending.params.state:
             params["state"] = pending.params.state
-        return RedirectResponse(url=_add_query_params(str(pending.params.redirect_uri), params), status_code=302)
+        return RedirectResponse(
+            url=_add_query_params(str(pending.params.redirect_uri), params), status_code=302
+        )
