@@ -11,16 +11,14 @@ version = "0.1.0"
 description = "Sibyl: MCP server providing AI agents access to development wisdom via Graphiti knowledge graph"
 readme = "README.md"
 license = "Apache-2.0"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 authors = [{ name = "Stefanie Jane", email = "stef@hyperbliss.tech" }]
-keywords = ["mcp", "graphiti", "knowledge-graph", "ai", "conventions"]
+keywords = ["mcp", "graphiti", "knowledge-graph", "ai", "sibyl"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
@@ -112,7 +110,7 @@ include = ["/src", "/tests", "/README.md", "/LICENSE"]
 
 [tool.ruff]
 line-length = 100
-# target-version inferred from requires-python = ">=3.11"
+# target-version inferred from requires-python = ">=3.13"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
@@ -199,9 +197,10 @@ ignore = [
     "FURB101", # open().read() vs Path().read_text() (context-dependent)
     "FURB103", # open().write() vs Path().write_text()
     "PERF203", # try-except in loop (sometimes necessary)
-    "TCH001",  # Move import into TYPE_CHECKING (first-party ok at runtime)
-    "TCH002",  # Move import into TYPE_CHECKING (third-party - be selective)
-    "FA100",   # Missing from __future__ import annotations (3.11+ not needed)
+    "TC001",   # Move import into TYPE_CHECKING (first-party ok at runtime)
+    "TC002",   # Move import into TYPE_CHECKING (third-party - be selective)
+    "TC003",   # Move stdlib import into TYPE_CHECKING (marginal benefit)
+    "FA100",   # Missing from __future__ import annotations (3.13 not needed)
     "SLOT000", # __slots__ in subclass of str/tuple/etc (special cases)
     "A005",    # Module shadowing builtin (common: types.py, logging.py)
 ]
@@ -271,7 +270,7 @@ max-statements = 60
 # ============================================================================
 
 [tool.mypy]
-python_version = "3.11"
+python_version = "3.13"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
@@ -353,7 +352,7 @@ show_missing = true
 [tool.pyright]
 include = ["src"]
 exclude = ["**/__pycache__", "tests"]
-pythonVersion = "3.11"
+pythonVersion = "3.13"
 typeCheckingMode = "standard"  # Strict on our code, lenient on external libs
 reportMissingImports = false   # Graphiti not typed
 reportMissingTypeStubs = false
