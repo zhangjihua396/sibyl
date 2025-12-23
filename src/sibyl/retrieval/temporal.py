@@ -81,7 +81,7 @@ def get_entity_timestamp(entity: Any, field: str = "auto") -> datetime | None:
     if isinstance(value, str):
         try:
             # Handle ISO format with timezone
-            value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            value = datetime.fromisoformat(value)
         except ValueError:
             return None
 

@@ -125,24 +125,24 @@ class EntityExtractor:
 
     # Patterns indicating rules
     RULE_PATTERNS = [
-        (re.compile(r"(?:never|always|must|shall|should not)\s+(.+)", re.I), 0.9),
-        (re.compile(r"(?:do not|don't|avoid)\s+(.+)", re.I), 0.85),
-        (re.compile(r"(?:rule|invariant|requirement):\s*(.+)", re.I), 0.95),
-        (re.compile(r"(?:sacred|inviolable|critical):\s*(.+)", re.I), 0.95),
+        (re.compile(r"(?:never|always|must|shall|should not)\s+(.+)", re.IGNORECASE), 0.9),
+        (re.compile(r"(?:do not|don't|avoid)\s+(.+)", re.IGNORECASE), 0.85),
+        (re.compile(r"(?:rule|invariant|requirement):\s*(.+)", re.IGNORECASE), 0.95),
+        (re.compile(r"(?:sacred|inviolable|critical):\s*(.+)", re.IGNORECASE), 0.95),
     ]
 
     # Patterns indicating tips/best practices
     TIP_PATTERNS = [
-        (re.compile(r"(?:tip|best practice|recommendation):\s*(.+)", re.I), 0.85),
-        (re.compile(r"(?:prefer|consider|try to)\s+(.+)", re.I), 0.7),
-        (re.compile(r"(?:pro tip|hint):\s*(.+)", re.I), 0.8),
+        (re.compile(r"(?:tip|best practice|recommendation):\s*(.+)", re.IGNORECASE), 0.85),
+        (re.compile(r"(?:prefer|consider|try to)\s+(.+)", re.IGNORECASE), 0.7),
+        (re.compile(r"(?:pro tip|hint):\s*(.+)", re.IGNORECASE), 0.8),
     ]
 
     # Patterns indicating warnings
     WARNING_PATTERNS = [
-        (re.compile(r"(?:warning|caution|beware):\s*(.+)", re.I), 0.9),
-        (re.compile(r"(?:gotcha|pitfall|trap):\s*(.+)", re.I), 0.85),
-        (re.compile(r"(?:watch out|be careful)\s+(.+)", re.I), 0.8),
+        (re.compile(r"(?:warning|caution|beware):\s*(.+)", re.IGNORECASE), 0.9),
+        (re.compile(r"(?:gotcha|pitfall|trap):\s*(.+)", re.IGNORECASE), 0.85),
+        (re.compile(r"(?:watch out|be careful)\s+(.+)", re.IGNORECASE), 0.8),
     ]
 
     def __init__(self) -> None:

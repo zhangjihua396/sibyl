@@ -3,9 +3,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import TYPE_CHECKING
 
 from sibyl.generator.config import GeneratorConfig
 from sibyl.models.entities import Entity, Relationship
+
+if TYPE_CHECKING:
+    from random import Random
 
 
 @dataclass
@@ -101,4 +105,3 @@ class BaseGenerator(ABC):
 
 
 # Import Random type for annotation
-from random import Random  # noqa: E402

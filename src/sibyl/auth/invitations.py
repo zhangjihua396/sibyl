@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Self
 
 from sqlalchemy import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,6 +12,9 @@ from sqlmodel import select
 
 from sibyl.auth.memberships import OrganizationMembershipManager
 from sibyl.db.models import OrganizationInvitation, OrganizationRole, User
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 def _is_none(column: ColumnElement) -> ColumnElement:  # type: ignore[type-arg]

@@ -7,13 +7,15 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import pbkdf2_hmac
-from typing import Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from sibyl.db.models import ApiKey
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class ApiKeyError(ValueError):

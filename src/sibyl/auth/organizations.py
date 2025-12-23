@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import re
-from typing import Any, Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Any, Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from sibyl.db.models import Organization, User
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 _SLUG_SAFE = re.compile(r"[^a-z0-9]+")
 

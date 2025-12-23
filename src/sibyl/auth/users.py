@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Self
 
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +11,9 @@ from sqlmodel import select
 
 from sibyl.auth.passwords import PasswordError, hash_password, verify_password
 from sibyl.db.models import User
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 @dataclass(frozen=True, slots=True)

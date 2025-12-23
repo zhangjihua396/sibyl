@@ -14,8 +14,7 @@ import hashlib
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -23,6 +22,9 @@ from sqlmodel import select
 from sibyl import config as config_module
 from sibyl.auth.jwt import create_access_token
 from sibyl.db.models import DeviceAuthorizationRequest
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 _USER_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # avoid 0/O, 1/I
 

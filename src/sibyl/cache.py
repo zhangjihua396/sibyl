@@ -15,7 +15,7 @@ import json
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any
 
 import structlog
 
@@ -23,8 +23,6 @@ if TYPE_CHECKING:
     from redis.asyncio import Redis
 
 log = structlog.get_logger()
-
-T = TypeVar("T")
 
 
 @dataclass
@@ -55,7 +53,7 @@ class CacheStats:
 
 
 @dataclass
-class CacheEntry(Generic[T]):
+class CacheEntry[T]:
     """A cache entry with value and expiration."""
 
     value: T
@@ -68,7 +66,7 @@ class CacheEntry(Generic[T]):
         return time.time() >= self.expires_at
 
 
-class LRUCache(Generic[T]):
+class LRUCache[T]:
     """Thread-safe LRU cache with TTL support.
 
     Uses OrderedDict for O(1) access and LRU eviction.

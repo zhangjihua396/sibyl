@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from uuid import UUID
+from typing import TYPE_CHECKING
 
 import structlog
 from sqlalchemy import select
@@ -32,6 +32,9 @@ from sibyl.db import (
     DocumentChunk,
     get_session,
 )
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 log = structlog.get_logger()
 

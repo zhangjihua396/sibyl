@@ -488,7 +488,7 @@ def stats(
 
 
 @app.command()
-def setup() -> None:  # noqa: PLR0915
+def setup() -> None:
     """Check environment and guide first-time setup."""
     import shutil
     import socket

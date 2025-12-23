@@ -156,10 +156,11 @@ class CrawlerService:
             raise RuntimeError("Crawler not started. Use 'async with' or call start()")
 
         # Build filter chain from source patterns
-        filters = []
+        filters: list[URLPatternFilter] = []
         if source.include_patterns:
-            for pattern in source.include_patterns:
-                filters.append(URLPatternFilter(patterns=[pattern]))
+            filters.extend(
+                URLPatternFilter(patterns=[pattern]) for pattern in source.include_patterns
+            )
 
         # Configure deep crawl strategy
         # Only pass filter_chain if we have filters

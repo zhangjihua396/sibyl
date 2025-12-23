@@ -100,26 +100,25 @@ async def list_entities(
         page_entities = filtered[start:end]
 
         # Convert to response models
-        response_entities = []
-        for entity in page_entities:
-            response_entities.append(
-                EntityResponse(
-                    id=entity.id,
-                    entity_type=entity.entity_type,
-                    name=entity.name,
-                    description=entity.description or "",
-                    content=entity.content or "",
-                    category=getattr(entity, "category", None) or entity.metadata.get("category"),
-                    languages=getattr(entity, "languages", None)
-                    or entity.metadata.get("languages", [])
-                    or [],
-                    tags=getattr(entity, "tags", None) or entity.metadata.get("tags", []) or [],
-                    metadata=getattr(entity, "metadata", {}) or {},
-                    source_file=getattr(entity, "source_file", None),
-                    created_at=getattr(entity, "created_at", None),
-                    updated_at=getattr(entity, "updated_at", None),
-                )
+        response_entities = [
+            EntityResponse(
+                id=entity.id,
+                entity_type=entity.entity_type,
+                name=entity.name,
+                description=entity.description or "",
+                content=entity.content or "",
+                category=getattr(entity, "category", None) or entity.metadata.get("category"),
+                languages=getattr(entity, "languages", None)
+                or entity.metadata.get("languages", [])
+                or [],
+                tags=getattr(entity, "tags", None) or entity.metadata.get("tags", []) or [],
+                metadata=getattr(entity, "metadata", {}) or {},
+                source_file=getattr(entity, "source_file", None),
+                created_at=getattr(entity, "created_at", None),
+                updated_at=getattr(entity, "updated_at", None),
             )
+            for entity in page_entities
+        ]
 
         return EntityListResponse(
             entities=response_entities,

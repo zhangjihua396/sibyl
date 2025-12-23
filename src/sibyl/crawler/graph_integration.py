@@ -19,7 +19,6 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from uuid import UUID
 
 import structlog
 
@@ -28,7 +27,8 @@ from sibyl.db import DocumentChunk, get_session
 from sibyl.graph.client import GraphClient
 
 if TYPE_CHECKING:
-    pass  # GraphClient imported above for normalize_result
+    from uuid import UUID
+    # GraphClient imported above for normalize_result
 
 log = structlog.get_logger()
 
@@ -192,18 +192,16 @@ Do not infer entities that aren't explicitly present."""
                 response_text = response_text.split("```")[1].split("```")[0]
 
             result = json.loads(response_text.strip())
-            entities = []
-
-            for item in result.get("entities", []):
-                entities.append(
-                    ExtractedEntity(
-                        name=item.get("name", ""),
-                        entity_type=item.get("type", "concept"),
-                        description=item.get("description", ""),
-                        confidence=float(item.get("confidence", 0.5)),
-                        source_url=url,
-                    )
+            entities = [
+                ExtractedEntity(
+                    name=item.get("name", ""),
+                    entity_type=item.get("type", "concept"),
+                    description=item.get("description", ""),
+                    confidence=float(item.get("confidence", 0.5)),
+                    source_url=url,
                 )
+                for item in result.get("entities", [])
+            ]
 
             log.debug(
                 "Extracted entities from chunk",

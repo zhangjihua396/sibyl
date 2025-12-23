@@ -287,13 +287,13 @@ Make it feel like a real experience from a development team."""
 
         if entity_type == "pattern":
             for _ in range(count):
-                entities.append(await self._generate_llm_pattern())
+                entities.append(await self._generate_llm_pattern())  # noqa: PERF401
         elif entity_type == "episode":
             for _ in range(count):
-                entities.append(await self._generate_llm_episode())
+                entities.append(await self._generate_llm_episode())  # noqa: PERF401
         elif entity_type == "task":
             for _ in range(count):
-                entities.append(await self._generate_llm_task(None))
+                entities.append(await self._generate_llm_task(None))  # noqa: PERF401
         else:
             # Fallback to template generator for other types
             entities = await self._template_gen.generate_batch(count, entity_type)

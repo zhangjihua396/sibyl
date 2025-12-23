@@ -41,7 +41,7 @@ class ToolTestContext:
         self._patches: list[Any] = []
 
     @asynccontextmanager
-    async def patch(self) -> AsyncGenerator["ToolTestContext", None]:
+    async def patch(self) -> AsyncGenerator["ToolTestContext"]:
         """Context manager that patches all tool dependencies.
 
         Patches:
@@ -97,7 +97,7 @@ class ToolTestContext:
 
 
 @asynccontextmanager
-async def mock_tools() -> AsyncGenerator[ToolTestContext, None]:
+async def mock_tools() -> AsyncGenerator[ToolTestContext]:
     """Convenience context manager for tool testing.
 
     Example:
@@ -111,7 +111,7 @@ async def mock_tools() -> AsyncGenerator[ToolTestContext, None]:
 
 
 @asynccontextmanager
-async def mock_graph_connected() -> AsyncGenerator[MockGraphClient, None]:
+async def mock_graph_connected() -> AsyncGenerator[MockGraphClient]:
     """Simple context manager that mocks only the graph client.
 
     Useful for testing connection-dependent code paths.
@@ -130,7 +130,7 @@ async def mock_graph_connected() -> AsyncGenerator[MockGraphClient, None]:
 
 
 @asynccontextmanager
-async def mock_graph_disconnected() -> AsyncGenerator[MockGraphClient, None]:
+async def mock_graph_disconnected() -> AsyncGenerator[MockGraphClient]:
     """Context manager that simulates disconnected graph.
 
     Useful for testing error handling.

@@ -36,7 +36,7 @@ log = structlog.get_logger()
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
+async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Pre-warm graph client on startup for fast first requests."""
     log.info("Pre-warming graph client connection...")
     try:

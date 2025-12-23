@@ -81,7 +81,7 @@ def generate_realistic(  # noqa: PLR0915 - complex CLI command
         return
 
     @run_async
-    async def _generate() -> None:  # noqa: PLR0915 - complex CLI logic
+    async def _generate() -> None:
         from sibyl.generator.config import GeneratorConfig, ModelType
         from sibyl.generator.llm import LLMContentGenerator
         from sibyl.generator.relationships import RelationshipWeaver

@@ -53,7 +53,7 @@ def create_combined_app(host: str | None = None, port: int | None = None) -> Sta
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
-    async def lifespan(_app: Starlette) -> "AsyncGenerator[None, None]":
+    async def lifespan(_app: Starlette) -> "AsyncGenerator[None]":
         """Combined lifespan that initializes MCP session manager and background queue."""
         import asyncio
         import contextlib

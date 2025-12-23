@@ -47,21 +47,21 @@ class RelationshipBuilder:
 
     # Patterns for explicit relationships
     REQUIRES_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
-        re.compile(r"requires?\s+(\w+)", re.I),
-        re.compile(r"depends?\s+on\s+(\w+)", re.I),
-        re.compile(r"needs?\s+(\w+)", re.I),
+        re.compile(r"requires?\s+(\w+)", re.IGNORECASE),
+        re.compile(r"depends?\s+on\s+(\w+)", re.IGNORECASE),
+        re.compile(r"needs?\s+(\w+)", re.IGNORECASE),
     ]
 
     CONFLICTS_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
-        re.compile(r"conflicts?\s+with\s+(\w+)", re.I),
-        re.compile(r"incompatible\s+with\s+(\w+)", re.I),
-        re.compile(r"don't\s+use\s+(?:with\s+)?(\w+)", re.I),
+        re.compile(r"conflicts?\s+with\s+(\w+)", re.IGNORECASE),
+        re.compile(r"incompatible\s+with\s+(\w+)", re.IGNORECASE),
+        re.compile(r"don't\s+use\s+(?:with\s+)?(\w+)", re.IGNORECASE),
     ]
 
     SUPERSEDES_PATTERNS: ClassVar[list[re.Pattern[str]]] = [
-        re.compile(r"supersedes?\s+(\w+)", re.I),
-        re.compile(r"replaces?\s+(\w+)", re.I),
-        re.compile(r"deprecated\s+in\s+favor\s+of\s+(\w+)", re.I),
+        re.compile(r"supersedes?\s+(\w+)", re.IGNORECASE),
+        re.compile(r"replaces?\s+(\w+)", re.IGNORECASE),
+        re.compile(r"deprecated\s+in\s+favor\s+of\s+(\w+)", re.IGNORECASE),
     ]
 
     def __init__(self) -> None:
@@ -101,17 +101,17 @@ class RelationshipBuilder:
                 continue
 
             # DOCUMENTED_IN relationships
-            for entity in ep_entities:
-                relationships.append(
-                    ExtractedRelationship(
-                        source_name=entity.name,
-                        target_name=episode.title,
-                        relation_type=RelationType.DOCUMENTED_IN,
-                        confidence=1.0,
-                        source_episode_id=ep_id,
-                        evidence=f"Entity '{entity.name}' extracted from episode '{episode.title}'",
-                    )
+            relationships.extend(
+                ExtractedRelationship(
+                    source_name=entity.name,
+                    target_name=episode.title,
+                    relation_type=RelationType.DOCUMENTED_IN,
+                    confidence=1.0,
+                    source_episode_id=ep_id,
+                    evidence=f"Entity '{entity.name}' extracted from episode '{episode.title}'",
                 )
+                for entity in ep_entities
+            )
 
             # APPLIES_TO relationships (patterns/rules to languages)
             languages = [e for e in ep_entities if e.entity_type.value == "language"]
@@ -121,35 +121,35 @@ class RelationshipBuilder:
                 if e.entity_type.value in ("pattern", "rule", "tip", "warning")
             ]
 
-            for pr in patterns_rules:
-                for lang in languages:
-                    relationships.append(
-                        ExtractedRelationship(
-                            source_name=pr.name,
-                            target_name=lang.name,
-                            relation_type=RelationType.APPLIES_TO,
-                            confidence=0.8,
-                            source_episode_id=ep_id,
-                            evidence=f"'{pr.name}' co-occurs with {lang.name} in '{episode.title}'",
-                        )
-                    )
+            relationships.extend(
+                ExtractedRelationship(
+                    source_name=pr.name,
+                    target_name=lang.name,
+                    relation_type=RelationType.APPLIES_TO,
+                    confidence=0.8,
+                    source_episode_id=ep_id,
+                    evidence=f"'{pr.name}' co-occurs with {lang.name} in '{episode.title}'",
+                )
+                for pr in patterns_rules
+                for lang in languages
+            )
 
             # ENABLES relationships (tools to patterns)
             tools = [e for e in ep_entities if e.entity_type.value == "tool"]
             patterns = [e for e in ep_entities if e.entity_type.value in ("pattern", "tip")]
 
-            for tool in tools:
-                for pattern in patterns:
-                    relationships.append(
-                        ExtractedRelationship(
-                            source_name=tool.name,
-                            target_name=pattern.name,
-                            relation_type=RelationType.ENABLES,
-                            confidence=0.6,
-                            source_episode_id=ep_id,
-                            evidence=f"Tool '{tool.name}' mentioned with pattern in '{episode.title}'",
-                        )
-                    )
+            relationships.extend(
+                ExtractedRelationship(
+                    source_name=tool.name,
+                    target_name=pattern.name,
+                    relation_type=RelationType.ENABLES,
+                    confidence=0.6,
+                    source_episode_id=ep_id,
+                    evidence=f"Tool '{tool.name}' mentioned with pattern in '{episode.title}'",
+                )
+                for tool in tools
+                for pattern in patterns
+            )
 
         # Extract explicit relationships from text
         for episode in episodes:

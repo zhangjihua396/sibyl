@@ -151,11 +151,11 @@ def retry(
     return decorator
 
 
-async def with_timeout(
-    coro: Awaitable[T],
+async def with_timeout[R](
+    coro: Awaitable[R],
     timeout_seconds: float,
     operation_name: str = "operation",
-) -> T:
+) -> R:
     """Execute a coroutine with a timeout.
 
     Args:

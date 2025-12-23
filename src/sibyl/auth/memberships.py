@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Self
-from uuid import UUID
+from typing import TYPE_CHECKING, Self
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import func
 from sqlmodel import select
 
 from sibyl.db.models import OrganizationMember, OrganizationRole
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class OrganizationMembershipManager:

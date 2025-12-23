@@ -9,11 +9,13 @@ This produces a unified ranking that balances results from different sources.
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
 
 import structlog
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = structlog.get_logger()
 

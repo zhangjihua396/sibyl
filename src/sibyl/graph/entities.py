@@ -6,7 +6,7 @@ All graph operations go through EntityNode/EpisodicNode rather than raw Cypher.
 
 import re
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import structlog
 from graphiti_core.nodes import EntityNode, EpisodicNode
@@ -17,9 +17,6 @@ from sibyl.graph.client import GraphClient
 from sibyl.models.entities import Entity, EntityType
 from sibyl.models.sources import Community, Document, Source
 from sibyl.models.tasks import ErrorPattern, Milestone, Project, Task, Team
-
-if TYPE_CHECKING:
-    pass  # GraphClient imported above for normalize_result
 
 log = structlog.get_logger()
 
@@ -362,16 +359,17 @@ class EntityManager:
             # Any non-core fields should be preserved in metadata so filters can read them
             # Exclude embedding - it's stored as a direct node property, not in metadata
             # (embeddings in metadata bloat Graphiti's LLM context ~30KB per entity)
-            for key, value in updates.items():
-                if key not in {
-                    "name",
-                    "description",
-                    "content",
-                    "metadata",
-                    "source_file",
-                    "embedding",
-                }:
-                    merged_metadata[key] = value
+            excluded_keys = {
+                "name",
+                "description",
+                "content",
+                "metadata",
+                "source_file",
+                "embedding",
+            }
+            merged_metadata.update(
+                {key: value for key, value in updates.items() if key not in excluded_keys}
+            )
 
             # Collect all properties, preserving existing values when not updated
             updated_entity = Entity(
@@ -598,7 +596,7 @@ class EntityManager:
             return value
         if isinstance(value, str):
             try:
-                return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                return datetime.fromisoformat(value)
             except ValueError:
                 return None
         return None
@@ -865,7 +863,7 @@ class EntityManager:
 
         return "\n".join(parts)
 
-    def _format_specialized_fields(  # noqa: PLR0915
+    def _format_specialized_fields(
         self,
         entity: Entity,
         sanitize: Any,

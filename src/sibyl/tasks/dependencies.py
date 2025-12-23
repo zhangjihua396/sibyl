@@ -1,15 +1,11 @@
 """Task dependency detection and cycle checking."""
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
 
 import structlog
 
 from sibyl.graph.client import GraphClient
 from sibyl.models.tasks import TaskStatus
-
-if TYPE_CHECKING:
-    pass  # GraphClient imported above for runtime use
 
 log = structlog.get_logger()
 

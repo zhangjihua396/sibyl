@@ -31,8 +31,7 @@ app = typer.Typer(help="Authentication and credentials")
 def _issuer_url_from_api_url(api_url: str) -> str:
     parts = urlsplit(api_url)
     path = parts.path.rstrip("/")
-    if path.endswith("/api"):
-        path = path[: -len("/api")]
+    path = path.removesuffix("/api")
     return urlunsplit((parts.scheme, parts.netloc, path, "", ""))
 
 
@@ -68,7 +67,7 @@ def _start_callback_server() -> tuple[HTTPServer, str, threading.Event, dict[str
     done = threading.Event()
 
     class CallbackHandler(BaseHTTPRequestHandler):
-        def log_message(self, format: str, *args: object) -> None:
+        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
             _ = format, args  # Suppress logging
 
         def do_GET(self) -> None:
@@ -290,7 +289,7 @@ def _oauth_pkce_login(
     )
 
     if no_browser:
-        print(auth_url)  # noqa: T201
+        print(auth_url)
     else:
         webbrowser.open(auth_url, new=1, autoraise=True)
 
@@ -352,7 +351,7 @@ def _login_via_device_flow(*, api_url: str, no_browser: bool, timeout_seconds: i
 
     info(f"User code: {user_code}")
     if no_browser:
-        print(verify)  # noqa: T201
+        print(verify)
     else:
         webbrowser.open(verify, new=1, autoraise=True)
         info(f"Opened browser to approve: {verify}")

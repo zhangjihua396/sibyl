@@ -5,13 +5,15 @@ Stores a minimal, append-only trail in Postgres for security + debugging.
 
 from __future__ import annotations
 
-from typing import Any
-from uuid import UUID
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
 from sibyl.db.models import AuditLog
+
+if TYPE_CHECKING:
+    from uuid import UUID
 
 
 class AuditLogger:

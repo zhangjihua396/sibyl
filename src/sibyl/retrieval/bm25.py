@@ -9,11 +9,13 @@ from __future__ import annotations
 import math
 import re
 from collections import defaultdict
-from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import structlog
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 log = structlog.get_logger()
 

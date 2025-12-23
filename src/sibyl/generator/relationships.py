@@ -234,19 +234,19 @@ class RelationshipWeaver:
             num_refs = min(self.rng.randint(1, 2), len(matching_patterns))
             refs = self.rng.sample(matching_patterns, num_refs)
 
-            for pattern in refs:
-                relationships.append(
-                    Relationship(
-                        id=self._next_id(),
-                        source_id=task.id,
-                        target_id=pattern.id,
-                        relationship_type=RelationshipType.RELATED_TO,
-                        metadata={
-                            "_generated": True,
-                            "context": "implementation",
-                        },
-                    )
+            relationships.extend(
+                Relationship(
+                    id=self._next_id(),
+                    source_id=task.id,
+                    target_id=pattern.id,
+                    relationship_type=RelationshipType.RELATED_TO,
+                    metadata={
+                        "_generated": True,
+                        "context": "implementation",
+                    },
                 )
+                for pattern in refs
+            )
 
         return relationships
 
@@ -266,26 +266,26 @@ class RelationshipWeaver:
             num_sources = min(self.rng.randint(1, 3), len(tasks))
             source_tasks = self.rng.sample(tasks, num_sources)
 
-            for task in source_tasks:
-                relationships.append(
-                    Relationship(
-                        id=self._next_id(),
-                        source_id=episode.id,
-                        target_id=task.id,
-                        relationship_type=RelationshipType.DERIVED_FROM,
-                        metadata={
-                            "_generated": True,
-                            "learning_type": self.rng.choice(
-                                [
-                                    "implementation",
-                                    "debugging",
-                                    "review",
-                                    "retrospective",
-                                ]
-                            ),
-                        },
-                    )
+            relationships.extend(
+                Relationship(
+                    id=self._next_id(),
+                    source_id=episode.id,
+                    target_id=task.id,
+                    relationship_type=RelationshipType.DERIVED_FROM,
+                    metadata={
+                        "_generated": True,
+                        "learning_type": self.rng.choice(
+                            [
+                                "implementation",
+                                "debugging",
+                                "review",
+                                "retrospective",
+                            ]
+                        ),
+                    },
                 )
+                for task in source_tasks
+            )
 
         return relationships
 
@@ -312,20 +312,20 @@ class RelationshipWeaver:
                 # Pick a random pattern
                 matching_patterns = [self.rng.choice(patterns)]
 
-            for pattern in matching_patterns:
-                relationships.append(
-                    Relationship(
-                        id=self._next_id(),
-                        source_id=rule.id,
-                        target_id=pattern.id,
-                        relationship_type=RelationshipType.ENABLES,
-                        metadata={
-                            "_generated": True,
-                            "severity": rule.metadata.get("severity", "warning")
-                            if rule.metadata
-                            else "warning",
-                        },
-                    )
+            relationships.extend(
+                Relationship(
+                    id=self._next_id(),
+                    source_id=rule.id,
+                    target_id=pattern.id,
+                    relationship_type=RelationshipType.ENABLES,
+                    metadata={
+                        "_generated": True,
+                        "severity": rule.metadata.get("severity", "warning")
+                        if rule.metadata
+                        else "warning",
+                    },
                 )
+                for pattern in matching_patterns
+            )
 
         return relationships

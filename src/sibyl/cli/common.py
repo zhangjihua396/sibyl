@@ -6,7 +6,6 @@ SilkCircuit Design Language for consistent terminal output.
 import asyncio
 from collections.abc import Awaitable, Callable
 from functools import wraps
-from typing import ParamSpec, TypeVar
 
 from rich.console import Console
 from rich.panel import Panel
@@ -49,12 +48,7 @@ def print_json(data: object) -> None:
     import json
 
     clean_data = _strip_embeddings(data)
-    print(json.dumps(clean_data, indent=2, default=str, ensure_ascii=False))  # noqa: T201
-
-
-# Type vars for async decorator
-P = ParamSpec("P")
-R = TypeVar("R")
+    print(json.dumps(clean_data, indent=2, default=str, ensure_ascii=False))
 
 
 def styled_header(text: str) -> Text:
@@ -133,7 +127,7 @@ def spinner(_description: str = "") -> Progress:
     )
 
 
-def run_async(func: Callable[P, Awaitable[R]]) -> Callable[P, R]:
+def run_async[**P, R](func: Callable[P, Awaitable[R]]) -> Callable[P, R]:
     """Decorator to run async functions in sync context (for Typer commands)."""
 
     @wraps(func)

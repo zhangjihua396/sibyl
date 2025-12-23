@@ -7,15 +7,11 @@ Replaces the previous 18+ specific tools with a generic interface.
 import hashlib
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 import structlog
 
 from sibyl.graph.client import GraphClient, get_graph_client
-
-if TYPE_CHECKING:
-    pass  # GraphClient imported above
-
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, Episode, Pattern, Relationship, RelationshipType
@@ -358,7 +354,7 @@ def auto_tag_task(
                 tags.add(normalized)
 
     # Check existing project tags first - prefer consistency
-    for existing_lower, original in existing_tags.items():
+    for existing_lower in existing_tags:
         # Check if existing tag appears in text
         if existing_lower in text:
             tags.add(existing_lower)
@@ -765,7 +761,7 @@ async def search(  # noqa: PLR0915
             since_date = None
             if since:
                 try:
-                    since_date = datetime.fromisoformat(since.replace("Z", "+00:00"))
+                    since_date = datetime.fromisoformat(since)
                 except ValueError:
                     log.warning("invalid_since_date", since=since)
 
@@ -852,9 +848,7 @@ async def search(  # noqa: PLR0915
                     if entity_created:
                         try:
                             if isinstance(entity_created, str):
-                                entity_created = datetime.fromisoformat(
-                                    entity_created.replace("Z", "+00:00")
-                                )
+                                entity_created = datetime.fromisoformat(entity_created)
                             if entity_created < since_date:
                                 continue
                         except (ValueError, TypeError):
@@ -1073,11 +1067,9 @@ async def _explore_list(
     entity_manager = EntityManager(client, group_id=group_id)
 
     # Default to listing all types if none specified
-    target_types = []
+    target_types: list[EntityType] = []
     if types:
-        for t in types:
-            if t.lower() in VALID_ENTITY_TYPES:
-                target_types.append(EntityType(t.lower()))
+        target_types = [EntityType(t.lower()) for t in types if t.lower() in VALID_ENTITY_TYPES]
     else:
         # Default to common browsable types
         target_types = [
@@ -1130,17 +1122,16 @@ async def _explore_list(
     has_more = actual_total > limit
 
     # Build result summaries (limited)
-    results = []
-    for entity in filtered_entities[:limit]:
-        results.append(
-            EntitySummary(
-                id=entity.id,
-                type=entity.entity_type.value,
-                name=entity.name,
-                description=entity.description[:200] if entity.description else "",
-                metadata=_build_entity_metadata(entity),
-            )
+    results = [
+        EntitySummary(
+            id=entity.id,
+            type=entity.entity_type.value,
+            name=entity.name,
+            description=entity.description[:200] if entity.description else "",
+            metadata=_build_entity_metadata(entity),
         )
+        for entity in filtered_entities[:limit]
+    ]
 
     return ExploreResponse(
         mode="list",
@@ -1497,7 +1488,7 @@ async def add(  # noqa: PLR0915
             parsed_due_date = None
             if due_date:
                 try:
-                    parsed_due_date = datetime.fromisoformat(due_date.replace("Z", "+00:00"))
+                    parsed_due_date = datetime.fromisoformat(due_date)
                 except ValueError:
                     log.warning("invalid_due_date", due_date=due_date)
 

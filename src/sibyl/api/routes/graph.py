@@ -209,20 +209,17 @@ async def get_all_edges(
             limit=limit,
         )
 
-        edges = []
-        for rel in all_relationships:
-            edges.append(
-                GraphEdge(
-                    id=rel.id,
-                    source=rel.source_id,
-                    target=rel.target_id,
-                    type=rel.relationship_type.value,
-                    label=rel.relationship_type.value.replace("_", " ").title(),
-                    weight=1.0,  # Could be based on strength/confidence
-                )
+        return [
+            GraphEdge(
+                id=rel.id,
+                source=rel.source_id,
+                target=rel.target_id,
+                type=rel.relationship_type.value,
+                label=rel.relationship_type.value.replace("_", " ").title(),
+                weight=1.0,  # Could be based on strength/confidence
             )
-
-        return edges
+            for rel in all_relationships
+        ]
 
     except Exception as e:
         log.exception("get_edges_failed", error=str(e))

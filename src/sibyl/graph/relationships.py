@@ -7,7 +7,6 @@ using Graphiti's native edge system rather than custom Cypher queries.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import structlog
@@ -16,9 +15,6 @@ from graphiti_core.edges import EntityEdge
 from sibyl.errors import ConventionsMCPError
 from sibyl.graph.client import GraphClient
 from sibyl.models.entities import Entity, Relationship, RelationshipType
-
-if TYPE_CHECKING:
-    pass  # GraphClient imported above for normalize_result
 
 log = structlog.get_logger()
 

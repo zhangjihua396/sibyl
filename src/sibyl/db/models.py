@@ -13,7 +13,7 @@ Architecture:
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID, uuid4
 
 from pgvector.sqlalchemy import Vector
@@ -21,9 +21,6 @@ from pydantic import field_validator
 from sqlalchemy import ARRAY, Column, DateTime, Enum, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
-
-if TYPE_CHECKING:
-    pass
 
 
 def utcnow_naive() -> datetime:

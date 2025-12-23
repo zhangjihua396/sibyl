@@ -156,7 +156,7 @@ class DocumentChunker:
 
         return chunks
 
-    def _chunk_semantic(self, content: str) -> list[dict]:  # noqa: PLR0915
+    def _chunk_semantic(self, content: str) -> list[dict]:
         """Chunk content on semantic boundaries.
 
         Splits on:
