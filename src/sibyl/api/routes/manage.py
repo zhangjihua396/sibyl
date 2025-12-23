@@ -7,11 +7,26 @@ from dataclasses import asdict
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from sibyl.auth.dependencies import require_org_role
+from sibyl.db.models import OrganizationRole
+
 log = structlog.get_logger()
-router = APIRouter(prefix="/manage", tags=["manage"])
+router = APIRouter(
+    prefix="/manage",
+    tags=["manage"],
+    dependencies=[
+        Depends(
+            require_org_role(
+                OrganizationRole.OWNER,
+                OrganizationRole.ADMIN,
+                OrganizationRole.MEMBER,
+            )
+        ),
+    ],
+)
 
 
 class ManageRequest(BaseModel):

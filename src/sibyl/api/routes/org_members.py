@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from sibyl.auth.audit import AuditLogger
 from sibyl.auth.dependencies import get_current_user
 from sibyl.auth.memberships import OrganizationMembershipManager
 from sibyl.auth.organizations import OrganizationManager
@@ -74,6 +75,7 @@ async def list_members(
 
 @router.post("")
 async def add_member(
+    request: Request,
     slug: str,
     body: MemberAddRequest,
     user: User = Depends(get_current_user),
@@ -88,11 +90,19 @@ async def add_member(
         user_id=body.user_id,
         role=body.role,
     )
+    await AuditLogger(session).log(
+        action="org.member.add",
+        user_id=user.id,
+        organization_id=org_id,
+        request=request,
+        details={"target_user_id": str(membership.user_id), "role": membership.role.value},
+    )
     return {"user_id": str(membership.user_id), "role": membership.role.value}
 
 
 @router.patch("/{user_id}")
 async def update_member_role(
+    request: Request,
     slug: str,
     user_id: UUID,
     body: MemberRoleUpdateRequest,
@@ -108,11 +118,19 @@ async def update_member_role(
         user_id=user_id,
         role=body.role,
     )
+    await AuditLogger(session).log(
+        action="org.member.update_role",
+        user_id=user.id,
+        organization_id=org_id,
+        request=request,
+        details={"target_user_id": str(membership.user_id), "role": membership.role.value},
+    )
     return {"user_id": str(membership.user_id), "role": membership.role.value}
 
 
 @router.delete("/{user_id}")
 async def remove_member(
+    request: Request,
     slug: str,
     user_id: UUID,
     user: User = Depends(get_current_user),
@@ -132,4 +150,11 @@ async def remove_member(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
+    await AuditLogger(session).log(
+        action="org.member.remove",
+        user_id=user.id,
+        organization_id=org_id,
+        request=request,
+        details={"target_user_id": str(user_id)},
+    )
     return {"success": True}

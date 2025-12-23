@@ -26,6 +26,7 @@ from sibyl.api.routes import (
     rag_router,
     search_router,
     tasks_router,
+    users_router,
 )
 from sibyl.api.websocket import websocket_handler
 from sibyl.auth.middleware import AuthMiddleware
@@ -95,6 +96,7 @@ def create_api_app() -> FastAPI:
     app.include_router(rag_router)
     app.include_router(jobs_router)
     app.include_router(manage_router)
+    app.include_router(users_router)
 
     # WebSocket route for realtime updates
     app.routes.append(WebSocketRoute("/ws", websocket_handler, name="websocket"))

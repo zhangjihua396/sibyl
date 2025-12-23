@@ -7,17 +7,32 @@ merging results by relevance score.
 from dataclasses import asdict
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
 from sibyl.api.schemas import ExploreRequest, ExploreResponse, SearchRequest, SearchResponse
-from sibyl.auth.tenancy import resolve_group_id
+from sibyl.auth.dependencies import get_current_organization, require_org_role
+from sibyl.db.models import Organization, OrganizationRole
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/search", tags=["search"])
+_READ_ROLES = (
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+    OrganizationRole.VIEWER,
+)
+
+router = APIRouter(
+    prefix="/search",
+    tags=["search"],
+    dependencies=[Depends(require_org_role(*_READ_ROLES))],
+)
 
 
 @router.post("", response_model=SearchResponse)
-async def search(http_request: Request, request: SearchRequest) -> SearchResponse:
+async def search(
+    request: SearchRequest,
+    org: Organization = Depends(get_current_organization),
+) -> SearchResponse:
     """Unified semantic search across knowledge graph AND documentation.
 
     Searches both Sibyl's knowledge graph (patterns, rules, episodes, tasks)
@@ -32,7 +47,7 @@ async def search(http_request: Request, request: SearchRequest) -> SearchRespons
     try:
         from sibyl.tools.core import search as core_search
 
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         result = await core_search(
             query=request.query,
             types=request.types,
@@ -62,12 +77,15 @@ async def search(http_request: Request, request: SearchRequest) -> SearchRespons
 
 
 @router.post("/explore", response_model=ExploreResponse)
-async def explore(http_request: Request, request: ExploreRequest) -> ExploreResponse:
+async def explore(
+    request: ExploreRequest,
+    org: Organization = Depends(get_current_organization),
+) -> ExploreResponse:
     """Explore and traverse the knowledge graph."""
     try:
         from sibyl.tools.core import explore as core_explore
 
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         result = await core_explore(
             mode=request.mode,
             types=request.types,

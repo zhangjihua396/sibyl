@@ -1,24 +1,40 @@
 """Graph visualization data endpoints."""
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sibyl.api.schemas import GraphData, GraphEdge, GraphNode, SubgraphRequest
-from sibyl.auth.tenancy import resolve_group_id
+from sibyl.auth.dependencies import get_current_organization, require_org_role
+from sibyl.db.models import Organization, OrganizationRole
 from sibyl.graph.client import GraphClient, get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, RelationshipType
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/graph", tags=["graph"])
+_READ_ROLES = (
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+    OrganizationRole.VIEWER,
+)
+_ADMIN_ROLES = (
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+)
+
+router = APIRouter(
+    prefix="/graph",
+    tags=["graph"],
+    dependencies=[Depends(require_org_role(*_READ_ROLES))],
+)
 
 
-@router.get("/debug")
-async def debug_graph(request: Request):
+@router.get("/debug", dependencies=[Depends(require_org_role(*_ADMIN_ROLES))])
+async def debug_graph(org: Organization = Depends(get_current_organization)):
     """Debug endpoint to trace graph data issue."""
     client = await get_graph_client()
-    group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+    group_id = str(org.id)
 
     # Get nodes
     node_query = """
@@ -86,7 +102,7 @@ def get_entity_color(entity_type: EntityType) -> str:
 
 @router.get("/nodes", response_model=list[GraphNode])
 async def get_all_nodes(
-    request: Request,
+    org: Organization = Depends(get_current_organization),
     types: list[EntityType] | None = Query(default=None, description="Filter by entity types"),
     limit: int = Query(default=500, ge=1, le=2000, description="Maximum nodes"),
 ) -> list[GraphNode]:
@@ -95,7 +111,7 @@ async def get_all_nodes(
     Queries the graph directly to get actual node UUIDs that match edge references.
     """
     try:
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
 
         # Build type filter for Cypher query
@@ -175,7 +191,7 @@ async def get_all_nodes(
 
 @router.get("/edges", response_model=list[GraphEdge])
 async def get_all_edges(
-    request: Request,
+    org: Organization = Depends(get_current_organization),
     relationship_types: list[RelationshipType] | None = Query(
         default=None, description="Filter by relationship types"
     ),
@@ -183,7 +199,7 @@ async def get_all_edges(
 ) -> list[GraphEdge]:
     """Get all edges for graph visualization."""
     try:
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         relationship_manager = RelationshipManager(client, group_id=group_id)
 
@@ -215,7 +231,7 @@ async def get_all_edges(
 
 @router.get("/full", response_model=GraphData)
 async def get_full_graph(
-    request: Request,
+    org: Organization = Depends(get_current_organization),
     types: list[EntityType] | None = Query(default=None, description="Filter by entity types"),
     max_nodes: int = Query(default=500, ge=1, le=1000, description="Maximum nodes"),
     max_edges: int = Query(default=1000, ge=1, le=5000, description="Maximum edges"),
@@ -224,7 +240,7 @@ async def get_full_graph(
     try:
         # Fetch nodes and edges - call underlying logic directly
         client = await get_graph_client()
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
 
         # === NODES: Direct Cypher query ===
         type_filter = ""
@@ -324,11 +340,14 @@ async def get_full_graph(
 
 
 @router.post("/subgraph", response_model=GraphData)
-async def get_subgraph(http_request: Request, payload: SubgraphRequest) -> GraphData:
+async def get_subgraph(
+    payload: SubgraphRequest,
+    org: Organization = Depends(get_current_organization),
+) -> GraphData:
     """Get a subgraph centered on a specific entity."""
     try:
         client = await get_graph_client()
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
 

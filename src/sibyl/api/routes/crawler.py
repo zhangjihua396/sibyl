@@ -14,7 +14,7 @@ from uuid import UUID
 
 import httpx
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlmodel import col
 
@@ -33,6 +33,7 @@ from sibyl.api.schemas import (
     LinkGraphStatusResponse,
 )
 from sibyl.api.websocket import broadcast_event
+from sibyl.auth.dependencies import require_org_role
 from sibyl.db import (
     CrawledDocument,
     CrawlSource,
@@ -42,10 +43,22 @@ from sibyl.db import (
     check_postgres_health,
     get_session,
 )
-from sibyl.db.models import utcnow_naive
+from sibyl.db.models import OrganizationRole, utcnow_naive
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/sources", tags=["sources"])
+router = APIRouter(
+    prefix="/sources",
+    tags=["sources"],
+    dependencies=[
+        Depends(
+            require_org_role(
+                OrganizationRole.OWNER,
+                OrganizationRole.ADMIN,
+                OrganizationRole.MEMBER,
+            )
+        ),
+    ],
+)
 
 
 def _source_to_response(source: CrawlSource) -> CrawlSourceResponse:

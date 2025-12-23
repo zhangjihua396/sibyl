@@ -15,6 +15,7 @@ from sqlmodel import select
 
 from sibyl import config as config_module
 from sibyl.auth.api_keys import ApiKeyManager
+from sibyl.auth.audit import AuditLogger
 from sibyl.auth.context import AuthContext
 from sibyl.auth.dependencies import (
     get_auth_context,
@@ -48,6 +49,14 @@ OAUTH_STATE_COOKIE = "sibyl_oauth_state"
 class ApiKeyCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     live: bool = Field(default=True, description="Use sk_live_ prefix (true) or sk_test_ (false)")
+
+
+class MeUpdateRequest(BaseModel):
+    email: str | None = Field(default=None, max_length=255)
+    name: str | None = Field(default=None, max_length=255)
+    avatar_url: str | None = Field(default=None, max_length=2048)
+    current_password: str | None = Field(default=None, min_length=1)
+    new_password: str | None = Field(default=None, min_length=8)
 
 
 def _cookie_secure() -> bool:
@@ -279,6 +288,13 @@ async def github_callback(
     )
 
     token = create_access_token(user_id=user.id, organization_id=org.id)
+    await AuditLogger(session).log(
+        action="auth.github.login",
+        user_id=user.id,
+        organization_id=org.id,
+        request=request,
+        details={"github_id": user.github_id, "email": user.email},
+    )
 
     response = RedirectResponse(url=_frontend_redirect(request), status_code=status.HTTP_302_FOUND)
     response.set_cookie(
@@ -328,6 +344,13 @@ async def local_signup(
     )
 
     token = create_access_token(user_id=user.id, organization_id=org.id)
+    await AuditLogger(session).log(
+        action="auth.local.signup",
+        user_id=user.id,
+        organization_id=org.id,
+        request=request,
+        details={"email": user.email},
+    )
 
     redirect = _safe_frontend_redirect(body.redirect or request.query_params.get("redirect"))
     response: Response
@@ -381,6 +404,13 @@ async def local_login(
     )
 
     token = create_access_token(user_id=user.id, organization_id=org.id)
+    await AuditLogger(session).log(
+        action="auth.local.login",
+        user_id=user.id,
+        organization_id=org.id,
+        request=request,
+        details={"email": user.email},
+    )
 
     redirect = _safe_frontend_redirect(body.redirect or request.query_params.get("redirect"))
     response: Response
@@ -654,6 +684,13 @@ async def device_verify_post(
             role=OrganizationRole.OWNER,
         )
         token = create_access_token(user_id=user.id, organization_id=org.id)
+        await AuditLogger(session).log(
+            action="auth.device.local_login",
+            user_id=user.id,
+            organization_id=org.id,
+            request=request,
+            details={"email": user.email},
+        )
 
         response = RedirectResponse(url=verify_url, status_code=302)
         response.set_cookie(
@@ -692,6 +729,13 @@ async def device_verify_post(
 
     if action == "deny":
         await mgr.deny(req)
+        await AuditLogger(session).log(
+            action="auth.device.deny",
+            user_id=user.id,
+            organization_id=None,
+            request=request,
+            details={"device_request_id": str(req.id), "client_name": req.client_name},
+        )
         return HTMLResponse(
             "<h1>Denied</h1><p>You can close this tab and return to your terminal.</p>",
             status_code=200,
@@ -707,6 +751,13 @@ async def device_verify_post(
         role=OrganizationRole.OWNER,
     )
     await mgr.approve(req, user_id=user.id, organization_id=org.id)
+    await AuditLogger(session).log(
+        action="auth.device.approve",
+        user_id=user.id,
+        organization_id=org.id,
+        request=request,
+        details={"device_request_id": str(req.id), "client_name": req.client_name},
+    )
     return HTMLResponse(
         "<h1>Approved</h1><p>Device login approved. You can close this tab and return to your terminal.</p>",
         status_code=200,
@@ -714,7 +765,32 @@ async def device_verify_post(
 
 
 @router.post("/logout")
-async def logout() -> Response:
+async def logout(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> Response:
+    claims = await resolve_claims(request, session)
+    user_id: UUID | None = None
+    org_id: UUID | None = None
+    if claims:
+        try:
+            user_id = UUID(str(claims.get("sub", "")))
+        except ValueError:
+            user_id = None
+        try:
+            org_raw = claims.get("org")
+            org_id = UUID(str(org_raw)) if org_raw else None
+        except ValueError:
+            org_id = None
+
+    if user_id:
+        await AuditLogger(session).log(
+            action="auth.logout",
+            user_id=user_id,
+            organization_id=org_id,
+            request=request,
+            details={},
+        )
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(
         ACCESS_TOKEN_COOKIE, domain=config_module.settings.cookie_domain, path="/"
@@ -751,6 +827,7 @@ async def list_api_keys(
 
 @router.post("/api-keys")
 async def create_api_key(
+    request: Request,
     body: ApiKeyCreateRequest,
     ctx: AuthContext = Depends(get_auth_context),
     _admin: None = Depends(require_org_admin()),
@@ -765,6 +842,13 @@ async def create_api_key(
         name=body.name,
         live=body.live,
     )
+    await AuditLogger(session).log(
+        action="auth.api_key.create",
+        user_id=ctx.user.id,
+        organization_id=ctx.organization.id,
+        request=request,
+        details={"api_key_id": str(record.id), "name": record.name, "prefix": record.key_prefix},
+    )
     return {
         "id": str(record.id),
         "name": record.name,
@@ -775,6 +859,7 @@ async def create_api_key(
 
 @router.post("/api-keys/{api_key_id}/revoke")
 async def revoke_api_key(
+    request: Request,
     api_key_id: UUID,
     ctx: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_session_dependency),
@@ -793,6 +878,13 @@ async def revoke_api_key(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
     await ApiKeyManager(session).revoke(api_key_id)
+    await AuditLogger(session).log(
+        action="auth.api_key.revoke",
+        user_id=ctx.user.id,
+        organization_id=ctx.organization.id,
+        request=request,
+        details={"api_key_id": str(api_key_id)},
+    )
     return {"success": True, "id": str(api_key_id)}
 
 
@@ -835,4 +927,80 @@ async def me(
         },
         "organization": ({"id": str(org.id), "slug": org.slug, "name": org.name} if org else None),
         "org_role": role,
+    }
+
+
+@router.patch("/me")
+async def update_me(
+    request: Request,
+    body: MeUpdateRequest,
+    user: User = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session_dependency),
+):
+    from sibyl.auth.users import PasswordChange
+
+    changes: list[str] = []
+    if body.email is not None:
+        changes.append("email")
+    if body.name is not None:
+        changes.append("name")
+    if body.avatar_url is not None:
+        changes.append("avatar_url")
+    if body.new_password is not None:
+        changes.append("password")
+    if not changes:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No fields to update")
+
+    manager = UserManager(session)
+    try:
+        await manager.update_profile(
+            user,
+            email=body.email,
+            name=body.name,
+            avatar_url=body.avatar_url,
+        )
+        if body.new_password is not None:
+            await manager.change_password(
+                user,
+                PasswordChange(
+                    current_password=body.current_password,
+                    new_password=body.new_password,
+                ),
+            )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    claims = await resolve_claims(request, session)
+    org_id: UUID | None = None
+    if claims and claims.get("org"):
+        try:
+            org_id = UUID(str(claims["org"]))
+        except ValueError:
+            org_id = None
+
+    if any(c != "password" for c in changes):
+        await AuditLogger(session).log(
+            action="user.update_profile",
+            user_id=user.id,
+            organization_id=org_id,
+            request=request,
+            details={"fields": [c for c in changes if c != "password"]},
+        )
+    if "password" in changes:
+        await AuditLogger(session).log(
+            action="user.change_password",
+            user_id=user.id,
+            organization_id=org_id,
+            request=request,
+            details={},
+        )
+
+    return {
+        "user": {
+            "id": str(user.id),
+            "github_id": user.github_id,
+            "email": user.email,
+            "name": user.name,
+            "avatar_url": user.avatar_url,
+        }
     }

@@ -4,4 +4,5 @@ export * from './mobile-nav-context';
 export * from './nav-link';
 export * from './org-switcher';
 export * from './page-header';
+export * from './settings-nav';
 export * from './sidebar';

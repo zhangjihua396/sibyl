@@ -74,6 +74,16 @@ class Settings(BaseSettings):
         description=("Require Bearer auth for MCP endpoints. auto=enforce when JWT secret is set."),
     )
 
+    # Email configuration (Resend)
+    resend_api_key: SecretStr = Field(
+        default=SecretStr(""),
+        description="Resend API key for transactional emails",
+    )
+    email_from: str = Field(
+        default="Sibyl <noreply@sibyl.dev>",
+        description="Default from address for emails",
+    )
+
     # FalkorDB configuration
     falkordb_host: str = Field(default="localhost", description="FalkorDB host")
     falkordb_port: int = Field(default=6380, description="FalkorDB port")

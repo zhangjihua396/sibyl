@@ -6,11 +6,12 @@ Dedicated endpoints for task lifecycle operations with proper event broadcasting
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from sibyl.api.websocket import broadcast_event
-from sibyl.auth.tenancy import resolve_group_id
+from sibyl.auth.dependencies import get_current_organization, require_org_role
+from sibyl.db.models import Organization, OrganizationRole
 from sibyl.errors import InvalidTransitionError
 from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
@@ -18,7 +19,17 @@ from sibyl.graph.relationships import RelationshipManager
 from sibyl.tasks.workflow import TaskWorkflowEngine
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+_WRITE_ROLES = (
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+)
+
+router = APIRouter(
+    prefix="/tasks",
+    tags=["tasks"],
+    dependencies=[Depends(require_org_role(*_WRITE_ROLES))],
+)
 
 
 # =============================================================================
@@ -99,13 +110,13 @@ async def _broadcast_task_update(task_id: str, action: str, data: dict[str, Any]
 
 @router.post("/{task_id}/start", response_model=TaskActionResponse)
 async def start_task(
-    http_request: Request,
     task_id: str,
+    org: Organization = Depends(get_current_organization),
     request: StartTaskRequest | None = None,
 ) -> TaskActionResponse:
     """Start working on a task (moves to 'doing' status)."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
@@ -137,11 +148,13 @@ async def start_task(
 
 @router.post("/{task_id}/block", response_model=TaskActionResponse)
 async def block_task(
-    http_request: Request, task_id: str, request: BlockTaskRequest
+    task_id: str,
+    request: BlockTaskRequest,
+    org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Mark a task as blocked with a reason."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
@@ -171,10 +184,13 @@ async def block_task(
 
 
 @router.post("/{task_id}/unblock", response_model=TaskActionResponse)
-async def unblock_task(http_request: Request, task_id: str) -> TaskActionResponse:
+async def unblock_task(
+    task_id: str,
+    org: Organization = Depends(get_current_organization),
+) -> TaskActionResponse:
     """Resume a blocked task (moves back to 'doing')."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
@@ -205,13 +221,13 @@ async def unblock_task(http_request: Request, task_id: str) -> TaskActionRespons
 
 @router.post("/{task_id}/review", response_model=TaskActionResponse)
 async def submit_review(
-    http_request: Request,
     task_id: str,
     request: ReviewTaskRequest | None = None,
+    org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Submit a task for review."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
@@ -244,13 +260,13 @@ async def submit_review(
 
 @router.post("/{task_id}/complete", response_model=TaskActionResponse)
 async def complete_task(
-    http_request: Request,
     task_id: str,
     request: CompleteTaskRequest | None = None,
+    org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Complete a task and optionally capture learnings."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
@@ -283,13 +299,13 @@ async def complete_task(
 
 @router.post("/{task_id}/archive", response_model=TaskActionResponse)
 async def archive_task(
-    http_request: Request,
     task_id: str,
     request: ArchiveTaskRequest | None = None,
+    org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Archive a task (terminal state)."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
@@ -321,11 +337,13 @@ async def archive_task(
 
 @router.patch("/{task_id}", response_model=TaskActionResponse)
 async def update_task(
-    http_request: Request, task_id: str, request: UpdateTaskRequest
+    task_id: str,
+    request: UpdateTaskRequest,
+    org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Update task fields directly."""
     try:
-        group_id = resolve_group_id(getattr(http_request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 

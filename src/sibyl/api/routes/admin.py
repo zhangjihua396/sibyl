@@ -4,13 +4,21 @@ import asyncio
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 
 from sibyl.api.schemas import HealthResponse, IngestRequest, IngestResponse, StatsResponse
 from sibyl.api.websocket import broadcast_event
+from sibyl.auth.dependencies import require_org_role
+from sibyl.db.models import OrganizationRole
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[
+        Depends(require_org_role(OrganizationRole.OWNER, OrganizationRole.ADMIN)),
+    ],
+)
 
 
 @router.get("/health", response_model=HealthResponse)

@@ -24,6 +24,7 @@ from sibyl.db.connection import (
 )
 from sibyl.db.models import (
     ApiKey,
+    AuditLog,
     ChunkType,
     CrawledDocument,
     CrawlSource,
@@ -47,6 +48,7 @@ __all__ = [
     "check_postgres_health",
     # Models
     "ApiKey",
+    "AuditLog",
     "CrawlSource",
     "CrawledDocument",
     "DocumentChunk",

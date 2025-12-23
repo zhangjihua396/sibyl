@@ -7,7 +7,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sibyl.api.schemas import (
     EntityCreate,
@@ -16,13 +17,33 @@ from sibyl.api.schemas import (
     EntityUpdate,
 )
 from sibyl.api.websocket import broadcast_event
-from sibyl.auth.tenancy import resolve_group_id
+from sibyl.auth.audit import AuditLogger
+from sibyl.auth.context import AuthContext
+from sibyl.auth.dependencies import get_auth_context, get_current_organization, require_org_role
+from sibyl.db.connection import get_session_dependency
+from sibyl.db.models import Organization, OrganizationRole
 from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.models.entities import EntityType
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/entities", tags=["entities"])
+_READ_ROLES = (
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+    OrganizationRole.VIEWER,
+)
+_WRITE_ROLES = (
+    OrganizationRole.OWNER,
+    OrganizationRole.ADMIN,
+    OrganizationRole.MEMBER,
+)
+
+router = APIRouter(
+    prefix="/entities",
+    tags=["entities"],
+    dependencies=[Depends(require_org_role(*_READ_ROLES))],
+)
 
 
 # =============================================================================
@@ -32,7 +53,7 @@ router = APIRouter(prefix="/entities", tags=["entities"])
 
 @router.get("", response_model=EntityListResponse)
 async def list_entities(
-    request: Request,
+    org: Organization = Depends(get_current_organization),
     entity_type: EntityType | None = Query(default=None, description="Filter by entity type"),
     language: str | None = Query(default=None, description="Filter by programming language"),
     category: str | None = Query(default=None, description="Filter by category"),
@@ -41,7 +62,7 @@ async def list_entities(
 ) -> EntityListResponse:
     """List entities with optional filters and pagination."""
     try:
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 
@@ -114,10 +135,13 @@ async def list_entities(
 
 
 @router.get("/{entity_id}", response_model=EntityResponse)
-async def get_entity(request: Request, entity_id: str) -> EntityResponse:
+async def get_entity(
+    entity_id: str,
+    org: Organization = Depends(get_current_organization),
+) -> EntityResponse:
     """Get a single entity by ID."""
     try:
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 
@@ -154,13 +178,24 @@ async def get_entity(request: Request, entity_id: str) -> EntityResponse:
 # =============================================================================
 
 
-@router.post("", response_model=EntityResponse, status_code=201)
-async def create_entity(request: Request, entity: EntityCreate) -> EntityResponse:
+@router.post(
+    "",
+    response_model=EntityResponse,
+    status_code=201,
+    dependencies=[Depends(require_org_role(*_WRITE_ROLES))],
+)
+async def create_entity(
+    request: Request,
+    entity: EntityCreate,
+    org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
+) -> EntityResponse:
     """Create a new entity."""
     try:
         from sibyl.tools.core import add
 
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
 
         # Extract task-specific fields from metadata if present
         project = entity.metadata.get("project_id") if entity.metadata else None
@@ -220,6 +255,15 @@ async def create_entity(request: Request, entity: EntityCreate) -> EntityRespons
         # Broadcast creation event
         await broadcast_event("entity_created", response.model_dump(mode="json"))
 
+        if created.entity_type == EntityType.PROJECT:
+            await AuditLogger(session).log(
+                action="project.create",
+                user_id=ctx.user.id,
+                organization_id=org.id,
+                request=request,
+                details={"project_id": created.id, "name": created.name},
+            )
+
         return response
 
     except HTTPException:
@@ -234,11 +278,22 @@ async def create_entity(request: Request, entity: EntityCreate) -> EntityRespons
 # =============================================================================
 
 
-@router.patch("/{entity_id}", response_model=EntityResponse)
-async def update_entity(request: Request, entity_id: str, update: EntityUpdate) -> EntityResponse:
+@router.patch(
+    "/{entity_id}",
+    response_model=EntityResponse,
+    dependencies=[Depends(require_org_role(*_WRITE_ROLES))],
+)
+async def update_entity(
+    entity_id: str,
+    update: EntityUpdate,
+    request: Request,
+    org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
+) -> EntityResponse:
     """Update an existing entity."""
     try:
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 
@@ -294,6 +349,15 @@ async def update_entity(request: Request, entity_id: str, update: EntityUpdate) 
         # Broadcast update event
         await broadcast_event("entity_updated", response.model_dump(mode="json"))
 
+        if existing.entity_type == EntityType.PROJECT:
+            await AuditLogger(session).log(
+                action="project.update",
+                user_id=ctx.user.id,
+                organization_id=org.id,
+                request=request,
+                details={"project_id": existing.id, "name": response.name},
+            )
+
         return response
 
     except HTTPException:
@@ -308,11 +372,21 @@ async def update_entity(request: Request, entity_id: str, update: EntityUpdate) 
 # =============================================================================
 
 
-@router.delete("/{entity_id}", status_code=204)
-async def delete_entity(request: Request, entity_id: str) -> None:
+@router.delete(
+    "/{entity_id}",
+    status_code=204,
+    dependencies=[Depends(require_org_role(*_WRITE_ROLES))],
+)
+async def delete_entity(
+    entity_id: str,
+    request: Request,
+    org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
+) -> None:
     """Delete an entity."""
     try:
-        group_id = resolve_group_id(getattr(request.state, "jwt_claims", None))
+        group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 
@@ -320,6 +394,15 @@ async def delete_entity(request: Request, entity_id: str) -> None:
         existing = await entity_manager.get(entity_id)
         if not existing:
             raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
+
+        if existing.entity_type == EntityType.PROJECT:
+            await AuditLogger(session).log(
+                action="project.delete",
+                user_id=ctx.user.id,
+                organization_id=org.id,
+                request=request,
+                details={"project_id": existing.id, "name": existing.name},
+            )
 
         # Delete
         success = await entity_manager.delete(entity_id)

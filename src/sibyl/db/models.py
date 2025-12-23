@@ -242,6 +242,53 @@ class ApiKey(TimestampMixin, table=True):
 
 
 # =============================================================================
+# Audit Logs - Immutable trail for sensitive actions
+# =============================================================================
+
+
+class AuditLog(TimestampMixin, table=True):
+    """Append-only audit event record."""
+
+    __tablename__ = "audit_logs"  # type: ignore[assignment]
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID | None = Field(
+        default=None,
+        foreign_key="organizations.id",
+        index=True,
+        description="Org context for the event (null for pre-auth events)",
+    )
+    user_id: UUID | None = Field(
+        default=None,
+        foreign_key="users.id",
+        index=True,
+        description="User who performed the action (null for unauthenticated)",
+    )
+
+    action: str = Field(
+        max_length=128,
+        index=True,
+        description="Machine-readable action name (e.g. auth.login, org.member.add)",
+    )
+    ip_address: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Client IP address (best-effort)",
+    )
+    user_agent: str | None = Field(
+        default=None,
+        max_length=512,
+        description="User-Agent header (best-effort)",
+    )
+
+    details: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB),
+        description="Arbitrary structured details (never secrets)",
+    )
+
+
+# =============================================================================
 # Org Invitations - Invite a user (by email) to an org
 # =============================================================================
 
@@ -326,6 +373,135 @@ class DeviceAuthorizationRequest(TimestampMixin, table=True):
 
     user_id: UUID | None = Field(default=None, foreign_key="users.id", index=True)
     organization_id: UUID | None = Field(default=None, foreign_key="organizations.id", index=True)
+
+
+# =============================================================================
+# OAuth Connections - Link/unlink OAuth providers
+# =============================================================================
+
+
+class OAuthConnection(TimestampMixin, table=True):
+    """OAuth provider connection for a user."""
+
+    __tablename__ = "oauth_connections"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_oauth_connections_provider_user", "provider", "provider_user_id", unique=True),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(foreign_key="users.id", index=True)
+
+    # Provider info
+    provider: str = Field(max_length=50, description="OAuth provider (github, google, etc.)")
+    provider_user_id: str = Field(max_length=255, description="User ID from provider")
+    provider_username: str | None = Field(
+        default=None, max_length=255, description="Username from provider"
+    )
+    provider_email: str | None = Field(
+        default=None, max_length=255, description="Email from provider"
+    )
+
+    # Tokens (encrypted at rest)
+    access_token_encrypted: str | None = Field(
+        default=None, sa_type=Text, description="Encrypted access token"
+    )
+    refresh_token_encrypted: str | None = Field(
+        default=None, sa_type=Text, description="Encrypted refresh token"
+    )
+    token_expires_at: datetime | None = Field(default=None, description="Token expiry")
+
+    # Scopes
+    scopes: list[str] = Field(
+        default_factory=list,
+        sa_type=ARRAY(String),
+        description="Granted OAuth scopes",
+    )
+
+    # Status
+    connected_at: datetime = Field(
+        default_factory=utcnow_naive, description="When connection was established"
+    )
+    disconnected_at: datetime | None = Field(default=None, description="When disconnected")
+    last_used_at: datetime | None = Field(default=None, description="Last used for auth")
+
+    user: User = Relationship()
+
+
+# =============================================================================
+# Teams - Teams within organizations
+# =============================================================================
+
+
+class TeamRole(StrEnum):
+    """Role of a user within a team."""
+
+    LEAD = "lead"
+    MEMBER = "member"
+    VIEWER = "viewer"
+
+
+class Team(TimestampMixin, table=True):
+    """A team within an organization."""
+
+    __tablename__ = "teams"  # type: ignore[assignment]
+    __table_args__ = (Index("ix_teams_org_slug_unique", "organization_id", "slug", unique=True),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(foreign_key="organizations.id", index=True)
+
+    # Team info
+    name: str = Field(max_length=255, description="Team display name")
+    slug: str = Field(max_length=64, description="URL-safe slug (unique per org)")
+    description: str | None = Field(default=None, sa_type=Text, description="Team description")
+    avatar_url: str | None = Field(default=None, max_length=2048, description="Team avatar URL")
+
+    # Settings
+    settings: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+        description="Team settings",
+    )
+    is_default: bool = Field(default=False, description="Default team for org members")
+
+    # Graph sync
+    graph_entity_id: str | None = Field(
+        default=None, max_length=64, description="Entity ID in knowledge graph"
+    )
+    last_synced_at: datetime | None = Field(default=None, description="Last graph sync")
+
+    organization: Organization = Relationship()
+    members: list["TeamMember"] = Relationship(
+        back_populates="team",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+
+class TeamMember(TimestampMixin, table=True):
+    """Membership record linking a user to a team."""
+
+    __tablename__ = "team_members"  # type: ignore[assignment]
+    __table_args__ = (Index("ix_team_members_team_user_unique", "team_id", "user_id", unique=True),)
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    team_id: UUID = Field(foreign_key="teams.id", index=True)
+    user_id: UUID = Field(foreign_key="users.id", index=True)
+
+    # Role
+    role: TeamRole = Field(
+        default=TeamRole.MEMBER,
+        sa_column=Column(
+            Enum(TeamRole, name="teamrole", values_callable=lambda enum: [e.value for e in enum]),
+            nullable=False,
+            server_default=text("'member'"),
+        ),
+        description="Team membership role",
+    )
+
+    # Timestamps
+    joined_at: datetime = Field(default_factory=utcnow_naive, description="When user joined team")
+
+    team: Team = Relationship(back_populates="members")
+    user: User = Relationship()
 
 
 # =============================================================================

@@ -9,10 +9,25 @@ Provides REST API for:
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+
+from sibyl.auth.dependencies import require_org_role
+from sibyl.db.models import OrganizationRole
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/jobs", tags=["jobs"])
+router = APIRouter(
+    prefix="/jobs",
+    tags=["jobs"],
+    dependencies=[
+        Depends(
+            require_org_role(
+                OrganizationRole.OWNER,
+                OrganizationRole.ADMIN,
+                OrganizationRole.MEMBER,
+            )
+        ),
+    ],
+)
 
 
 # IMPORTANT: Health endpoint must come before /{job_id} to avoid route matching issues

@@ -4,12 +4,13 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from sibyl import config as config_module
+from sibyl.auth.audit import AuditLogger
 from sibyl.auth.context import AuthContext
 from sibyl.auth.dependencies import get_auth_context, get_current_user
 from sibyl.auth.jwt import create_access_token
@@ -80,6 +81,7 @@ async def list_orgs(
 
 @router.post("")
 async def create_org(
+    request: Request,
     body: OrganizationCreateRequest,
     response: Response,
     user: User = Depends(get_current_user),
@@ -102,6 +104,13 @@ async def create_org(
     token = create_access_token(user_id=user.id, organization_id=org.id)
     response.status_code = status.HTTP_201_CREATED
     _set_access_cookie(response, token)
+    await AuditLogger(session).log(
+        action="org.create",
+        user_id=user.id,
+        organization_id=org.id,
+        request=request,
+        details={"slug": org.slug, "name": org.name},
+    )
     return {
         "organization": {"id": str(org.id), "slug": org.slug, "name": org.name},
         "access_token": token,
@@ -130,6 +139,7 @@ async def get_org(
 
 @router.patch("/{slug}")
 async def update_org(
+    request: Request,
     slug: str,
     body: OrganizationUpdateRequest,
     ctx: AuthContext = Depends(get_auth_context),
@@ -150,11 +160,19 @@ async def update_org(
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Slug already taken")
 
     updated = await OrganizationManager(session).update(org, name=body.name, slug=new_slug)
+    await AuditLogger(session).log(
+        action="org.update",
+        user_id=ctx.user.id,
+        organization_id=updated.id,
+        request=request,
+        details={"slug": slug, "new_slug": updated.slug, "name": updated.name},
+    )
     return {"organization": {"id": str(updated.id), "slug": updated.slug, "name": updated.name}}
 
 
 @router.delete("/{slug}")
 async def delete_org(
+    request: Request,
     slug: str,
     ctx: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_session_dependency),
@@ -172,12 +190,20 @@ async def delete_org(
     if member is None or member.role != OrganizationRole.OWNER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
+    await AuditLogger(session).log(
+        action="org.delete",
+        user_id=ctx.user.id,
+        organization_id=org.id,
+        request=request,
+        details={"slug": org.slug, "name": org.name},
+    )
     await OrganizationManager(session).delete(org)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.post("/{slug}/switch")
 async def switch_org(
+    request: Request,
     slug: str,
     response: Response,
     user: User = Depends(get_current_user),
@@ -193,6 +219,13 @@ async def switch_org(
 
     token = create_access_token(user_id=user.id, organization_id=org.id)
     _set_access_cookie(response, token)
+    await AuditLogger(session).log(
+        action="org.switch",
+        user_id=user.id,
+        organization_id=org.id,
+        request=request,
+        details={"slug": org.slug, "name": org.name},
+    )
     return {
         "organization": {"id": str(org.id), "slug": org.slug, "name": org.name},
         "access_token": token,

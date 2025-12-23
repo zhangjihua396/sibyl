@@ -13,7 +13,7 @@ import re
 from uuid import UUID
 
 import structlog
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, select
 from sqlmodel import col
 
@@ -32,6 +32,7 @@ from sibyl.api.schemas import (
     RAGSearchResponse,
     SourcePagesResponse,
 )
+from sibyl.auth.dependencies import require_org_role
 from sibyl.crawler.embedder import embed_text
 from sibyl.db import (
     CrawledDocument,
@@ -39,10 +40,23 @@ from sibyl.db import (
     DocumentChunk,
     get_session,
 )
-from sibyl.db.models import ChunkType
+from sibyl.db.models import ChunkType, OrganizationRole
 
 log = structlog.get_logger()
-router = APIRouter(prefix="/rag", tags=["rag"])
+router = APIRouter(
+    prefix="/rag",
+    tags=["rag"],
+    dependencies=[
+        Depends(
+            require_org_role(
+                OrganizationRole.OWNER,
+                OrganizationRole.ADMIN,
+                OrganizationRole.MEMBER,
+                OrganizationRole.VIEWER,
+            )
+        ),
+    ],
+)
 
 
 # =============================================================================

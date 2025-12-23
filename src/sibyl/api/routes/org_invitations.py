@@ -5,11 +5,12 @@ from __future__ import annotations
 from datetime import timedelta
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sibyl import config as config_module
+from sibyl.auth.audit import AuditLogger
 from sibyl.auth.dependencies import get_current_user
 from sibyl.auth.invitations import InvitationError, InvitationManager
 from sibyl.auth.jwt import create_access_token
@@ -88,6 +89,7 @@ async def list_invitations(
 
 @router.post("")
 async def create_invitation(
+    request: Request,
     slug: str,
     body: InvitationCreateRequest,
     user: User = Depends(get_current_user),
@@ -102,6 +104,17 @@ async def create_invitation(
         expires_in=timedelta(days=body.expires_days),
     )
     accept_url = f"{config_module.settings.server_url}/api/invitations/{invite.token}/accept"
+    await AuditLogger(session).log(
+        action="org.invitation.create",
+        user_id=user.id,
+        organization_id=org_id,
+        request=request,
+        details={
+            "invitation_id": str(invite.id),
+            "email": invite.invited_email,
+            "role": invite.invited_role.value,
+        },
+    )
     return {
         "invitation": {
             "id": str(invite.id),
@@ -115,18 +128,27 @@ async def create_invitation(
 
 @router.delete("/{invitation_id}")
 async def delete_invitation(
+    request: Request,
     slug: str,
     invitation_id: UUID,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session_dependency),
 ):
-    _ = await _require_org_admin(slug=slug, user=user, session=session)
+    org_id = await _require_org_admin(slug=slug, user=user, session=session)
     await InvitationManager(session).delete(invitation_id)
+    await AuditLogger(session).log(
+        action="org.invitation.delete",
+        user_id=user.id,
+        organization_id=org_id,
+        request=request,
+        details={"invitation_id": str(invitation_id), "slug": slug},
+    )
     return {"success": True}
 
 
 @invitations_router.post("/{token}/accept")
 async def accept_invitation(
+    request: Request,
     token: str,
     response: Response,
     user: User = Depends(get_current_user),
@@ -139,4 +161,11 @@ async def accept_invitation(
 
     access = create_access_token(user_id=user.id, organization_id=invite.organization_id)
     _set_access_cookie(response, access)
+    await AuditLogger(session).log(
+        action="org.invitation.accept",
+        user_id=user.id,
+        organization_id=invite.organization_id,
+        request=request,
+        details={"invitation_id": str(invite.id)},
+    )
     return {"access_token": access, "organization_id": str(invite.organization_id)}
