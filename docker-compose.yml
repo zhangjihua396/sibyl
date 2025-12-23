@@ -4,7 +4,7 @@ services:
     container_name: sibyl-falkordb
     ports:
       - "6380:6379"  # Redis port (mapped to 6380 to avoid gradial-redis conflict)
-      - "3001:3000"  # FalkorDB Browser UI (mapped to 3001 to avoid conflicts)
+      - "3335:3000"  # FalkorDB Browser UI
     volumes:
       - falkordb_data:/data
     environment:
