@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
+import { toast } from 'sonner';
 import { EntityCard } from '@/components/entities/entity-card';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
@@ -69,7 +70,12 @@ export function EntitiesContent({
   const handleDelete = useCallback(
     async (id: string) => {
       if (confirm('Are you sure you want to delete this entity?')) {
-        await deleteEntity.mutateAsync(id);
+        try {
+          await deleteEntity.mutateAsync(id);
+          toast.success('Entity deleted');
+        } catch (_err) {
+          toast.error('Failed to delete entity');
+        }
       }
     },
     [deleteEntity]

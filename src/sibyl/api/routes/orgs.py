@@ -101,6 +101,18 @@ async def create_org(
         role=OrganizationRole.OWNER,
     )
 
+    # Initialize graph indexes for the new org (vector index for semantic search)
+    try:
+        from sibyl.graph.client import get_graph_client
+
+        client = await get_graph_client()
+        await client.ensure_indexes(str(org.id))
+    except Exception as e:
+        # Don't fail org creation if graph setup fails - indexes will be created lazily
+        import structlog
+
+        structlog.get_logger().debug("Graph index setup deferred", org_id=str(org.id), error=str(e))
+
     token = create_access_token(user_id=user.id, organization_id=org.id)
     response.status_code = status.HTTP_201_CREATED
     _set_access_cookie(response, token)

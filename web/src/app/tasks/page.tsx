@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Breadcrumb, ROUTE_CONFIG } from '@/components/layout/breadcrumb';
 import { KanbanBoard } from '@/components/tasks/kanban-board';
 import { type QuickTaskData, QuickTaskModal } from '@/components/tasks/quick-task-modal';
@@ -96,8 +97,8 @@ function TasksPageContent() {
     async (taskId: string, newStatus: TaskStatus) => {
       try {
         await updateStatus.mutateAsync({ id: taskId, status: newStatus });
-      } catch (err) {
-        console.error('Failed to update task status:', err);
+      } catch (_err) {
+        toast.error('Failed to update task status');
       }
     },
     [updateStatus]
@@ -128,8 +129,9 @@ function TasksPageContent() {
           },
         });
         setIsQuickTaskOpen(false);
-      } catch (err) {
-        console.error('Failed to create task:', err);
+        toast.success('Task created');
+      } catch (_err) {
+        toast.error('Failed to create task');
       }
     },
     [createEntity]

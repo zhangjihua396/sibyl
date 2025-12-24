@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { EntityBreadcrumb } from '@/components/layout/breadcrumb';
 import { EntityBadge } from '@/components/ui/badge';
 import { Button, ColorButton } from '@/components/ui/button';
@@ -42,15 +43,20 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
   };
 
   const handleSave = async () => {
-    await updateEntity.mutateAsync({
-      id: entityId,
-      updates: {
-        name: editedName,
-        description: editedDescription,
-        content: editedContent,
-      },
-    });
-    setIsEditing(false);
+    try {
+      await updateEntity.mutateAsync({
+        id: entityId,
+        updates: {
+          name: editedName,
+          description: editedDescription,
+          content: editedContent,
+        },
+      });
+      setIsEditing(false);
+      toast.success('Entity updated');
+    } catch (_err) {
+      toast.error('Failed to update entity');
+    }
   };
 
   const handleCancel = () => {
@@ -59,8 +65,13 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
 
   const handleDelete = async () => {
     if (confirm('Are you sure you want to delete this entity? This action cannot be undone.')) {
-      await deleteEntity.mutateAsync(entityId);
-      router.push('/entities');
+      try {
+        await deleteEntity.mutateAsync(entityId);
+        toast.success('Entity deleted');
+        router.push('/entities');
+      } catch (_err) {
+        toast.error('Failed to delete entity');
+      }
     }
   };
 

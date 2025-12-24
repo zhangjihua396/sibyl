@@ -562,6 +562,16 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   });
 
   if (!response.ok) {
+    // Handle 401 by redirecting to login (token expired or invalid)
+    if (response.status === 401 && typeof window !== 'undefined') {
+      const currentPath = window.location.pathname + window.location.search;
+      window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
+      // Return a promise that never resolves to prevent further execution
+      return new Promise(() => {
+        // Intentionally never resolves - page is redirecting
+      });
+    }
+
     const error = await response.text();
     throw new Error(error || `API error: ${response.status}`);
   }

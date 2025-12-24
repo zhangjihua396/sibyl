@@ -10,6 +10,7 @@ from typing import Any
 
 import structlog
 from graphiti_core.nodes import EntityNode, EpisodicNode
+from graphiti_core.search.search_config_recipes import NODE_HYBRID_SEARCH_RRF
 from pydantic import BaseModel
 
 from sibyl.errors import EntityNotFoundError, SearchError
@@ -262,7 +263,12 @@ class EntityManager:
         entity_types: list[EntityType] | None = None,
         limit: int = 10,
     ) -> list[tuple[Entity, float]]:
-        """Semantic search for entities using Graphiti's native search API.
+        """Semantic search for entities using Graphiti's node-based hybrid search.
+
+        Uses NODE_HYBRID_SEARCH which combines:
+        - BM25 keyword search on node text
+        - Cosine similarity on name_embedding vectors
+        - RRF (Reciprocal Rank Fusion) for combining results
 
         Args:
             query: Natural language search query.
@@ -277,68 +283,61 @@ class EntityManager:
         log.info("Searching entities", query=safe_query, types=entity_types, limit=limit)
 
         try:
-            # Perform hybrid search using Graphiti
-            edges = await self._client.client.search(
+            # Use search_() with NODE_HYBRID_SEARCH for direct node search
+            # This searches node embeddings directly instead of going through edges
+            # CRITICAL: Pass self._driver (org-specific driver) - otherwise Graphiti
+            # uses the default driver which points to "default" graph, not our org graph
+            search_results = await self._client.client.search_(
                 query=safe_query,
+                config=NODE_HYBRID_SEARCH_RRF,
                 group_ids=[self._group_id],
-                num_results=limit * 3,  # Get more results for filtering
+                driver=self._driver,
             )
 
-            # Extract unique nodes from edges
-            node_uuids = list(
-                {edge.source_node_uuid for edge in edges}
-                | {edge.target_node_uuid for edge in edges}
-            )
-
-            if not node_uuids:
-                log.info("No search results found", query=query)
-                return []
-
-            # Retrieve full node details using Graphiti's node APIs
             results: list[tuple[Entity, float]] = []
-            uuid_to_position = {uuid: i for i, uuid in enumerate(node_uuids)}
 
-            # Get EntityNodes by UUIDs
-            try:
-                entity_nodes = await EntityNode.get_by_uuids(self._driver, node_uuids)
-                for node in entity_nodes:
-                    try:
-                        entity = self._node_to_entity(node)
+            # Process EntityNodes with their reranker scores
+            for i, node in enumerate(search_results.nodes):
+                try:
+                    # Filter by group_id (multi-tenancy)
+                    if node.group_id != self._group_id:
+                        continue
 
-                        # Filter by entity types if specified
-                        if entity_types and entity.entity_type not in entity_types:
-                            continue
+                    entity = self._node_to_entity(node)
 
-                        # Score based on position in search results
-                        position = uuid_to_position.get(node.uuid, len(node_uuids))
-                        score = 1.0 / (position + 1)
+                    # Filter by entity types if specified
+                    if entity_types and entity.entity_type not in entity_types:
+                        continue
 
-                        results.append((entity, score))
-                    except Exception as e:
-                        log.debug("Failed to convert EntityNode", error=str(e))
-            except Exception as e:
-                log.debug("EntityNode.get_by_uuids failed", error=str(e))
+                    # Use reranker score if available, otherwise position-based
+                    if i < len(search_results.node_reranker_scores):
+                        score = search_results.node_reranker_scores[i]
+                    else:
+                        score = 1.0 / (i + 1)
 
-            # Get EpisodicNodes by UUIDs
-            try:
-                episodic_nodes = await EpisodicNode.get_by_uuids(self._driver, node_uuids)
-                for node in episodic_nodes:
-                    try:
-                        entity = self._episodic_to_entity(node)
+                    results.append((entity, score))
+                except Exception as e:
+                    log.debug("Failed to convert EntityNode", error=str(e), node=node.uuid)
 
-                        # Filter by entity types if specified
-                        if entity_types and entity.entity_type not in entity_types:
-                            continue
+            # Also check episodes (for nodes created via add_episode)
+            for i, node in enumerate(search_results.episodes):
+                try:
+                    if node.group_id != self._group_id:
+                        continue
 
-                        # Score based on position in search results
-                        position = uuid_to_position.get(node.uuid, len(node_uuids))
-                        score = 1.0 / (position + 1)
+                    entity = self._episodic_to_entity(node)
 
-                        results.append((entity, score))
-                    except Exception as e:
-                        log.debug("Failed to convert EpisodicNode", error=str(e))
-            except Exception as e:
-                log.debug("EpisodicNode.get_by_uuids failed", error=str(e))
+                    if entity_types and entity.entity_type not in entity_types:
+                        continue
+
+                    if i < len(search_results.episode_reranker_scores):
+                        score = search_results.episode_reranker_scores[i]
+                    else:
+                        score = 1.0 / (i + 1)
+
+                    results.append((entity, score))
+                except Exception as e:
+                    log.debug("Failed to convert EpisodicNode", error=str(e))
 
             # Sort by score and limit results
             results.sort(key=lambda x: x[1], reverse=True)

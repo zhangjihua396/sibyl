@@ -273,6 +273,39 @@ class GraphClient:
             raise ValueError("organization_id is required for org-scoped operations")
         return self.client.driver.clone(organization_id)
 
+    async def ensure_indexes(self, organization_id: str) -> None:
+        """Ensure required indexes exist for an organization's graph.
+
+        Creates Graphiti's standard indexes plus vector index for semantic search.
+        Safe to call multiple times - indexes are created idempotently.
+
+        Args:
+            organization_id: The organization UUID.
+        """
+        driver = self.get_org_driver(organization_id)
+
+        # First, let Graphiti create its standard indexes (range + fulltext)
+        # This is idempotent - safe to call if indexes exist
+        try:
+            await self.client.build_indices_and_constraints()
+        except Exception as e:
+            log.debug("Graphiti index creation skipped", error=str(e))
+
+        # Create vector index for Entity nodes (required for cosine similarity search)
+        # FalkorDB vector index syntax - idempotent (fails silently if exists)
+        vector_index_query = """
+            CREATE VECTOR INDEX FOR (n:Entity) ON (n.name_embedding)
+            OPTIONS {dimension: 1536, similarityFunction: 'cosine'}
+        """
+        try:
+            async with self.write_lock:
+                await driver.execute_query(vector_index_query)
+            log.info("Created vector index on Entity.name_embedding", org=organization_id)
+        except Exception as e:
+            # Index likely already exists - this is fine
+            if "already indexed" not in str(e).lower() and "exists" not in str(e).lower():
+                log.debug("Vector index creation note", error=str(e))
+
     async def execute_read(self, query: str, **params: object) -> list[dict]:  # type: ignore[type-arg]
         """Execute a read query on the default graph. DEPRECATED for multi-tenant ops.
 
