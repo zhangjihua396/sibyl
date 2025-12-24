@@ -15,6 +15,9 @@ from sibyl.graph.summarize import (
     update_stale_summaries,
 )
 
+# Test organization ID for multi-tenancy
+TEST_ORG_ID = "test-org-summarize"
+
 
 class TestSummaryConfig:
     """Tests for SummaryConfig dataclass."""
@@ -118,26 +121,27 @@ class TestGetCommunityContent:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_empty_community(self, mock_client: MagicMock) -> None:
         """Empty community returns empty list."""
-        members = await get_community_content(mock_client, "c1")
+        members = await get_community_content(mock_client, TEST_ORG_ID, "c1")
         assert members == []
 
     @pytest.mark.asyncio
     async def test_returns_members(self, mock_client: MagicMock) -> None:
         """Returns member entities."""
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             return_value=[
                 ("e1", "Error Handling", "pattern", "Description 1", "Content 1"),
                 ("e2", "Logging", "pattern", "Description 2", "Content 2"),
             ]
         )
 
-        members = await get_community_content(mock_client, "c1")
+        members = await get_community_content(mock_client, TEST_ORG_ID, "c1")
 
         assert len(members) == 2
         assert members[0]["id"] == "e1"
@@ -147,9 +151,9 @@ class TestGetCommunityContent:
     @pytest.mark.asyncio
     async def test_respects_limit(self, mock_client: MagicMock) -> None:
         """Query includes limit parameter."""
-        await get_community_content(mock_client, "c1", max_members=5)
+        await get_community_content(mock_client, TEST_ORG_ID, "c1", max_members=5)
 
-        call_args = mock_client.client.driver.execute_query.call_args
+        call_args = mock_client.execute_read_org.call_args
         assert call_args.kwargs.get("limit") == 5
 
 
@@ -160,20 +164,21 @@ class TestGenerateCommunitySummary:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_no_members(self, mock_client: MagicMock) -> None:
         """Returns None for community with no members."""
-        summary = await generate_community_summary(mock_client, "c1")
+        summary = await generate_community_summary(mock_client, TEST_ORG_ID, "c1")
         assert summary is None
 
     @pytest.mark.asyncio
     async def test_with_members_and_mock_openai(self, mock_client: MagicMock) -> None:
         """Generates summary with mocked OpenAI."""
         # Mock community members
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             return_value=[
                 ("e1", "Error Handling", "pattern", "Handle errors gracefully", ""),
                 ("e2", "Logging", "pattern", "Log important events", ""),
@@ -197,7 +202,7 @@ class TestGenerateCommunitySummary:
             )
             mock_openai_class.return_value = mock_openai_client
 
-            summary = await generate_community_summary(mock_client, "c1")
+            summary = await generate_community_summary(mock_client, TEST_ORG_ID, "c1")
 
             assert summary is not None
             assert summary.summary == "Test summary"
@@ -212,7 +217,8 @@ class TestStoreCommunitySum:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[("c1",)])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[("c1",)])
         return client
 
     @pytest.mark.asyncio
@@ -225,12 +231,12 @@ class TestStoreCommunitySum:
             representative_entities=["e1", "e2"],
         )
 
-        result = await store_community_summary(mock_client, summary)
+        result = await store_community_summary(mock_client, TEST_ORG_ID, summary)
 
         assert result is True
-        mock_client.client.driver.execute_query.assert_called_once()
+        mock_client.execute_write_org.assert_called_once()
 
-        call_args = mock_client.client.driver.execute_query.call_args
+        call_args = mock_client.execute_write_org.call_args
         assert call_args.kwargs["summary"] == "Test summary"
         assert "error handling" in call_args.kwargs["key_concepts"]
 
@@ -243,9 +249,9 @@ class TestStoreCommunitySum:
             key_concepts=["error handling", "logging", "monitoring"],
         )
 
-        await store_community_summary(mock_client, summary)
+        await store_community_summary(mock_client, TEST_ORG_ID, summary)
 
-        call_args = mock_client.client.driver.execute_query.call_args
+        call_args = mock_client.execute_write_org.call_args
         name = call_args.kwargs["name"]
         assert "error handling" in name
         assert "logging" in name
@@ -258,18 +264,19 @@ class TestGenerateCommunitySummaries:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_fetches_community_ids(self, mock_client: MagicMock) -> None:
         """Fetches community IDs when not provided."""
-        mock_client.client.driver.execute_query = AsyncMock(return_value=[("c1",), ("c2",)])
+        mock_client.execute_read_org = AsyncMock(return_value=[("c1",), ("c2",)])
 
-        await generate_community_summaries(mock_client, store=False)
+        await generate_community_summaries(mock_client, TEST_ORG_ID, store=False)
 
         # First call should fetch community IDs
-        first_call = mock_client.client.driver.execute_query.call_args_list[0]
+        first_call = mock_client.execute_read_org.call_args_list[0]
         assert "entity_type: 'community'" in first_call[0][0]
 
     @pytest.mark.asyncio
@@ -277,20 +284,23 @@ class TestGenerateCommunitySummaries:
         """Uses provided community IDs directly."""
         await generate_community_summaries(
             mock_client,
+            TEST_ORG_ID,
             community_ids=["c1", "c2"],
             store=False,
         )
 
         # Should not query for community IDs
-        if mock_client.client.driver.execute_query.call_count > 0:
-            first_call = mock_client.client.driver.execute_query.call_args_list[0]
+        if mock_client.execute_read_org.call_count > 0:
+            first_call = mock_client.execute_read_org.call_args_list[0]
             # First call should be for member content, not community listing
             assert "BELONGS_TO" in first_call[0][0]
 
     @pytest.mark.asyncio
     async def test_empty_communities(self, mock_client: MagicMock) -> None:
         """Returns empty list for no communities."""
-        summaries = await generate_community_summaries(mock_client, community_ids=[])
+        summaries = await generate_community_summaries(
+            mock_client, TEST_ORG_ID, community_ids=[]
+        )
         assert summaries == []
 
 
@@ -301,19 +311,20 @@ class TestUpdateStaleSummaries:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_no_stale_summaries(self, mock_client: MagicMock) -> None:
         """Returns 0 when no stale summaries."""
-        count = await update_stale_summaries(mock_client)
+        count = await update_stale_summaries(mock_client, TEST_ORG_ID)
         assert count == 0
 
     @pytest.mark.asyncio
     async def test_finds_stale_communities(self, mock_client: MagicMock) -> None:
         """Identifies communities with stale summaries."""
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             side_effect=[
                 [("c1",), ("c2",)],  # Stale community IDs
                 [],  # No members for c1
@@ -321,8 +332,8 @@ class TestUpdateStaleSummaries:
             ]
         )
 
-        await update_stale_summaries(mock_client)
+        await update_stale_summaries(mock_client, TEST_ORG_ID)
 
         # First call should query for stale communities
-        first_call = mock_client.client.driver.execute_query.call_args_list[0]
+        first_call = mock_client.execute_read_org.call_args_list[0]
         assert "updated_at" in first_call[0][0]

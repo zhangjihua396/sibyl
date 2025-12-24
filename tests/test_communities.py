@@ -16,6 +16,9 @@ from sibyl.graph.communities import (
     store_communities,
 )
 
+# Test organization ID for multi-tenancy
+TEST_ORG_ID = "test-org-communities"
+
 
 class TestCommunityConfig:
     """Tests for CommunityConfig dataclass."""
@@ -227,13 +230,14 @@ class TestExportToNetworkx:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_empty_graph(self, mock_client: MagicMock) -> None:
         """Empty graph returns empty NetworkX graph."""
-        G = await export_to_networkx(mock_client)
+        G = await export_to_networkx(mock_client, TEST_ORG_ID)
 
         assert G.number_of_nodes() == 0
         assert G.number_of_edges() == 0
@@ -242,7 +246,7 @@ class TestExportToNetworkx:
     async def test_nodes_exported(self, mock_client: MagicMock) -> None:
         """Nodes are properly exported."""
         # First query returns nodes, second returns edges
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             side_effect=[
                 [
                     ("e1", "Entity One", "pattern"),
@@ -252,7 +256,7 @@ class TestExportToNetworkx:
             ]
         )
 
-        G = await export_to_networkx(mock_client)
+        G = await export_to_networkx(mock_client, TEST_ORG_ID)
 
         assert G.number_of_nodes() == 2
         assert "e1" in G.nodes()
@@ -263,7 +267,7 @@ class TestExportToNetworkx:
     @pytest.mark.asyncio
     async def test_edges_exported(self, mock_client: MagicMock) -> None:
         """Edges are properly exported."""
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             side_effect=[
                 [
                     ("e1", "Entity One", "pattern"),
@@ -275,7 +279,7 @@ class TestExportToNetworkx:
             ]
         )
 
-        G = await export_to_networkx(mock_client)
+        G = await export_to_networkx(mock_client, TEST_ORG_ID)
 
         assert G.number_of_edges() == 1
         assert G.has_edge("e1", "e2")
@@ -296,20 +300,21 @@ class TestDetectCommunities:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_empty_graph(self, mock_client: MagicMock) -> None:
         """Empty graph returns no communities."""
-        communities = await detect_communities(mock_client)
+        communities = await detect_communities(mock_client, TEST_ORG_ID)
         assert communities == []
 
     @pytest.mark.asyncio
     async def test_with_mock_louvain(self, mock_client: MagicMock) -> None:
         """Communities detected with mocked Louvain."""
-        # Mock networkx export
-        mock_client.client.driver.execute_query = AsyncMock(
+        # Mock networkx export - uses execute_read_org
+        mock_client.execute_read_org = AsyncMock(
             side_effect=[
                 # Nodes
                 [
@@ -334,7 +339,7 @@ class TestDetectCommunities:
             mock_louvain.return_value = (mock_partition, mock_modularity)
 
             config = CommunityConfig(resolutions=[1.0], max_levels=1)
-            communities = await detect_communities(mock_client, config=config)
+            communities = await detect_communities(mock_client, TEST_ORG_ID, config=config)
 
             assert len(communities) == 2
             mock_louvain.assert_called_once()
@@ -347,13 +352,14 @@ class TestStoreCommunities:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_empty_list(self, mock_client: MagicMock) -> None:
         """Empty community list returns 0."""
-        stored = await store_communities(mock_client, [])
+        stored = await store_communities(mock_client, TEST_ORG_ID, [])
         assert stored == 0
 
     @pytest.mark.asyncio
@@ -364,11 +370,11 @@ class TestStoreCommunities:
             DetectedCommunity(id="c2", member_ids=["e3", "e4"], level=0, resolution=1.0),
         ]
 
-        stored = await store_communities(mock_client, communities)
+        stored = await store_communities(mock_client, TEST_ORG_ID, communities)
 
         assert stored == 2
-        # Verify execute_query was called for each community + clear + links
-        assert mock_client.client.driver.execute_query.call_count >= 3
+        # Verify execute_write_org was called for each community + clear + links
+        assert mock_client.execute_write_org.call_count >= 3
 
     @pytest.mark.asyncio
     async def test_clears_existing(self, mock_client: MagicMock) -> None:
@@ -377,10 +383,10 @@ class TestStoreCommunities:
             DetectedCommunity(id="c1", member_ids=["e1", "e2"], level=0, resolution=1.0),
         ]
 
-        await store_communities(mock_client, communities, clear_existing=True)
+        await store_communities(mock_client, TEST_ORG_ID, communities, clear_existing=True)
 
         # First call should be the clear query
-        first_call = mock_client.client.driver.execute_query.call_args_list[0]
+        first_call = mock_client.execute_write_org.call_args_list[0]
         assert "DELETE" in first_call[0][0]
 
 
@@ -391,26 +397,27 @@ class TestGetEntityCommunities:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_no_communities(self, mock_client: MagicMock) -> None:
         """Entity with no communities returns empty list."""
-        communities = await get_entity_communities(mock_client, "e1")
+        communities = await get_entity_communities(mock_client, TEST_ORG_ID, "e1")
         assert communities == []
 
     @pytest.mark.asyncio
     async def test_returns_communities(self, mock_client: MagicMock) -> None:
         """Returns communities entity belongs to."""
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             return_value=[
                 ("c1", "Community L0", 0, 5, "Summary text"),
                 ("c2", "Community L1", 1, 10, "Broader summary"),
             ]
         )
 
-        communities = await get_entity_communities(mock_client, "e1")
+        communities = await get_entity_communities(mock_client, TEST_ORG_ID, "e1")
 
         assert len(communities) == 2
         assert communities[0]["id"] == "c1"
@@ -425,26 +432,27 @@ class TestGetCommunityMembers:
     def mock_client(self) -> MagicMock:
         """Create mock graph client."""
         client = MagicMock()
-        client.client.driver.execute_query = AsyncMock(return_value=[])
+        client.execute_read_org = AsyncMock(return_value=[])
+        client.execute_write_org = AsyncMock(return_value=[])
         return client
 
     @pytest.mark.asyncio
     async def test_empty_community(self, mock_client: MagicMock) -> None:
         """Empty community returns empty list."""
-        members = await get_community_members(mock_client, "c1")
+        members = await get_community_members(mock_client, TEST_ORG_ID, "c1")
         assert members == []
 
     @pytest.mark.asyncio
     async def test_returns_members(self, mock_client: MagicMock) -> None:
         """Returns community members."""
-        mock_client.client.driver.execute_query = AsyncMock(
+        mock_client.execute_read_org = AsyncMock(
             return_value=[
                 ("e1", "Error Handling", "pattern", "Description 1"),
                 ("e2", "Logging", "pattern", "Description 2"),
             ]
         )
 
-        members = await get_community_members(mock_client, "c1")
+        members = await get_community_members(mock_client, TEST_ORG_ID, "c1")
 
         assert len(members) == 2
         assert members[0]["id"] == "e1"

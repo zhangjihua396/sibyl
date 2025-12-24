@@ -420,6 +420,16 @@ class _FakeGraphClient:
         result = await self.client.driver.execute_query(query, **params)
         return self.normalize_result(result)
 
+    async def execute_read_org(self, query: str, organization_id: str, **params):
+        """Execute a read query with organization context."""
+        result = await self.client.driver.execute_query(query, **params)
+        return self.normalize_result(result)
+
+    async def execute_write_org(self, query: str, organization_id: str, **params):
+        """Execute a write query with organization context."""
+        result = await self.client.driver.execute_query(query, **params)
+        return self.normalize_result(result)
+
 
 @pytest.mark.asyncio
 async def test_workflow_transitions_persist_status_and_branch() -> None:
@@ -435,7 +445,9 @@ async def test_workflow_transitions_persist_status_and_branch() -> None:
     )
     entity_manager = _FakeEntityManager(task)
     relationship_manager = _FakeRelationshipManager()
-    engine = TaskWorkflowEngine(entity_manager, relationship_manager, _FakeGraphClient())
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
 
     started = await engine.start_task(task.id, assignee="alice")
     assert started.status == TaskStatus.DOING

@@ -19,6 +19,9 @@ from tests.harness import (
     create_test_relationship,
 )
 
+# Test organization ID for multi-tenancy
+TEST_ORG_ID = "test-org-e2e-workflows"
+
 
 class TestTaskWorkflowE2E:
     """End-to-end tests for complete task workflow."""
@@ -121,7 +124,7 @@ class TestProjectWorkflowE2E:
                 title="E-Commerce Platform",
                 content="Rebuild with modern stack",
                 entity_type="project",
-                metadata={"repository_url": "github.com/test/ecommerce"},
+                metadata={"repository_url": "github.com/test/ecommerce", "organization_id": TEST_ORG_ID},
             )
             assert project_result.success
 
@@ -132,6 +135,7 @@ class TestProjectWorkflowE2E:
                 entity_type="task",
                 project=project_result.id,  # Required for tasks
                 related_to=[project_result.id] if project_result.id else None,
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert task1_result.success
 
@@ -142,6 +146,7 @@ class TestProjectWorkflowE2E:
                 entity_type="task",
                 project=project_result.id,  # Required for tasks
                 related_to=[project_result.id] if project_result.id else None,
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert task2_result.success
 
@@ -181,11 +186,13 @@ class TestProjectWorkflowE2E:
 
         async with ctx.patch():
             # List projects
-            result = await explore(mode="list", types=["project"])
+            result = await explore(mode="list", types=["project"], organization_id=TEST_ORG_ID)
             assert result.mode == "list"
 
             # Explore project relationships
-            result = await explore(mode="related", entity_id=project.id)
+            result = await explore(
+                mode="related", entity_id=project.id, organization_id=TEST_ORG_ID
+            )
             assert result.mode == "related"
 
 
@@ -284,6 +291,7 @@ class TestKnowledgeCreationE2E:
                 category="debugging",
                 languages=["python", "redis"],
                 tags=["performance", "database"],
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert result.success
             assert result.message is not None
@@ -309,6 +317,7 @@ class TestKnowledgeCreationE2E:
                 entity_type="pattern",
                 category="reliability",
                 related_to=[existing.id],  # Explicit link
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert result.success
 
@@ -324,6 +333,7 @@ class TestKnowledgeCreationE2E:
                 content="Use sliding window for refresh token expiry",
                 entity_type="episode",
                 category="authentication",
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert add_result.success
 
@@ -390,6 +400,7 @@ class TestMultiStepWorkflowE2E:
                 title="Auth Service",
                 content="Microservice for authentication",
                 entity_type="project",
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert project_result.success
 
@@ -399,6 +410,7 @@ class TestMultiStepWorkflowE2E:
                 content="Add middleware for JWT token validation",
                 entity_type="task",
                 project=project_result.id,
+                metadata={"organization_id": TEST_ORG_ID},
             )
             assert task_result.success
 
@@ -407,6 +419,7 @@ class TestMultiStepWorkflowE2E:
                 explore_result = await explore(
                     mode="related",
                     entity_id=project_result.id,
+                    organization_id=TEST_ORG_ID,
                 )
                 assert explore_result is not None
 

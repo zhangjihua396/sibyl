@@ -395,7 +395,7 @@ async def get_project_tags(client: "GraphClient", project_id: str) -> list[str]:
     """
     import json
 
-    from sibyl.graph.client import GraphClient as GC
+    from sibyl.graph.client import GraphClient
 
     try:
         # Query existing tasks in this project for their tags
@@ -412,7 +412,7 @@ async def get_project_tags(client: "GraphClient", project_id: str) -> list[str]:
         )
 
         # Normalize FalkorDB result (returns tuple, not object with result_set)
-        rows = GC.normalize_result(result)
+        rows = GraphClient.normalize_result(result)
 
         all_tags: set[str] = set()
         for row in rows:

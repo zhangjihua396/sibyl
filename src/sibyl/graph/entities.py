@@ -246,7 +246,7 @@ class EntityManager:
             try:
                 node = await EntityNode.get_by_uuid(self._driver, entity_id)
                 if node and node.group_id == self._group_id:
-                    entity = self._node_to_entity(node)
+                    entity = self.node_to_entity(node)
                     log.debug(
                         "Entity retrieved via EntityNode",
                         entity_id=entity_id,
@@ -328,7 +328,7 @@ class EntityManager:
                     if node.group_id != self._group_id:
                         continue
 
-                    entity = self._node_to_entity(node)
+                    entity = self.node_to_entity(node)
 
                     # Filter by entity types if specified
                     if entity_types and entity.entity_type not in entity_types:
@@ -987,7 +987,7 @@ class EntityManager:
 
         return parts
 
-    def _node_to_entity(self, node: EntityNode) -> Entity:
+    def node_to_entity(self, node: EntityNode) -> Entity:
         """Convert a Graphiti EntityNode to our Entity model.
 
         Args:

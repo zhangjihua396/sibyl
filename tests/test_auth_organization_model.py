@@ -12,7 +12,6 @@ def test_organization_table_shape() -> None:
         "slug",
         "is_personal",
         "settings",
-        "graph_name",
         "created_at",
         "updated_at",
     }

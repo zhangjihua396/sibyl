@@ -123,7 +123,8 @@ async def test_concurrent_updates(graph_client: GraphClient, test_group_id: str)
             "description": f"Updated in iteration {iteration}",
             "category": f"updated-{iteration}",
         }
-        return await manager.update(entity_id, updates)
+        result = await manager.update(entity_id, updates)
+        return result is not None  # update() returns Entity | None
 
     # Launch all updates concurrently
     tasks = [update_entity(eid, i) for i, eid in enumerate(entity_ids)]

@@ -19,6 +19,9 @@ from sibyl.crawler.graph_integration import (
     integrate_document_with_graph,
 )
 
+# Test organization ID for multi-tenancy
+TEST_ORG_ID = "test-org-crawler-graph"
+
 # =============================================================================
 # Fixtures
 # =============================================================================
@@ -58,7 +61,8 @@ def mock_graph_client():
     client = MagicMock()
     client.client = MagicMock()
     client.client.driver = MagicMock()
-    client.execute_write = AsyncMock(return_value=[])
+    client.execute_read_org = AsyncMock(return_value=[])
+    client.execute_write_org = AsyncMock(return_value=[])
     return client
 
 
@@ -211,14 +215,11 @@ class TestEntityLinker:
     async def test_link_entity_exact_match(self, mock_graph_client):
         """Test linking with exact name match."""
         # Mock graph query response
-        mock_result = (
-            [{"uuid": "entity-123", "name": "FastAPI", "entity_type": "tool"}],
-            None,
-            None,
+        mock_graph_client.execute_read_org = AsyncMock(
+            return_value=[{"uuid": "entity-123", "name": "FastAPI", "entity_type": "tool"}]
         )
-        mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
 
-        linker = EntityLinker(mock_graph_client)
+        linker = EntityLinker(mock_graph_client, TEST_ORG_ID)
 
         extracted = ExtractedEntity(
             name="FastAPI",
@@ -238,14 +239,11 @@ class TestEntityLinker:
         """Test linking with partial name match."""
         # Use a candidate name closer in length for a higher similarity score
         # "FastAPI" (7 chars) vs "FastAPI v3" (10 chars) = 7/10 = 0.7
-        mock_result = (
-            [{"uuid": "entity-456", "name": "FastAPI v3", "entity_type": "tool"}],
-            None,
-            None,
+        mock_graph_client.execute_read_org = AsyncMock(
+            return_value=[{"uuid": "entity-456", "name": "FastAPI v3", "entity_type": "tool"}]
         )
-        mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
 
-        linker = EntityLinker(mock_graph_client, similarity_threshold=0.5)
+        linker = EntityLinker(mock_graph_client, TEST_ORG_ID, similarity_threshold=0.5)
 
         extracted = ExtractedEntity(
             name="FastAPI",
@@ -265,10 +263,11 @@ class TestEntityLinker:
     @pytest.mark.asyncio
     async def test_link_entity_no_match(self, mock_graph_client):
         """Test when no matching entity exists."""
-        mock_result = ([{"uuid": "other-123", "name": "Django", "entity_type": "tool"}], None, None)
-        mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
+        mock_graph_client.execute_read_org = AsyncMock(
+            return_value=[{"uuid": "other-123", "name": "Django", "entity_type": "tool"}]
+        )
 
-        linker = EntityLinker(mock_graph_client)
+        linker = EntityLinker(mock_graph_client, TEST_ORG_ID)
 
         extracted = ExtractedEntity(
             name="FastAPI",
@@ -284,17 +283,14 @@ class TestEntityLinker:
     @pytest.mark.asyncio
     async def test_link_batch(self, mock_graph_client):
         """Test batch entity linking."""
-        mock_result = (
-            [
+        mock_graph_client.execute_read_org = AsyncMock(
+            return_value=[
                 {"uuid": "entity-1", "name": "FastAPI", "entity_type": "tool"},
                 {"uuid": "entity-2", "name": "Python", "entity_type": "language"},
-            ],
-            None,
-            None,
+            ]
         )
-        mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
 
-        linker = EntityLinker(mock_graph_client)
+        linker = EntityLinker(mock_graph_client, TEST_ORG_ID)
 
         entities = [
             ExtractedEntity(name="FastAPI", entity_type="tool", description="", confidence=0.9),
@@ -311,18 +307,19 @@ class TestEntityLinker:
     @pytest.mark.asyncio
     async def test_entity_cache(self, mock_graph_client):
         """Test that graph entities are cached."""
-        mock_result = ([{"uuid": "entity-1", "name": "FastAPI", "entity_type": "tool"}], None, None)
-        mock_graph_client.client.driver.execute_query = AsyncMock(return_value=mock_result)
+        mock_graph_client.execute_read_org = AsyncMock(
+            return_value=[{"uuid": "entity-1", "name": "FastAPI", "entity_type": "tool"}]
+        )
 
-        linker = EntityLinker(mock_graph_client)
+        linker = EntityLinker(mock_graph_client, TEST_ORG_ID)
 
         # First call should query graph
         await linker._get_graph_entities("tool")
-        assert mock_graph_client.client.driver.execute_query.call_count == 1
+        assert mock_graph_client.execute_read_org.call_count == 1
 
         # Second call should use cache
         await linker._get_graph_entities("tool")
-        assert mock_graph_client.client.driver.execute_query.call_count == 1
+        assert mock_graph_client.execute_read_org.call_count == 1
 
 
 # =============================================================================
@@ -363,7 +360,7 @@ class TestGraphIntegrationService:
         mock_linker = AsyncMock()
         mock_linker.link_batch = AsyncMock(return_value=([], []))
 
-        service = GraphIntegrationService(mock_graph_client, extract_entities=True)
+        service = GraphIntegrationService(mock_graph_client, TEST_ORG_ID, extract_entities=True)
         service.extractor = mock_extractor
         service.linker = mock_linker
 
@@ -378,7 +375,7 @@ class TestGraphIntegrationService:
         self, mock_graph_client, mock_document_chunks
     ):
         """Test processing with extraction disabled."""
-        service = GraphIntegrationService(mock_graph_client, extract_entities=False)
+        service = GraphIntegrationService(mock_graph_client, TEST_ORG_ID, extract_entities=False)
 
         stats = await service.process_chunks(mock_document_chunks, "Test Source")
 
@@ -388,9 +385,9 @@ class TestGraphIntegrationService:
     @pytest.mark.asyncio
     async def test_create_doc_relationships(self, mock_graph_client):
         """Test creating document relationships in graph."""
-        mock_graph_client.execute_write = AsyncMock(return_value=[])
+        mock_graph_client.execute_write_org = AsyncMock(return_value=[])
 
-        service = GraphIntegrationService(mock_graph_client)
+        service = GraphIntegrationService(mock_graph_client, TEST_ORG_ID)
 
         doc_id = uuid4()
         entity_uuids = ["entity-1", "entity-2", "entity-3"]
@@ -398,17 +395,17 @@ class TestGraphIntegrationService:
         count = await service.create_doc_relationships(doc_id, entity_uuids)
 
         assert count == 3
-        assert mock_graph_client.execute_write.call_count == 3
+        assert mock_graph_client.execute_write_org.call_count == 3
 
     @pytest.mark.asyncio
     async def test_create_doc_relationships_empty(self, mock_graph_client):
         """Test with no entities to link."""
-        service = GraphIntegrationService(mock_graph_client)
+        service = GraphIntegrationService(mock_graph_client, TEST_ORG_ID)
 
         count = await service.create_doc_relationships(uuid4(), [])
 
         assert count == 0
-        assert mock_graph_client.execute_write.call_count == 0
+        assert mock_graph_client.execute_write_org.call_count == 0
 
 
 # =============================================================================
@@ -457,6 +454,8 @@ class TestConvenienceFunctions:
         """Test successful document integration."""
         mock_client = MagicMock()
         mock_client.client = MagicMock()
+        mock_client.execute_read_org = AsyncMock(return_value=[])
+        mock_client.execute_write_org = AsyncMock(return_value=[])
 
         chunks = [MagicMock() for _ in range(3)]
         for chunk in chunks:
@@ -481,6 +480,7 @@ class TestConvenienceFunctions:
                 uuid4(),  # document_id (positional)
                 chunks=chunks,
                 source_name="Test Source",
+                organization_id=TEST_ORG_ID,
             )
 
             assert stats.chunks_processed == 3
@@ -500,6 +500,7 @@ class TestConvenienceFunctions:
                 uuid4(),  # document_id (positional)
                 chunks=chunks,
                 source_name="Test Source",
+                organization_id=TEST_ORG_ID,
             )
 
             # Should return empty stats, not crash

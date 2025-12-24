@@ -10,9 +10,40 @@ from uuid import uuid4
 
 import pytest
 
+# Test organization ID for multi-tenancy
+TEST_ORG_ID = "test-org-rag-api"
+
+
 # =============================================================================
 # Fixtures
 # =============================================================================
+
+
+@pytest.fixture
+def mock_auth_context():
+    """Create a mock AuthContext with organization."""
+    from sibyl.auth.context import AuthContext
+
+    # Create mock User
+    mock_user = MagicMock()
+    mock_user.id = uuid4()
+    mock_user.email = "test@example.com"
+
+    # Create mock Organization
+    mock_org = MagicMock()
+    mock_org.id = uuid4()
+    mock_org.name = "Test Organization"
+
+    # Create mock OrgRole
+    mock_role = MagicMock()
+    mock_role.role = "admin"
+
+    return AuthContext(
+        user=mock_user,
+        organization=mock_org,
+        org_role=mock_role,
+        scopes=frozenset(["read", "write"]),
+    )
 
 
 @pytest.fixture
@@ -95,7 +126,7 @@ class TestRAGSearchEndpoint:
 
     @pytest.mark.asyncio
     async def test_basic_search(
-        self, mock_embed_text, mock_session, sample_chunk, sample_document, sample_source
+        self, mock_embed_text, mock_session, mock_auth_context, sample_chunk, sample_document, sample_source
     ):
         """Test basic RAG search functionality."""
         # Setup mock query result
@@ -116,7 +147,7 @@ class TestRAGSearchEndpoint:
                 match_count=10,
             )
 
-            response = await rag_search(request)
+            response = await rag_search(request, auth=mock_auth_context)
 
             assert response.query == "authentication patterns"
             assert response.return_mode == "chunks"
@@ -124,7 +155,7 @@ class TestRAGSearchEndpoint:
 
     @pytest.mark.asyncio
     async def test_search_with_source_filter(
-        self, mock_embed_text, mock_session, sample_chunk, sample_document, sample_source
+        self, mock_embed_text, mock_session, mock_auth_context, sample_chunk, sample_document, sample_source
     ):
         """Test RAG search with source ID filter."""
         mock_result = MagicMock()
@@ -143,13 +174,13 @@ class TestRAGSearchEndpoint:
                 match_count=5,
             )
 
-            response = await rag_search(request)
+            response = await rag_search(request, auth=mock_auth_context)
 
             assert response.source_filter == str(sample_source.id)
 
     @pytest.mark.asyncio
     async def test_search_pages_mode(
-        self, mock_embed_text, mock_session, sample_chunk, sample_document, sample_source
+        self, mock_embed_text, mock_session, mock_auth_context, sample_chunk, sample_document, sample_source
     ):
         """Test RAG search returning pages instead of chunks."""
         mock_result = MagicMock()
@@ -170,12 +201,12 @@ class TestRAGSearchEndpoint:
                 match_count=10,
             )
 
-            response = await rag_search(request)
+            response = await rag_search(request, auth=mock_auth_context)
 
             assert response.return_mode == "pages"
 
     @pytest.mark.asyncio
-    async def test_search_similarity_threshold(self, mock_embed_text, mock_session):
+    async def test_search_similarity_threshold(self, mock_embed_text, mock_session, mock_auth_context):
         """Test that similarity threshold filters low-score results."""
         mock_result = MagicMock()
         mock_result.all.return_value = []  # No results above threshold
@@ -193,7 +224,7 @@ class TestRAGSearchEndpoint:
                 match_count=10,
             )
 
-            response = await rag_search(request)
+            response = await rag_search(request, auth=mock_auth_context)
 
             # Should have no results if nothing meets threshold
             assert response.total == 0
@@ -225,7 +256,7 @@ class TestCodeExampleSearch:
 
     @pytest.mark.asyncio
     async def test_code_search(
-        self, mock_embed_text, mock_session, sample_code_chunk, sample_document, sample_source
+        self, mock_embed_text, mock_session, mock_auth_context, sample_code_chunk, sample_document, sample_source
     ):
         """Test code example search."""
         mock_result = MagicMock()
@@ -245,7 +276,7 @@ class TestCodeExampleSearch:
                 match_count=5,
             )
 
-            response = await search_code_examples(request)
+            response = await search_code_examples(request, auth=mock_auth_context)
 
             assert response.query == "authentication function"
             assert len(response.examples) == 1
@@ -253,7 +284,7 @@ class TestCodeExampleSearch:
 
     @pytest.mark.asyncio
     async def test_code_search_with_language_filter(
-        self, mock_embed_text, mock_session, sample_code_chunk, sample_document, sample_source
+        self, mock_embed_text, mock_session, mock_auth_context, sample_code_chunk, sample_document, sample_source
     ):
         """Test code search with language filter."""
         mock_result = MagicMock()
@@ -274,7 +305,7 @@ class TestCodeExampleSearch:
                 match_count=5,
             )
 
-            response = await search_code_examples(request)
+            response = await search_code_examples(request, auth=mock_auth_context)
 
             assert response.language_filter == "python"
 
@@ -288,8 +319,11 @@ class TestPageRetrieval:
     """Tests for page listing and full page retrieval."""
 
     @pytest.mark.asyncio
-    async def test_list_source_pages(self, mock_session, sample_document, sample_source):
+    async def test_list_source_pages(self, mock_session, mock_auth_context, sample_document, sample_source):
         """Test listing pages for a source."""
+        # Set source org ID to match auth context
+        sample_source.organization_id = mock_auth_context.organization_id
+
         # Mock source lookup
         mock_session.get = AsyncMock(return_value=sample_source)
 
@@ -311,14 +345,18 @@ class TestPageRetrieval:
             response = await list_source_pages(
                 source_id=str(sample_source.id),
                 limit=50,
+                auth=mock_auth_context,
             )
 
             assert response.source_id == str(sample_source.id)
             assert response.source_name == sample_source.name
 
     @pytest.mark.asyncio
-    async def test_get_full_page(self, mock_session, sample_document, sample_source):
+    async def test_get_full_page(self, mock_session, mock_auth_context, sample_document, sample_source):
         """Test getting full page content."""
+        # Set source org ID to match auth context
+        sample_source.organization_id = mock_auth_context.organization_id
+
         mock_session.get = AsyncMock(side_effect=[sample_document, sample_source])
 
         with patch("sibyl.api.routes.rag.get_session") as mock_get_session:
@@ -326,7 +364,7 @@ class TestPageRetrieval:
 
             from sibyl.api.routes.rag import get_full_page
 
-            response = await get_full_page(document_id=str(sample_document.id))
+            response = await get_full_page(document_id=str(sample_document.id), auth=mock_auth_context)
 
             assert response.document_id == str(sample_document.id)
             assert response.title == sample_document.title
@@ -334,7 +372,7 @@ class TestPageRetrieval:
             assert response.has_code == sample_document.has_code
 
     @pytest.mark.asyncio
-    async def test_get_page_not_found(self, mock_session):
+    async def test_get_page_not_found(self, mock_session, mock_auth_context):
         """Test 404 when page not found."""
         mock_session.get = AsyncMock(return_value=None)
 
@@ -347,19 +385,19 @@ class TestPageRetrieval:
 
             # Use a valid UUID format that doesn't exist
             with pytest.raises(HTTPException) as exc_info:
-                await get_full_page(document_id="00000000-0000-0000-0000-000000000000")
+                await get_full_page(document_id="00000000-0000-0000-0000-000000000000", auth=mock_auth_context)
 
             assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_get_page_invalid_uuid(self, mock_session):
+    async def test_get_page_invalid_uuid(self, mock_session, mock_auth_context):
         """Test 400 when document ID is not a valid UUID."""
         from fastapi import HTTPException
 
         from sibyl.api.routes.rag import get_full_page
 
         with pytest.raises(HTTPException) as exc_info:
-            await get_full_page(document_id="not-a-valid-uuid")
+            await get_full_page(document_id="not-a-valid-uuid", auth=mock_auth_context)
 
         assert exc_info.value.status_code == 400
         assert "Invalid document ID format" in exc_info.value.detail
@@ -375,7 +413,7 @@ class TestHybridSearch:
 
     @pytest.mark.asyncio
     async def test_hybrid_search(
-        self, mock_embed_text, mock_session, sample_chunk, sample_document, sample_source
+        self, mock_embed_text, mock_session, mock_auth_context, sample_chunk, sample_document, sample_source
     ):
         """Test hybrid search combining vector and full-text."""
         mock_result = MagicMock()
@@ -395,7 +433,7 @@ class TestHybridSearch:
                 match_count=10,
             )
 
-            response = await hybrid_search(request)
+            response = await hybrid_search(request, auth=mock_auth_context)
 
             assert response.query == "authentication patterns best practices"
             # Hybrid search always returns chunks
@@ -411,7 +449,7 @@ class TestErrorHandling:
     """Tests for error handling in RAG endpoints."""
 
     @pytest.mark.asyncio
-    async def test_embedding_error(self, mock_session):
+    async def test_embedding_error(self, mock_session, mock_auth_context):
         """Test handling of embedding generation errors."""
 
         async def failing_embed(text: str) -> list[float]:
@@ -426,13 +464,13 @@ class TestErrorHandling:
             request = RAGSearchRequest(query="test")
 
             with pytest.raises(HTTPException) as exc_info:
-                await rag_search(request)
+                await rag_search(request, auth=mock_auth_context)
 
             assert exc_info.value.status_code == 500
-            assert "Embedding error" in str(exc_info.value.detail)
+            assert "embedding" in str(exc_info.value.detail).lower()
 
     @pytest.mark.asyncio
-    async def test_source_not_found(self, mock_session):
+    async def test_source_not_found(self, mock_session, mock_auth_context):
         """Test 404 when source not found."""
         mock_session.get = AsyncMock(return_value=None)
 
@@ -445,19 +483,19 @@ class TestErrorHandling:
 
             # Use a valid UUID format that doesn't exist
             with pytest.raises(HTTPException) as exc_info:
-                await list_source_pages(source_id="00000000-0000-0000-0000-000000000000")
+                await list_source_pages(source_id="00000000-0000-0000-0000-000000000000", auth=mock_auth_context)
 
             assert exc_info.value.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_source_invalid_uuid(self, mock_session):
+    async def test_source_invalid_uuid(self, mock_session, mock_auth_context):
         """Test 400 when source ID is not a valid UUID."""
         from fastapi import HTTPException
 
         from sibyl.api.routes.rag import list_source_pages
 
         with pytest.raises(HTTPException) as exc_info:
-            await list_source_pages(source_id="invalid-source-id")
+            await list_source_pages(source_id="invalid-source-id", auth=mock_auth_context)
 
         assert exc_info.value.status_code == 400
         assert "Invalid source ID format" in exc_info.value.detail

@@ -346,14 +346,14 @@ class RelationshipManager:
                                 if k not in ("uuid", "name", "group_id", "labels", "created_at", "name_embedding", "summary")
                             },
                         )
-                        entity = entity_manager._node_to_entity(node)
+                        entity = entity_manager.node_to_entity(node)
                         entities_by_id[entity.id] = entity
                     except Exception:
                         continue
 
             # Match entities back to relationships
             results: list[tuple[Entity, Relationship]] = []
-            for rel, other_id in zip(relationships, other_ids):
+            for rel, other_id in zip(relationships, other_ids, strict=False):
                 if other_id in entities_by_id:
                     results.append((entities_by_id[other_id], rel))
 

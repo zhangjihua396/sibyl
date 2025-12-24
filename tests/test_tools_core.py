@@ -17,6 +17,9 @@ from sibyl.tools.core import (
     search,
 )
 
+# Test organization ID for graph operations
+TEST_ORG_ID = "test-org-12345"
+
 
 class TestSearchResponse:
     """Tests for SearchResponse dataclass."""
@@ -161,20 +164,24 @@ class TestExploreInputValidation:
     @pytest.mark.asyncio
     async def test_list_mode_no_entity_id(self) -> None:
         """List mode should not require entity_id."""
-        response = await explore(mode="list", types=["pattern"])
+        response = await explore(mode="list", types=["pattern"], organization_id=TEST_ORG_ID)
         assert isinstance(response, ExploreResponse)
         assert response.mode == "list"
 
     @pytest.mark.asyncio
     async def test_depth_clamped(self) -> None:
         """Depth should be clamped to 1-3."""
-        response = await explore(mode="traverse", entity_id="test", depth=10)
+        response = await explore(
+            mode="traverse", entity_id="test", depth=10, organization_id=TEST_ORG_ID
+        )
         assert isinstance(response, ExploreResponse)
 
     @pytest.mark.asyncio
     async def test_dependencies_mode(self) -> None:
         """Dependencies mode should be handled."""
-        response = await explore(mode="dependencies", project="proj_test")
+        response = await explore(
+            mode="dependencies", project="proj_test", organization_id=TEST_ORG_ID
+        )
         assert isinstance(response, ExploreResponse)
         assert response.mode == "dependencies"
 

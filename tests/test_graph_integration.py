@@ -11,6 +11,9 @@ from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, Pattern, Relationship, RelationshipType
 
+# Test organization ID for multi-tenancy
+TEST_ORG_ID = f"test_org_{uuid.uuid4().hex[:8]}"
+
 
 async def _ensure_graph_client():
     """Reset and obtain a live graph client or skip if unavailable."""
@@ -38,7 +41,7 @@ async def test_entity_create_get_delete_preserves_id() -> None:
     uses LLM-powered ingestion which may transform data.
     """
     client = await _ensure_graph_client()
-    manager = EntityManager(client)
+    manager = EntityManager(client, group_id=TEST_ORG_ID)
 
     entity_id = f"test_pattern_{uuid.uuid4().hex[:8]}"
     pattern = Pattern(
@@ -74,8 +77,8 @@ async def test_relationship_dedup_and_delete() -> None:
     for reliable relationship creation and testing.
     """
     client = await _ensure_graph_client()
-    entity_manager = EntityManager(client)
-    rel_manager = RelationshipManager(client)
+    entity_manager = EntityManager(client, group_id=TEST_ORG_ID)
+    rel_manager = RelationshipManager(client, group_id=TEST_ORG_ID)
 
     # Create two entities to relate
     src_id = f"test_rel_src_{uuid.uuid4().hex[:6]}"

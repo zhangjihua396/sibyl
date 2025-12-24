@@ -14,6 +14,9 @@ from sibyl.tools.manage import (
     manage,
 )
 
+# Test organization ID for non-admin actions
+TEST_ORG_ID = "test-org-12345"
+
 
 class TestManageResponse:
     """Tests for ManageResponse dataclass."""
@@ -123,28 +126,30 @@ class TestManageTaskActionsValidation:
     @pytest.mark.asyncio
     async def test_start_task_requires_entity_id(self) -> None:
         """Test that start_task requires entity_id."""
-        result = await manage(action="start_task")
+        result = await manage(action="start_task", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
     @pytest.mark.asyncio
     async def test_block_task_requires_entity_id(self) -> None:
         """Test that block_task requires entity_id."""
-        result = await manage(action="block_task")
+        result = await manage(action="block_task", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
     @pytest.mark.asyncio
     async def test_complete_task_requires_entity_id(self) -> None:
         """Test that complete_task requires entity_id."""
-        result = await manage(action="complete_task")
+        result = await manage(action="complete_task", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
     @pytest.mark.asyncio
     async def test_update_task_requires_entity_id(self) -> None:
         """Test that update_task requires entity_id."""
-        result = await manage(action="update_task", data={"title": "New Title"})
+        result = await manage(
+            action="update_task", data={"title": "New Title"}, organization_id=TEST_ORG_ID
+        )
         assert result.success is False
         assert "entity_id required" in result.message
 
@@ -155,14 +160,14 @@ class TestManageSourceActionsValidation:
     @pytest.mark.asyncio
     async def test_crawl_requires_url(self) -> None:
         """Test that crawl requires data.url."""
-        result = await manage(action="crawl")
+        result = await manage(action="crawl", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "url required" in result.message.lower()
 
     @pytest.mark.asyncio
     async def test_sync_requires_entity_id(self) -> None:
         """Test that sync requires entity_id."""
-        result = await manage(action="sync")
+        result = await manage(action="sync", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id" in result.message.lower()
 
@@ -173,28 +178,28 @@ class TestManageAnalysisActionsValidation:
     @pytest.mark.asyncio
     async def test_estimate_requires_entity_id(self) -> None:
         """Test that estimate requires entity_id."""
-        result = await manage(action="estimate")
+        result = await manage(action="estimate", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
     @pytest.mark.asyncio
     async def test_prioritize_requires_entity_id(self) -> None:
         """Test that prioritize requires entity_id."""
-        result = await manage(action="prioritize")
+        result = await manage(action="prioritize", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
     @pytest.mark.asyncio
     async def test_detect_cycles_requires_entity_id(self) -> None:
         """Test that detect_cycles requires entity_id."""
-        result = await manage(action="detect_cycles")
+        result = await manage(action="detect_cycles", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
     @pytest.mark.asyncio
     async def test_suggest_requires_entity_id(self) -> None:
         """Test that suggest requires entity_id."""
-        result = await manage(action="suggest")
+        result = await manage(action="suggest", organization_id=TEST_ORG_ID)
         assert result.success is False
         assert "entity_id required" in result.message
 
@@ -206,9 +211,9 @@ class TestManageActionNormalization:
     async def test_action_case_insensitive(self) -> None:
         """Test that actions are case-insensitive."""
         # These should all be recognized (even if they fail for other reasons)
-        result1 = await manage(action="START_TASK")
-        result2 = await manage(action="Start_Task")
-        result3 = await manage(action="start_task")
+        result1 = await manage(action="START_TASK", organization_id=TEST_ORG_ID)
+        result2 = await manage(action="Start_Task", organization_id=TEST_ORG_ID)
+        result3 = await manage(action="start_task", organization_id=TEST_ORG_ID)
 
         # All should fail for missing entity_id, not unknown action
         for result in [result1, result2, result3]:
@@ -217,6 +222,6 @@ class TestManageActionNormalization:
     @pytest.mark.asyncio
     async def test_action_whitespace_stripped(self) -> None:
         """Test that action whitespace is stripped."""
-        result = await manage(action="  start_task  ")
+        result = await manage(action="  start_task  ", organization_id=TEST_ORG_ID)
         # Should recognize the action (fail for entity_id, not unknown action)
         assert "Unknown action" not in result.message

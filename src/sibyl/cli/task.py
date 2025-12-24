@@ -500,7 +500,7 @@ def archive_task(
     ] = False,
 ) -> None:
     """Archive a task (terminal state). Default: JSON output."""
-    if not yes and table_out:
+    if not yes:
         confirm = typer.confirm(f"Archive task {task_id[:8]}...? This cannot be undone.")
         if not confirm:
             info("Cancelled")
