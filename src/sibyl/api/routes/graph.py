@@ -36,13 +36,16 @@ async def debug_graph(org: Organization = Depends(get_current_organization)):
     client = await get_graph_client()
     group_id = str(org.id)
 
+    # Use org-scoped driver to query the correct graph
+    driver = client.get_org_driver(group_id)
+
     # Get nodes
     node_query = """
         MATCH (n)
         WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
         RETURN n.uuid as id LIMIT 500
     """
-    node_result = await client.driver.execute_query(node_query, group_id=group_id)
+    node_result = await driver.execute_query(node_query, group_id=group_id)
     node_rows = GraphClient.normalize_result(node_result)
     node_ids = {row.get("id") for row in node_rows if row.get("id")}
 
@@ -52,7 +55,7 @@ async def debug_graph(org: Organization = Depends(get_current_organization)):
         WHERE r.group_id = $group_id
         RETURN s.uuid as src, t.uuid as tgt LIMIT 1000
     """
-    edge_result = await client.driver.execute_query(edge_query, group_id=group_id)
+    edge_result = await driver.execute_query(edge_query, group_id=group_id)
     edge_rows = GraphClient.normalize_result(edge_result)
 
     # Check overlap
@@ -133,7 +136,9 @@ async def get_all_nodes(
             LIMIT {limit}
         """
 
-        result = await client.driver.execute_query(query, group_id=group_id)
+        # Use org-scoped driver to query the correct graph
+        driver = client.get_org_driver(group_id)
+        result = await driver.execute_query(query, group_id=group_id)
         rows = GraphClient.normalize_result(result)
 
         # Count connections for sizing
@@ -144,7 +149,7 @@ async def get_all_nodes(
                 WHERE n.group_id = $group_id
                 RETURN n.uuid as id, count(r) as cnt
             """
-            conn_result = await client.driver.execute_query(conn_query, group_id=group_id)
+            conn_result = await driver.execute_query(conn_query, group_id=group_id)
             for row in GraphClient.normalize_result(conn_result):
                 connection_counts[row.get("id", "")] = row.get("cnt", 0)
         except Exception:
@@ -245,6 +250,9 @@ async def get_full_graph(
         client = await get_graph_client()
         group_id = str(org.id)
 
+        # Use org-scoped driver to query the correct graph
+        driver = client.get_org_driver(group_id)
+
         # === NODES: Direct Cypher query ===
         type_filter = ""
         if types:
@@ -262,7 +270,7 @@ async def get_full_graph(
                    n.summary as summary
             LIMIT {max_nodes}
         """
-        node_result = await client.driver.execute_query(node_query, group_id=group_id)
+        node_result = await driver.execute_query(node_query, group_id=group_id)
         node_rows = GraphClient.normalize_result(node_result)
 
         nodes = []
@@ -301,7 +309,7 @@ async def get_full_graph(
                    COALESCE(r.name, type(r)) as rel_type
             LIMIT {max_edges}
         """
-        edge_result = await client.driver.execute_query(edge_query, group_id=group_id)
+        edge_result = await driver.execute_query(edge_query, group_id=group_id)
         edge_rows = GraphClient.normalize_result(edge_result)
 
         log.info(

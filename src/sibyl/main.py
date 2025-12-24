@@ -86,7 +86,7 @@ def create_combined_app(
         try:
             from sqlalchemy import text
 
-            from sibyl.db.session import get_session
+            from sibyl.db.connection import get_session
 
             async with get_session() as session:
                 await session.execute(text("SELECT 1"))

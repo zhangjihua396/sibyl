@@ -277,39 +277,6 @@ def db_stats() -> None:
     _stats()
 
 
-@app.command("migrate")
-def db_migrate() -> None:
-    """Run database migrations to fix schema issues.
-
-    Currently supports:
-    - Adding group_ids to entities for Graphiti compatibility
-    """
-
-    @run_async
-    async def _migrate() -> None:
-        from sibyl.tools.admin import migrate_add_group_ids
-
-        try:
-            info("Running database migrations...")
-
-            with spinner("Migrating...") as progress:
-                task = progress.add_task("Adding group_ids to entities...", total=None)
-
-                result = await migrate_add_group_ids()
-
-                progress.update(task, description="Migration complete")
-
-            if result.success:
-                success(f"Migration complete: {result.message}")
-                info(f"Duration: {result.duration_seconds:.2f}s")
-            else:
-                error(f"Migration failed: {result.message}")
-
-        except Exception as e:
-            error(f"Migration failed: {e}")
-            print_db_hint()
-
-    _migrate()
 
 
 @app.command("fix-embeddings")
@@ -368,32 +335,3 @@ def db_fix_embeddings(
     _fix()
 
 
-@app.command("backfill-org-group")
-def db_backfill_org_group(
-    org_id: Annotated[
-        str | None,
-        typer.Option("--org-id", help="Organization UUID to use as graph group_id"),
-    ] = None,
-) -> None:
-    """Rewrite legacy graph `group_id` ("conventions") to an organization UUID."""
-
-    @run_async
-    async def _run() -> None:
-        from sibyl.tools.admin import migrate_backfill_graph_group_id
-
-        try:
-            with spinner("Backfilling graph group_id...") as progress:
-                task = progress.add_task("Rewriting group_id...", total=None)
-                result = await migrate_backfill_graph_group_id(org_id=org_id)
-                progress.update(task, description="Backfill complete")
-
-            if result.success:
-                success(result.message)
-                info(f"Duration: {result.duration_seconds:.2f}s")
-            else:
-                error(f"Backfill failed: {result.message}")
-        except Exception as e:
-            error(f"Backfill failed: {e}")
-            print_db_hint()
-
-    _run()
