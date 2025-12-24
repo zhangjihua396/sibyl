@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
@@ -33,6 +33,7 @@ import {
   useSources,
   useSyncSource,
 } from '@/lib/hooks';
+import { wsClient } from '@/lib/websocket';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'updated' | 'documents';
@@ -59,6 +60,32 @@ export default function SourcesPage() {
 
   // Track which sources have active crawl operations
   const [crawlingSourceIds, setCrawlingSourceIds] = useState<Set<string>>(new Set());
+
+  // Sync crawling state with WebSocket events
+  useEffect(() => {
+    const unsubComplete = wsClient.on('crawl_complete', data => {
+      const sourceId = data.source_id as string;
+      if (sourceId) {
+        setCrawlingSourceIds(prev => {
+          const next = new Set(prev);
+          next.delete(sourceId);
+          return next;
+        });
+      }
+    });
+
+    const unsubStarted = wsClient.on('crawl_started', data => {
+      const sourceId = data.source_id as string;
+      if (sourceId) {
+        setCrawlingSourceIds(prev => new Set(prev).add(sourceId));
+      }
+    });
+
+    return () => {
+      unsubComplete();
+      unsubStarted();
+    };
+  }, []);
 
   const sources = sourcesData?.entities ?? [];
 

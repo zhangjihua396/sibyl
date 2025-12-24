@@ -81,6 +81,7 @@ def create_combined_app(
             )
 
         # Test database connectivity (warn-only, don't hard fail)
+        db_connected = False
         try:
             from sqlalchemy import text
 
@@ -89,8 +90,18 @@ def create_combined_app(
             async with get_session() as session:
                 await session.execute(text("SELECT 1"))
             log.info("PostgreSQL connected", host=settings.postgres_host)
+            db_connected = True
         except Exception as e:
             log.warning("PostgreSQL unavailable at startup", error=str(e))
+
+        # Recover stuck crawl sources (only if DB is connected)
+        if db_connected:
+            try:
+                from sibyl.api.routes.admin import recover_stuck_sources
+
+                await recover_stuck_sources()
+            except Exception as e:
+                log.warning("Source recovery failed", error=str(e))
 
         try:
             from sibyl.graph.client import get_graph_client
