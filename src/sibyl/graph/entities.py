@@ -177,7 +177,7 @@ class EntityManager:
 
             # Save using Graphiti's serialized write
             async with self._client.write_lock:
-                await node.save(self._client.driver)
+                await node.save(self._driver)
 
             log.info(
                 "Entity created via EntityNode.save",
@@ -216,7 +216,7 @@ class EntityManager:
         try:
             # Try EntityNode first (nodes created via create_direct or extracted)
             try:
-                node = await EntityNode.get_by_uuid(self._client.driver, entity_id)
+                node = await EntityNode.get_by_uuid(self._driver, entity_id)
                 if node and node.group_id == self._group_id:
                     entity = self._node_to_entity(node)
                     log.debug(
@@ -234,7 +234,7 @@ class EntityManager:
 
             # Try EpisodicNode (nodes created via add_episode)
             try:
-                episodic = await EpisodicNode.get_by_uuid(self._client.driver, entity_id)
+                episodic = await EpisodicNode.get_by_uuid(self._driver, entity_id)
                 if episodic and episodic.group_id == self._group_id:
                     entity = self._episodic_to_entity(episodic)
                     log.debug(
@@ -298,7 +298,7 @@ class EntityManager:
 
             # Get EntityNodes by UUIDs
             try:
-                entity_nodes = await EntityNode.get_by_uuids(self._client.driver, node_uuids)
+                entity_nodes = await EntityNode.get_by_uuids(self._driver, node_uuids)
                 for node in entity_nodes:
                     try:
                         entity = self._node_to_entity(node)
@@ -319,7 +319,7 @@ class EntityManager:
 
             # Get EpisodicNodes by UUIDs
             try:
-                episodic_nodes = await EpisodicNode.get_by_uuids(self._client.driver, node_uuids)
+                episodic_nodes = await EpisodicNode.get_by_uuids(self._driver, node_uuids)
                 for node in episodic_nodes:
                     try:
                         entity = self._episodic_to_entity(node)
@@ -449,9 +449,9 @@ class EntityManager:
         try:
             # Try to delete as EntityNode first
             try:
-                node = await EntityNode.get_by_uuid(self._client.driver, entity_id)
+                node = await EntityNode.get_by_uuid(self._driver, entity_id)
                 if node and node.group_id == self._group_id:
-                    await node.delete(self._client.driver)
+                    await node.delete(self._driver)
                     log.info("Entity deleted via EntityNode", entity_id=entity_id)
                     return True
             except Exception as e:
@@ -463,9 +463,9 @@ class EntityManager:
 
             # Try to delete as EpisodicNode
             try:
-                episodic = await EpisodicNode.get_by_uuid(self._client.driver, entity_id)
+                episodic = await EpisodicNode.get_by_uuid(self._driver, entity_id)
                 if episodic and episodic.group_id == self._group_id:
-                    await episodic.delete(self._client.driver)
+                    await episodic.delete(self._driver)
                     log.info("Entity deleted via EpisodicNode", entity_id=entity_id)
                     return True
             except Exception as e:
@@ -827,7 +827,7 @@ class EntityManager:
 
                     # Save using Graphiti's API with write lock
                     async with self._client.write_lock:
-                        await node.save(self._client.driver)
+                        await node.save(self._driver)
 
                     created += 1
                 except Exception as e:
