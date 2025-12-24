@@ -133,9 +133,10 @@ class RelationshipManager:
                     )
                     return edge.uuid
 
-            # Create new edge
+            # Create new edge with write lock to prevent FalkorDB connection corruption
             edge = self._to_graphiti_edge(relationship)
-            await edge.save(self._client.driver)
+            async with self._client.write_lock:
+                await edge.save(self._client.driver)
 
             log.info("Created relationship", relationship_id=edge.uuid)
             return edge.uuid
@@ -320,7 +321,9 @@ class RelationshipManager:
         try:
             edge = await EntityEdge.get_by_uuid(self._client.driver, relationship_id)
             if edge:
-                await edge.delete(self._client.driver)
+                # Use write lock to prevent FalkorDB connection corruption
+                async with self._client.write_lock:
+                    await edge.delete(self._client.driver)
                 log.info("Deleted relationship", relationship_id=relationship_id)
                 return True
             log.warning("Relationship not found", relationship_id=relationship_id)
@@ -356,12 +359,14 @@ class RelationshipManager:
 
             deleted = 0
 
-            for edge in edges:
-                try:
-                    await edge.delete(self._client.driver)
-                    deleted += 1
-                except Exception as e:
-                    log.warning("Failed to delete edge", edge_uuid=edge.uuid, error=str(e))
+            # Use write lock to prevent FalkorDB connection corruption
+            async with self._client.write_lock:
+                for edge in edges:
+                    try:
+                        await edge.delete(self._client.driver)
+                        deleted += 1
+                    except Exception as e:
+                        log.warning("Failed to delete edge", edge_uuid=edge.uuid, error=str(e))
 
             log.info("Deleted relationships for entity", entity_id=entity_id, count=deleted)
             return deleted

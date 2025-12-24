@@ -97,19 +97,21 @@ class EntityManager:
             created_uuid = result.episode.uuid
             desired_id = entity.id or created_uuid
 
-            # Force deterministic UUID when caller provides one
-            await self._driver.execute_query(
-                """
-                MATCH (n {uuid: $created_uuid})
-                SET n.uuid = $desired_id
-                RETURN n.uuid
-                """,
-                created_uuid=created_uuid,
-                desired_id=desired_id,
-            )
+            # Use write lock to serialize FalkorDB writes and prevent connection corruption
+            async with self._client.write_lock:
+                # Force deterministic UUID when caller provides one
+                await self._driver.execute_query(
+                    """
+                    MATCH (n {uuid: $created_uuid})
+                    SET n.uuid = $desired_id
+                    RETURN n.uuid
+                    """,
+                    created_uuid=created_uuid,
+                    desired_id=desired_id,
+                )
 
-            # Persist attributes and metadata on the created node so downstream filters work
-            await self._persist_entity_attributes(desired_id, entity)
+                # Persist attributes and metadata on the created node so downstream filters work
+                await self._persist_entity_attributes(desired_id, entity)
 
             log.info(
                 "Entity created successfully",
@@ -401,28 +403,30 @@ class EntityManager:
             )
 
             # Persist updates in-place to avoid changing UUIDs
-            await self._persist_entity_attributes(entity_id, updated_entity)
+            # Use write lock to serialize FalkorDB writes and prevent connection corruption
+            async with self._client.write_lock:
+                await self._persist_entity_attributes(entity_id, updated_entity)
 
-            # Store embedding as direct node property (not in metadata to avoid bloating LLM context)
-            if "embedding" in updates:
-                embedding = updates.get("embedding")
+                # Store embedding as direct node property (not in metadata to avoid bloating LLM context)
+                if "embedding" in updates:
+                    embedding = updates.get("embedding")
 
-                # FalkorDB expects Vectorf32 for vector ops. Casting via vecf32() avoids
-                # "expected Null or Vectorf32 but was List" type mismatches.
-                if embedding and isinstance(embedding, list):
-                    await self._driver.execute_query(
-                        "MATCH (n {uuid: $entity_id}) SET n.name_embedding = vecf32($embedding)",
-                        entity_id=entity_id,
-                        embedding=embedding,
-                    )
-                    log.debug("Stored embedding on node", entity_id=entity_id)
-                else:
-                    # Allow clearing embeddings by passing null/empty.
-                    await self._driver.execute_query(
-                        "MATCH (n {uuid: $entity_id}) SET n.name_embedding = NULL",
-                        entity_id=entity_id,
-                    )
-                    log.debug("Cleared embedding on node", entity_id=entity_id)
+                    # FalkorDB expects Vectorf32 for vector ops. Casting via vecf32() avoids
+                    # "expected Null or Vectorf32 but was List" type mismatches.
+                    if embedding and isinstance(embedding, list):
+                        await self._driver.execute_query(
+                            "MATCH (n {uuid: $entity_id}) SET n.name_embedding = vecf32($embedding)",
+                            entity_id=entity_id,
+                            embedding=embedding,
+                        )
+                        log.debug("Stored embedding on node", entity_id=entity_id)
+                    else:
+                        # Allow clearing embeddings by passing null/empty.
+                        await self._driver.execute_query(
+                            "MATCH (n {uuid: $entity_id}) SET n.name_embedding = NULL",
+                            entity_id=entity_id,
+                        )
+                        log.debug("Cleared embedding on node", entity_id=entity_id)
 
             log.info("Entity updated successfully", entity_id=entity_id)
             return updated_entity
@@ -447,29 +451,31 @@ class EntityManager:
         log.info("Deleting entity", entity_id=entity_id)
 
         try:
-            # Try to delete as EntityNode first
-            try:
-                node = await EntityNode.get_by_uuid(self._driver, entity_id)
-                if node and node.group_id == self._group_id:
-                    await node.delete(self._driver)
-                    log.info("Entity deleted via EntityNode", entity_id=entity_id)
-                    return True
-            except Exception as e:
-                log.debug(
-                    "EntityNode delete failed, trying EpisodicNode",
-                    entity_id=entity_id,
-                    error=str(e),
-                )
+            # Use write lock to serialize FalkorDB writes and prevent connection corruption
+            async with self._client.write_lock:
+                # Try to delete as EntityNode first
+                try:
+                    node = await EntityNode.get_by_uuid(self._driver, entity_id)
+                    if node and node.group_id == self._group_id:
+                        await node.delete(self._driver)
+                        log.info("Entity deleted via EntityNode", entity_id=entity_id)
+                        return True
+                except Exception as e:
+                    log.debug(
+                        "EntityNode delete failed, trying EpisodicNode",
+                        entity_id=entity_id,
+                        error=str(e),
+                    )
 
-            # Try to delete as EpisodicNode
-            try:
-                episodic = await EpisodicNode.get_by_uuid(self._driver, entity_id)
-                if episodic and episodic.group_id == self._group_id:
-                    await episodic.delete(self._driver)
-                    log.info("Entity deleted via EpisodicNode", entity_id=entity_id)
-                    return True
-            except Exception as e:
-                log.debug("EpisodicNode delete failed", entity_id=entity_id, error=str(e))
+                # Try to delete as EpisodicNode
+                try:
+                    episodic = await EpisodicNode.get_by_uuid(self._driver, entity_id)
+                    if episodic and episodic.group_id == self._group_id:
+                        await episodic.delete(self._driver)
+                        log.info("Entity deleted via EpisodicNode", entity_id=entity_id)
+                        return True
+                except Exception as e:
+                    log.debug("EpisodicNode delete failed", entity_id=entity_id, error=str(e))
 
             raise EntityNotFoundError("Entity", entity_id)
 

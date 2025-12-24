@@ -202,7 +202,7 @@ class IngestionPipeline:
                 continue
 
             # Parse in thread pool to avoid blocking
-            loop = asyncio.get_event_loop()
+            loop = asyncio.get_running_loop()
             parsed = await loop.run_in_executor(
                 None,
                 parse_directory,
@@ -254,7 +254,7 @@ class IngestionPipeline:
             Extracted entities.
         """
         # Run in thread pool for CPU-bound work
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         entities = await loop.run_in_executor(
             None,
             extract_entities_from_episodes,
@@ -280,7 +280,7 @@ class IngestionPipeline:
         Returns:
             Built relationships.
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         relationships = await loop.run_in_executor(
             None,
             build_all_relationships,
@@ -307,7 +307,7 @@ class IngestionPipeline:
         Returns:
             Tuple of (templates, configs, commands).
         """
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None,
             catalog_repository,
