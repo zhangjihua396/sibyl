@@ -3,12 +3,14 @@
 Creates the REST API app that gets mounted alongside MCP.
 """
 
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.routing import WebSocketRoute
 
 from sibyl.api.routes import (
@@ -33,6 +35,26 @@ from sibyl.auth.middleware import AuthMiddleware
 from sibyl.config import settings
 
 log = structlog.get_logger()
+
+
+class AccessLogMiddleware(BaseHTTPMiddleware):
+    """Log all HTTP requests with method, path, status, and timing."""
+
+    async def dispatch(self, request: Request, call_next):
+        start = time.perf_counter()
+        response = await call_next(request)
+        duration_ms = (time.perf_counter() - start) * 1000
+
+        # Log request details
+        log.info(
+            "request",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            duration_ms=round(duration_ms, 2),
+            client=request.client.host if request.client else None,
+        )
+        return response
 
 
 @asynccontextmanager
@@ -80,6 +102,9 @@ def create_api_app() -> FastAPI:
 
     # Auth: decode bearer JWTs (no enforcement by default)
     app.add_middleware(AuthMiddleware)
+
+    # Access logging
+    app.add_middleware(AccessLogMiddleware)
 
     # Register routers
     app.include_router(entities_router)

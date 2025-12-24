@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     )
 
     # Auth configuration
+    disable_auth: bool = Field(
+        default=False,
+        description="Disable auth enforcement (dev mode only)",
+    )
     jwt_secret: SecretStr = Field(
         default=SecretStr(""),
         description="JWT signing secret (required for auth)",
@@ -88,10 +92,6 @@ class Settings(BaseSettings):
     falkordb_host: str = Field(default="localhost", description="FalkorDB host")
     falkordb_port: int = Field(default=6380, description="FalkorDB port")
     falkordb_password: str = Field(default="conventions", description="FalkorDB password")
-    falkordb_graph_name: str = Field(
-        default="conventions",
-        description="Name of the graph in FalkorDB",
-    )
     redis_jobs_db: int = Field(
         default=1,
         description="Redis database number for job queue (0 is graph data)",

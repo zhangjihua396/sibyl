@@ -5,7 +5,6 @@ Provides semantic search over crawled documentation:
 - Source-filtered search
 - Code example search
 - Full page retrieval
-- Archon-compatible API surface
 """
 
 import hashlib

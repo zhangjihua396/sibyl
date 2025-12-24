@@ -4,6 +4,7 @@ This is the entry point for the sibyl CLI.
 All commands communicate with the REST API to ensure proper event broadcasting.
 """
 
+import asyncio
 import contextlib
 from pathlib import Path
 from typing import Annotated
@@ -148,7 +149,7 @@ def dev(
             sys.executable,
             "-m",
             "uvicorn",
-            "sibyl.main:create_combined_app",
+            "sibyl.main:create_dev_app",
             "--factory",
             "--host",
             host,
@@ -611,10 +612,16 @@ def worker(
         )
     )
 
+    # Python 3.14+ requires an explicit event loop before arq's run_worker
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     try:
         run_worker(WorkerSettings, burst=burst)
     except KeyboardInterrupt:
         info("Worker stopped")
+    finally:
+        loop.close()
 
 
 def main() -> None:

@@ -12,6 +12,7 @@ from sibyl.auth.api_keys import ApiKeyManager
 from sibyl.auth.context import AuthContext
 from sibyl.auth.http import select_access_token
 from sibyl.auth.jwt import JwtError, verify_access_token
+from sibyl.config import settings
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationMember, OrganizationRole, User
 
@@ -101,11 +102,16 @@ async def get_current_org_role(
 
 
 def require_org_role(*allowed: OrganizationRole):
-    async def _dep(role: OrganizationRole = Depends(get_current_org_role)) -> None:
+    async def _check_role(role: OrganizationRole = Depends(get_current_org_role)) -> None:
         if role not in allowed:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    return _dep
+    async def _noop() -> None:
+        pass
+
+    if settings.disable_auth:
+        return _noop
+    return _check_role
 
 
 async def get_auth_context(
@@ -140,11 +146,16 @@ async def get_auth_context(
 
 
 def require_org_admin():
-    async def _dep(ctx: AuthContext = Depends(get_auth_context)) -> None:
+    async def _check_admin(ctx: AuthContext = Depends(get_auth_context)) -> None:
         if ctx.organization is None or ctx.org_role not in {
             OrganizationRole.OWNER,
             OrganizationRole.ADMIN,
         }:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    return _dep
+    async def _noop() -> None:
+        pass
+
+    if settings.disable_auth:
+        return _noop
+    return _check_admin

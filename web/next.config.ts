@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Enable React Compiler for automatic memoization
+  reactCompiler: true,
+
   // Proxy API requests to the Sibyl backend during development
   async rewrites() {
     return [

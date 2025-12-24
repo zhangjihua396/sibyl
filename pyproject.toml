@@ -33,30 +33,24 @@ dependencies = [
     "mcp>=1.25",
     "starlette>=0.41.0",
     "uvicorn[standard]>=0.38",
-
     # Knowledge Graph
     "graphiti-core[falkordb,anthropic]>=0.24",
-
     # Database
     "alembic>=1.17.2",
     "asyncpg>=0.31.0",
     "pgvector>=0.4.2",
     "sqlmodel>=0.0.27",
-
     # Auth & HTTP
     "httpx>=0.27",
     "pyjwt>=2.10",
-
     # Data & Validation
     "email-validator>=2.3.0",
     "pydantic>=2.0",
     "pydantic-settings>=2.0",
     "pyyaml>=6.0",
-
     # CLI & Output
     "rich>=13.0",
     "typer>=0.20.0",
-
     # Utilities
     "anyio>=4.0",
     "crawl4ai>=0.7.8",
@@ -64,7 +58,6 @@ dependencies = [
     "mistune>=3.0",
     "structlog>=24.0",
     "tomli-w>=1.2.0",
-
     # Background Jobs
     "arq>=0.26.3",
 ]

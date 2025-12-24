@@ -12,6 +12,7 @@ from sibyl.auth.dependencies import require_org_role
 from sibyl.db.models import OrganizationRole
 
 log = structlog.get_logger()
+
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],

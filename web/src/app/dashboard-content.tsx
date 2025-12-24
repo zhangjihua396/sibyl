@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   ArrowRight,
@@ -124,10 +124,16 @@ function StatusIndicator({ status }: { status: 'healthy' | 'unhealthy' | 'unknow
 }
 
 export function DashboardContent({ initialStats }: DashboardContentProps) {
+  const [mounted, setMounted] = useState(false);
   const { data: health, isLoading: healthLoading } = useHealth();
   const { data: stats } = useStats(initialStats);
   const { data: tasksData } = useTasks();
   const { data: projectsData } = useProjects();
+
+  // Avoid hydration mismatch - only show real status after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Calculate task stats
   const taskStats = useMemo(() => {
@@ -143,11 +149,8 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
   }, [tasksData]);
 
   const projectCount = projectsData?.entities?.length ?? 0;
-  const serverStatus = healthLoading
-    ? 'unknown'
-    : health?.status === 'healthy'
-      ? 'healthy'
-      : 'unhealthy';
+  const serverStatus =
+    !mounted || healthLoading ? 'unknown' : health?.status === 'healthy' ? 'healthy' : 'unhealthy';
 
   // Top entity types for quick stats
   const topEntities = useMemo(() => {
@@ -187,7 +190,7 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
                 </h1>
                 <div className="flex items-center gap-3 sm:gap-4 mt-1 flex-wrap">
                   <StatusIndicator status={serverStatus} />
-                  {health?.graph_connected && (
+                  {mounted && health?.graph_connected && (
                     <div className="flex items-center gap-1.5 text-xs sm:text-sm text-sc-fg-muted">
                       <Database width={12} height={12} className="text-sc-cyan shrink-0" />
                       <span>Graph Connected</span>
@@ -203,8 +206,8 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
                 <Clock width={14} height={14} className="text-sc-cyan shrink-0 sm:w-4 sm:h-4" />
                 <span className="text-xs sm:text-sm text-sc-fg-muted">
                   Uptime:{' '}
-                  <span className="text-sc-fg-primary font-medium">
-                    {formatUptime(health?.uptime_seconds ?? 0)}
+                  <span className="text-sc-fg-primary font-medium" suppressHydrationWarning>
+                    {formatUptime(mounted ? (health?.uptime_seconds ?? 0) : 0)}
                   </span>
                 </span>
               </div>
@@ -517,7 +520,7 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
       </div>
 
       {/* Error Display */}
-      {health?.errors && health.errors.length > 0 && (
+      {mounted && health?.errors && health.errors.length > 0 && (
         <div className="bg-sc-red/10 border border-sc-red/30 rounded-xl sm:rounded-2xl p-4 sm:p-6">
           <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
             <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-sc-red/20 flex items-center justify-center">

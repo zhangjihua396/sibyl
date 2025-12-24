@@ -111,7 +111,6 @@ class GraphClient:
                 "Connecting to FalkorDB",
                 host=settings.falkordb_host,
                 port=settings.falkordb_port,
-                graph=settings.falkordb_graph_name,
                 llm_provider=settings.llm_provider,
                 llm_model=settings.llm_model,
                 max_connections=50,
@@ -140,9 +139,10 @@ class GraphClient:
             falkor_client = FalkorDB(connection_pool=connection_pool)
 
             # Create FalkorDB driver with our configured client
+            # Note: database is a placeholder - actual graph is set per-operation via group_id (org.id)
             driver = FalkorDriver(
                 falkor_db=falkor_client,
-                database=settings.falkordb_graph_name,
+                database="default",
             )
 
             # Create LLM client based on provider setting

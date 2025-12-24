@@ -87,6 +87,9 @@ async def enqueue_crawl(
 ) -> str:
     """Enqueue a crawl job for a source.
 
+    Uses a deterministic job ID based on source_id to prevent duplicate jobs.
+    If a job for this source is already queued/running, returns the existing job ID.
+
     Args:
         source_id: UUID of the source to crawl
         max_pages: Maximum pages to crawl
@@ -98,16 +101,22 @@ async def enqueue_crawl(
     """
     pool = await get_pool()
 
+    # Deterministic job ID prevents duplicate jobs for the same source
+    job_id = f"crawl:{source_id}"
+
     job = await pool.enqueue_job(
         "crawl_source",
         str(source_id),
         max_pages=max_pages,
         max_depth=max_depth,
         generate_embeddings=generate_embeddings,
+        _job_id=job_id,
     )
 
     if job is None:
-        raise RuntimeError("Failed to enqueue crawl job")
+        # Job already exists - return the existing job ID
+        log.info("Crawl job already exists", job_id=job_id, source_id=str(source_id))
+        return job_id
 
     log.info(
         "Enqueued crawl job",
@@ -122,6 +131,7 @@ async def enqueue_crawl(
 async def enqueue_sync(source_id: str | UUID) -> str:
     """Enqueue a source sync job.
 
+    Uses a deterministic job ID based on source_id to prevent duplicate jobs.
     Recalculates document/chunk counts from actual data.
 
     Args:
@@ -132,10 +142,15 @@ async def enqueue_sync(source_id: str | UUID) -> str:
     """
     pool = await get_pool()
 
-    job = await pool.enqueue_job("sync_source", str(source_id))
+    # Deterministic job ID prevents duplicate jobs
+    job_id = f"sync:{source_id}"
+
+    job = await pool.enqueue_job("sync_source", str(source_id), _job_id=job_id)
 
     if job is None:
-        raise RuntimeError("Failed to enqueue sync job")
+        # Job already exists
+        log.info("Sync job already exists", job_id=job_id, source_id=str(source_id))
+        return job_id
 
     log.info("Enqueued sync job", job_id=job.job_id, source_id=str(source_id))
 

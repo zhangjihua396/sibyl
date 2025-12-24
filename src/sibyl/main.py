@@ -21,7 +21,9 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
 
-def create_combined_app(host: str | None = None, port: int | None = None) -> Starlette:
+def create_combined_app(
+    host: str | None = None, port: int | None = None, *, embed_worker: bool = False
+) -> Starlette:
     """Create a combined Starlette app with MCP and REST API.
 
     Routes:
@@ -32,6 +34,7 @@ def create_combined_app(host: str | None = None, port: int | None = None) -> Sta
     Args:
         host: Host to bind to
         port: Port to listen on
+        embed_worker: If True, run arq worker in-process (for dev mode)
 
     Returns:
         Combined Starlette application
@@ -59,22 +62,26 @@ def create_combined_app(host: str | None = None, port: int | None = None) -> Sta
         import contextlib
 
         from sibyl.background import init_background_queue, shutdown_background_queue
-        from sibyl.jobs.worker import run_worker_async
 
         # Start background task queue for async enrichment
         await init_background_queue()
 
-        # Start arq worker in background for job processing
-        worker_task = asyncio.create_task(run_worker_async())
+        # Optionally start embedded arq worker (dev mode only)
+        worker_task = None
+        if embed_worker:
+            from sibyl.jobs.worker import run_worker_async
+
+            worker_task = asyncio.create_task(run_worker_async())
 
         # The MCP session manager needs to be started for streamable HTTP
         async with mcp.session_manager.run():
             yield
 
-        # Shutdown worker
-        worker_task.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await worker_task
+        # Shutdown embedded worker if running
+        if worker_task:
+            worker_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await worker_task
 
         # Shutdown background queue
         await shutdown_background_queue()
@@ -150,6 +157,11 @@ def run_server(
         )
         server = uvicorn.Server(config)
         server.run()
+
+
+def create_dev_app() -> Starlette:
+    """Factory for dev mode with embedded worker."""
+    return create_combined_app(embed_worker=True)
 
 
 def main() -> None:

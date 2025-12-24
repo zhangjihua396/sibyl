@@ -223,12 +223,6 @@ class Organization(TimestampMixin, table=True):
         description="Arbitrary org settings",
     )
 
-    graph_name: str = Field(
-        default="conventions",
-        max_length=255,
-        description="FalkorDB graph name for this org",
-    )
-
     def __repr__(self) -> str:
         return f"<Organization slug={self.slug!r} personal={self.is_personal}>"
 

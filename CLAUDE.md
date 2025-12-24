@@ -353,6 +353,7 @@ just test -m integration            # Integration tests only
 - Server components are default - add `'use client'` only when needed
 - API rewrites: `/api/*` proxies to backend `:3334`
 - React Query needs hydration boundary for SSR data
+- **Middleware is `proxy.ts`** (not `middleware.ts`) - Next.js 16 renamed it
 
 ### Environment
 

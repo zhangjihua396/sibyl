@@ -50,14 +50,12 @@ class OrganizationManager:
         slug: str | None = None,
         is_personal: bool = False,
         settings: dict[str, Any] | None = None,
-        graph_name: str | None = None,
     ) -> Organization:
         org = Organization(
             name=name,
             slug=slugify(slug or name),
             is_personal=is_personal,
             settings=settings or {},
-            graph_name=graph_name or "conventions",
         )
         self._session.add(org)
         await self._session.flush()
@@ -70,7 +68,6 @@ class OrganizationManager:
         name: str | None = None,
         slug: str | None = None,
         settings: dict[str, Any] | None = None,
-        graph_name: str | None = None,
     ) -> Organization:
         if name is not None:
             org.name = name
@@ -78,8 +75,6 @@ class OrganizationManager:
             org.slug = slugify(slug)
         if settings is not None:
             org.settings = settings
-        if graph_name is not None:
-            org.graph_name = graph_name
         self._session.add(org)
         return org
 
