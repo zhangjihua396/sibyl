@@ -10,7 +10,7 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const { next, error } = await searchParams;
 
   return (
-    <div className="min-h-[calc(100dvh-3.5rem)] flex items-center justify-center px-4">
+    <div className="min-h-dvh flex items-center justify-center px-4">
       <Card variant="elevated" className="w-full max-w-md">
         <CardHeader
           title="Sign in to Sibyl"

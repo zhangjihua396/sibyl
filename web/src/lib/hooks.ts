@@ -686,11 +686,32 @@ export function useRealtimeUpdates(isAuthenticated = false) {
       queryClient.invalidateQueries({ queryKey: queryKeys.search.all });
     });
 
+    // Crawl started - refresh source to show crawling status
+    const unsubCrawlStarted = wsClient.on('crawl_started', data => {
+      const sourceId = data.source_id as string;
+      queryClient.invalidateQueries({ queryKey: queryKeys.sources.detail(sourceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sources.all });
+      console.log('[WS] Crawl started:', sourceId);
+    });
+
     // Crawl progress - update in real-time
     const unsubCrawlProgress = wsClient.on('crawl_progress', data => {
       const sourceId = data.source_id as string;
       queryClient.setQueryData(['crawl_progress', sourceId], data);
       console.log('[WS] Crawl progress:', data);
+    });
+
+    // Crawl complete - refresh source and documents
+    const unsubCrawlComplete = wsClient.on('crawl_complete', data => {
+      const sourceId = data.source_id as string;
+      // Clear the progress data
+      queryClient.removeQueries({ queryKey: ['crawl_progress', sourceId] });
+      // Refresh source detail and list
+      queryClient.invalidateQueries({ queryKey: queryKeys.sources.detail(sourceId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.sources.all });
+      // Refresh any documents/pages for this source
+      queryClient.invalidateQueries({ queryKey: queryKeys.rag.pages(sourceId) });
+      console.log('[WS] Crawl complete:', sourceId, data.error ? `(error: ${data.error})` : '');
     });
 
     // Cleanup on unmount
@@ -702,7 +723,9 @@ export function useRealtimeUpdates(isAuthenticated = false) {
       unsubIngestComplete();
       unsubHealth();
       unsubSearch();
+      unsubCrawlStarted();
       unsubCrawlProgress();
+      unsubCrawlComplete();
       wsClient.disconnect();
     };
   }, [queryClient, isAuthenticated]);

@@ -9,7 +9,9 @@ export type WebSocketEventType =
   | 'search_complete'
   | 'ingest_progress'
   | 'ingest_complete'
+  | 'crawl_started'
   | 'crawl_progress'
+  | 'crawl_complete'
   | 'health_update'
   | 'heartbeat'
   | 'connection_status';
