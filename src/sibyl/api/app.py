@@ -136,4 +136,13 @@ def create_api_app() -> FastAPI:
             "websocket": "/api/ws",
         }
 
+    @app.get("/health")
+    async def health_check() -> dict[str, str]:
+        """Public health check - no auth required.
+
+        Used by load balancers, monitoring, and frontend connection checks.
+        For detailed stats, use /admin/health (requires auth).
+        """
+        return {"status": "healthy"}
+
     return app

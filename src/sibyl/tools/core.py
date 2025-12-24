@@ -901,7 +901,13 @@ async def search(  # noqa: PLR0915
     # =========================================================================
     # MERGE AND RANK RESULTS
     # =========================================================================
-    all_results = graph_results + doc_results
+    # Deduplicate by ID, keeping highest score for each entity
+    seen_ids: dict[str, SearchResult] = {}
+    for result in graph_results + doc_results:
+        if result.id not in seen_ids or result.score > seen_ids[result.id].score:
+            seen_ids[result.id] = result
+
+    all_results = list(seen_ids.values())
 
     # Sort by score descending
     all_results.sort(key=lambda r: r.score, reverse=True)

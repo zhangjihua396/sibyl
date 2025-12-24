@@ -422,6 +422,11 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     throw new Error(error || `API error: ${response.status}`);
   }
 
+  // Handle 204 No Content (e.g., DELETE responses)
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }
 
@@ -546,6 +551,9 @@ export const api = {
         body: JSON.stringify(params),
       }),
   },
+
+  // Health check (public - no auth required)
+  checkHealth: () => fetchApi<{ status: string }>('/health'),
 
   // Admin
   admin: {

@@ -102,8 +102,16 @@ export async function fetchStats(): Promise<StatsResponse> {
 }
 
 /**
- * Fetch server health.
- * No caching - always fresh.
+ * Simple health check - no auth required.
+ * Used for connectivity checks that shouldn't trigger logout.
+ */
+export async function checkServerHealth(): Promise<{ status: string }> {
+  return serverFetch<{ status: string }>('/health', CACHE_CONFIG.realtime);
+}
+
+/**
+ * Fetch detailed server health (requires auth).
+ * Used for dashboard display.
  */
 export async function fetchHealth(): Promise<HealthResponse> {
   return serverFetch<HealthResponse>('/admin/health', CACHE_CONFIG.realtime);

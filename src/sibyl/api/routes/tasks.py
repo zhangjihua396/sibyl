@@ -95,8 +95,10 @@ class UpdateTaskRequest(BaseModel):
 # =============================================================================
 
 
-async def _broadcast_task_update(task_id: str, action: str, data: dict[str, Any]) -> None:
-    """Broadcast task update event."""
+async def _broadcast_task_update(
+    task_id: str, action: str, data: dict[str, Any], *, org_id: str | None = None
+) -> None:
+    """Broadcast task update event (scoped to org)."""
     await broadcast_event(
         "entity_updated",
         {
@@ -105,6 +107,7 @@ async def _broadcast_task_update(task_id: str, action: str, data: dict[str, Any]
             "action": action,
             **data,
         },
+        org_id=org_id,
     )
 
 
@@ -129,6 +132,7 @@ async def start_task(
             task_id,
             "start_task",
             {"status": task.status.value, "branch_name": task.branch_name, "name": task.name},
+            org_id=group_id,
         )
 
         return TaskActionResponse(
@@ -166,6 +170,7 @@ async def block_task(
             task_id,
             "block_task",
             {"status": task.status.value, "blocker": request.reason, "name": task.name},
+            org_id=group_id,
         )
 
         return TaskActionResponse(
@@ -202,6 +207,7 @@ async def unblock_task(
             task_id,
             "unblock_task",
             {"status": task.status.value, "name": task.name},
+            org_id=group_id,
         )
 
         return TaskActionResponse(
@@ -241,6 +247,7 @@ async def submit_review(
             task_id,
             "submit_review",
             {"status": task.status.value, "pr_url": task.pr_url, "name": task.name},
+            org_id=group_id,
         )
 
         return TaskActionResponse(
@@ -280,6 +287,7 @@ async def complete_task(
             task_id,
             "complete_task",
             {"status": task.status.value, "learnings": learnings, "name": task.name},
+            org_id=group_id,
         )
 
         return TaskActionResponse(
@@ -318,6 +326,7 @@ async def archive_task(
             task_id,
             "archive_task",
             {"status": task.status.value, "name": task.name},
+            org_id=group_id,
         )
 
         return TaskActionResponse(
@@ -379,6 +388,7 @@ async def update_task(
             task_id,
             "update_task",
             {"name": updated.name, **update_data},
+            org_id=group_id,
         )
 
         return TaskActionResponse(

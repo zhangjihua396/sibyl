@@ -251,8 +251,10 @@ async def create_entity(
             updated_at=getattr(created, "updated_at", None),
         )
 
-        # Broadcast creation event
-        await broadcast_event("entity_created", response.model_dump(mode="json"))
+        # Broadcast creation event (scoped to org)
+        await broadcast_event(
+            "entity_created", response.model_dump(mode="json"), org_id=str(org.id)
+        )
 
         if created.entity_type == EntityType.PROJECT:
             await AuditLogger(session).log(
@@ -345,8 +347,10 @@ async def update_entity(
             updated_at=getattr(updated, "updated_at", None),
         )
 
-        # Broadcast update event
-        await broadcast_event("entity_updated", response.model_dump(mode="json"))
+        # Broadcast update event (scoped to org)
+        await broadcast_event(
+            "entity_updated", response.model_dump(mode="json"), org_id=str(org.id)
+        )
 
         if existing.entity_type == EntityType.PROJECT:
             await AuditLogger(session).log(
@@ -408,10 +412,11 @@ async def delete_entity(
         if not success:
             raise HTTPException(status_code=500, detail="Delete failed")
 
-        # Broadcast deletion event
+        # Broadcast deletion event (scoped to org)
         await broadcast_event(
             "entity_deleted",
             {"id": entity_id, "type": existing.entity_type.value, "name": existing.name},
+            org_id=str(org.id),
         )
 
     except HTTPException:
