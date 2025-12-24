@@ -1,10 +1,19 @@
 'use client';
 
+import * as d3Force from 'd3-force';
 import dynamic from 'next/dynamic';
-import { forwardRef, useCallback, useImperativeHandle, useMemo, useRef } from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import type { ForceGraphMethods } from 'react-force-graph-2d';
 import { EmptyState } from '@/components/ui/tooltip';
-import { ENTITY_COLORS } from '@/lib/constants';
+import { ENTITY_COLORS, GRAPH_DEFAULTS } from '@/lib/constants';
 
 // Dynamic import to avoid SSR issues with canvas
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
@@ -93,6 +102,69 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
     // Using ForceGraphMethods with default generics since library types don't properly support custom types
     const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [hasInitialFit, setHasInitialFit] = useState(false);
+    const prevDataRef = useRef<GraphData | null>(null);
+
+    // Calculate node degrees (connection count) for sizing
+    const nodeDegrees = useMemo(() => {
+      if (!data) return new Map<string, number>();
+      const degrees = new Map<string, number>();
+      for (const edge of data.edges) {
+        degrees.set(edge.source, (degrees.get(edge.source) || 0) + 1);
+        degrees.set(edge.target, (degrees.get(edge.target) || 0) + 1);
+      }
+      return degrees;
+    }, [data]);
+
+    // Configure d3 forces for better layout
+    useEffect(() => {
+      if (!graphRef.current) return;
+
+      // Charge force - nodes repel each other
+      graphRef.current.d3Force(
+        'charge',
+        d3Force.forceManyBody().strength(GRAPH_DEFAULTS.CHARGE_STRENGTH)
+      );
+
+      // Link force - connected nodes attract
+      graphRef.current.d3Force(
+        'link',
+        d3Force.forceLink().distance(GRAPH_DEFAULTS.LINK_DISTANCE).strength(0.5)
+      );
+
+      // Center force - keep graph centered
+      graphRef.current.d3Force(
+        'center',
+        d3Force.forceCenter().strength(GRAPH_DEFAULTS.CENTER_STRENGTH)
+      );
+
+      // Collision force - prevent node overlap
+      graphRef.current.d3Force(
+        'collision',
+        d3Force.forceCollide().radius(GRAPH_DEFAULTS.COLLISION_RADIUS)
+      );
+    }, []);
+
+    // Reset fit state when data changes significantly
+    useEffect(() => {
+      if (data && prevDataRef.current !== data) {
+        const prevNodeCount = prevDataRef.current?.nodes.length || 0;
+        const newNodeCount = data.nodes.length;
+        // Reset if node count changed significantly
+        if (Math.abs(newNodeCount - prevNodeCount) > 5 || prevNodeCount === 0) {
+          setHasInitialFit(false);
+        }
+        prevDataRef.current = data;
+      }
+    }, [data]);
+
+    // Auto-fit on simulation stop (only once per data load)
+    const handleEngineStop = useCallback(() => {
+      if (!hasInitialFit && graphRef.current) {
+        graphRef.current.zoomToFit(400, GRAPH_DEFAULTS.FIT_PADDING);
+        setHasInitialFit(true);
+      }
+    }, [hasInitialFit]);
 
     // Expose control methods to parent
     useImperativeHandle(ref, () => ({
@@ -146,6 +218,9 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
       const searchLower = searchTerm?.toLowerCase() || '';
       const seenNodeIds = new Set<string>();
 
+      // Find max degree for normalization
+      const maxDegree = Math.max(1, ...Array.from(nodeDegrees.values()));
+
       const nodes: GraphNode[] = data.nodes
         .filter(node => {
           if (!node.id) return false;
@@ -161,11 +236,18 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
             ENTITY_COLORS[node.type as keyof typeof ENTITY_COLORS] ||
             DEFAULT_NODE_COLOR;
 
-          const nodeSize = typeof node.size === 'number' && node.size > 0 ? node.size : 5;
-          // Much larger nodes for visibility
-          let displaySize = Math.max(8, Math.min(24, nodeSize * 4));
-          if (isHighlighted) displaySize = 28;
-          if (isSelected) displaySize = 32;
+          // Size based on connection count (degree)
+          const degree = nodeDegrees.get(node.id) || 0;
+          const normalizedDegree = degree / maxDegree;
+          // Scale from MIN to MAX based on degree, with sqrt for less extreme differences
+          let displaySize =
+            GRAPH_DEFAULTS.NODE_SIZE_MIN +
+            Math.sqrt(normalizedDegree) *
+              (GRAPH_DEFAULTS.NODE_SIZE_MAX - GRAPH_DEFAULTS.NODE_SIZE_MIN);
+
+          // Override for highlighted/selected states
+          if (isHighlighted) displaySize = GRAPH_DEFAULTS.NODE_SIZE_HIGHLIGHTED;
+          if (isSelected) displaySize = GRAPH_DEFAULTS.NODE_SIZE_SELECTED;
 
           return {
             id: node.id,
@@ -194,12 +276,12 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
         }));
 
       return { nodes, links };
-    }, [data, searchTerm, selectedNodeId]);
+    }, [data, searchTerm, selectedNodeId, nodeDegrees]);
 
     // Custom node rendering with glow effect
     const paintNode = useCallback(
       (node: GraphNode, ctx: CanvasRenderingContext2D) => {
-        const size = node.size || 6;
+        const size = node.size || 4;
         const x = node.x || 0;
         const y = node.y || 0;
         const isSelected = node.id === selectedNodeId;
@@ -209,7 +291,7 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
         // Glow effect for selected/highlighted
         if (isSelected || isHighlighted) {
           ctx.beginPath();
-          ctx.arc(x, y, size + 4, 0, 2 * Math.PI);
+          ctx.arc(x, y, size + 2, 0, 2 * Math.PI);
           ctx.fillStyle = isSelected ? 'rgba(225, 53, 255, 0.4)' : 'rgba(128, 255, 234, 0.3)';
           ctx.fill();
         }
@@ -221,17 +303,24 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
         ctx.fill();
 
         // Border
-        ctx.strokeStyle = isSelected ? '#e135ff' : 'rgba(255, 255, 255, 0.2)';
-        ctx.lineWidth = isSelected ? 2 : 0.5;
+        ctx.strokeStyle = isSelected ? '#e135ff' : 'rgba(255, 255, 255, 0.15)';
+        ctx.lineWidth = isSelected ? 1.5 : 0.3;
         ctx.stroke();
 
-        // Label
-        const fontSize = Math.max(3, size * 0.5);
+        // Label - smaller and truncated
+        const fontSize = Math.max(
+          GRAPH_DEFAULTS.LABEL_SIZE_MIN,
+          Math.min(GRAPH_DEFAULTS.LABEL_SIZE_MAX, size * 0.4)
+        );
         ctx.font = `${fontSize}px "Space Grotesk", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#a8a3b8';
-        ctx.fillText(node.label, x, y + size + 2);
+        ctx.fillStyle = isSelected ? '#ffffff' : '#8b85a0';
+        // Truncate long labels
+        const maxLabelLen = isSelected ? 30 : 20;
+        const label =
+          node.label.length > maxLabelLen ? `${node.label.slice(0, maxLabelLen)}…` : node.label;
+        ctx.fillText(label, x, y + size + 1);
       },
       [selectedNodeId, searchTerm]
     );
@@ -246,17 +335,17 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
       ctx.moveTo(source.x, source.y);
       ctx.lineTo(target.x, target.y);
       ctx.strokeStyle = link.color;
-      ctx.lineWidth = link.width;
-      ctx.globalAlpha = 0.6;
+      ctx.lineWidth = link.width * 0.6;
+      ctx.globalAlpha = 0.5;
       ctx.stroke();
       ctx.globalAlpha = 1;
 
       // Arrow head
       const angle = Math.atan2(target.y - source.y, target.x - source.x);
-      const targetSize = target.size || 6;
-      const arrowX = target.x - Math.cos(angle) * (targetSize + 3);
-      const arrowY = target.y - Math.sin(angle) * (targetSize + 3);
-      const arrowSize = 4;
+      const targetSize = target.size || 4;
+      const arrowX = target.x - Math.cos(angle) * (targetSize + 2);
+      const arrowY = target.y - Math.sin(angle) * (targetSize + 2);
+      const arrowSize = 2.5;
 
       ctx.beginPath();
       ctx.moveTo(arrowX, arrowY);
@@ -293,7 +382,8 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
     const paintPointerArea = useCallback(
       (node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
         ctx.beginPath();
-        ctx.arc(node.x || 0, node.y || 0, (node.size || 6) + 4, 0, 2 * Math.PI);
+        // Slightly larger hit area for easier clicking
+        ctx.arc(node.x || 0, node.y || 0, (node.size || 4) + 3, 0, 2 * Math.PI);
         ctx.fillStyle = color;
         ctx.fill();
       },
@@ -337,8 +427,9 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
           onNodeDragEnd={
             handleNodeDragEnd as (node: object, translate: { x: number; y: number }) => void
           }
-          cooldownTicks={100}
-          warmupTicks={50}
+          onEngineStop={handleEngineStop}
+          cooldownTicks={GRAPH_DEFAULTS.COOLDOWN_TICKS}
+          warmupTicks={GRAPH_DEFAULTS.WARMUP_TICKS}
           backgroundColor="#0a0812"
           enableZoomInteraction={true}
           enablePanInteraction={true}
@@ -346,8 +437,8 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
           minZoom={0.1}
           maxZoom={10}
           linkDirectionalArrowLength={0}
-          d3AlphaDecay={0.02}
-          d3VelocityDecay={0.3}
+          d3AlphaDecay={GRAPH_DEFAULTS.ALPHA_DECAY}
+          d3VelocityDecay={GRAPH_DEFAULTS.VELOCITY_DECAY}
         />
       </div>
     );

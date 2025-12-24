@@ -517,6 +517,36 @@ export interface DocumentRelatedEntitiesResponse {
   total: number;
 }
 
+// Backup/Restore Types
+export interface BackupData {
+  version: string;
+  created_at: string;
+  organization_id: string;
+  entity_count: number;
+  relationship_count: number;
+  entities: Record<string, unknown>[];
+  relationships: Record<string, unknown>[];
+}
+
+export interface BackupResponse {
+  success: boolean;
+  entity_count: number;
+  relationship_count: number;
+  message: string;
+  duration_seconds: number;
+  backup_data: BackupData | null;
+}
+
+export interface RestoreResponse {
+  success: boolean;
+  entities_restored: number;
+  relationships_restored: number;
+  entities_skipped: number;
+  relationships_skipped: number;
+  errors: string[];
+  duration_seconds: number;
+}
+
 // =============================================================================
 // API Functions
 // =============================================================================
@@ -694,6 +724,18 @@ export const api = {
         entities_updated: number;
         errors: string[];
       }>('/admin/ingest/status'),
+    backup: () =>
+      fetchApi<BackupResponse>('/admin/backup', {
+        method: 'POST',
+      }),
+    restore: (backupData: BackupData, skipExisting = true) =>
+      fetchApi<RestoreResponse>('/admin/restore', {
+        method: 'POST',
+        body: JSON.stringify({
+          backup_data: backupData,
+          skip_existing: skipExisting,
+        }),
+      }),
   },
 
   auth: {

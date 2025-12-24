@@ -20,6 +20,27 @@ export const TIMING = {
 export const GRAPH_DEFAULTS = {
   MAX_NODES: 500,
   MAX_EDGES: 1000,
+  // Node sizing
+  NODE_SIZE_MIN: 3,
+  NODE_SIZE_MAX: 10,
+  NODE_SIZE_SELECTED: 12,
+  NODE_SIZE_HIGHLIGHTED: 11,
+  // Force simulation
+  CHARGE_STRENGTH: -80, // Negative = repulsion (default -30)
+  LINK_DISTANCE: 60, // Distance between connected nodes
+  CENTER_STRENGTH: 0.05, // Pull toward center
+  COLLISION_RADIUS: 15, // Prevent node overlap
+  // Simulation timing
+  WARMUP_TICKS: 100,
+  COOLDOWN_TICKS: 200,
+  ALPHA_DECAY: 0.015, // Slower decay = more stable layout
+  VELOCITY_DECAY: 0.25, // Lower = more momentum
+  // Initial view
+  INITIAL_ZOOM: 1.2,
+  FIT_PADDING: 60,
+  // Labels
+  LABEL_SIZE_MIN: 2,
+  LABEL_SIZE_MAX: 4,
 } as const;
 
 // Entity types supported by Sibyl

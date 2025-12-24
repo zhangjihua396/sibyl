@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import type { IconComponent } from '@/components/ui/icons';
-import { Settings, User, Users } from '@/components/ui/icons';
+import { Database, Settings, User, Users } from '@/components/ui/icons';
 
 interface SettingsNavItem {
   name: string;
@@ -42,6 +42,12 @@ const SETTINGS_NAVIGATION: SettingsNavItem[] = [
     href: '/settings/teams',
     icon: Users,
     description: 'Team membership and settings',
+  },
+  {
+    name: 'Data',
+    href: '/settings/data',
+    icon: Database,
+    description: 'Backup and restore your graph',
   },
 ];
 
