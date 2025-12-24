@@ -330,9 +330,7 @@ async def recover_stuck_sources() -> dict[str, Any]:
         async with get_session() as session:
             # Find all sources stuck in IN_PROGRESS
             result = await session.execute(
-                select(CrawlSource).where(
-                    col(CrawlSource.crawl_status) == CrawlStatus.IN_PROGRESS
-                )
+                select(CrawlSource).where(col(CrawlSource.crawl_status) == CrawlStatus.IN_PROGRESS)
             )
             stuck_sources = list(result.scalars().all())
 

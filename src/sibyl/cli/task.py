@@ -33,6 +33,7 @@ from sibyl.cli.common import (
     success,
     truncate,
 )
+from sibyl.cli.config_store import resolve_project_from_cwd
 
 app = typer.Typer(
     name="task",
@@ -126,9 +127,20 @@ def list_tasks(
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
     csv_out: Annotated[bool, typer.Option("--csv", help="CSV output")] = False,
+    all_projects: Annotated[
+        bool, typer.Option("--all", "-A", help="Ignore context, list from all projects")
+    ] = False,
 ) -> None:
-    """List tasks with optional filters. Use -q for semantic search. Default: JSON output."""
+    """List tasks with optional filters. Use -q for semantic search. Default: JSON output.
+
+    Auto-scopes to current project context unless --all is specified.
+    """
     fmt = "table" if table_out else ("csv" if csv_out else "json")
+
+    # Auto-resolve project from context if not explicitly set
+    effective_project = project
+    if not project and not all_projects:
+        effective_project = resolve_project_from_cwd()
 
     @run_async
     async def _list() -> None:
@@ -159,7 +171,7 @@ def list_tasks(
                         mode="list",
                         types=["task"],
                         status=status,
-                        project=project,
+                        project=effective_project,
                         limit=limit,
                     )
                 else:
@@ -169,7 +181,7 @@ def list_tasks(
                             mode="list",
                             types=["task"],
                             status=status,
-                            project=project,
+                            project=effective_project,
                             limit=limit,
                         )
                 entities = response.get("entities", [])
@@ -177,9 +189,11 @@ def list_tasks(
             # Client-side filters (needed for search, or when API doesn't filter)
             if status:
                 entities = [e for e in entities if e.get("metadata", {}).get("status") == status]
-            if project:
+            if effective_project:
                 entities = [
-                    e for e in entities if e.get("metadata", {}).get("project_id") == project
+                    e
+                    for e in entities
+                    if e.get("metadata", {}).get("project_id") == effective_project
                 ]
             if assignee:
                 entities = [

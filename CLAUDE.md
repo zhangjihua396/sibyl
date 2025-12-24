@@ -404,18 +404,25 @@ just test -m integration            # Integration tests only
 
 When working on Sibyl itself:
 
-1. **Check current tasks:** `sibyl task list --doing`
-2. **Start a task:** `sibyl task start <id>`
-3. **Search for context:** Query Sibyl for relevant patterns
-4. **Implement** following patterns in this guide
-5. **Complete with learnings:** `sibyl task complete <id> --learnings "..."`
-6. **Capture new knowledge:** Add episodes for gotchas discovered
+1. **Verify context:** `sibyl context` (should show Sibyl project)
+2. **Check current tasks:** `sibyl task list --status doing`
+3. **Start a task:** `sibyl task start <id>`
+4. **Search for context:** Query Sibyl for relevant patterns
+5. **Implement** following patterns in this guide
+6. **Complete with learnings:** `sibyl task complete <id> --learnings "..."`
+7. **Capture new knowledge:** Add episodes for gotchas discovered
 
 ---
 
 ## Quick Reference
 
 ```bash
+# First-time setup: link directory to project
+sibyl project link project_05eb5c8c782a  # Sibyl project
+
+# Check current context
+sibyl context -t
+
 # Start everything
 sibyl up &              # Starts FalkorDB + API server
 cd web && pnpm dev
@@ -424,10 +431,13 @@ cd web && pnpm dev
 sibyl stats
 sibyl health
 
-# Common operations
+# Common operations (auto-scoped to Sibyl project)
 sibyl search "authentication"
-sibyl task list --todo
+sibyl task list --status todo
 sibyl entity list --type pattern
+
+# See all projects' tasks (bypass context)
+sibyl task list --all
 
 # Debug FalkorDB (list graphs, then query by org UUID)
 docker exec sibyl-falkordb redis-cli -a conventions GRAPH.LIST

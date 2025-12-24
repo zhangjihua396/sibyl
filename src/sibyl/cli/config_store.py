@@ -24,6 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "defaults": {
         "project": "",
     },
+    "paths": {},  # path -> project_id mappings
 }
 
 
@@ -125,6 +126,120 @@ def set_default_project(project: str) -> None:
 def reset_config() -> None:
     """Reset config to defaults."""
     save_config(_deep_copy(DEFAULT_CONFIG))
+
+
+# --- Path mapping for project context ---
+
+
+def get_path_mappings() -> dict[str, str]:
+    """Get all path -> project_id mappings."""
+    config = load_config()
+    return config.get("paths", {})
+
+
+def set_path_mapping(path: str, project_id: str) -> None:
+    """Set a path -> project_id mapping.
+
+    Args:
+        path: Directory path (will be normalized, ~ expanded)
+        project_id: Project ID to associate with this path
+    """
+    # Normalize path: expand ~ and resolve to absolute
+    normalized = str(Path(path).expanduser().resolve())
+
+    config = load_config()
+    if "paths" not in config:
+        config["paths"] = {}
+    config["paths"][normalized] = project_id
+    save_config(config)
+
+
+def remove_path_mapping(path: str) -> bool:
+    """Remove a path mapping.
+
+    Args:
+        path: Directory path to unlink
+
+    Returns:
+        True if mapping was removed, False if not found
+    """
+    normalized = str(Path(path).expanduser().resolve())
+
+    config = load_config()
+    paths = config.get("paths", {})
+    if normalized in paths:
+        del paths[normalized]
+        save_config(config)
+        return True
+    return False
+
+
+def resolve_project_from_cwd() -> str | None:
+    """Resolve project ID from current working directory.
+
+    Walks up from cwd looking for longest matching path prefix.
+
+    Returns:
+        Project ID if found, None otherwise
+    """
+    import os
+
+    cwd = Path(os.getcwd()).resolve()
+    mappings = get_path_mappings()
+
+    if not mappings:
+        return None
+
+    # Find longest matching prefix
+    best_match: str | None = None
+    best_length = 0
+
+    for mapped_path, project_id in mappings.items():
+        mapped = Path(mapped_path)
+        try:
+            # Check if cwd is under mapped_path
+            cwd.relative_to(mapped)
+            # It's a match - check if it's the longest
+            if len(mapped_path) > best_length:
+                best_match = project_id
+                best_length = len(mapped_path)
+        except ValueError:
+            # Not a parent path
+            continue
+
+    return best_match
+
+
+def get_current_context() -> tuple[str | None, str | None]:
+    """Get current project context.
+
+    Returns:
+        Tuple of (project_id, matched_path) or (None, None) if no context
+    """
+    import os
+
+    cwd = Path(os.getcwd()).resolve()
+    mappings = get_path_mappings()
+
+    if not mappings:
+        return None, None
+
+    best_match: str | None = None
+    best_path: str | None = None
+    best_length = 0
+
+    for mapped_path, project_id in mappings.items():
+        mapped = Path(mapped_path)
+        try:
+            cwd.relative_to(mapped)
+            if len(mapped_path) > best_length:
+                best_match = project_id
+                best_path = mapped_path
+                best_length = len(mapped_path)
+        except ValueError:
+            continue
+
+    return best_match, best_path
 
 
 # --- Private helpers ---

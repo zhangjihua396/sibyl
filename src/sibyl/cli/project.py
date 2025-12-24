@@ -1,15 +1,17 @@
 """Project management CLI commands.
 
-Commands: list, show, create, update, progress.
+Commands: list, show, create, update, progress, link, unlink.
 All commands communicate with the REST API to ensure proper event broadcasting.
 """
 
+import os
 from typing import Annotated
 
 import typer
 
 from sibyl.cli.client import SibylClientError, get_client
 from sibyl.cli.common import (
+    CORAL,
     ELECTRIC_PURPLE,
     NEON_CYAN,
     SUCCESS_GREEN,
@@ -23,6 +25,12 @@ from sibyl.cli.common import (
     spinner,
     success,
     truncate,
+)
+from sibyl.cli.config_store import (
+    get_current_context,
+    get_path_mappings,
+    remove_path_mapping,
+    set_path_mapping,
 )
 
 app = typer.Typer(
@@ -354,3 +362,130 @@ def project_progress(
             _handle_client_error(e)
 
     _progress()
+
+
+@app.command("link")
+def link_project(
+    project_id: Annotated[
+        str | None, typer.Argument(help="Project ID to link (interactive if omitted)")
+    ] = None,
+    path: Annotated[
+        str | None, typer.Option("--path", "-p", help="Directory path (defaults to cwd)")
+    ] = None,
+) -> None:
+    """Link current directory to a project for automatic context.
+
+    Once linked, task commands in this directory will auto-scope to the project.
+
+    Examples:
+        sibyl project link                    # Interactive - pick from list
+        sibyl project link project_abc123     # Link cwd to specific project
+        sibyl project link project_abc --path ~/dev/myproject
+    """
+    target_path = path or os.getcwd()
+
+    @run_async
+    async def _link() -> None:
+        nonlocal project_id
+
+        client = get_client()
+
+        # If no project ID, show interactive picker
+        if not project_id:
+            try:
+                with spinner("Loading projects...") as progress:
+                    progress.add_task("Loading projects...", total=None)
+                    response = await client.explore(
+                        mode="list",
+                        types=["project"],
+                        limit=50,
+                    )
+
+                entities = response.get("entities", [])
+                if not entities:
+                    error("No projects found. Create one first with: sibyl project create")
+                    return
+
+                # Show projects and prompt for selection
+                console.print(f"\n[{ELECTRIC_PURPLE}]Available Projects:[/{ELECTRIC_PURPLE}]\n")
+                for i, e in enumerate(entities, 1):
+                    console.print(f"  [{NEON_CYAN}]{i}[/{NEON_CYAN}] {e.get('name', 'Unnamed')}")
+                    console.print(f"      [{CORAL}]{e.get('id', '')[:16]}...[/{CORAL}]")
+
+                console.print()
+                choice = typer.prompt("Select project number", type=int)
+
+                if choice < 1 or choice > len(entities):
+                    error(f"Invalid choice: {choice}")
+                    return
+
+                project_id = entities[choice - 1].get("id")
+
+            except SibylClientError as e:
+                _handle_client_error(e)
+                return
+
+        # Verify project exists
+        try:
+            project = await client.get_entity(project_id)
+            project_name = project.get("name", "Unknown")
+        except SibylClientError:
+            error(f"Project not found: {project_id}")
+            return
+
+        # Set the mapping (project_id is guaranteed non-None after verification above)
+        assert project_id is not None
+        set_path_mapping(target_path, project_id)
+
+        success(f"Linked [{NEON_CYAN}]{target_path}[/{NEON_CYAN}]")
+        console.print(
+            f"  → [{ELECTRIC_PURPLE}]{project_name}[/{ELECTRIC_PURPLE}] ({project_id[:16]}...)"
+        )
+        info("Task commands in this directory will now auto-scope to this project")
+
+    _link()
+
+
+@app.command("unlink")
+def unlink_project(
+    path: Annotated[
+        str | None, typer.Option("--path", "-p", help="Directory path (defaults to cwd)")
+    ] = None,
+) -> None:
+    """Remove project link from a directory.
+
+    Examples:
+        sibyl project unlink              # Unlink cwd
+        sibyl project unlink --path ~/dev/myproject
+    """
+    target_path = path or os.getcwd()
+
+    if remove_path_mapping(target_path):
+        success(f"Unlinked [{NEON_CYAN}]{target_path}[/{NEON_CYAN}]")
+    else:
+        info(f"No link found for {target_path}")
+
+
+@app.command("links")
+def list_links() -> None:
+    """List all directory-to-project links."""
+    mappings = get_path_mappings()
+
+    if not mappings:
+        info("No project links configured")
+        info("Use 'sibyl project link' to link a directory to a project")
+        return
+
+    # Get current context to highlight it
+    _current_project, current_path = get_current_context()
+
+    console.print(f"\n[{ELECTRIC_PURPLE}]Project Links:[/{ELECTRIC_PURPLE}]\n")
+
+    for mapped_path, project_id in sorted(mappings.items()):
+        is_current = mapped_path == current_path
+        marker = f"[{SUCCESS_GREEN}]* [/{SUCCESS_GREEN}]" if is_current else "  "
+        console.print(f"{marker}[{NEON_CYAN}]{mapped_path}[/{NEON_CYAN}]")
+        console.print(f"    → [{CORAL}]{project_id}[/{CORAL}]")
+
+    if current_path:
+        console.print("\n[dim]* = current context[/dim]")

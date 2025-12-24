@@ -334,12 +334,12 @@ export const SourceCardEnhanced = memo(function SourceCardEnhanced({
                     onKeyDown={e => e.key === 'Escape' && setShowMenu(false)}
                   />
 
-                  {/* Menu */}
+                  {/* Menu - opens upward to avoid card overflow clipping */}
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    initial={{ opacity: 0, scale: 0.95, y: 4 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
-                    className="absolute right-0 top-full mt-1 z-20 w-40 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-xl shadow-xl overflow-hidden"
+                    exit={{ opacity: 0, scale: 0.95, y: 4 }}
+                    className="absolute right-0 bottom-full mb-1 z-20 w-40 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-xl shadow-xl overflow-hidden"
                   >
                     {onRefresh && (
                       <button

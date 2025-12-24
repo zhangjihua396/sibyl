@@ -585,6 +585,67 @@ def version() -> None:
 
 
 @app.command()
+def context(
+    table_out: Annotated[
+        bool, typer.Option("--table", "-t", help="Table output (human-readable)")
+    ] = False,
+) -> None:
+    """Show current project context based on directory.
+
+    Displays which project is linked to the current working directory.
+    Task commands will automatically scope to this project.
+
+    Examples:
+        sibyl context              # JSON: current project context
+        sibyl context -t           # Table: human-readable display
+    """
+    from sibyl.cli.config_store import get_current_context
+
+    project_id, matched_path = get_current_context()
+
+    if not table_out:
+        # JSON output
+        import json
+
+        result = {
+            "project_id": project_id,
+            "matched_path": matched_path,
+            "cwd": str(Path.cwd()),
+        }
+        console.print(json.dumps(result, indent=2))
+        return
+
+    # Table output
+    if project_id:
+
+        @run_async
+        async def _show_context() -> None:
+            client = get_client()
+            try:
+                project = await client.get_entity(project_id)
+                project_name = project.get("name", "Unknown")
+
+                console.print(f"\n[{ELECTRIC_PURPLE}]Current Context[/{ELECTRIC_PURPLE}]\n")
+                console.print(f"  Project: [{NEON_CYAN}]{project_name}[/{NEON_CYAN}]")
+                console.print(f"  ID:      [{CORAL}]{project_id}[/{CORAL}]")
+                console.print(f"  Path:    [{SUCCESS_GREEN}]{matched_path}[/{SUCCESS_GREEN}]")
+                console.print("\n[dim]Task commands will auto-scope to this project[/dim]")
+
+            except SibylClientError:
+                # Project not found on server - still show the mapping
+                console.print(f"\n[{ELECTRIC_PURPLE}]Current Context[/{ELECTRIC_PURPLE}]\n")
+                console.print(
+                    f"  Project: [{CORAL}]{project_id}[/{CORAL}] [dim](not found on server)[/dim]"
+                )
+                console.print(f"  Path:    {matched_path}")
+
+        _show_context()
+    else:
+        info("No project context for current directory")
+        info("Use 'sibyl project link' to link a directory to a project")
+
+
+@app.command()
 def worker(
     burst: Annotated[
         bool, typer.Option("--burst", "-b", help="Process jobs and exit (don't run continuously)")

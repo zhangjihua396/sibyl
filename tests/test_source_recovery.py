@@ -268,9 +268,7 @@ class TestSourceDeletion:
         mock_docs = [MagicMock(), MagicMock()]  # 2 documents
         mock_docs_result.scalars.return_value = mock_docs
 
-        mock_session.execute = AsyncMock(
-            side_effect=[mock_chunks_result, mock_docs_result]
-        )
+        mock_session.execute = AsyncMock(side_effect=[mock_chunks_result, mock_docs_result])
         mock_session.delete = AsyncMock()
 
         # Simulate the deletion logic from crawler.py
@@ -295,9 +293,7 @@ class TestSourceDeletion:
         assert mock_session.delete.call_count == 6  # 3 chunks + 2 docs + 1 source
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_source_raises_404(
-        self, mock_session: AsyncMock
-    ) -> None:
+    async def test_delete_nonexistent_source_raises_404(self, mock_session: AsyncMock) -> None:
         """Test that deleting a nonexistent source returns 404."""
         mock_session.get = AsyncMock(return_value=None)
 

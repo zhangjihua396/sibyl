@@ -11,34 +11,34 @@ Sibyl gives you persistent memory across coding sessions. Search patterns, track
 ## Quick Start
 
 ```bash
+# Link your directory to a project (one-time setup)
+sibyl project link              # Interactive picker
+sibyl project link project_abc  # Or specify ID directly
+
+# Check current context
+sibyl context
+
+# Now task commands auto-scope to your project!
+sibyl task list --status todo   # Only shows tasks for linked project
+
 # Search for knowledge
 sibyl search "authentication patterns"
 
 # Quickly add a learning
 sibyl add "Redis insight" "Connection pool must be >= concurrent requests"
 
-# List tasks (always filter with --status to reduce noise)
-sibyl task list --status todo
-sibyl task list --status done
-
-# List projects
-sibyl project list
-
-# Create a task in a project
-sibyl task create --title "Implement OAuth" --project proj_abc --priority high
-
 # Start a task
-sibyl task start task_xyz --assignee alice
+sibyl task start task_xyz
 
 # Complete with learnings
 sibyl task complete task_xyz --learnings "OAuth tokens expire..."
 ```
 
 **Pro tips:**
+- **Link your project first** - then task commands just work without `--project`
 - **Always use JSON output** (default) - it's structured and jq-parseable
-- Always filter with `--status` or `--project` to avoid noise
+- Use `--all` flag to bypass context and see all projects
 - Use `2>&1` when piping to capture all output (spinner goes to stderr)
-- Parse with `jq` for reliable field extraction
 
 ---
 
@@ -155,6 +155,36 @@ sibyl project create --name "Auth System" --description "OAuth and JWT implement
 
 ---
 
+### Project Context (Directory Linking)
+
+Link directories to projects for automatic task scoping. Once linked, you don't need `--project` flags.
+
+```bash
+# Link current directory to a project
+sibyl project link                    # Interactive - pick from list
+sibyl project link project_abc123     # Link to specific project
+sibyl project link proj_x --path ~/dev/other  # Link a different path
+
+# Check current context
+sibyl context                         # JSON output
+sibyl context -t                      # Human-readable
+
+# List all directory-to-project links
+sibyl project links
+
+# Remove a link
+sibyl project unlink                  # Unlink current directory
+sibyl project unlink --path ~/old/project
+```
+
+**How it works:**
+- Mappings stored in `~/.sibyl/config.toml` under `[paths]`
+- Uses longest-prefix matching (so `~/dev/sibyl/web` matches `~/dev/sibyl`)
+- Task commands auto-resolve project from cwd
+- Use `--all` flag to bypass context: `sibyl task list --all`
+
+---
+
 ### Entity Operations - Generic CRUD
 
 ```bash
@@ -215,17 +245,31 @@ sibyl config
 
 ## Common Workflows
 
+### First-Time Setup (per project)
+
+```bash
+# Link your project directory (one-time)
+cd ~/dev/my-project
+sibyl project link
+
+# Verify
+sibyl context -t
+```
+
 ### Starting a New Session
 
 ```bash
-# 1. Check for in-progress work
+# 1. Check current context (should show your project)
+sibyl context
+
+# 2. Check for in-progress work
 sibyl task list --status doing
 
-# 2. Or find todo tasks in your project
-sibyl task list --project proj_abc --status todo
+# 3. Or find todo tasks (auto-scoped to project)
+sibyl task list --status todo
 
-# 3. Start working
-sibyl task start task_xyz --assignee you
+# 4. Start working
+sibyl task start task_xyz
 ```
 
 ### Research Before Implementation
@@ -351,11 +395,18 @@ docker compose up -d
 sibyl health
 ```
 
+### Task list shows wrong project's tasks
+Check your project context:
+```bash
+sibyl context                      # See which project you're linked to
+sibyl project link                 # Link to correct project
+sibyl task list --all              # Bypass context to see all
+```
+
 ### Task list shows old/test data
-Filter by status or project to focus:
+Filter by status to focus:
 ```bash
 sibyl task list --status todo      # Active work only
-sibyl task list --project my-proj  # Specific project
 ```
 
 ---
