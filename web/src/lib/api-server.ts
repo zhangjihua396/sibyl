@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { cookies } from 'next/headers';
+import { serverOnly } from 'next-dynenv';
 import type {
   Entity,
   EntityListResponse,
@@ -20,7 +21,7 @@ import type {
  * In development, we need the full URL since rewrites don't apply server-side.
  * In production, this should be the internal service URL.
  */
-const API_BASE = process.env.SIBYL_API_URL || 'http://localhost:3334/api';
+const API_BASE = serverOnly('SIBYL_API_URL', 'http://localhost:3334/api');
 
 /**
  * Default fetch options for server-side requests.

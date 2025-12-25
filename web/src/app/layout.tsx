@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Fira_Code, Space_Grotesk } from 'next/font/google';
+import { PublicEnvScript } from 'next-dynenv';
 import type { ReactNode } from 'react';
 import { Toaster } from 'sonner';
 
@@ -33,6 +34,9 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
+      <head>
+        <PublicEnvScript />
+      </head>
       <body className={`${spaceGrotesk.variable} ${firaCode.variable} antialiased bg-sc-bg-dark`}>
         <Providers>
           {children}

@@ -2,6 +2,8 @@
  * WebSocket client for realtime updates from Sibyl backend.
  */
 
+import { env } from 'next-dynenv';
+
 export type WebSocketEventType =
   | 'entity_created'
   | 'entity_updated'
@@ -41,12 +43,13 @@ class WebSocketClient {
 
   private getWebSocketUrl(): string {
     // Check for explicit WS URL first
-    if (typeof process !== 'undefined' && process.env.NEXT_PUBLIC_WS_URL) {
-      return process.env.NEXT_PUBLIC_WS_URL;
+    const wsUrl = env('NEXT_PUBLIC_WS_URL');
+    if (wsUrl) {
+      return wsUrl;
     }
 
     // Check for API URL and derive WS URL from it
-    const apiUrl = typeof process !== 'undefined' && process.env.NEXT_PUBLIC_API_URL;
+    const apiUrl = env('NEXT_PUBLIC_API_URL');
     if (apiUrl) {
       const url = new URL(apiUrl);
       const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
