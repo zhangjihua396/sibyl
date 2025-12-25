@@ -27,13 +27,13 @@ jobs:
           --health-retries 5
 
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg18
         ports:
           - 5433:5432
         env:
-          POSTGRES_USER: sibyl
-          POSTGRES_PASSWORD: sibyl_dev
-          POSTGRES_DB: sibyl
+          POSTGRES_USER: sibyl_ci
+          POSTGRES_PASSWORD: sibyl_ci_password
+          POSTGRES_DB: sibyl_ci
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -41,17 +41,16 @@ jobs:
           --health-retries 5
 
     env:
-      SIBYL_ENVIRONMENT: development
-      SIBYL_DISABLE_AUTH: "true"
+      SIBYL_ENVIRONMENT: production
       SIBYL_JWT_SECRET: test-secret-for-ci
       SIBYL_FALKORDB_HOST: localhost
       SIBYL_FALKORDB_PORT: 6380
       SIBYL_FALKORDB_PASSWORD: ""
       SIBYL_POSTGRES_HOST: localhost
       SIBYL_POSTGRES_PORT: 5433
-      SIBYL_POSTGRES_USER: sibyl
-      SIBYL_POSTGRES_PASSWORD: sibyl_dev
-      SIBYL_POSTGRES_DB: sibyl
+      SIBYL_POSTGRES_USER: sibyl_ci
+      SIBYL_POSTGRES_PASSWORD: sibyl_ci_password
+      SIBYL_POSTGRES_DB: sibyl_ci
       SIBYL_OPENAI_API_KEY: sk-test-key
       SIBYL_ANTHROPIC_API_KEY: sk-ant-test-key
 
@@ -125,10 +124,35 @@ jobs:
         working-directory: web
 
       # =========================================================================
-      # Tests
+      # Database Setup
       # =========================================================================
-      - name: Run tests
-        run: uv run pytest --cov=src --cov-report=xml --cov-report=term -v
+      - name: Run database migrations
+        run: uv run alembic upgrade head
+
+      # =========================================================================
+      # Unit Tests (no server required)
+      # =========================================================================
+      - name: Run unit tests
+        run: uv run pytest --ignore=tests/e2e --cov=src --cov-report=xml --cov-report=term -v
+
+      # =========================================================================
+      # E2E Tests (requires running server)
+      # =========================================================================
+      - name: Start backend server
+        run: |
+          uv run python -m sibyl.main &
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:3334/api/health > /dev/null; then
+              echo "Server is ready!"
+              break
+            fi
+            echo "Attempt $i: Server not ready yet..."
+            sleep 1
+          done
+
+      - name: Run e2e tests
+        run: uv run pytest tests/e2e -v
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

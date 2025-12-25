@@ -1,0 +1,38 @@
+# Docker Compose for isolated E2E testing
+# Uses different ports and containers than dev to avoid data pollution
+#
+# Usage:
+#   just e2e-up      # Start isolated services
+#   just e2e         # Run e2e tests
+#   just e2e-down    # Stop and cleanup
+
+services:
+  falkordb-e2e:
+    image: falkordb/falkordb:latest
+    container_name: sibyl-falkordb-e2e
+    ports:
+      - "6381:6379"  # Different port than dev (6380)
+    environment:
+      - FALKORDB_ARGS=--requirepass e2e_test
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "e2e_test", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    # No volume - ephemeral for tests
+
+  postgres-e2e:
+    image: pgvector/pgvector:pg18
+    container_name: sibyl-postgres-e2e
+    ports:
+      - "5434:5432"  # Different port than dev (5433)
+    environment:
+      POSTGRES_USER: sibyl_e2e
+      POSTGRES_PASSWORD: sibyl_e2e_password
+      POSTGRES_DB: sibyl_e2e
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sibyl_e2e -d sibyl_e2e"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    # No volume - ephemeral for tests

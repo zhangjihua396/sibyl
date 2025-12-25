@@ -42,13 +42,17 @@ class TestDisableAuthSecurity:
             )
             assert settings.disable_auth is False
 
-    def test_default_environment_is_development(self) -> None:
+    def test_default_environment_is_development(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Default environment should be development."""
+        # Clear env vars to test actual defaults
+        monkeypatch.delenv("SIBYL_ENVIRONMENT", raising=False)
         settings = Settings()
         assert settings.environment == "development"
 
-    def test_default_disable_auth_is_false(self) -> None:
+    def test_default_disable_auth_is_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Default disable_auth should be False."""
+        # Clear env vars to test actual defaults
+        monkeypatch.delenv("SIBYL_DISABLE_AUTH", raising=False)
         settings = Settings()
         assert settings.disable_auth is False
 

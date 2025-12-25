@@ -26,6 +26,7 @@ from sibyl.cli.common import (
     error,
     format_priority,
     format_status,
+    handle_client_error,
     info,
     print_json,
     run_async,
@@ -42,17 +43,8 @@ app = typer.Typer(
 )
 
 
-def _handle_client_error(e: SibylClientError) -> None:
-    """Handle client errors with helpful messages."""
-    if "Cannot connect" in str(e):
-        error(str(e))
-        info("Start the server with: sibyl serve")
-    elif e.status_code == 404:
-        error(f"Not found: {e.detail}")
-    elif e.status_code == 400:
-        error(f"Invalid request: {e.detail}")
-    else:
-        error(str(e))
+# Use centralized handler from common.py
+_handle_client_error = handle_client_error
 
 
 def _output_response(response: dict, table_out: bool, success_msg: str | None = None) -> None:

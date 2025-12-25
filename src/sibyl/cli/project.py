@@ -41,7 +41,7 @@ app = typer.Typer(
 
 
 def _handle_client_error(e: SibylClientError) -> None:
-    """Handle client errors with helpful messages."""
+    """Handle client errors with helpful messages and exit with code 1."""
     if "Cannot connect" in str(e):
         error(str(e))
         info("Start the server with: sibyl serve")
@@ -51,6 +51,7 @@ def _handle_client_error(e: SibylClientError) -> None:
         error(f"Invalid request: {e.detail}")
     else:
         error(str(e))
+    raise typer.Exit(1)
 
 
 @app.command("list")

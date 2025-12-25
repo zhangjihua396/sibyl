@@ -3,16 +3,23 @@
 SilkCircuit Design Language for consistent terminal output.
 """
 
+from __future__ import annotations
+
 import asyncio
 from collections.abc import Awaitable, Callable
 from functools import wraps
+from typing import TYPE_CHECKING
 
+import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
+
+if TYPE_CHECKING:
+    from sibyl.cli.client import SibylClientError
 
 # SilkCircuit color palette
 ELECTRIC_PURPLE = "#e135ff"
@@ -170,3 +177,21 @@ def truncate(text: str, max_length: int = 50) -> str:
     if len(text) <= max_length:
         return text
     return text[: max_length - 3] + "..."
+
+
+def handle_client_error(e: SibylClientError) -> None:
+    """Handle client errors with helpful messages and exit with code 1.
+
+    This is the centralized error handler for all CLI commands.
+    Import and use: `from sibyl.cli.common import handle_client_error`
+    """
+    if "Cannot connect" in str(e):
+        error(str(e))
+        info("Start the server with: sibyl serve")
+    elif e.status_code == 404:
+        error(f"Not found: {e.detail}")
+    elif e.status_code == 400:
+        error(f"Invalid request: {e.detail}")
+    else:
+        error(str(e))
+    raise typer.Exit(1)
