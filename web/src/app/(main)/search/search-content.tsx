@@ -8,11 +8,13 @@ import { CodeResult } from '@/components/search/code-result';
 import { DocResult } from '@/components/search/doc-result';
 import { SearchResultCard } from '@/components/search/search-result';
 import { Button } from '@/components/ui/button';
+import { EnhancedEmptyState, SearchEmptyState } from '@/components/ui/empty-state';
+import { Code, FileText } from '@/components/ui/icons';
 import { SearchInput } from '@/components/ui/input';
 import { LoadingState } from '@/components/ui/spinner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { FilterChip } from '@/components/ui/toggle';
-import { EmptyState, ErrorState } from '@/components/ui/tooltip';
+import { ErrorState } from '@/components/ui/tooltip';
 import type { SearchResponse, SearchResult, StatsResponse } from '@/lib/api';
 import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
 import { useCodeExamples, useRAGHybridSearch, useSearch, useSources, useStats } from '@/lib/hooks';
@@ -533,10 +535,12 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
                 </div>
               </>
             ) : (
-              <EmptyState
-                icon=":"
-                title="No results found"
-                description="Try different keywords or remove some filters"
+              <SearchEmptyState
+                query={submittedQuery}
+                onClear={() => {
+                  setQuery('');
+                  setSubmittedQuery('');
+                }}
               />
             )
           ) : mode === 'docs' ? (
@@ -563,10 +567,21 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
                 </div>
               </>
             ) : (
-              <EmptyState
-                icon=":"
+              <EnhancedEmptyState
+                icon={<FileText width={40} height={40} className="text-sc-yellow" />}
                 title="No documentation found"
                 description="Try different keywords or check if sources have been crawled"
+                variant="filtered"
+                actions={[
+                  {
+                    label: 'Clear search',
+                    onClick: () => {
+                      setQuery('');
+                      setSubmittedQuery('');
+                    },
+                  },
+                  { label: 'Browse Sources', href: '/sources', variant: 'secondary' },
+                ]}
               />
             )
           ) : // Code Results
@@ -589,31 +604,26 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
               </div>
             </>
           ) : (
-            <EmptyState
-              icon=":"
+            <EnhancedEmptyState
+              icon={<Code width={40} height={40} className="text-sc-yellow" />}
               title="No code examples found"
               description="Try different keywords or check if sources contain code"
+              variant="filtered"
+              actions={[
+                {
+                  label: 'Clear search',
+                  onClick: () => {
+                    setQuery('');
+                    setSubmittedQuery('');
+                  },
+                },
+                { label: 'Browse Sources', href: '/sources', variant: 'secondary' },
+              ]}
             />
           )}
         </div>
       ) : (
-        <EmptyState
-          icon=":"
-          title={
-            mode === 'knowledge'
-              ? 'Search the knowledge graph'
-              : mode === 'docs'
-                ? 'Search crawled documentation'
-                : 'Search code examples'
-          }
-          description={
-            mode === 'knowledge'
-              ? 'Find patterns, rules, templates, and tasks'
-              : mode === 'docs'
-                ? 'Semantic search with hybrid vector + full-text matching'
-                : 'Find relevant code snippets from documentation'
-          }
-        />
+        <SearchEmptyState />
       )}
     </div>
   );

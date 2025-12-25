@@ -59,39 +59,30 @@ def list_sources(
 
         try:
             if format_ == "json":
-                response = await client.explore(
-                    mode="list",
-                    types=["source"],
-                    limit=limit,
-                )
+                response = await client.list_crawl_sources(limit=limit)
             else:
                 with spinner("Loading sources...") as progress:
                     progress.add_task("Loading sources...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["source"],
-                        limit=limit,
-                    )
+                    response = await client.list_crawl_sources(limit=limit)
 
-            entities = response.get("entities", [])
+            sources = response.get("sources", [])
 
             if format_ == "json":
-                print_json(entities)
+                print_json(sources)
                 return
 
-            if not entities:
+            if not sources:
                 info("No sources found")
                 return
 
-            table = create_table("Documentation Sources", "ID", "Name", "Type", "URL", "Status")
-            for e in entities:
-                meta = e.get("metadata", {})
+            table = create_table("Documentation Sources", "ID", "Name", "URL", "Docs", "Status")
+            for s in sources:
                 table.add_row(
-                    e.get("id", "")[:8] + "...",
-                    truncate(e.get("name", ""), 25),
-                    meta.get("source_type", "website"),
-                    truncate(meta.get("url", "-"), 30),
-                    meta.get("crawl_status", "pending"),
+                    s.get("id", "")[:12] + "...",
+                    truncate(s.get("name", ""), 25),
+                    truncate(s.get("url", "-"), 30),
+                    str(s.get("document_count", 0)),
+                    s.get("crawl_status", "pending"),
                 )
 
             console.print(table)

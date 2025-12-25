@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Check, KanbanBoard, List, Search } from '@/components/ui/icons';
+import { Check, Cube, Database, Globe, KanbanBoard, List, Search } from '@/components/ui/icons';
 
 interface EmptyStateAction {
   label: string;
@@ -169,6 +169,66 @@ export function SearchEmptyState({ query, onClear }: { query?: string; onClear?:
       icon={<Search width={40} height={40} className="text-sc-cyan" />}
       title="Search your knowledge"
       description="Enter a query to search across all entities, projects, and tasks."
+    />
+  );
+}
+
+export function SourcesEmptyState({ onAddSource }: { onAddSource?: () => void }) {
+  return (
+    <EnhancedEmptyState
+      icon={<Globe width={40} height={40} className="text-sc-cyan" />}
+      title="No documentation sources"
+      description="Add external documentation sources to search alongside your knowledge graph. Crawl API docs, guides, and references."
+      actions={[...(onAddSource ? [{ label: 'Add Source', onClick: onAddSource }] : [])]}
+    />
+  );
+}
+
+export function EntitiesEmptyState({
+  entityType,
+  onClearFilter,
+}: {
+  entityType?: string;
+  onClearFilter?: () => void;
+}) {
+  if (entityType) {
+    return (
+      <EnhancedEmptyState
+        icon={<Cube width={40} height={40} className="text-sc-yellow" />}
+        title={`No ${entityType} entities`}
+        description={`No entities of type "${entityType}" found. Try a different filter or add some knowledge.`}
+        variant="filtered"
+        actions={[
+          ...(onClearFilter ? [{ label: 'Clear filter', onClick: onClearFilter }] : []),
+          { label: 'Add Knowledge', href: '/entities', variant: 'secondary' },
+        ]}
+      />
+    );
+  }
+
+  return (
+    <EnhancedEmptyState
+      icon={<Cube width={40} height={40} className="text-sc-fg-subtle" />}
+      title="No entities yet"
+      description="Your knowledge graph is empty. Start by adding patterns, learnings, or importing documentation."
+      actions={[
+        { label: 'Add Entity', href: '/entities' },
+        { label: 'Import Docs', href: '/sources', variant: 'secondary' },
+      ]}
+    />
+  );
+}
+
+export function GraphEmptyState() {
+  return (
+    <EnhancedEmptyState
+      icon={<Database width={40} height={40} className="text-sc-purple" />}
+      title="Graph is empty"
+      description="Add some knowledge to see your connections visualized. Entities and their relationships will appear here."
+      actions={[
+        { label: 'Add Knowledge', href: '/entities' },
+        { label: 'Browse Entities', href: '/entities', variant: 'secondary' },
+      ]}
     />
   );
 }

@@ -8,10 +8,11 @@ import { EntityCard } from '@/components/entities/entity-card';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
+import { EntitiesEmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/ui/spinner';
 import { EntityTypeChip, FilterChip } from '@/components/ui/toggle';
-import { EmptyState, ErrorState } from '@/components/ui/tooltip';
+import { ErrorState } from '@/components/ui/tooltip';
 import type { EntityListResponse, StatsResponse } from '@/lib/api';
 import { useDeleteEntity, useEntities, useStats } from '@/lib/hooks';
 
@@ -141,14 +142,9 @@ export function EntitiesContent({
       ) : error ? (
         <ErrorState title="Failed to load entities" message={error.message} />
       ) : filteredEntities.length === 0 ? (
-        <EmptyState
-          icon="▣"
-          title="No entities found"
-          description={
-            searchQuery
-              ? 'Try a different search term'
-              : 'Ingest some documents to populate entities'
-          }
+        <EntitiesEmptyState
+          entityType={typeFilter}
+          onClearFilter={typeFilter ? () => handleTypeFilter(null) : undefined}
         />
       ) : (
         <>

@@ -106,7 +106,7 @@ async def list_entities(
                 entity_type=entity.entity_type,
                 name=entity.name,
                 description=entity.description or "",
-                content=entity.content or "",
+                content=(entity.content or "")[:50000],  # Truncate for list view
                 category=getattr(entity, "category", None) or entity.metadata.get("category"),
                 languages=getattr(entity, "languages", None)
                 or entity.metadata.get("languages", [])
@@ -155,7 +155,7 @@ async def get_entity(
             entity_type=entity.entity_type,
             name=entity.name,
             description=entity.description or "",
-            content=entity.content or "",
+            content=(entity.content or "")[:50000],  # Truncate to fit schema
             category=getattr(entity, "category", None) or entity.metadata.get("category"),
             languages=getattr(entity, "languages", None)
             or entity.metadata.get("languages", [])

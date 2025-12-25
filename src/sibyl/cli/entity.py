@@ -36,6 +36,7 @@ ENTITY_TYPES = [
     "pattern",
     "rule",
     "template",
+    "convention",
     "tool",
     "language",
     "topic",

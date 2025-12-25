@@ -12,7 +12,7 @@ import {
   useState,
 } from 'react';
 import type { ForceGraphMethods } from 'react-force-graph-2d';
-import { EmptyState } from '@/components/ui/tooltip';
+import { GraphEmptyState } from '@/components/ui/empty-state';
 import { ENTITY_COLORS, GRAPH_DEFAULTS } from '@/lib/constants';
 
 // Dynamic import to avoid SSR issues with canvas
@@ -393,11 +393,7 @@ export const KnowledgeGraph = forwardRef<KnowledgeGraphRef, KnowledgeGraphProps>
     if (!data || data.nodes.length === 0) {
       return (
         <div className="flex items-center justify-center h-full bg-sc-bg-dark">
-          <EmptyState
-            variant="data"
-            title="No entities to display"
-            description="Adjust filters or add more data to the knowledge graph"
-          />
+          <GraphEmptyState />
         </div>
       );
     }

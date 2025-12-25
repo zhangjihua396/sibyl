@@ -1,6 +1,6 @@
 import { memo } from 'react';
+import { EntitiesEmptyState } from '@/components/ui/empty-state';
 import { Spinner } from '@/components/ui/spinner';
-import { EmptyState } from '@/components/ui/tooltip';
 import { ENTITY_COLORS, ENTITY_TYPES } from '@/lib/constants';
 
 interface LegendProps {
@@ -68,13 +68,7 @@ export const EntityBreakdown = memo(function EntityBreakdown({
   const entries = Object.entries(counts);
 
   if (entries.length === 0) {
-    return (
-      <EmptyState
-        variant="data"
-        title="No entities yet"
-        description="Start by ingesting documents to create entities"
-      />
-    );
+    return <EntitiesEmptyState />;
   }
 
   return (

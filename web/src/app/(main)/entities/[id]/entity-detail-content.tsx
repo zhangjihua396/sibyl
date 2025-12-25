@@ -9,6 +9,7 @@ import { EntityBadge } from '@/components/ui/badge';
 import { Button, ColorButton } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input, Textarea } from '@/components/ui/input';
+import { Markdown } from '@/components/ui/markdown';
 import type { Entity } from '@/lib/api';
 import { ENTITY_COLORS, type EntityType, formatDateTime } from '@/lib/constants';
 import { useDeleteEntity, useEntity, useUpdateEntity } from '@/lib/hooks';
@@ -156,10 +157,10 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                 rows={3}
                 placeholder="Enter description..."
               />
+            ) : currentEntity.description ? (
+              <Markdown content={currentEntity.description} />
             ) : (
-              <p className="text-sc-fg-muted whitespace-pre-wrap">
-                {currentEntity.description || 'No description available'}
-              </p>
+              <p className="text-sc-fg-muted italic">No description available</p>
             )}
           </Card>
 
@@ -174,10 +175,10 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                 monospace
                 placeholder="Enter content..."
               />
+            ) : currentEntity.content ? (
+              <Markdown content={currentEntity.content} />
             ) : (
-              <pre className="font-mono text-sm text-sc-fg-muted whitespace-pre-wrap overflow-x-auto">
-                {currentEntity.content || 'No content available'}
-              </pre>
+              <p className="text-sc-fg-muted italic">No content available</p>
             )}
           </Card>
         </div>

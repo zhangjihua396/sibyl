@@ -12,6 +12,7 @@ import {
   SourceCardSkeleton,
   type UrlSourceData,
 } from '@/components/sources';
+import { EnhancedEmptyState } from '@/components/ui/empty-state';
 import {
   Database,
   Filter,
@@ -22,7 +23,6 @@ import {
   RefreshCw,
   Search,
 } from '@/components/ui/icons';
-import { EmptyState } from '@/components/ui/tooltip';
 import type { CrawlStatusType, SourceTypeValue } from '@/lib/constants';
 import {
   useAllCrawlProgress,
@@ -551,39 +551,28 @@ export default function SourcesPage() {
         </div>
       ) : filteredSources.length === 0 ? (
         sources.length === 0 ? (
-          <EmptyState
-            icon={<Globe width={48} height={48} className="text-sc-purple" />}
+          <EnhancedEmptyState
+            icon={<Globe width={48} height={48} className="text-sc-cyan" />}
             title="No knowledge sources yet"
             description="Add documentation websites or upload files to build your knowledge graph"
-            action={
-              <button
-                type="button"
-                onClick={() => setShowAddDialog(true)}
-                className="shrink-0 px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm"
-              >
-                <span>+</span>
-                <span>Add Your First Source</span>
-              </button>
-            }
+            actions={[{ label: 'Add Your First Source', onClick: () => setShowAddDialog(true) }]}
           />
         ) : (
-          <EmptyState
-            icon={<Search width={48} height={48} className="text-sc-fg-subtle" />}
+          <EnhancedEmptyState
+            icon={<Search width={48} height={48} className="text-sc-yellow" />}
             title="No sources match your filters"
             description="Try adjusting your search or filters"
-            action={
-              <button
-                type="button"
-                onClick={() => {
+            variant="filtered"
+            actions={[
+              {
+                label: 'Clear filters',
+                onClick: () => {
                   setSearchQuery('');
                   setFilterStatus('all');
                   setFilterType('all');
-                }}
-                className="text-sc-purple hover:underline"
-              >
-                Clear filters
-              </button>
-            }
+                },
+              },
+            ]}
           />
         )
       ) : (

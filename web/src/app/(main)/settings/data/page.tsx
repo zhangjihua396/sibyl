@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, Archive, Check, Clock, Download, Upload } from '@/components/ui/icons';
+import { AlertCircle, Archive, Check, Download, Upload } from '@/components/ui/icons';
 import { api, type BackupData, type BackupResponse } from '@/lib/api';
 
 export default function DataSettingsPage() {
