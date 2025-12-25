@@ -248,6 +248,23 @@ pre {
   }
 }
 
+/* Logo glow - subtle breathing effect */
+@keyframes logo-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 8px rgba(225, 53, 255, 0.3))
+      drop-shadow(0 0 20px rgba(128, 255, 234, 0.15));
+  }
+  50% {
+    filter: drop-shadow(0 0 14px rgba(225, 53, 255, 0.5))
+      drop-shadow(0 0 28px rgba(128, 255, 234, 0.25));
+  }
+}
+
+.animate-logo-glow {
+  animation: logo-glow 4s ease-in-out infinite;
+}
+
 /* Wiggle for attention */
 @keyframes wiggle {
   0%,

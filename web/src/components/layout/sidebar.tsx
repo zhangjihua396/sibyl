@@ -1,6 +1,7 @@
 'use client';
 
 import { AnimatePresence, motion } from 'motion/react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect } from 'react';
@@ -14,7 +15,6 @@ import {
   Network,
   RefreshCw,
   Search,
-  Sparkles,
   X,
 } from '@/components/ui/icons';
 import { APP_CONFIG } from '@/lib/constants';
@@ -41,22 +41,19 @@ function SidebarContent({ onNavClick }: SidebarContentProps) {
   return (
     <>
       {/* Logo */}
-      <div className="p-4 md:p-6 border-b border-sc-fg-subtle/10">
-        <Link href="/" className="flex items-center gap-3 group" onClick={onNavClick}>
-          <div className="relative">
-            {/* Glow effect */}
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-sc-purple via-sc-magenta to-sc-coral blur-lg opacity-50 group-hover:opacity-75 transition-opacity" />
-            {/* Logo container */}
-            <div className="relative w-10 h-10 rounded-xl bg-gradient-to-br from-sc-purple via-sc-magenta to-sc-coral flex items-center justify-center shadow-lg">
-              <Sparkles width={20} height={20} className="text-white" />
-            </div>
-          </div>
-          <div>
-            <h1 className="text-lg font-bold text-sc-fg-primary tracking-tight">Sibyl</h1>
-            <p className="text-[10px] text-sc-fg-subtle uppercase tracking-widest">
-              Knowledge Oracle
-            </p>
-          </div>
+      <div className="py-4 pr-4 pl-0 md:py-6 md:pr-6 md:pl-0 border-b border-sc-fg-subtle/10">
+        <Link href="/" className="block text-center" onClick={onNavClick}>
+          <Image
+            src="/sibyl-logo.png"
+            alt="Sibyl"
+            width={180}
+            height={52}
+            className="h-12 w-auto mx-auto animate-logo-glow"
+            priority
+          />
+          <p className="text-[11px] text-sc-fg-muted uppercase tracking-widest mt-1.5 text-center">
+            Knowledge Oracle
+          </p>
         </Link>
       </div>
 
