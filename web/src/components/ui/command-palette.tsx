@@ -12,7 +12,6 @@ import {
   List,
   ListTodo,
   Network,
-  RefreshCw,
   Search,
 } from '@/components/ui/icons';
 
@@ -25,7 +24,6 @@ const COMMAND_NAV: Array<{ name: string; href: string; icon: ReactNode }> = [
   { name: 'Graph', href: '/graph', icon: <Network width={18} height={18} /> },
   { name: 'Entities', href: '/entities', icon: <Boxes width={18} height={18} /> },
   { name: 'Search', href: '/search', icon: <Search width={18} height={18} /> },
-  { name: 'Ingest', href: '/ingest', icon: <RefreshCw width={18} height={18} /> },
 ];
 
 interface CommandItem {

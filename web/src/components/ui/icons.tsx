@@ -224,7 +224,6 @@ export const NAV_ICONS = {
   graph: Network,
   entities: Cube,
   search: Search,
-  ingest: RefreshDouble,
 } as const;
 
 // =============================================================================

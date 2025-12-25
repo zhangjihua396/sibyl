@@ -6,7 +6,7 @@ Sibyl exposes 3 unified tools:
 - add: Add new knowledge
 
 Plus admin tools for CLI usage (not exposed via MCP):
-- health_check, sync_wisdom_docs, rebuild_indices, get_stats
+- health_check, rebuild_indices, get_stats
 """
 
 # Primary unified tools (exposed via MCP)
@@ -14,12 +14,10 @@ Plus admin tools for CLI usage (not exposed via MCP):
 from sibyl.tools.admin import (
     HealthStatus,
     RebuildResult,
-    SyncResult,
     get_stats,
     health_check,
     mark_server_started,
     rebuild_indices,
-    sync_wisdom_docs,
 )
 from sibyl.tools.core import (
     AddResponse,
@@ -56,10 +54,8 @@ __all__ = [
     # Admin (CLI only)
     "HealthStatus",
     "RebuildResult",
-    "SyncResult",
     "get_stats",
     "health_check",
     "mark_server_started",
     "rebuild_indices",
-    "sync_wisdom_docs",
 ]

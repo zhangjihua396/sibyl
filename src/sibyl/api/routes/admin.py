@@ -1,10 +1,9 @@
-"""Admin endpoints for health, stats, and ingestion."""
+"""Admin endpoints for health, stats, backup, and restore."""
 
-import asyncio
 from typing import Any
 
 import structlog
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
 from sibyl.api.schemas import (
     BackfillRequest,
@@ -12,13 +11,10 @@ from sibyl.api.schemas import (
     BackupDataSchema,
     BackupResponse,
     HealthResponse,
-    IngestRequest,
-    IngestResponse,
     RestoreRequest,
     RestoreResponse,
     StatsResponse,
 )
-from sibyl.api.websocket import broadcast_event
 from sibyl.auth.dependencies import get_current_organization, require_org_role
 from sibyl.db.models import Organization, OrganizationRole
 
@@ -82,98 +78,6 @@ async def stats(
         raise HTTPException(
             status_code=500, detail="Failed to retrieve stats. Please try again."
         ) from e
-
-
-# Background ingestion state
-_ingestion_status: dict[str, Any] = {
-    "running": False,
-    "progress": 0,
-    "files_processed": 0,
-    "entities_created": 0,
-    "entities_updated": 0,
-    "errors": [],
-}
-
-
-async def _run_ingestion(path: str | None, force: bool, group_id: str) -> None:
-    """Run ingestion in background with progress updates."""
-    global _ingestion_status  # noqa: PLW0603
-    from sibyl.tools.admin import sync_wisdom_docs
-
-    _ingestion_status = {
-        "running": True,
-        "progress": 0,
-        "files_processed": 0,
-        "entities_created": 0,
-        "entities_updated": 0,
-        "errors": [],
-    }
-
-    try:
-        # Broadcast start
-        await broadcast_event("ingest_progress", _ingestion_status)
-
-        # Run ingestion
-        result = await sync_wisdom_docs(path=path, force=force, group_id=group_id)
-
-        # Update final status
-        _ingestion_status = {
-            "running": False,
-            "progress": 100,
-            "files_processed": result.files_processed,
-            "entities_created": result.entities_created,
-            "entities_updated": result.entities_updated,
-            "errors": result.errors,
-            "duration_seconds": result.duration_seconds,
-            "success": result.success,
-        }
-
-        # Broadcast completion
-        await broadcast_event("ingest_complete", _ingestion_status)
-
-    except Exception as e:
-        _ingestion_status = {
-            "running": False,
-            "progress": 0,
-            "errors": [str(e)],
-            "success": False,
-        }
-        await broadcast_event("ingest_complete", _ingestion_status)
-
-
-@router.post("/ingest", response_model=IngestResponse)
-async def ingest(
-    request: IngestRequest,
-    background_tasks: BackgroundTasks,
-    org: Organization = Depends(get_current_organization),
-) -> IngestResponse:
-    """Trigger document ingestion.
-
-    Runs in background and sends progress via WebSocket.
-    """
-    if _ingestion_status.get("running"):
-        raise HTTPException(status_code=409, detail="Ingestion already in progress")
-
-    # Start background ingestion
-    background_tasks.add_task(_run_ingestion, request.path, request.force, str(org.id))
-
-    # Wait a moment for it to start
-    await asyncio.sleep(0.1)
-
-    return IngestResponse(
-        success=True,
-        files_processed=0,
-        entities_created=0,
-        entities_updated=0,
-        duration_seconds=0,
-        errors=["Ingestion started in background"],
-    )
-
-
-@router.get("/ingest/status")
-async def ingest_status() -> dict[str, Any]:
-    """Get current ingestion status."""
-    return _ingestion_status
 
 
 # === Backup/Restore Endpoints ===

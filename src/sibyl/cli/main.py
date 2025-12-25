@@ -255,66 +255,6 @@ def health(
 
 
 @app.command()
-def ingest(
-    path: Annotated[
-        Path | None, typer.Argument(help="Path to ingest (default: entire repo)")
-    ] = None,
-    force: Annotated[bool, typer.Option("--force", "-f", help="Force re-ingestion")] = False,
-    table_out: Annotated[
-        bool, typer.Option("--table", "-t", help="Table output (human-readable)")
-    ] = False,
-) -> None:
-    """Ingest wisdom documents into the knowledge graph. Default: JSON output."""
-
-    @run_async
-    async def run_ingest() -> None:
-        client = get_client()
-
-        path_str = str(path) if path else None
-
-        try:
-            if table_out:
-                console.print(
-                    create_panel(f"[{ELECTRIC_PURPLE}]Ingesting Knowledge[/{ELECTRIC_PURPLE}]")
-                )
-                with spinner("Ingesting documents...") as progress:
-                    progress.add_task("Ingesting documents...", total=None)
-                    result = await client.ingest(path=path_str, force=force)
-            else:
-                result = await client.ingest(path=path_str, force=force)
-
-            # JSON output (default)
-            if not table_out:
-                print_json(result)
-                return
-
-            # Table output
-            if result.get("success"):
-                success("Ingestion complete!")
-            else:
-                error("Ingestion had errors")
-
-            table = create_table(None, "Metric", "Value")
-            table.add_row("Files Processed", str(result.get("files_processed", 0)))
-            table.add_row("Entities Created", str(result.get("entities_created", 0)))
-            table.add_row("Entities Updated", str(result.get("entities_updated", 0)))
-            table.add_row("Duration", f"{result.get('duration_seconds', 0):.2f}s")
-            console.print(table)
-
-            if result.get("errors"):
-                console.print(f"\n[{CORAL}]Errors:[/{CORAL}]")
-                for err in result["errors"][:10]:
-                    console.print(f"  [{CORAL}]•[/{CORAL}] {err}")
-                if len(result["errors"]) > 10:
-                    console.print(f"  ... and {len(result['errors']) - 10} more")
-
-        except SibylClientError as e:
-            _handle_client_error(e)
-
-    run_ingest()
-
-
-@app.command()
 def search(
     query: str = typer.Argument(..., help="Search query"),
     limit: int = typer.Option(10, "--limit", "-n", help="Max results"),

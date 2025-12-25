@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
   ListTodo,
   Network,
-  RefreshCw,
   Search,
   X,
 } from '@/components/ui/icons';
@@ -30,7 +29,6 @@ const NAVIGATION: Array<{ name: string; href: string; icon: IconComponent }> = [
   { name: 'Graph', href: '/graph', icon: Network },
   { name: 'Entities', href: '/entities', icon: Boxes },
   { name: 'Search', href: '/search', icon: Search },
-  { name: 'Ingest', href: '/ingest', icon: RefreshCw },
 ];
 
 interface SidebarContentProps {

@@ -7,6 +7,7 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  BookOpen,
   Boxes,
   CheckCircle2,
   Clock,
@@ -17,7 +18,6 @@ import {
   ListTodo,
   Network,
   Play,
-  RefreshCw,
   Search,
   Sparkles,
   Target,
@@ -300,7 +300,7 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
               className="bg-sc-bg-elevated rounded-lg sm:rounded-xl p-3 sm:p-4 border border-sc-fg-subtle/10 hover:border-sc-yellow/30 transition-all group"
             >
               <div className="flex items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
-                <RefreshCw width={14} height={14} className="text-sc-yellow sm:w-4 sm:h-4" />
+                <Clock width={14} height={14} className="text-sc-yellow sm:w-4 sm:h-4" />
                 <span className="text-xs sm:text-sm text-sc-fg-muted">In Review</span>
               </div>
               <p className="text-xl sm:text-2xl font-bold text-sc-fg-primary group-hover:text-sc-yellow transition-colors">
@@ -420,11 +420,11 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
             </Link>
 
             <Link
-              href="/ingest"
+              href="/sources"
               className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 bg-sc-bg-elevated rounded-lg sm:rounded-xl border border-sc-fg-subtle/10 hover:border-sc-green/30 hover:bg-sc-bg-highlight transition-all group"
             >
               <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-sc-green/10 flex items-center justify-center shrink-0">
-                <RefreshCw
+                <BookOpen
                   width={16}
                   height={16}
                   className="text-sc-green sm:w-[18px] sm:h-[18px]"
@@ -432,10 +432,10 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs sm:text-sm font-medium text-sc-fg-primary group-hover:text-sc-green transition-colors truncate">
-                  Ingest Documents
+                  Add Source
                 </div>
                 <div className="text-[10px] sm:text-xs text-sc-fg-subtle truncate">
-                  Sync knowledge sources
+                  Documentation &amp; knowledge
                 </div>
               </div>
               <ArrowRight

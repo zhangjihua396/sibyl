@@ -481,13 +481,6 @@ class SibylClient:
         """Get knowledge graph statistics."""
         return await self._request("GET", "/admin/stats")
 
-    async def ingest(self, path: str | None = None, force: bool = False) -> dict[str, Any]:
-        """Trigger document ingestion."""
-        data: dict[str, Any] = {"force": force}
-        if path:
-            data["path"] = path
-        return await self._request("POST", "/admin/ingest", json=data)
-
     # =========================================================================
     # Knowledge Operations
     # =========================================================================

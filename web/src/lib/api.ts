@@ -803,27 +803,6 @@ export const api = {
   admin: {
     health: () => fetchApi<HealthResponse>('/admin/health'),
     stats: () => fetchApi<StatsResponse>('/admin/stats'),
-    ingest: (params?: { path?: string; force?: boolean }) =>
-      fetchApi<{
-        success: boolean;
-        files_processed: number;
-        entities_created: number;
-        entities_updated: number;
-        duration_seconds: number;
-        errors: string[];
-      }>('/admin/ingest', {
-        method: 'POST',
-        body: JSON.stringify(params || {}),
-      }),
-    ingestStatus: () =>
-      fetchApi<{
-        running: boolean;
-        progress: number;
-        files_processed: number;
-        entities_created: number;
-        entities_updated: number;
-        errors: string[];
-      }>('/admin/ingest/status'),
     backup: () =>
       fetchApi<BackupResponse>('/admin/backup', {
         method: 'POST',

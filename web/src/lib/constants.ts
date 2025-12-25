@@ -460,7 +460,6 @@ export const NAVIGATION = [
   { name: 'Graph', href: '/graph', icon: '⬡' },
   { name: 'Entities', href: '/entities', icon: '▣' },
   { name: 'Search', href: '/search', icon: '⌕' },
-  { name: 'Ingest', href: '/ingest', icon: '↻' },
 ] as const;
 
 // Quick actions for dashboard
@@ -468,7 +467,7 @@ export const QUICK_ACTIONS = [
   { label: 'Explore Graph', href: '/graph', icon: '⬡', color: 'purple' as const },
   { label: 'Browse Entities', href: '/entities', icon: '▣', color: 'cyan' as const },
   { label: 'Search Knowledge', href: '/search', icon: '⌕', color: 'coral' as const },
-  { label: 'Sync Documents', href: '/ingest', icon: '↻', color: 'yellow' as const },
+  { label: 'Add Source', href: '/sources', icon: '▤', color: 'yellow' as const },
 ] as const;
 
 // =============================================================================

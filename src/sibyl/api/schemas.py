@@ -261,24 +261,6 @@ class StatsResponse(BaseModel):
     total_relationships: int | None = None
 
 
-class IngestRequest(BaseModel):
-    """Ingestion request."""
-
-    path: str | None = Field(default=None, description="Specific path to ingest")
-    force: bool = Field(default=False, description="Force re-ingestion")
-
-
-class IngestResponse(BaseModel):
-    """Ingestion result."""
-
-    success: bool
-    files_processed: int
-    entities_created: int
-    entities_updated: int
-    duration_seconds: float
-    errors: list[str]
-
-
 # =============================================================================
 # WebSocket Event Schemas
 # =============================================================================

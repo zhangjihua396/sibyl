@@ -7,8 +7,6 @@ export type WebSocketEventType =
   | 'entity_updated'
   | 'entity_deleted'
   | 'search_complete'
-  | 'ingest_progress'
-  | 'ingest_complete'
   | 'crawl_started'
   | 'crawl_progress'
   | 'crawl_complete'

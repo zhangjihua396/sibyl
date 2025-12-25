@@ -13,7 +13,6 @@ import {
   LayoutDashboard,
   ListTodo,
   Network,
-  RefreshCw,
   Search,
 } from '@/components/ui/icons';
 
@@ -30,7 +29,6 @@ export const ROUTE_CONFIG: Record<string, { label: string; icon: IconComponent }
   graph: { label: 'Graph', icon: Network },
   entities: { label: 'Entities', icon: Boxes },
   search: { label: 'Search', icon: Search },
-  ingest: { label: 'Ingest', icon: RefreshCw },
 };
 
 interface BreadcrumbItem {

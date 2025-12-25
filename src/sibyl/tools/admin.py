@@ -6,7 +6,6 @@ Provides maintenance and diagnostic capabilities.
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from pathlib import Path
 
 import structlog
 
@@ -31,18 +30,6 @@ class HealthStatus:
     search_latency_ms: float | None = None
     last_sync: datetime | None = None
     errors: list[str] = field(default_factory=list)
-
-
-@dataclass
-class SyncResult:
-    """Result of a sync operation."""
-
-    success: bool
-    files_processed: int
-    entities_created: int
-    entities_updated: int
-    errors: list[str]
-    duration_seconds: float
 
 
 @dataclass
@@ -144,101 +131,6 @@ async def health_check(*, organization_id: str | None = None) -> HealthStatus:
         search_latency_ms=search_latency_ms,
         last_sync=None,  # TODO: Track last sync time
         errors=errors,
-    )
-
-
-async def sync_wisdom_docs(
-    path: str | None = None,
-    force: bool = False,
-    *,
-    group_id: str,
-) -> SyncResult:
-    """Re-ingest wisdom documentation from files.
-
-    Args:
-        path: Specific path to sync. If None, syncs all wisdom docs.
-        force: If True, re-process all files even if unchanged.
-        group_id: Organization ID for multi-tenant graph operations.
-
-    Returns:
-        SyncResult with sync statistics.
-    """
-    log.info("Starting wisdom docs sync", path=path, force=force)
-
-    start_time = time.time()
-    errors: list[str] = []
-    files_processed = 0
-    entities_created = 0
-    entities_updated = 0
-
-    try:
-        # Import pipeline here to avoid circular imports
-        from sibyl.ingestion.pipeline import IngestionPipeline
-
-        # Determine what to sync and validate paths
-        repo_root = Path(settings.conventions_repo_path).resolve()
-
-        if path:
-            # Security: Validate path is within repository bounds
-            sync_path = Path(path).resolve()
-            try:
-                sync_path.relative_to(repo_root)
-            except ValueError:
-                return SyncResult(
-                    success=False,
-                    files_processed=0,
-                    entities_created=0,
-                    entities_updated=0,
-                    errors=[f"Security error: Path {path} is outside repository bounds"],
-                    duration_seconds=time.time() - start_time,
-                )
-
-            if not sync_path.exists():
-                return SyncResult(
-                    success=False,
-                    files_processed=0,
-                    entities_created=0,
-                    entities_updated=0,
-                    errors=[f"Path does not exist: {sync_path}"],
-                    duration_seconds=time.time() - start_time,
-                )
-
-            # Convert to relative pattern for pipeline
-            try:
-                relative_path = sync_path.relative_to(repo_root)
-                wisdom_patterns = [f"{relative_path}/**/*.md"]
-            except ValueError:
-                # Should not happen due to earlier check, but defensive
-                wisdom_patterns = None
-        else:
-            wisdom_patterns = None  # Use default patterns
-
-        # Create pipeline with appropriate patterns
-        pipeline = IngestionPipeline(repo_root, wisdom_patterns=wisdom_patterns, group_id=group_id)
-
-        # Run ingestion
-        result = await pipeline.run()
-
-        files_processed = result.stats.files_processed
-        entities_created = result.stats.entities_extracted
-        # entities_updated would come from diff detection (not implemented yet)
-
-        if not result.success:
-            errors.extend([str(e) for e in result.errors])
-
-    except Exception as e:
-        log.error("Sync failed", error=str(e))  # noqa: TRY400
-        errors.append(str(e))
-
-    duration = time.time() - start_time
-
-    return SyncResult(
-        success=len(errors) == 0,
-        files_processed=files_processed,
-        entities_created=entities_created,
-        entities_updated=entities_updated,
-        errors=errors,
-        duration_seconds=duration,
     )
 
 

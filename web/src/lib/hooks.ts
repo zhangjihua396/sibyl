@@ -68,7 +68,6 @@ export const queryKeys = {
   admin: {
     health: ['admin', 'health'] as const,
     stats: ['admin', 'stats'] as const,
-    ingestStatus: ['admin', 'ingest-status'] as const,
   },
   tasks: {
     all: ['tasks'] as const,
@@ -629,25 +628,6 @@ export function useStats(initialData?: import('./api').StatsResponse) {
   });
 }
 
-export function useIngest() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (params?: { path?: string; force?: boolean }) => api.admin.ingest(params),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.ingestStatus });
-    },
-  });
-}
-
-export function useIngestStatus() {
-  return useQuery({
-    queryKey: queryKeys.admin.ingestStatus,
-    queryFn: api.admin.ingestStatus,
-    refetchInterval: query => (query.state.data?.running ? 1000 : false), // Poll while running
-  });
-}
-
 // =============================================================================
 // WebSocket Hook
 // =============================================================================
@@ -699,23 +679,6 @@ export function useRealtimeUpdates(isAuthenticated = false) {
       console.log('[WS] Entity deleted:', entityId, entityType);
     });
 
-    // Ingest progress - update status in real-time
-    const unsubIngestProgress = wsClient.on('ingest_progress', data => {
-      queryClient.setQueryData(queryKeys.admin.ingestStatus, data);
-    });
-
-    // Ingest complete - refresh everything (ingest creates many entities of unknown types)
-    const unsubIngestComplete = wsClient.on('ingest_complete', () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.ingestStatus });
-      queryClient.invalidateQueries({ queryKey: queryKeys.entities.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.sources.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.graph.all });
-      queryClient.invalidateQueries({ queryKey: queryKeys.admin.stats });
-      console.log('[WS] Ingest complete');
-    });
-
     // Health update
     const unsubHealth = wsClient.on('health_update', () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.admin.health });
@@ -759,8 +722,6 @@ export function useRealtimeUpdates(isAuthenticated = false) {
       unsubCreate();
       unsubUpdate();
       unsubDelete();
-      unsubIngestProgress();
-      unsubIngestComplete();
       unsubHealth();
       unsubSearch();
       unsubCrawlStarted();
