@@ -10,9 +10,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHON_VERSION: "3.13"
+  NODE_VERSION: "22"
+  PNPM_VERSION: "10"
+
 jobs:
-  lint:
-    name: Lint
+  # =============================================================================
+  # Backend Jobs
+  # =============================================================================
+
+  backend-lint:
+    name: Backend Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +34,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt-dev
 
       - name: Install dependencies
         run: uv sync --all-extras
@@ -36,8 +50,8 @@ jobs:
       - name: Run Ruff formatter check
         run: uv run ruff format --check src tests
 
-  typecheck:
-    name: Type Check
+  backend-typecheck:
+    name: Backend Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -50,21 +64,64 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt-dev
 
       - name: Install dependencies
         run: uv sync --all-extras
 
-      - name: Run MyPy
-        run: uv run mypy src
+      - name: Run Pyright
+        run: uv run pyright src
 
-  test:
-    name: Test (Python ${{ matrix.python-version }})
+  backend-test:
+    name: Backend Test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+    services:
+      falkordb:
+        image: falkordb/falkordb:latest
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:16
+        ports:
+          - 5433:5432
+        env:
+          POSTGRES_USER: sibyl
+          POSTGRES_PASSWORD: sibyl_dev
+          POSTGRES_DB: sibyl
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Sibyl configuration for tests
+      SIBYL_ENVIRONMENT: development
+      SIBYL_DISABLE_AUTH: "true"
+      SIBYL_JWT_SECRET: test-secret-for-ci
+      SIBYL_FALKORDB_HOST: localhost
+      SIBYL_FALKORDB_PORT: 6380
+      SIBYL_FALKORDB_PASSWORD: ""
+      SIBYL_POSTGRES_HOST: localhost
+      SIBYL_POSTGRES_PORT: 5433
+      SIBYL_POSTGRES_USER: sibyl
+      SIBYL_POSTGRES_PASSWORD: sibyl_dev
+      SIBYL_POSTGRES_DB: sibyl
+      # Skip LLM calls in tests
+      SIBYL_OPENAI_API_KEY: sk-test-key
+      SIBYL_ANTHROPIC_API_KEY: sk-ant-test-key
+
     steps:
       - uses: actions/checkout@v4
 
@@ -73,28 +130,122 @@ jobs:
         with:
           version: "latest"
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt-dev
 
       - name: Install dependencies
         run: uv sync --all-extras
 
       - name: Run tests with coverage
-        run: uv run pytest --cov=src --cov-report=xml --cov-report=term
+        run: uv run pytest --cov=src --cov-report=xml --cov-report=term -v
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.12'
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
           fail_ci_if_error: false
 
-  build:
-    name: Build
+  # =============================================================================
+  # Frontend Jobs
+  # =============================================================================
+
+  frontend-lint:
+    name: Frontend Lint
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Biome lint
+        run: pnpm lint
+
+  frontend-typecheck:
+    name: Frontend Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run TypeScript type check
+        run: pnpm typecheck
+
+  frontend-build:
+    name: Frontend Build
+    runs-on: ubuntu-latest
+    needs: [frontend-lint, frontend-typecheck]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: "pnpm"
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+  # =============================================================================
+  # Build & Package
+  # =============================================================================
+
+  backend-build:
+    name: Backend Build
+    runs-on: ubuntu-latest
+    needs: [backend-lint, backend-typecheck, backend-test]
     steps:
       - uses: actions/checkout@v4
 
@@ -106,7 +257,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-dev libxslt-dev
 
       - name: Build package
         run: uv build
