@@ -4,6 +4,7 @@ Fixtures for running tests against a live Sibyl system.
 """
 
 import json
+import os
 import subprocess
 import time
 from collections.abc import AsyncGenerator, Generator
@@ -20,6 +21,8 @@ import pytest_asyncio
 API_BASE_URL = "http://localhost:3334/api"
 HEALTH_TIMEOUT = 30  # seconds to wait for services
 HEALTH_INTERVAL = 0.5  # seconds between health checks
+E2E_TEST_EMAIL = "e2e-test@sibyl.dev"
+E2E_TEST_PASSWORD = "e2e-test-password-secure-123!"  # noqa: S105
 
 
 # =============================================================================
@@ -60,6 +63,10 @@ class CLIResult:
 class CLIRunner:
     """Run Sibyl CLI commands and capture output."""
 
+    def __init__(self, auth_token: str | None = None):
+        """Initialize CLI runner with optional auth token."""
+        self.auth_token = auth_token
+
     def run(self, *args: str, timeout: float = 30) -> CLIResult:
         """Run a sibyl CLI command.
 
@@ -71,12 +78,16 @@ class CLIRunner:
             CLIResult with returncode, stdout, stderr
         """
         cmd = ["sibyl", *args]
+        env = os.environ.copy()
+        if self.auth_token:
+            env["SIBYL_AUTH_TOKEN"] = self.auth_token
         result = subprocess.run(  # noqa: S603
             cmd,
             check=False,
             capture_output=True,
             text=True,
             timeout=timeout,
+            env=env,
         )
         return CLIResult(
             returncode=result.returncode,
@@ -160,10 +171,48 @@ class CLIRunner:
         return self.run(*args)
 
 
+@pytest.fixture(scope="session")
+def e2e_auth_token() -> str:
+    """Create or login test user and return auth token.
+
+    This is session-scoped so we only authenticate once per test run.
+    Uses the local auth endpoints (not OAuth).
+    """
+    with httpx.Client(base_url=API_BASE_URL, timeout=30.0) as client:
+        # Try to login first (user may already exist)
+        login_response = client.post(
+            "/auth/local/login",
+            json={"email": E2E_TEST_EMAIL, "password": E2E_TEST_PASSWORD},
+        )
+
+        if login_response.status_code == 200:
+            return login_response.json()["access_token"]
+
+        # User doesn't exist, create via signup
+        signup_response = client.post(
+            "/auth/local/signup",
+            json={
+                "email": E2E_TEST_EMAIL,
+                "password": E2E_TEST_PASSWORD,
+                "name": "E2E Test User",
+            },
+        )
+
+        if signup_response.status_code == 200:
+            return signup_response.json()["access_token"]
+
+        # If signup also failed, raise error with details
+        raise RuntimeError(
+            f"Failed to authenticate E2E test user. "
+            f"Login: {login_response.status_code} {login_response.text}. "
+            f"Signup: {signup_response.status_code} {signup_response.text}"
+        )
+
+
 @pytest.fixture
-def cli() -> CLIRunner:
+def cli(e2e_auth_token: str) -> CLIRunner:
     """Get CLI runner for executing sibyl commands."""
-    return CLIRunner()
+    return CLIRunner(auth_token=e2e_auth_token)
 
 
 # =============================================================================
