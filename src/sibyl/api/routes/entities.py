@@ -193,8 +193,17 @@ async def create_entity(
     org: Organization = Depends(get_current_organization),
     ctx: AuthContext = Depends(get_auth_context),
     session: AsyncSession = Depends(get_session_dependency),
+    sync: bool = Query(
+        default=False,
+        description="Wait for entity creation to complete (slower but entity is immediately available)",
+    ),
 ) -> EntityResponse:
-    """Create a new entity."""
+    """Create a new entity.
+
+    By default, entities are created asynchronously via a background worker.
+    Set sync=true to wait for creation to complete (useful for tasks that need
+    immediate workflow operations like start/complete).
+    """
     try:
         from sibyl.tools.core import add
 
@@ -211,9 +220,9 @@ async def create_entity(
 
         merged_metadata: dict[str, Any] = {**(entity.metadata or {}), "organization_id": group_id}
 
-        # Projects are sync (foundational - tasks depend on them existing)
-        # Tasks and other entities are async (processed in background)
-        is_sync = entity.entity_type.value == "project"
+        # Projects are always sync (foundational - tasks depend on them existing)
+        # Other entities can be async unless caller explicitly requests sync
+        is_sync = entity.entity_type.value == "project" or sync
 
         result = await add(
             title=entity.name,

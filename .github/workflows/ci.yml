@@ -166,6 +166,12 @@ jobs:
           # Verify health endpoint returns success
           curl -s http://localhost:3334/api/health | head -c 200
 
+      - name: Start background job worker
+        run: |
+          uv run sibyl worker &
+          echo "Background job worker started"
+          sleep 2
+
       - name: Start frontend server
         run: |
           cd web

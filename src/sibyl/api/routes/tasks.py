@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from sibyl.api.websocket import broadcast_event
 from sibyl.auth.dependencies import get_current_organization, require_org_role
 from sibyl.db.models import Organization, OrganizationRole
-from sibyl.errors import InvalidTransitionError
+from sibyl.errors import EntityNotFoundError, InvalidTransitionError
 from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
@@ -239,6 +239,8 @@ async def start_task(
             data={"status": task.status.value, "branch_name": task.branch_name},
         )
 
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -279,6 +281,8 @@ async def block_task(
             data={"status": task.status.value, "reason": request.reason},
         )
 
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -318,6 +322,8 @@ async def unblock_task(
             data={"status": task.status.value},
         )
 
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -360,6 +366,8 @@ async def submit_review(
             data={"status": task.status.value, "pr_url": task.pr_url},
         )
 
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -402,6 +410,8 @@ async def complete_task(
             data={"status": task.status.value, "learnings": learnings},
         )
 
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
@@ -443,6 +453,8 @@ async def archive_task(
             data={"status": task.status.value},
         )
 
+    except EntityNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except InvalidTransitionError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:

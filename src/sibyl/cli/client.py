@@ -300,8 +300,14 @@ class SibylClient:
         languages: list[str] | None = None,
         tags: list[str] | None = None,
         metadata: dict[str, Any] | None = None,
+        sync: bool = False,
     ) -> dict[str, Any]:
-        """Create a new entity."""
+        """Create a new entity.
+
+        Args:
+            sync: If True, wait for entity creation to complete (slower but
+                  entity is immediately available for operations like task start).
+        """
         data: dict[str, Any] = {
             "name": name,
             "content": content,
@@ -318,7 +324,8 @@ class SibylClient:
         if metadata:
             data["metadata"] = metadata
 
-        return await self._request("POST", "/entities", json=data)
+        params = {"sync": "true"} if sync else None
+        return await self._request("POST", "/entities", json=data, params=params)
 
     async def update_entity(
         self,

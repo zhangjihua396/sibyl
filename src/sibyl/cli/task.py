@@ -587,6 +587,10 @@ def create_task(
     technologies: Annotated[
         str | None, typer.Option("--tech", help="Comma-separated technologies")
     ] = None,
+    sync: Annotated[
+        bool,
+        typer.Option("--sync", help="Wait for task creation (slower but immediately available)"),
+    ] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -622,6 +626,7 @@ def create_task(
                         content=description or title,
                         entity_type="task",
                         metadata=metadata,
+                        sync=sync,
                     )
             else:
                 response = await client.create_entity(
@@ -629,6 +634,7 @@ def create_task(
                     content=description or title,
                     entity_type="task",
                     metadata=metadata,
+                    sync=sync,
                 )
 
             if not table_out:
