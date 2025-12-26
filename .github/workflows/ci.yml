@@ -109,6 +109,15 @@ jobs:
         run: pnpm install --frozen-lockfile
         working-directory: web
 
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}-${{ hashFiles('web/src/**/*') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}-
+            nextjs-${{ runner.os }}-
+
       - name: Frontend lint
         run: pnpm lint
         working-directory: web
