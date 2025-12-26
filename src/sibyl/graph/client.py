@@ -62,8 +62,15 @@ class GraphClient:
         """Create the LLM client based on provider settings.
 
         Returns:
-            Configured LLM client (AnthropicClient or OpenAIClient).
+            Configured LLM client (MockLLMClient, AnthropicClient, or OpenAIClient).
         """
+        # Check for mock mode first (for CI/testing without API keys)
+        if os.getenv("SIBYL_MOCK_LLM", "").lower() in ("true", "1", "yes"):
+            from sibyl.graph.mock_llm import MockLLMClient
+
+            log.info("Using MockLLMClient (SIBYL_MOCK_LLM=true)")
+            return MockLLMClient()
+
         from graphiti_core.llm_client.config import LLMConfig
 
         if settings.llm_provider == "anthropic":

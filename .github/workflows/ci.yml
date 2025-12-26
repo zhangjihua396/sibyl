@@ -53,6 +53,8 @@ jobs:
       SIBYL_POSTGRES_DB: sibyl_ci
       SIBYL_OPENAI_API_KEY: sk-test-key
       SIBYL_ANTHROPIC_API_KEY: sk-ant-test-key
+      # Use mock LLM for E2E tests (no real API calls)
+      SIBYL_MOCK_LLM: true
 
     steps:
       - uses: actions/checkout@v6
