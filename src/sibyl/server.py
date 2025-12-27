@@ -440,6 +440,8 @@ def _register_tools(mcp: FastMCP) -> None:
             - crawl: Trigger crawl of URL (data.url required, data.depth optional)
             - sync: Re-crawl existing source (entity_id = source ID)
             - refresh: Sync all sources
+            - link_graph: Link document chunks to knowledge graph (entity_id = source ID, optional)
+            - link_graph_status: Get status of pending graph linking
 
         Analysis Actions:
             - estimate: Estimate task effort from similar completed tasks
@@ -465,6 +467,9 @@ def _register_tools(mcp: FastMCP) -> None:
             manage("complete_task", entity_id="task-123",
                    data={"learnings": "OAuth needs exact redirect URIs"})
             manage("crawl", data={"url": "https://docs.example.com", "depth": 3})
+            manage("link_graph")  # Link all pending chunks
+            manage("link_graph", entity_id="source-123")  # Link specific source
+            manage("link_graph_status")  # Check pending work
             manage("estimate", entity_id="task-456")
             manage("health")
         """
