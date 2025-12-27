@@ -18,6 +18,10 @@ fix-all:
     uv run ruff check --fix --unsafe-fixes .
     uv run ruff format .
 
+# Format YAML and Markdown files with Prettier
+fmt:
+    npx prettier --write "**/*.{yaml,yml,md}"
+
 # Run unit tests (no server required)
 test *args:
     uv run pytest --ignore=tests/e2e {{args}}

@@ -1,0 +1,4 @@
+# Prettier configuration for YAML and Markdown
+proseWrap: always
+tabWidth: 2
+printWidth: 100
