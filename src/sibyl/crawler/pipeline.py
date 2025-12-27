@@ -194,20 +194,27 @@ class IngestionPipeline:
         )
 
         try:
-            # Select crawler based on source type
+            # Select crawler and method based on source type
             if source.source_type == SourceType.LOCAL:
+                # Local files don't need llms.txt discovery
                 crawler: CrawlerService | LocalFileCrawler = LocalFileCrawler()
+                doc_stream = crawler.crawl_source(
+                    source,
+                    max_pages=max_pages,
+                    max_depth=max_depth,
+                )
             else:
+                # Web sources use discovery (probes for llms.txt first)
                 if not self._crawler:
                     raise RuntimeError("Web crawler not started")
-                crawler = self._crawler
+                doc_stream = self._crawler.crawl_with_discovery(
+                    source,
+                    max_pages=max_pages,
+                    max_depth=max_depth,
+                )
 
             # Crawl and process documents
-            async for doc in crawler.crawl_source(
-                source,
-                max_pages=max_pages,
-                max_depth=max_depth,
-            ):
+            async for doc in doc_stream:
                 stats.documents_crawled += 1
 
                 try:

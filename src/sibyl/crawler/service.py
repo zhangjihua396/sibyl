@@ -2,6 +2,7 @@
 
 This service handles:
 - Single page and deep crawling of documentation sites
+- llms.txt discovery and parsing for AI-friendly content
 - Clean markdown extraction
 - Integration with PostgreSQL document storage
 - Progress tracking and error handling
@@ -23,6 +24,8 @@ from sqlalchemy import select
 from sqlmodel import col
 
 from sibyl.api.websocket import broadcast_event
+from sibyl.crawler.discovery import DiscoveryResult, DiscoveryService
+from sibyl.crawler.llms_parser import LLMsSection, parse_llms_full
 from sibyl.db import CrawledDocument, CrawlSource, CrawlStatus, SourceType, get_session
 from sibyl.db.models import utcnow_naive
 
@@ -511,6 +514,233 @@ class CrawlerService:
                 return href
 
         return None
+
+    # =========================================================================
+    # llms.txt Discovery and Processing
+    # =========================================================================
+
+    def section_to_document(
+        self,
+        section: LLMsSection,
+        source: CrawlSource,
+    ) -> CrawledDocument:
+        """Convert an llms-full.txt section to a CrawledDocument.
+
+        Args:
+            section: Parsed section from llms-full.txt
+            source: Parent source
+
+        Returns:
+            CrawledDocument ready for storage
+        """
+        content = section.content
+        content_hash = hashlib.sha256(content.encode()).hexdigest()[:64]
+        headings = self._extract_headings(content)
+        code_languages = self._detect_code_languages(content)
+
+        return CrawledDocument(
+            source_id=source.id,
+            url=section.url,
+            title=section.title,
+            raw_content=content,  # For llms.txt, raw == markdown
+            content=content,
+            content_hash=content_hash,
+            depth=0,  # Sections are top-level
+            word_count=section.word_count,
+            token_count=section.word_count * 4 // 3,
+            has_code=bool(code_languages),
+            is_index=False,
+            headings=headings[:50],
+            links=[],
+            code_languages=code_languages,
+            http_status=200,
+        )
+
+    async def crawl_with_discovery(
+        self,
+        source: CrawlSource,
+        *,
+        max_pages: int = 100,
+        max_depth: int = 3,
+    ) -> AsyncIterator[CrawledDocument]:
+        """Crawl a source with llms.txt discovery.
+
+        First probes for llms.txt, llms-full.txt, etc. If found:
+        - llms-full.txt: Parse into sections, yield as documents
+        - llms.txt with links: Follow links to crawl referenced pages
+        - Otherwise: Fall back to normal deep crawling
+
+        Args:
+            source: CrawlSource to crawl
+            max_pages: Maximum pages to crawl
+            max_depth: Maximum link depth
+
+        Yields:
+            CrawledDocument for each successfully processed page/section
+        """
+        log.info(
+            "Starting crawl with discovery",
+            source=source.name,
+            url=source.url,
+        )
+
+        # Run discovery first
+        discovery_result: DiscoveryResult | None = None
+        try:
+            async with DiscoveryService() as discovery:
+                discovery_result = await discovery.discover(source.url)
+        except Exception as e:
+            log.warning("Discovery failed, falling back to deep crawl", error=str(e))
+
+        if discovery_result:
+            log.info(
+                "Discovery found AI-friendly file",
+                file_type=discovery_result.file_type,
+                url=discovery_result.url,
+                links=len(discovery_result.links),
+                is_link_collection=discovery_result.is_link_collection,
+            )
+
+            # Handle llms-full.txt - parse into sections
+            if discovery_result.file_type == "llms-full":
+                log.info("Processing llms-full.txt sections")
+                sections = parse_llms_full(
+                    discovery_result.content,
+                    discovery_result.url,
+                )
+
+                for section in sections:
+                    doc = self.section_to_document(section, source)
+                    log.debug(
+                        "Yielding llms-full section",
+                        title=section.title,
+                        words=section.word_count,
+                    )
+                    yield doc
+
+                # Also follow any links in the llms-full.txt
+                if discovery_result.links:
+                    async for doc in self._crawl_discovered_links(
+                        source,
+                        discovery_result.links,
+                        max_pages=max_pages - len(sections),
+                    ):
+                        yield doc
+                return
+
+            # Handle llms.txt link collection - follow links
+            if discovery_result.is_link_collection and discovery_result.links:
+                log.info(
+                    "Following llms.txt links",
+                    link_count=len(discovery_result.links),
+                )
+                async for doc in self._crawl_discovered_links(
+                    source,
+                    discovery_result.links,
+                    max_pages=max_pages,
+                ):
+                    yield doc
+                return
+
+            # Handle llms.txt with content - yield as document, then follow links
+            if discovery_result.file_type == "llms" and not discovery_result.is_link_collection:
+                # Create document from llms.txt content itself
+                llms_doc = CrawledDocument(
+                    source_id=source.id,
+                    url=discovery_result.url,
+                    title="LLMs Documentation Guide",
+                    raw_content=discovery_result.content,
+                    content=discovery_result.content,
+                    content_hash=hashlib.sha256(
+                        discovery_result.content.encode()
+                    ).hexdigest()[:64],
+                    depth=0,
+                    word_count=len(discovery_result.content.split()),
+                    token_count=len(discovery_result.content.split()) * 4 // 3,
+                    has_code=bool(self._detect_code_languages(discovery_result.content)),
+                    is_index=True,
+                    headings=self._extract_headings(discovery_result.content)[:50],
+                    links=discovery_result.links[:200],
+                    code_languages=self._detect_code_languages(discovery_result.content),
+                    http_status=200,
+                )
+                yield llms_doc
+
+                # Follow links if present
+                if discovery_result.links:
+                    async for doc in self._crawl_discovered_links(
+                        source,
+                        discovery_result.links,
+                        max_pages=max_pages - 1,
+                    ):
+                        yield doc
+                return
+
+        # Fall back to normal deep crawling
+        log.info("No usable llms.txt found, using deep crawl")
+        async for doc in self.crawl_source(
+            source,
+            max_pages=max_pages,
+            max_depth=max_depth,
+        ):
+            yield doc
+
+    async def _crawl_discovered_links(
+        self,
+        source: CrawlSource,
+        links: list[str],
+        *,
+        max_pages: int = 100,
+    ) -> AsyncIterator[CrawledDocument]:
+        """Crawl specific URLs from llms.txt links.
+
+        Args:
+            source: Parent source
+            links: List of URLs to crawl
+            max_pages: Maximum pages to crawl
+
+        Yields:
+            CrawledDocument for each successfully crawled page
+        """
+        if self._crawler is None:
+            raise RuntimeError("Crawler not started")
+
+        crawled = 0
+        for url in links[:max_pages]:
+            try:
+                result = await self.crawl_page(url)
+                if result.success:
+                    doc = self.result_to_document(result, source)
+                    crawled += 1
+                    log.debug(
+                        "Crawled linked page",
+                        url=url,
+                        title=doc.title,
+                        count=crawled,
+                    )
+
+                    await broadcast_event(
+                        "crawl_progress",
+                        {
+                            "source_id": str(source.id),
+                            "pages_crawled": crawled,
+                            "max_pages": min(len(links), max_pages),
+                            "current_url": url,
+                            "percentage": min(
+                                100,
+                                int((crawled / min(len(links), max_pages)) * 100),
+                            ),
+                        },
+                    )
+
+                    yield doc
+                else:
+                    log.warning("Failed to crawl linked page", url=url)
+            except Exception as e:
+                log.warning("Error crawling linked page", url=url, error=str(e))
+                continue
+
+        log.info("Finished crawling discovered links", crawled=crawled, total=len(links))
 
 
 async def create_source(

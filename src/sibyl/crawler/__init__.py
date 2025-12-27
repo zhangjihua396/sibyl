@@ -2,6 +2,7 @@
 
 This module provides:
 - Web crawling with Crawl4AI
+- llms.txt discovery and parsing for AI-friendly content
 - Smart chunking for RAG retrieval
 - Embedding generation with OpenAI
 - Full ingestion pipeline
@@ -23,11 +24,20 @@ from sibyl.crawler.chunker import (
     DocumentChunker,
     chunk_document,
 )
+from sibyl.crawler.discovery import (
+    DiscoveryResult,
+    DiscoveryService,
+    is_llms_variant,
+)
 from sibyl.crawler.embedder import (
     EmbeddingService,
     embed_chunks,
     embed_text,
     get_embedding_service,
+)
+from sibyl.crawler.llms_parser import (
+    LLMsSection,
+    parse_llms_full,
 )
 from sibyl.crawler.local import LocalFileCrawler
 from sibyl.crawler.pipeline import (
@@ -55,6 +65,13 @@ __all__ = [
     "create_source",
     "get_source_by_url",
     "list_sources",
+    # Discovery
+    "DiscoveryService",
+    "DiscoveryResult",
+    "is_llms_variant",
+    # llms.txt Parser
+    "LLMsSection",
+    "parse_llms_full",
     # Chunker
     "Chunk",
     "ChunkStrategy",
