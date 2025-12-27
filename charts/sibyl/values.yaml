@@ -199,6 +199,50 @@ frontend:
   # -- Affinity rules
   affinity: {}
 
+# -- Worker configuration (arq job queue processor)
+worker:
+  # -- Enable worker deployment
+  enabled: true
+
+  # -- Number of replicas
+  replicaCount: 1
+
+  # -- Resource limits and requests
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # -- Pod annotations
+  podAnnotations: {}
+
+  # -- Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+
+  # -- Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  # -- Node selector
+  nodeSelector: {}
+
+  # -- Tolerations
+  tolerations: []
+
+  # -- Affinity rules
+  affinity: {}
+
 # -- Ingress configuration (for reference, actual ingress via Kong)
 ingress:
   # -- Enable ingress resource creation

@@ -106,3 +106,19 @@ Frontend image
 {{- $tag := .Values.frontend.image.tag | default .Chart.AppVersion -}}
 {{- printf "%s:%s" .Values.frontend.image.repository $tag -}}
 {{- end }}
+
+{{/*
+Worker labels
+*/}}
+{{- define "sibyl.worker.labels" -}}
+{{ include "sibyl.labels" . }}
+app.kubernetes.io/component: worker
+{{- end }}
+
+{{/*
+Worker selector labels
+*/}}
+{{- define "sibyl.worker.selectorLabels" -}}
+{{ include "sibyl.selectorLabels" . }}
+app.kubernetes.io/component: worker
+{{- end }}

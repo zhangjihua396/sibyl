@@ -124,14 +124,16 @@ def create_api_app() -> FastAPI:
             },
         )
 
-    # CORS for frontend (localhost:3337)
+    # CORS - derive allowed origins from public_url
+    cors_origins = [
+        settings.public_url.rstrip("/"),
+        # Dev fallbacks
+        "http://localhost:3337",
+        "http://127.0.0.1:3337",
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            "http://localhost:3337",
-            "http://127.0.0.1:3337",
-            f"http://localhost:{settings.server_port}",
-        ],
+        allow_origins=cors_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

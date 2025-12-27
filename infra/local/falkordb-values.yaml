@@ -20,7 +20,7 @@ architecture: standalone
 # Authentication
 auth:
   enabled: true
-  password: "conventions"
+  password: "sibyl-local-dev"
 
 # Disable sentinel for standalone
 sentinel:
@@ -30,7 +30,7 @@ sentinel:
 master:
   # FalkorDB module loading
   extraFlags:
-    - --loadmodule /FalkorDB/bin/linux-x64-release/src/falkordb.so
+    - --loadmodule /var/lib/falkordb/bin/falkordb.so
 
   # Persistence
   persistence:

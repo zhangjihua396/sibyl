@@ -9,16 +9,14 @@ metadata:
 spec:
   instances: 1
 
-  # PostgreSQL version with pgvector support
-  imageName: ghcr.io/cloudnative-pg/postgresql:17
+  # PostgreSQL 18 - pgvector is bundled in official CNPG images
+  imageName: ghcr.io/cloudnative-pg/postgresql:18
 
   # Bootstrap from scratch (CNPG auto-generates password)
   bootstrap:
     initdb:
       database: sibyl
       owner: sibyl
-      postInitSQL:
-        - CREATE EXTENSION IF NOT EXISTS vector
 
   # Storage configuration
   storage:
@@ -41,3 +39,17 @@ spec:
   # Backup (disabled for local)
   backup:
     barmanObjectStore: null
+---
+# Database resource to declaratively install pgvector extension
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: sibyl-database
+  namespace: sibyl
+spec:
+  name: sibyl
+  owner: sibyl
+  cluster:
+    name: sibyl-postgres
+  extensions:
+    - name: vector

@@ -1,6 +1,5 @@
 'use client';
 
-import { env } from 'next-dynenv';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from '@/components/ui/icons';
@@ -123,7 +122,7 @@ export function ErrorFallback({ error, reset, level = 'section' }: ErrorFallback
       <p className={`text-sc-fg-muted mt-2 mx-auto ${styles.message}`}>{friendlyMessage}</p>
 
       {/* Error details (dev only) */}
-      {env('NODE_ENV') === 'development' && (
+      {process.env.NODE_ENV === 'development' && (
         <details className="mt-4 text-left max-w-lg mx-auto">
           <summary className="text-sc-fg-subtle text-xs cursor-pointer hover:text-sc-fg-muted">
             Technical details

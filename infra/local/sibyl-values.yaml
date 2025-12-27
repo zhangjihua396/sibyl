@@ -20,14 +20,16 @@ backend:
 
   # FalkorDB connection
   falkordb:
-    host: falkordb-redis-master # Bitnami Redis master service
+    host: falkordb-redis-master
     port: "6379"
-    existingSecret: sibyl-falkordb-secret
+    existingSecret: sibyl-falkordb # Created by Tiltfile
 
   env:
     SIBYL_SERVER_HOST: "0.0.0.0"
     SIBYL_SERVER_PORT: "3334"
     SIBYL_ENVIRONMENT: "development"
+    # Public URL - single source of truth for OAuth callbacks and redirects
+    SIBYL_PUBLIC_URL: "https://sibyl.local"
     SIBYL_LLM_PROVIDER: "anthropic"
     SIBYL_LLM_MODEL: "claude-haiku-4-5"
     SIBYL_EMBEDDING_MODEL: "text-embedding-3-small"
@@ -42,9 +44,11 @@ backend:
       cpu: 100m
       memory: 256Mi
 
-  # Disable security context for local dev
-  podSecurityContext: {}
-  securityContext: {}
+  # Relaxed security for local dev (allows Tilt live_update)
+  podSecurityContext:
+    runAsNonRoot: false
+  securityContext:
+    readOnlyRootFilesystem: false
 
 frontend:
   enabled: true
@@ -65,9 +69,39 @@ frontend:
       cpu: 50m
       memory: 128Mi
 
-  # Disable security context for local dev
-  podSecurityContext: {}
-  securityContext: {}
+  env:
+    NODE_ENV: "development"
+    HOSTNAME: "0.0.0.0"
+    PORT: "3337"
+    # Server-side API calls use internal K8s service
+    SIBYL_API_URL: "http://sibyl-backend:3334/api"
+    # Client-side uses relative paths through Kong ingress
+
+  # Relaxed security for local dev
+  podSecurityContext:
+    runAsNonRoot: false
+  securityContext:
+    readOnlyRootFilesystem: false
+
+# Worker configuration
+worker:
+  enabled: true
+  replicaCount: 1
+
+  # Relaxed resources for local
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # Relaxed security for local dev
+  podSecurityContext:
+    runAsNonRoot: false
+  securityContext:
+    readOnlyRootFilesystem: false
 
 # Ingress handled by Kong Gateway API resources
 ingress:

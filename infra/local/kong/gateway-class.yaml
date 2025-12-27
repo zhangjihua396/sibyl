@@ -32,6 +32,10 @@ spec:
                 requests:
                   cpu: 100m
                   memory: 256Mi
+    network:
+      services:
+        ingress:
+          type: ClusterIP
   controlPlaneOptions:
     deployment:
       replicas: 1

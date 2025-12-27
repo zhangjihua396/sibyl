@@ -64,14 +64,31 @@ class Settings(BaseSettings):
         default=SecretStr(""), description="GitHub OAuth client secret"
     )
 
+    # Public URL - single source of truth for all external URLs
+    # When using Kong/ingress, both API and frontend are on the same domain
+    public_url: str = Field(
+        default="http://localhost:3337",
+        description="Public base URL for the application (used for OAuth callbacks, redirects)",
+    )
+
+    # These are derived from public_url by default but can be overridden if needed
     server_url: str = Field(
-        default="http://localhost:3334",
-        description="Public base URL for this server (used for OAuth redirects)",
+        default="",
+        description="Override API base URL (defaults to public_url)",
     )
     frontend_url: str = Field(
-        default="http://localhost:3337/",
-        description="Frontend base URL for auth redirects",
+        default="",
+        description="Override frontend base URL (defaults to public_url)",
     )
+
+    @model_validator(mode="after")
+    def derive_urls_from_public(self) -> "Settings":
+        """Derive server_url and frontend_url from public_url if not explicitly set."""
+        if not self.server_url:
+            object.__setattr__(self, "server_url", self.public_url.rstrip("/"))
+        if not self.frontend_url:
+            object.__setattr__(self, "frontend_url", self.public_url.rstrip("/") + "/")
+        return self
 
     cookie_domain: str | None = Field(
         default=None,

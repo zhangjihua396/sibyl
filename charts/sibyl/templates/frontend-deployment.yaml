@@ -37,12 +37,11 @@ spec:
               containerPort: 3337
               protocol: TCP
           env:
-            - name: NODE_ENV
-              value: {{ .Values.frontend.env.NODE_ENV | quote }}
-            - name: NEXT_TELEMETRY_DISABLED
-              value: {{ .Values.frontend.env.NEXT_TELEMETRY_DISABLED | quote }}
-            - name: NEXT_PUBLIC_API_URL
-              value: "http://{{ include "sibyl.fullname" . }}-backend:{{ .Values.backend.service.port }}"
+            {{- range $key, $value := .Values.frontend.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            # WebSocket derives URL from window.location when accessed via Kong
             - name: HOSTNAME
               value: "0.0.0.0"
             - name: PORT
