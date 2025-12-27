@@ -670,6 +670,18 @@ class CrawlSource(TimestampMixin, table=True):
     chunk_count: int = Field(default=0, ge=0, description="Total chunks across documents")
     total_tokens: int = Field(default=0, ge=0, description="Total tokens processed")
 
+    # Auto-detected metadata
+    tags: list[str] = Field(
+        default_factory=list,
+        sa_type=ARRAY(String),
+        description="Auto-detected tags from content",
+    )
+    categories: list[str] = Field(
+        default_factory=list,
+        sa_type=ARRAY(String),
+        description="Content categories (tutorial, reference, etc.)",
+    )
+
     # Relationships
     documents: list["CrawledDocument"] = Relationship(
         back_populates="source",

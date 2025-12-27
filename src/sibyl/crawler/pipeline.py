@@ -227,6 +227,10 @@ class IngestionPipeline:
             log.error("Source ingestion failed", source=source.name, error=str(e))  # noqa: TRY400
             stats.errors += 1
 
+        # Auto-tag source based on crawled documents
+        if stats.documents_stored > 0:
+            await self._update_source_tags(source)
+
         stats.duration_seconds = (datetime.now(UTC) - start_time).total_seconds()
 
         log.info(
@@ -289,6 +293,45 @@ class IngestionPipeline:
                 error=str(e),
             )
             return None
+
+    async def _update_source_tags(self, source: CrawlSource) -> None:
+        """Update source with auto-detected tags from its documents.
+
+        Fetches all documents for the source, extracts tags using heuristics,
+        and updates the CrawlSource record.
+        """
+        from sibyl.crawler.tagger import aggregate_source_tags
+
+        try:
+            async with get_session() as session:
+                # Fetch documents for this source
+                result = await session.execute(
+                    select(CrawledDocument).where(
+                        col(CrawledDocument.source_id) == source.id
+                    )
+                )
+                documents = result.scalars().all()
+
+                if not documents:
+                    return
+
+                # Extract and aggregate tags
+                tags, categories = aggregate_source_tags(list(documents))
+
+                # Update source in database
+                db_source = await session.get(CrawlSource, source.id)
+                if db_source:
+                    db_source.tags = tags
+                    db_source.categories = categories
+                    log.info(
+                        "Auto-detected source tags",
+                        source=source.name,
+                        tags=tags[:10],
+                        categories=categories,
+                    )
+
+        except Exception as e:
+            log.warning("Failed to update source tags", source=source.name, error=str(e))
 
     async def _process_document(
         self,

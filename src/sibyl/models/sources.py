@@ -37,6 +37,10 @@ class Source(Entity):
     url: str = Field(..., description="Base URL or path to crawl")
     source_type: SourceType = Field(default=SourceType.WEBSITE, description="Type of source")
 
+    # Auto-detected metadata
+    tags: list[str] = Field(default_factory=list, description="Auto-detected tags from content")
+    categories: list[str] = Field(default_factory=list, description="Content categories")
+
     # Crawl configuration
     crawl_depth: int = Field(default=2, ge=0, le=10, description="Maximum depth to follow links")
     crawl_patterns: list[str] = Field(
