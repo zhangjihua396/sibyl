@@ -681,6 +681,11 @@ class CrawlSource(TimestampMixin, table=True):
         sa_type=ARRAY(String),
         description="Content categories (tutorial, reference, etc.)",
     )
+    favicon_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="URL to site favicon (auto-detected during crawl)",
+    )
 
     # Relationships
     documents: list["CrawledDocument"] = Relationship(

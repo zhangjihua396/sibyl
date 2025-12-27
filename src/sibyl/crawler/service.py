@@ -10,9 +10,11 @@ This service handles:
 from __future__ import annotations
 
 import hashlib
+import re
 from typing import TYPE_CHECKING
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
+import httpx
 import structlog
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CacheMode, CrawlerRunConfig
 from crawl4ai.deep_crawling import BFSDeepCrawlStrategy
@@ -434,6 +436,81 @@ class CrawlerService:
                 return True
 
         return False
+
+    async def fetch_favicon(self, base_url: str) -> str | None:
+        """Attempt to find a favicon for a website.
+
+        Tries common favicon locations and HTML meta tags.
+
+        Args:
+            base_url: Base URL of the site
+
+        Returns:
+            Favicon URL if found, None otherwise
+        """
+        parsed = urlparse(base_url)
+        origin = f"{parsed.scheme}://{parsed.netloc}"
+
+        # Common favicon locations to try (in order of preference)
+        favicon_paths = [
+            "/favicon.ico",
+            "/favicon.png",
+            "/apple-touch-icon.png",
+            "/apple-touch-icon-precomposed.png",
+        ]
+
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            # Try common paths first
+            for path in favicon_paths:
+                url = urljoin(origin, path)
+                try:
+                    response = await client.head(url)
+                    if response.status_code == 200:
+                        content_type = response.headers.get("content-type", "")
+                        if "image" in content_type or path.endswith((".ico", ".png")):
+                            log.debug("Found favicon", url=url)
+                            return url
+                except Exception:
+                    continue
+
+            # Try parsing HTML for link tags
+            try:
+                response = await client.get(origin, timeout=15.0)
+                if response.status_code == 200:
+                    html = response.text
+                    favicon_url = self._extract_favicon_from_html(html, origin)
+                    if favicon_url:
+                        log.debug("Found favicon from HTML", url=favicon_url)
+                        return favicon_url
+            except Exception as e:
+                log.debug("Failed to fetch HTML for favicon", error=str(e))
+
+        return None
+
+    def _extract_favicon_from_html(self, html: str, base_url: str) -> str | None:
+        """Extract favicon URL from HTML link tags."""
+        # Match <link rel="icon" href="..."> or <link rel="shortcut icon" href="...">
+        # Also match apple-touch-icon
+        patterns = [
+            r'<link[^>]*rel=["\'](?:shortcut )?icon["\'][^>]*href=["\']([^"\']+)["\']',
+            r'<link[^>]*href=["\']([^"\']+)["\'][^>]*rel=["\'](?:shortcut )?icon["\']',
+            r'<link[^>]*rel=["\']apple-touch-icon["\'][^>]*href=["\']([^"\']+)["\']',
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, html, re.IGNORECASE)
+            if match:
+                href = match.group(1)
+                # Resolve relative URLs
+                if href.startswith("//"):
+                    return f"https:{href}"
+                if href.startswith("/"):
+                    return urljoin(base_url, href)
+                if not href.startswith("http"):
+                    return urljoin(base_url, href)
+                return href
+
+        return None
 
 
 async def create_source(

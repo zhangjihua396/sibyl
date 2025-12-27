@@ -295,10 +295,10 @@ class IngestionPipeline:
             return None
 
     async def _update_source_tags(self, source: CrawlSource) -> None:
-        """Update source with auto-detected tags from its documents.
+        """Update source with auto-detected tags and favicon.
 
         Fetches all documents for the source, extracts tags using heuristics,
-        and updates the CrawlSource record.
+        fetches favicon, and updates the CrawlSource record.
         """
         from sibyl.crawler.tagger import aggregate_source_tags
 
@@ -318,20 +318,31 @@ class IngestionPipeline:
                 # Extract and aggregate tags
                 tags, categories = aggregate_source_tags(list(documents))
 
+                # Fetch favicon (only for web sources)
+                favicon_url = None
+                if self._crawler and source.url.startswith("http"):
+                    try:
+                        favicon_url = await self._crawler.fetch_favicon(source.url)
+                    except Exception as e:
+                        log.debug("Failed to fetch favicon", source=source.name, error=str(e))
+
                 # Update source in database
                 db_source = await session.get(CrawlSource, source.id)
                 if db_source:
                     db_source.tags = tags
                     db_source.categories = categories
+                    if favicon_url:
+                        db_source.favicon_url = favicon_url
                     log.info(
-                        "Auto-detected source tags",
+                        "Auto-detected source metadata",
                         source=source.name,
                         tags=tags[:10],
                         categories=categories,
+                        favicon=bool(favicon_url),
                     )
 
         except Exception as e:
-            log.warning("Failed to update source tags", source=source.name, error=str(e))
+            log.warning("Failed to update source metadata", source=source.name, error=str(e))
 
     async def _process_document(
         self,
