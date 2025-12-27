@@ -465,3 +465,253 @@ async def test_workflow_transitions_persist_status_and_branch() -> None:
     assert completed.status == TaskStatus.DONE
     assert completed.learnings == "use cache"
     assert completed.actual_hours == 3.5
+
+
+@pytest.mark.asyncio
+async def test_submit_for_review_transitions_to_review() -> None:
+    """Test submit_for_review transitions task to review status."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-review-1",
+        title="Feature for review",
+        description="Ready for review",
+        project_id="proj-001",
+        status=TaskStatus.DOING,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    reviewed = await engine.submit_for_review(
+        task.id, commit_shas=["abc123", "def456"], pr_url="https://github.com/org/repo/pull/42"
+    )
+    assert reviewed.status == TaskStatus.REVIEW
+
+
+@pytest.mark.asyncio
+async def test_submit_for_review_without_pr_url() -> None:
+    """Test submit_for_review works without PR URL."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-review-2",
+        title="Feature no PR",
+        description="Review without PR",
+        project_id="proj-001",
+        status=TaskStatus.DOING,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    reviewed = await engine.submit_for_review(task.id, commit_shas=["abc123"])
+    assert reviewed.status == TaskStatus.REVIEW
+
+
+@pytest.mark.asyncio
+async def test_archive_task_transitions_to_archived() -> None:
+    """Test archive_task transitions task to archived status."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-archive-1",
+        title="Task to archive",
+        description="Will be archived",
+        project_id="proj-001",
+        status=TaskStatus.TODO,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    archived = await engine.archive_task(task.id, reason="No longer needed")
+    assert archived.status == TaskStatus.ARCHIVED
+
+
+@pytest.mark.asyncio
+async def test_archive_task_without_reason() -> None:
+    """Test archive_task works without a reason."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-archive-2",
+        title="Task to archive quietly",
+        description="Archive without reason",
+        project_id="proj-001",
+        status=TaskStatus.DONE,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    archived = await engine.archive_task(task.id)
+    assert archived.status == TaskStatus.ARCHIVED
+
+
+@pytest.mark.asyncio
+async def test_cannot_transition_from_archived() -> None:
+    """Test that transitions from ARCHIVED status raise error."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-archived",
+        title="Archived task",
+        description="Already archived",
+        project_id="proj-001",
+        status=TaskStatus.ARCHIVED,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    with pytest.raises(InvalidTransitionError):
+        await engine.start_task(task.id, assignee="bob")
+
+
+@pytest.mark.asyncio
+async def test_complete_task_with_learnings_creates_episode() -> None:
+    """Test that completing task with learnings triggers episode creation."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-learning",
+        title="Task with learnings",
+        description="Do something complex",
+        project_id="proj-001",
+        status=TaskStatus.DOING,
+        feature="authentication",
+        technologies=["python", "redis"],
+    )
+
+    class TrackingEntityManager(_FakeEntityManager):
+        """Entity manager that tracks create calls."""
+
+        def __init__(self, task: Task) -> None:
+            super().__init__(task)
+            self.episodes_created: list = []
+
+        async def create(self, entity) -> str:
+            self.episodes_created.append(entity)
+            return entity.id
+
+    entity_manager = TrackingEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    completed = await engine.complete_task(
+        task.id, actual_hours=5.0, learnings="Redis connection pooling is essential"
+    )
+    assert completed.status == TaskStatus.DONE
+    assert completed.learnings == "Redis connection pooling is essential"
+    # Verify episode was created
+    assert len(entity_manager.episodes_created) == 1
+    episode = entity_manager.episodes_created[0]
+    assert "task-learning" in episode.metadata.get("task_id", "")
+
+
+@pytest.mark.asyncio
+async def test_transition_task_no_op() -> None:
+    """Test that transition to same status is a no-op."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-noop",
+        title="Task same status",
+        description="Will stay the same",
+        project_id="proj-001",
+        status=TaskStatus.TODO,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    result = await engine.transition_task(task.id, TaskStatus.TODO)
+    assert result.status == TaskStatus.TODO
+
+
+@pytest.mark.asyncio
+async def test_transition_task_with_updates() -> None:
+    """Test transition_task applies additional updates."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-updates",
+        title="Task with updates",
+        description="Will get updates",
+        project_id="proj-001",
+        status=TaskStatus.TODO,
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    result = await engine.transition_task(
+        task.id, TaskStatus.DOING, updates={"branch_name": "feature/custom-branch"}
+    )
+    assert result.status == TaskStatus.DOING
+    assert result.branch_name == "feature/custom-branch"
+
+
+@pytest.mark.asyncio
+async def test_start_task_adds_assignee() -> None:
+    """Test start_task adds assignee to task."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-assignee",
+        title="Task for assignee test",
+        description="Will be assigned",
+        project_id="proj-001",
+        status=TaskStatus.TODO,
+        assignees=["alice"],
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    started = await engine.start_task(task.id, assignee="bob")
+    assert "alice" in started.assignees
+    assert "bob" in started.assignees
+
+
+@pytest.mark.asyncio
+async def test_start_task_does_not_duplicate_assignee() -> None:
+    """Test start_task doesn't add duplicate assignee."""
+    from sibyl.tasks.workflow import TaskWorkflowEngine
+
+    task = Task(
+        id="task-dup-assignee",
+        title="Task dedup test",
+        description="Already assigned to alice",
+        project_id="proj-001",
+        status=TaskStatus.TODO,
+        assignees=["alice"],
+    )
+    entity_manager = _FakeEntityManager(task)
+    relationship_manager = _FakeRelationshipManager()
+    engine = TaskWorkflowEngine(
+        entity_manager, relationship_manager, _FakeGraphClient(), organization_id="test-org"
+    )
+
+    started = await engine.start_task(task.id, assignee="alice")
+    # Should only have one "alice"
+    assert started.assignees.count("alice") == 1
