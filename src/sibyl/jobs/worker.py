@@ -104,15 +104,16 @@ async def crawl_source(
         max_depth=max_depth,
     )
 
-    # Get source
+    # Get source and update status
     async with get_session() as session:
         source = await session.get(CrawlSource, UUID(source_id))
         if not source:
             raise ValueError(f"Source not found: {source_id}")
 
-        # Update status
+        # Update status to IN_PROGRESS
         source.crawl_status = CrawlStatus.IN_PROGRESS
         source.last_error = None
+        await session.flush()  # Persist status change before expunge
 
         # Detach for background processing
         source_name = source.name
@@ -147,6 +148,7 @@ async def crawl_source(
                 db_source.crawl_status = (
                     CrawlStatus.COMPLETED if stats.errors == 0 else CrawlStatus.PARTIAL
                 )
+                db_source.current_job_id = None  # Clear job ID on completion
                 db_source.last_crawled_at = utcnow_naive()
                 db_source.document_count = stats.documents_stored
                 db_source.chunk_count = stats.chunks_created

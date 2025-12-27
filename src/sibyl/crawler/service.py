@@ -651,9 +651,7 @@ class CrawlerService:
                     title="LLMs Documentation Guide",
                     raw_content=discovery_result.content,
                     content=discovery_result.content,
-                    content_hash=hashlib.sha256(
-                        discovery_result.content.encode()
-                    ).hexdigest()[:64],
+                    content_hash=hashlib.sha256(discovery_result.content.encode()).hexdigest()[:64],
                     depth=0,
                     word_count=len(discovery_result.content.split()),
                     token_count=len(discovery_result.content.split()) * 4 // 3,

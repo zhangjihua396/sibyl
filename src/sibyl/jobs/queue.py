@@ -84,6 +84,7 @@ async def enqueue_crawl(
     max_pages: int = 100,
     max_depth: int = 3,
     generate_embeddings: bool = True,
+    force: bool = False,
 ) -> str:
     """Enqueue a crawl job for a source.
 
@@ -95,6 +96,7 @@ async def enqueue_crawl(
         max_pages: Maximum pages to crawl
         max_depth: Maximum link depth
         generate_embeddings: Whether to generate embeddings
+        force: Clear old result and re-enqueue even if previously completed
 
     Returns:
         Job ID for tracking
@@ -103,6 +105,12 @@ async def enqueue_crawl(
 
     # Deterministic job ID prevents duplicate jobs for the same source
     job_id = f"crawl:{source_id}"
+
+    # If force=True, clear any old result to allow re-enqueue
+    if force:
+        result_key = f"arq:result:{job_id}"
+        await pool.delete(result_key)
+        log.debug("Cleared old result for re-crawl", job_id=job_id)
 
     job = await pool.enqueue_job(
         "crawl_source",
@@ -114,7 +122,7 @@ async def enqueue_crawl(
     )
 
     if job is None:
-        # Job already exists - return the existing job ID
+        # Job already exists (queued/running) - return the existing job ID
         log.info("Crawl job already exists", job_id=job_id, source_id=str(source_id))
         return job_id
 

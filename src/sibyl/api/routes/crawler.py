@@ -574,13 +574,14 @@ async def ingest_source(
 
         source_name = source.name
 
-    # Enqueue the crawl job
+    # Enqueue the crawl job (force=True clears old results for re-crawl)
     try:
         job_id = await enqueue_crawl(
             source_id,
             max_pages=request.max_pages,
             max_depth=request.max_depth,
             generate_embeddings=request.generate_embeddings,
+            force=True,
         )
 
         # Save job_id to source for cancellation support

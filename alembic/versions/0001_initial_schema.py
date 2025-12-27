@@ -24,9 +24,10 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:  # noqa: PLR0915
     """Create all tables and constraints."""
     # =========================================================================
-    # Extensions
+    # Extensions (created by postInitSQL in CNPG cluster, skip if exists)
     # =========================================================================
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    # Note: pgvector extension must be created by superuser in postInitSQL
+    # The migration user doesn't have CREATE EXTENSION privileges
 
     # =========================================================================
     # Enum Types
@@ -35,8 +36,13 @@ def upgrade() -> None:  # noqa: PLR0915
         "TEXT", "CODE", "HEADING", "LIST", "TABLE", name="chunktype", create_type=False
     )
     crawlstatus = postgresql.ENUM(
-        "PENDING", "IN_PROGRESS", "COMPLETED", "FAILED", "PARTIAL",
-        name="crawlstatus", create_type=False
+        "PENDING",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "FAILED",
+        "PARTIAL",
+        name="crawlstatus",
+        create_type=False,
     )
     organizationrole = postgresql.ENUM(
         "owner", "admin", "member", "viewer", name="organizationrole", create_type=False
@@ -44,9 +50,7 @@ def upgrade() -> None:  # noqa: PLR0915
     sourcetype = postgresql.ENUM(
         "WEBSITE", "GITHUB", "LOCAL", "API_DOCS", name="sourcetype", create_type=False
     )
-    teamrole = postgresql.ENUM(
-        "lead", "member", "viewer", name="teamrole", create_type=False
-    )
+    teamrole = postgresql.ENUM("lead", "member", "viewer", name="teamrole", create_type=False)
 
     # Create enums (idempotent pattern for safety)
     connection = op.get_bind()
@@ -73,7 +77,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("password_salt", sa.String(length=128), nullable=True),
         sa.Column("password_hash", sa.String(length=128), nullable=True),
         sa.Column("password_iterations", sa.Integer(), nullable=True),
-        sa.Column("preferences", postgresql.JSONB(), server_default=sa.text("'{}'"), nullable=False),
+        sa.Column(
+            "preferences", postgresql.JSONB(), server_default=sa.text("'{}'"), nullable=False
+        ),
         sa.Column("bio", sa.String(), nullable=True),
         sa.Column("timezone", sa.String(length=64), nullable=False),
         sa.Column("last_login_at", sa.DateTime(), nullable=True),
@@ -137,7 +143,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_password_reset_tokens_expires_at", "password_reset_tokens", ["expires_at"])
-    op.create_index("ix_password_reset_tokens_token_hash", "password_reset_tokens", ["token_hash"], unique=True)
+    op.create_index(
+        "ix_password_reset_tokens_token_hash", "password_reset_tokens", ["token_hash"], unique=True
+    )
     op.create_index("ix_password_reset_tokens_user_id", "password_reset_tokens", ["user_id"])
 
     # oauth_connections - linked OAuth providers
@@ -160,7 +168,12 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_oauth_connections_provider_user", "oauth_connections", ["provider", "provider_user_id"], unique=True)
+    op.create_index(
+        "ix_oauth_connections_provider_user",
+        "oauth_connections",
+        ["provider", "provider_user_id"],
+        unique=True,
+    )
     op.create_index("ix_oauth_connections_user_id", "oauth_connections", ["user_id"])
 
     # =========================================================================
@@ -178,8 +191,15 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("role", organizationrole, server_default=sa.text("'member'"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_organization_members_org_user_unique", "organization_members", ["organization_id", "user_id"], unique=True)
-    op.create_index("ix_organization_members_organization_id", "organization_members", ["organization_id"])
+    op.create_index(
+        "ix_organization_members_org_user_unique",
+        "organization_members",
+        ["organization_id", "user_id"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_organization_members_organization_id", "organization_members", ["organization_id"]
+    )
     op.create_index("ix_organization_members_user_id", "organization_members", ["user_id"])
 
     # organization_invitations
@@ -190,7 +210,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("organization_id", sa.UUID(), nullable=False),
         sa.Column("invited_email", sa.String(length=255), nullable=False),
-        sa.Column("invited_role", organizationrole, server_default=sa.text("'member'"), nullable=False),
+        sa.Column(
+            "invited_role", organizationrole, server_default=sa.text("'member'"), nullable=False
+        ),
         sa.Column("token", sa.String(length=96), nullable=False),
         sa.Column("created_by_user_id", sa.UUID(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=True),
@@ -198,11 +220,27 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("accepted_by_user_id", sa.UUID(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_organization_invitations_accepted_by_user_id", "organization_invitations", ["accepted_by_user_id"])
-    op.create_index("ix_organization_invitations_created_by_user_id", "organization_invitations", ["created_by_user_id"])
-    op.create_index("ix_organization_invitations_invited_email", "organization_invitations", ["invited_email"])
-    op.create_index("ix_organization_invitations_organization_id", "organization_invitations", ["organization_id"])
-    op.create_index("ix_organization_invitations_token", "organization_invitations", ["token"], unique=True)
+    op.create_index(
+        "ix_organization_invitations_accepted_by_user_id",
+        "organization_invitations",
+        ["accepted_by_user_id"],
+    )
+    op.create_index(
+        "ix_organization_invitations_created_by_user_id",
+        "organization_invitations",
+        ["created_by_user_id"],
+    )
+    op.create_index(
+        "ix_organization_invitations_invited_email", "organization_invitations", ["invited_email"]
+    )
+    op.create_index(
+        "ix_organization_invitations_organization_id",
+        "organization_invitations",
+        ["organization_id"],
+    )
+    op.create_index(
+        "ix_organization_invitations_token", "organization_invitations", ["token"], unique=True
+    )
 
     # api_keys - long-lived API credentials
     op.create_table(
@@ -292,11 +330,29 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("organization_id", sa.UUID(), nullable=True),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_device_authorization_requests_device_code_hash", "device_authorization_requests", ["device_code_hash"], unique=True)
-    op.create_index("ix_device_authorization_requests_organization_id", "device_authorization_requests", ["organization_id"])
-    op.create_index("ix_device_authorization_requests_status", "device_authorization_requests", ["status"])
-    op.create_index("ix_device_authorization_requests_user_code", "device_authorization_requests", ["user_code"], unique=True)
-    op.create_index("ix_device_authorization_requests_user_id", "device_authorization_requests", ["user_id"])
+    op.create_index(
+        "ix_device_authorization_requests_device_code_hash",
+        "device_authorization_requests",
+        ["device_code_hash"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_device_authorization_requests_organization_id",
+        "device_authorization_requests",
+        ["organization_id"],
+    )
+    op.create_index(
+        "ix_device_authorization_requests_status", "device_authorization_requests", ["status"]
+    )
+    op.create_index(
+        "ix_device_authorization_requests_user_code",
+        "device_authorization_requests",
+        ["user_code"],
+        unique=True,
+    )
+    op.create_index(
+        "ix_device_authorization_requests_user_id", "device_authorization_requests", ["user_id"]
+    )
 
     # teams - teams within organizations
     op.create_table(
@@ -331,7 +387,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_team_members_team_id", "team_members", ["team_id"])
-    op.create_index("ix_team_members_team_user_unique", "team_members", ["team_id", "user_id"], unique=True)
+    op.create_index(
+        "ix_team_members_team_user_unique", "team_members", ["team_id", "user_id"], unique=True
+    )
     op.create_index("ix_team_members_user_id", "team_members", ["user_id"])
 
     # =========================================================================
@@ -360,6 +418,9 @@ def upgrade() -> None:  # noqa: PLR0915
         sa.Column("total_tokens", sa.Integer(), nullable=False),
         sa.Column("current_job_id", sa.String(length=64), nullable=True),
         sa.Column("organization_id", sa.UUID(), nullable=False),
+        sa.Column("tags", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("categories", postgresql.ARRAY(sa.String()), nullable=False, server_default="{}"),
+        sa.Column("favicon_url", sa.String(length=2048), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("url"),
     )
@@ -446,110 +507,178 @@ def upgrade() -> None:  # noqa: PLR0915
 
     # Users (SET NULL for audit preservation)
     op.create_foreign_key(
-        "fk_login_history_user_id", "login_history", "users",
-        ["user_id"], ["id"], ondelete="SET NULL"
+        "fk_login_history_user_id",
+        "login_history",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
     op.create_foreign_key(
-        "fk_password_reset_tokens_user_id", "password_reset_tokens", "users",
-        ["user_id"], ["id"], ondelete="CASCADE"
+        "fk_password_reset_tokens_user_id",
+        "password_reset_tokens",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_oauth_connections_user_id", "oauth_connections", "users",
-        ["user_id"], ["id"], ondelete="CASCADE"
+        "fk_oauth_connections_user_id",
+        "oauth_connections",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
 
     # Organization members
     op.create_foreign_key(
-        "fk_organization_members_organization_id", "organization_members", "organizations",
-        ["organization_id"], ["id"], ondelete="CASCADE"
+        "fk_organization_members_organization_id",
+        "organization_members",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_organization_members_user_id", "organization_members", "users",
-        ["user_id"], ["id"], ondelete="CASCADE"
+        "fk_organization_members_user_id",
+        "organization_members",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
 
     # Organization invitations
     op.create_foreign_key(
-        "fk_organization_invitations_organization_id", "organization_invitations", "organizations",
-        ["organization_id"], ["id"], ondelete="CASCADE"
+        "fk_organization_invitations_organization_id",
+        "organization_invitations",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_organization_invitations_created_by_user_id", "organization_invitations", "users",
-        ["created_by_user_id"], ["id"], ondelete="SET NULL"
+        "fk_organization_invitations_created_by_user_id",
+        "organization_invitations",
+        "users",
+        ["created_by_user_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
     op.create_foreign_key(
-        "fk_organization_invitations_accepted_by_user_id", "organization_invitations", "users",
-        ["accepted_by_user_id"], ["id"], ondelete="SET NULL"
+        "fk_organization_invitations_accepted_by_user_id",
+        "organization_invitations",
+        "users",
+        ["accepted_by_user_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
     # API keys
     op.create_foreign_key(
-        "fk_api_keys_organization_id", "api_keys", "organizations",
-        ["organization_id"], ["id"], ondelete="CASCADE"
+        "fk_api_keys_organization_id",
+        "api_keys",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_api_keys_user_id", "api_keys", "users",
-        ["user_id"], ["id"], ondelete="CASCADE"
+        "fk_api_keys_user_id", "api_keys", "users", ["user_id"], ["id"], ondelete="CASCADE"
     )
 
     # Audit logs (SET NULL for preservation)
     op.create_foreign_key(
-        "fk_audit_logs_organization_id", "audit_logs", "organizations",
-        ["organization_id"], ["id"], ondelete="SET NULL"
+        "fk_audit_logs_organization_id",
+        "audit_logs",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
     op.create_foreign_key(
-        "fk_audit_logs_user_id", "audit_logs", "users",
-        ["user_id"], ["id"], ondelete="SET NULL"
+        "fk_audit_logs_user_id", "audit_logs", "users", ["user_id"], ["id"], ondelete="SET NULL"
     )
 
     # User sessions
     op.create_foreign_key(
-        "fk_user_sessions_user_id", "user_sessions", "users",
-        ["user_id"], ["id"], ondelete="CASCADE"
+        "fk_user_sessions_user_id",
+        "user_sessions",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_user_sessions_organization_id", "user_sessions", "organizations",
-        ["organization_id"], ["id"], ondelete="SET NULL"
+        "fk_user_sessions_organization_id",
+        "user_sessions",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
     # Device auth requests (SET NULL for audit)
     op.create_foreign_key(
-        "fk_device_authorization_requests_user_id", "device_authorization_requests", "users",
-        ["user_id"], ["id"], ondelete="SET NULL"
+        "fk_device_authorization_requests_user_id",
+        "device_authorization_requests",
+        "users",
+        ["user_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
     op.create_foreign_key(
-        "fk_device_authorization_requests_organization_id", "device_authorization_requests", "organizations",
-        ["organization_id"], ["id"], ondelete="SET NULL"
+        "fk_device_authorization_requests_organization_id",
+        "device_authorization_requests",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
     # Teams
     op.create_foreign_key(
-        "fk_teams_organization_id", "teams", "organizations",
-        ["organization_id"], ["id"], ondelete="CASCADE"
+        "fk_teams_organization_id",
+        "teams",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_team_members_team_id", "team_members", "teams",
-        ["team_id"], ["id"], ondelete="CASCADE"
+        "fk_team_members_team_id", "team_members", "teams", ["team_id"], ["id"], ondelete="CASCADE"
     )
     op.create_foreign_key(
-        "fk_team_members_user_id", "team_members", "users",
-        ["user_id"], ["id"], ondelete="CASCADE"
+        "fk_team_members_user_id", "team_members", "users", ["user_id"], ["id"], ondelete="CASCADE"
     )
 
     # Crawl sources
     op.create_foreign_key(
-        "fk_crawl_sources_organization_id", "crawl_sources", "organizations",
-        ["organization_id"], ["id"], ondelete="CASCADE"
+        "fk_crawl_sources_organization_id",
+        "crawl_sources",
+        "organizations",
+        ["organization_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
 
     # Documents
     op.create_foreign_key(
-        "fk_crawled_documents_source_id", "crawled_documents", "crawl_sources",
-        ["source_id"], ["id"], ondelete="CASCADE"
+        "fk_crawled_documents_source_id",
+        "crawled_documents",
+        "crawl_sources",
+        ["source_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
     op.create_foreign_key(
-        "fk_document_chunks_document_id", "document_chunks", "crawled_documents",
-        ["document_id"], ["id"], ondelete="CASCADE"
+        "fk_document_chunks_document_id",
+        "document_chunks",
+        "crawled_documents",
+        ["document_id"],
+        ["id"],
+        ondelete="CASCADE",
     )
 
 
@@ -562,21 +691,47 @@ def downgrade() -> None:
     op.drop_constraint("fk_team_members_user_id", "team_members", type_="foreignkey")
     op.drop_constraint("fk_team_members_team_id", "team_members", type_="foreignkey")
     op.drop_constraint("fk_teams_organization_id", "teams", type_="foreignkey")
-    op.drop_constraint("fk_device_authorization_requests_organization_id", "device_authorization_requests", type_="foreignkey")
-    op.drop_constraint("fk_device_authorization_requests_user_id", "device_authorization_requests", type_="foreignkey")
+    op.drop_constraint(
+        "fk_device_authorization_requests_organization_id",
+        "device_authorization_requests",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "fk_device_authorization_requests_user_id",
+        "device_authorization_requests",
+        type_="foreignkey",
+    )
     op.drop_constraint("fk_user_sessions_organization_id", "user_sessions", type_="foreignkey")
     op.drop_constraint("fk_user_sessions_user_id", "user_sessions", type_="foreignkey")
     op.drop_constraint("fk_audit_logs_user_id", "audit_logs", type_="foreignkey")
     op.drop_constraint("fk_audit_logs_organization_id", "audit_logs", type_="foreignkey")
     op.drop_constraint("fk_api_keys_user_id", "api_keys", type_="foreignkey")
     op.drop_constraint("fk_api_keys_organization_id", "api_keys", type_="foreignkey")
-    op.drop_constraint("fk_organization_invitations_accepted_by_user_id", "organization_invitations", type_="foreignkey")
-    op.drop_constraint("fk_organization_invitations_created_by_user_id", "organization_invitations", type_="foreignkey")
-    op.drop_constraint("fk_organization_invitations_organization_id", "organization_invitations", type_="foreignkey")
-    op.drop_constraint("fk_organization_members_user_id", "organization_members", type_="foreignkey")
-    op.drop_constraint("fk_organization_members_organization_id", "organization_members", type_="foreignkey")
+    op.drop_constraint(
+        "fk_organization_invitations_accepted_by_user_id",
+        "organization_invitations",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "fk_organization_invitations_created_by_user_id",
+        "organization_invitations",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "fk_organization_invitations_organization_id",
+        "organization_invitations",
+        type_="foreignkey",
+    )
+    op.drop_constraint(
+        "fk_organization_members_user_id", "organization_members", type_="foreignkey"
+    )
+    op.drop_constraint(
+        "fk_organization_members_organization_id", "organization_members", type_="foreignkey"
+    )
     op.drop_constraint("fk_oauth_connections_user_id", "oauth_connections", type_="foreignkey")
-    op.drop_constraint("fk_password_reset_tokens_user_id", "password_reset_tokens", type_="foreignkey")
+    op.drop_constraint(
+        "fk_password_reset_tokens_user_id", "password_reset_tokens", type_="foreignkey"
+    )
     op.drop_constraint("fk_login_history_user_id", "login_history", type_="foreignkey")
 
     # Drop indexes

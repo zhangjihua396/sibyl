@@ -313,9 +313,7 @@ class IngestionPipeline:
             async with get_session() as session:
                 # Fetch documents for this source
                 result = await session.execute(
-                    select(CrawledDocument).where(
-                        col(CrawledDocument.source_id) == source.id
-                    )
+                    select(CrawledDocument).where(col(CrawledDocument.source_id) == source.id)
                 )
                 documents = result.scalars().all()
 

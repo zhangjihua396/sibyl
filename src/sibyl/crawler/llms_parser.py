@@ -48,7 +48,6 @@ def create_slug(heading: str) -> str:
     return re.sub(r"-+", "-", slug).strip("-")
 
 
-
 def create_section_url(base_url: str, heading: str, order: int) -> str:
     """Generate synthetic URL with anchor for a section.
 
@@ -160,7 +159,6 @@ def parse_llms_full(content: str, base_url: str) -> list[LLMsSection]:
     return _combine_small_sections(sections)
 
 
-
 def _fix_unclosed_code_blocks(sections: list[LLMsSection]) -> list[LLMsSection]:
     """Merge sections that were incorrectly split inside code blocks."""
     if not sections:
@@ -199,9 +197,7 @@ def _fix_unclosed_code_blocks(sections: list[LLMsSection]) -> list[LLMsSection]:
     return fixed
 
 
-def _combine_small_sections(
-    sections: list[LLMsSection], min_size: int = 200
-) -> list[LLMsSection]:
+def _combine_small_sections(sections: list[LLMsSection], min_size: int = 200) -> list[LLMsSection]:
     """Combine consecutive small sections (<min_size chars) together."""
     if not sections:
         return sections

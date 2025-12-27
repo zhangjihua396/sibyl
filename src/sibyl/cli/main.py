@@ -112,8 +112,12 @@ def _handle_client_error(e: SibylClientError) -> None:
 
 @app.command()
 def serve(
-    host: str = typer.Option("localhost", "--host", "-h", help="Host to bind to"),
-    port: int = typer.Option(3334, "--port", "-p", help="Port to listen on"),
+    host: str | None = typer.Option(
+        None, "--host", "-h", help="Host to bind to (env: SIBYL_SERVER_HOST)"
+    ),
+    port: int | None = typer.Option(
+        None, "--port", "-p", help="Port to listen on (env: SIBYL_SERVER_PORT)"
+    ),
     transport: str = typer.Option(
         "streamable-http",
         "--transport",
@@ -124,7 +128,7 @@ def serve(
     """Start the Sibyl MCP server daemon.
 
     Examples:
-        sibyl serve                    # Default: localhost:3334
+        sibyl serve                    # Uses env vars or defaults
         sibyl serve -p 9000            # Custom port
         sibyl serve -h 0.0.0.0         # Listen on all interfaces
         sibyl serve -t stdio           # Legacy subprocess mode
