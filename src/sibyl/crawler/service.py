@@ -65,6 +65,25 @@ class CrawlerService:
             self._crawler = None
             log.info("Crawler service stopped")
 
+    async def restart(self) -> None:
+        """Restart the crawler (useful after browser crashes)."""
+        log.warning("Restarting crawler after browser failure")
+        await self.stop()
+        await self.start()
+
+    def _is_browser_death(self, error: Exception) -> bool:
+        """Check if an error indicates the browser has died."""
+        error_msg = str(error).lower()
+        return any(
+            pattern in error_msg
+            for pattern in [
+                "'nonetype' object has no attribute 'new_context'",
+                "target page, context or browser has been closed",
+                "browser has been closed",
+                "connection closed",
+            ]
+        )
+
     async def __aenter__(self) -> CrawlerService:
         """Async context manager entry."""
         await self.start()
@@ -242,6 +261,37 @@ class CrawlerService:
                 yield doc
 
         except Exception as e:
+            # Check if this is a browser death - handle gracefully
+            if self._is_browser_death(e):
+                log.warning(
+                    "Browser died during crawl - marking as partial",
+                    source=source.name,
+                    crawled=crawled_count,
+                    error=str(e),
+                )
+                error_count += 1
+                async with get_session() as session:
+                    db_source = await session.get(CrawlSource, source_id)
+                    if db_source:
+                        db_source.crawl_status = CrawlStatus.PARTIAL
+                        db_source.current_job_id = None
+                        db_source.last_crawled_at = utcnow_naive()
+                        db_source.document_count = crawled_count
+                        db_source.last_error = f"Browser crashed after {crawled_count} pages"
+
+                # Restart browser for next source
+                await self.restart()
+
+                # Don't raise - we already yielded some documents
+                log.info(
+                    "Partial crawl completed after browser recovery",
+                    source=source.name,
+                    crawled=crawled_count,
+                    errors=error_count,
+                )
+                return
+
+            # Other errors - fail as before
             log.error("Deep crawl failed", source=source.name, error=str(e))  # noqa: TRY400
             async with get_session() as session:
                 db_source = await session.get(CrawlSource, source_id)
