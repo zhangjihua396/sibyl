@@ -113,6 +113,7 @@ def list_tasks(
         str | None, typer.Option("-s", "--status", help="todo|doing|blocked|review|done")
     ] = None,
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
+    epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
     limit: Annotated[int, typer.Option("-n", "--limit", help="Max results")] = 50,
     table_out: Annotated[
@@ -164,6 +165,7 @@ def list_tasks(
                         types=["task"],
                         status=status,
                         project=effective_project,
+                        epic=epic,
                         limit=limit,
                     )
                 else:
@@ -174,6 +176,7 @@ def list_tasks(
                             types=["task"],
                             status=status,
                             project=effective_project,
+                            epic=epic,
                             limit=limit,
                         )
                 entities = response.get("entities", [])
@@ -186,6 +189,10 @@ def list_tasks(
                     e
                     for e in entities
                     if e.get("metadata", {}).get("project_id") == effective_project
+                ]
+            if epic:
+                entities = [
+                    e for e in entities if e.get("metadata", {}).get("epic_id") == epic
                 ]
             if assignee:
                 entities = [
@@ -583,6 +590,7 @@ def create_task(
     assignee: Annotated[
         str | None, typer.Option("--assignee", "-a", help="Initial assignee")
     ] = None,
+    epic: Annotated[str | None, typer.Option("--epic", "-e", help="Epic ID to group under")] = None,
     feature: Annotated[str | None, typer.Option("--feature", "-f", help="Feature area")] = None,
     technologies: Annotated[
         str | None, typer.Option("--tech", help="Comma-separated technologies")
@@ -617,6 +625,8 @@ def create_task(
                 metadata["technologies"] = tech_list
             if feature:
                 metadata["feature"] = feature
+            if epic:
+                metadata["epic_id"] = epic
 
             if table_out:
                 with spinner("Creating task...") as progress:
@@ -666,6 +676,7 @@ def update_task(
     ] = None,
     title: Annotated[str | None, typer.Option("--title", help="Task title")] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
+    epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to group under")] = None,
     feature: Annotated[str | None, typer.Option("-f", "--feature", help="Feature area")] = None,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
@@ -679,9 +690,9 @@ def update_task(
 
         try:
             # Check we have something to update
-            if not any([status, priority, title, assignee, feature]):
+            if not any([status, priority, title, assignee, epic, feature]):
                 error(
-                    "No fields to update. Use --status, --priority, --title, --assignee, or --feature"
+                    "No fields to update. Use --status, --priority, --title, --assignee, --epic, or --feature"
                 )
                 return
 
@@ -697,6 +708,7 @@ def update_task(
                         priority=priority,
                         title=title,
                         assignees=assignees,
+                        epic_id=epic,
                         feature=feature,
                     )
             else:
@@ -706,6 +718,7 @@ def update_task(
                     priority=priority,
                     title=title,
                     assignees=assignees,
+                    epic_id=epic,
                     feature=feature,
                 )
 

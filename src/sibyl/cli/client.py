@@ -507,6 +507,7 @@ class SibylClient:
         title: str | None = None,
         description: str | None = None,
         assignees: list[str] | None = None,
+        epic_id: str | None = None,
         feature: str | None = None,
     ) -> dict[str, Any]:
         """Update task fields."""
@@ -521,6 +522,8 @@ class SibylClient:
             data["description"] = description
         if assignees:
             data["assignees"] = assignees
+        if epic_id:
+            data["epic_id"] = epic_id
         if feature:
             data["feature"] = feature
 
@@ -564,6 +567,7 @@ class SibylClient:
         language: str | None = None,
         category: str | None = None,
         project: str | None = None,
+        epic: str | None = None,
         status: str | None = None,
         limit: int = 50,
     ) -> dict[str, Any]:
@@ -581,6 +585,8 @@ class SibylClient:
             data["category"] = category
         if project:
             data["project"] = project
+        if epic:
+            data["epic"] = epic
         if status:
             data["status"] = status
 

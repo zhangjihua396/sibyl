@@ -88,6 +88,7 @@ class UpdateTaskRequest(BaseModel):
     title: str | None = None
     description: str | None = None
     assignees: list[str] | None = None
+    epic_id: str | None = None
     feature: str | None = None
 
 
@@ -493,6 +494,8 @@ async def update_task(
             update_data["description"] = request.description
         if request.assignees is not None:
             update_data["assignees"] = request.assignees
+        if request.epic_id is not None:
+            update_data["epic_id"] = request.epic_id
         if request.feature is not None:
             update_data["feature"] = request.feature
 
