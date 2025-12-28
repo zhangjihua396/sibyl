@@ -493,7 +493,7 @@ function GraphPageContent() {
   const maxLabelsToTrack = 50; // Limit overlap checks for performance
 
   // Clean node rendering - entity colors + degree-based sizing
-  // Smart labels: always show for selected/hovered, projects, and high-connectivity hubs
+  // Labels scale with zoom: more labels appear as you zoom in
   const paintNode = useCallback(
     (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
       const x = node.x || 0;
@@ -511,21 +511,18 @@ function GraphPageContent() {
 
       let size: number;
       if (isProject) {
-        // Projects are larger - 12px to 20px based on connections
         size = 12 + combinedScale * 8;
       } else if (isSelected) {
         size = Math.max(10, 5 + combinedScale * 8);
       } else if (isHovered) {
         size = Math.max(8, 4 + combinedScale * 7);
       } else {
-        // Regular nodes: 3px (isolated) to 14px (hub nodes)
         size = 3 + combinedScale * 11;
       }
 
-      // Use ENTITY COLOR - makes different types visually distinct
       const color = node.entityColor || '#8b85a0';
 
-      // Simple glow for selected/hovered
+      // Glow for selected/hovered
       if (isSelected || isHovered) {
         ctx.beginPath();
         ctx.arc(x, y, size + 4, 0, 2 * Math.PI);
@@ -533,13 +530,13 @@ function GraphPageContent() {
         ctx.fill();
       }
 
-      // Main node - solid color, clean look
+      // Main node
       ctx.beginPath();
       ctx.arc(x, y, size, 0, 2 * Math.PI);
       ctx.fillStyle = color;
       ctx.fill();
 
-      // Border for selected
+      // Border for selected/hovered
       if (isSelected) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -550,31 +547,60 @@ function GraphPageContent() {
         ctx.stroke();
       }
 
-      // Label visibility based on node importance
-      // Always show: selected, hovered, projects
-      // Show at default zoom: hub nodes (top 5% by degree)
-      // Show as zoom increases: progressively more nodes
-      const isHubNode = degree > Math.max(3, maxDegree * 0.05); // Top 5% or 4+ connections
+      // =================================================================
+      // LABEL VISIBILITY - Progressive reveal based on zoom level
+      // =================================================================
+      // Zoom thresholds (globalScale values):
+      //   0.3 = very zoomed out (see whole graph)
+      //   1.0 = default zoom
+      //   2.0 = moderate zoom (focused area)
+      //   4.0+ = very zoomed in (detail view)
 
-      let showLabel = isSelected || isHovered || isProject;
+      const isHubNode = degree > Math.max(3, maxDegree * 0.05);
 
-      // Hub nodes always show labels
-      if (!showLabel && isHubNode) {
+      // Determine if label should show based on zoom + importance
+      let showLabel = false;
+
+      // Always show: selected, hovered
+      if (isSelected || isHovered) {
         showLabel = true;
       }
-      // Nodes with 2+ connections show at slight zoom
-      if (!showLabel && degree >= 2 && globalScale >= 1.0) {
+      // Projects: show at zoom >= 0.5
+      else if (isProject && globalScale >= 0.5) {
         showLabel = true;
       }
-      // Any connected node shows at moderate zoom
-      if (!showLabel && degree >= 1 && globalScale >= 1.5) {
+      // Hub nodes (top 5%): show at zoom >= 0.8
+      else if (isHubNode && globalScale >= 0.8) {
+        showLabel = true;
+      }
+      // High-degree nodes (5+ connections): show at zoom >= 1.5
+      else if (degree >= 5 && globalScale >= 1.5) {
+        showLabel = true;
+      }
+      // Medium-degree nodes (3+ connections): show at zoom >= 2.5
+      else if (degree >= 3 && globalScale >= 2.5) {
+        showLabel = true;
+      }
+      // Low-degree nodes (1+ connections): show at zoom >= 4.0
+      else if (degree >= 1 && globalScale >= 4.0) {
+        showLabel = true;
+      }
+      // Isolated nodes: show at zoom >= 6.0
+      else if (globalScale >= 6.0) {
         showLabel = true;
       }
 
       if (showLabel) {
         const label = node.label || node.name || node.id.slice(0, 8);
-        const displayLabel = label.length > 20 ? `${label.slice(0, 17)}...` : label;
-        const fontSize = Math.max(8, Math.min(12, 10 / globalScale));
+
+        // Truncate based on zoom - show more text as you zoom in
+        const maxLen = Math.min(40, Math.floor(10 + globalScale * 5));
+        const displayLabel = label.length > maxLen ? `${label.slice(0, maxLen - 3)}...` : label;
+
+        // Font size: scales with zoom but stays readable
+        // At zoom 1.0: 10px, at zoom 2.0: 11px, at zoom 4.0: 12px (capped)
+        const baseFontSize = 10;
+        const fontSize = Math.min(12, baseFontSize + Math.log2(globalScale + 1));
 
         ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
         const textWidth = ctx.measureText(displayLabel).width;
@@ -582,19 +608,16 @@ function GraphPageContent() {
         const labelX = x;
         const labelY = y + size + 3;
 
-        // Priority labels always draw (bypass overlap check)
+        // Priority labels bypass overlap check
         const isPriority = isSelected || isHovered || isProject || isHubNode;
         let shouldDraw = isPriority;
 
         if (!isPriority) {
-          // Performance: skip overlap check if we've hit max labels
-          // This prevents O(n²) checks during pan/zoom
           if (drawnLabelsRef.current.length >= maxLabelsToTrack) {
             shouldDraw = false;
           } else {
-            // Fast overlap check - only check recent labels (last 20)
             const recentLabels = drawnLabelsRef.current.slice(-20);
-            const minSpacing = 25 / globalScale;
+            const minSpacing = 20 / globalScale;
             const overlaps = recentLabels.some(existing => {
               const dx = Math.abs(labelX - existing.x);
               const dy = Math.abs(labelY - existing.y);
@@ -608,17 +631,16 @@ function GraphPageContent() {
           ctx.textAlign = 'center';
           ctx.textBaseline = 'top';
 
-          // Text shadow - inverted based on theme
+          // Text shadow
           const shadowColor = theme === 'neon' ? 'rgba(0, 0, 0, 0.8)' : 'rgba(255, 255, 255, 0.8)';
           ctx.fillStyle = shadowColor;
           ctx.fillText(displayLabel, x + 0.5, labelY + 0.5);
 
-          // Text color - use theme foreground
+          // Text color
           const textColor = colors.fgPrimary;
           ctx.fillStyle = isSelected ? textColor : isProject ? `${textColor}ee` : `${textColor}cc`;
           ctx.fillText(displayLabel, x, labelY);
 
-          // Track this label (only if under cap)
           if (drawnLabelsRef.current.length < maxLabelsToTrack) {
             drawnLabelsRef.current.push({ x: labelX, y: labelY, width: textWidth });
           }
@@ -803,6 +825,7 @@ function GraphPageContent() {
               key={theme}
               ref={graphRef as React.MutableRefObject<ForceGraphMethods | undefined>}
               graphData={graphData as { nodes: object[]; links: object[] }}
+              nodeLabel={() => ''} // Disable default tooltip - we render labels on canvas
               nodeCanvasObject={
                 paintNode as (
                   node: object,
