@@ -7,6 +7,8 @@ from pydantic import ValidationError
 
 from sibyl.models.entities import EntityType
 from sibyl.models.tasks import (
+    Epic,
+    EpicStatus,
     ErrorPattern,
     Milestone,
     Project,
@@ -174,6 +176,90 @@ class TestProject:
         expected = {"planning", "active", "on_hold", "completed", "archived"}
         actual = {s.value for s in ProjectStatus}
         assert actual == expected
+
+
+class TestEpicStatusEnum:
+    """Tests for EpicStatus enum."""
+
+    def test_all_status_values(self) -> None:
+        """Verify all expected status values exist."""
+        expected = {"planning", "in_progress", "blocked", "completed", "archived"}
+        actual = {s.value for s in EpicStatus}
+        assert actual == expected
+
+    def test_status_string_conversion(self) -> None:
+        """Test enum to string conversion."""
+        assert str(EpicStatus.IN_PROGRESS) == "in_progress"
+        assert EpicStatus.COMPLETED == "completed"
+
+
+class TestEpic:
+    """Tests for Epic entity model."""
+
+    def test_minimal_epic_creation(self) -> None:
+        """Test creating an epic with minimal fields."""
+        epic = Epic(
+            id="epic-001",
+            title="OAuth Implementation",
+            project_id="proj-001",
+        )
+        assert epic.id == "epic-001"
+        assert epic.title == "OAuth Implementation"
+        assert epic.entity_type == EntityType.EPIC
+        assert epic.status == EpicStatus.PLANNING
+        assert epic.priority == TaskPriority.MEDIUM
+        assert epic.project_id == "proj-001"
+
+    def test_full_epic_creation(self) -> None:
+        """Test creating an epic with all fields."""
+        now = datetime.now(UTC)
+        epic = Epic(
+            id="epic-002",
+            title="Authentication System",
+            description="Complete auth system with OAuth, JWT, and session management",
+            status=EpicStatus.IN_PROGRESS,
+            priority=TaskPriority.HIGH,
+            project_id="proj-001",
+            start_date=now,
+            target_date=now,
+            completed_date=now,
+            total_tasks=12,
+            completed_tasks=5,
+            assignees=["alice@example.com", "bob@example.com"],
+            tags=["security", "core"],
+            learnings="OAuth redirect URIs must match exactly",
+        )
+        assert epic.status == EpicStatus.IN_PROGRESS
+        assert epic.priority == TaskPriority.HIGH
+        assert len(epic.assignees) == 2
+        assert epic.total_tasks == 12
+        assert epic.completed_tasks == 5
+        assert "security" in epic.tags
+
+    def test_epic_name_property(self) -> None:
+        """Test that name property returns title."""
+        epic = Epic(id="e1", title="Test Epic", project_id="proj-001")
+        assert epic.name == "Test Epic"
+
+    def test_epic_content_property(self) -> None:
+        """Test that content property returns description."""
+        epic = Epic(
+            id="e1",
+            title="Test",
+            description="Detailed epic description",
+            project_id="proj-001",
+        )
+        assert epic.content == "Detailed epic description"
+
+    def test_epic_title_max_length(self) -> None:
+        """Test title max length validation."""
+        with pytest.raises(ValidationError):
+            Epic(id="e1", title="x" * 201, project_id="proj-001")
+
+    def test_epic_requires_project_id(self) -> None:
+        """Test that project_id is required."""
+        with pytest.raises(ValidationError):
+            Epic(id="e1", title="Test Epic")  # Missing project_id
 
 
 class TestTeam:

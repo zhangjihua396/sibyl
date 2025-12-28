@@ -16,7 +16,7 @@ import pytest
 from sibyl.errors import EntityNotFoundError
 from sibyl.graph.entities import EntityManager, sanitize_search_query
 from sibyl.models.entities import Entity, EntityType
-from sibyl.models.tasks import Project, Task, TaskPriority, TaskStatus
+from sibyl.models.tasks import Epic, EpicStatus, Project, Task, TaskPriority, TaskStatus
 
 
 class MockDriver:
@@ -1097,3 +1097,301 @@ class TestFormatSpecializedFields:
 
         assert any("python" in p for p in parts)
         assert any("auth" in p for p in parts)
+
+    def test_formats_epic_fields(self) -> None:
+        """_format_specialized_fields should format Epic fields."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        epic = Epic(
+            id="epic_123",
+            title="Auth Epic",
+            project_id="proj_456",
+            status=EpicStatus.IN_PROGRESS,
+            priority=TaskPriority.HIGH,
+            assignees=["alice", "bob"],
+        )
+
+        def sanitize(text: str) -> str:
+            return text
+
+        parts = manager._format_specialized_fields(epic, sanitize)
+
+        assert any("in_progress" in p.lower() for p in parts)
+        assert any("high" in p.lower() for p in parts)
+        assert any("proj_456" in p for p in parts)
+
+
+class TestEpicMetadataExtraction:
+    """Tests for Epic-specific metadata extraction."""
+
+    def test_epic_metadata_extraction(self) -> None:
+        """_entity_to_metadata should extract Epic-specific fields."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        epic = Epic(
+            id="epic_123",
+            title="Auth System Epic",
+            project_id="proj_456",
+            status=EpicStatus.IN_PROGRESS,
+            priority=TaskPriority.HIGH,
+            assignees=["alice", "bob"],
+            tags=["security", "auth"],
+            learnings="OAuth redirect URIs matter",
+        )
+
+        metadata = manager._entity_to_metadata(epic)
+
+        assert metadata["status"] == "in_progress"
+        assert metadata["priority"] == "high"
+        assert metadata["project_id"] == "proj_456"
+        assert metadata["assignees"] == ["alice", "bob"]
+        assert metadata["learnings"] == "OAuth redirect URIs matter"
+        # Tags are in common fields section
+        assert metadata["tags"] == ["security", "auth"]
+
+    def test_collects_epic_properties(self) -> None:
+        """_collect_properties should collect Epic-specific properties."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        epic = Epic(
+            id="epic_123",
+            title="Auth System Epic",
+            description="Complete authentication system",
+            project_id="proj_456",
+            status=EpicStatus.PLANNING,
+            priority=TaskPriority.CRITICAL,
+        )
+
+        props = manager._collect_properties(epic)
+
+        assert props["uuid"] == "epic_123"
+        assert props["name"] == "Auth System Epic"
+        assert props["entity_type"] == "epic"
+        assert props["project_id"] == "proj_456"
+        assert props["status"] == "planning"
+        assert props["priority"] == "critical"
+
+
+class TestGetTasksForEpic:
+    """Tests for EntityManager.get_tasks_for_epic method."""
+
+    @pytest.mark.asyncio
+    async def test_get_tasks_for_epic_returns_tasks(self) -> None:
+        """get_tasks_for_epic should return tasks belonging to an epic."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        now = datetime.now(UTC).isoformat()
+
+        # Set up mock result with tasks
+        client._driver.set_results(
+            [
+                (
+                    [
+                        {
+                            "uuid": "task_1",
+                            "name": "Task 1",
+                            "entity_type": "task",
+                            "group_id": TEST_ORG_ID,
+                            "status": "todo",
+                            "priority": "high",
+                            "epic_id": "epic_123",
+                            "project_id": "proj_456",
+                            "created_at": now,
+                            "updated_at": now,
+                        },
+                        {
+                            "uuid": "task_2",
+                            "name": "Task 2",
+                            "entity_type": "task",
+                            "group_id": TEST_ORG_ID,
+                            "status": "doing",
+                            "priority": "medium",
+                            "epic_id": "epic_123",
+                            "project_id": "proj_456",
+                            "created_at": now,
+                            "updated_at": now,
+                        },
+                    ],
+                    ["uuid", "name", "entity_type", "group_id", "status", "priority", "epic_id", "project_id", "created_at", "updated_at"],
+                    {},
+                )
+            ]
+        )
+
+        tasks = await manager.get_tasks_for_epic("epic_123")
+
+        assert len(tasks) == 2
+        assert all(t.entity_type == EntityType.TASK for t in tasks)
+
+    @pytest.mark.asyncio
+    async def test_get_tasks_for_epic_filters_by_status(self) -> None:
+        """get_tasks_for_epic should filter by status when specified."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        client._driver.set_results([([], [], {})])
+
+        await manager.get_tasks_for_epic("epic_123", status="todo")
+
+        # Verify query includes status filter
+        _query, params = client._driver.queries[0]
+        assert params.get("status") == "todo"
+
+    @pytest.mark.asyncio
+    async def test_get_tasks_for_epic_respects_limit(self) -> None:
+        """get_tasks_for_epic should respect limit parameter."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        client._driver.set_results([([], [], {})])
+
+        await manager.get_tasks_for_epic("epic_123", limit=5)
+
+        _query, params = client._driver.queries[0]
+        assert params["limit"] == 5
+
+
+class TestGetEpicProgress:
+    """Tests for EntityManager.get_epic_progress method."""
+
+    @pytest.mark.asyncio
+    async def test_get_epic_progress_returns_counts(self) -> None:
+        """get_epic_progress should return task counts by status."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        # Set up mock result matching the query structure
+        client._driver.set_results(
+            [
+                (
+                    [
+                        {"total": 10, "done": 3, "doing": 2, "blocked": 1, "review": 1},
+                    ],
+                    ["total", "done", "doing", "blocked", "review"],
+                    {},
+                )
+            ]
+        )
+
+        progress = await manager.get_epic_progress("epic_123")
+
+        assert progress["total_tasks"] == 10
+        assert progress["completed_tasks"] == 3
+        assert progress["in_progress_tasks"] == 2
+        assert progress["blocked_tasks"] == 1
+        assert progress["in_review_tasks"] == 1
+
+    @pytest.mark.asyncio
+    async def test_get_epic_progress_calculates_percentages(self) -> None:
+        """get_epic_progress should calculate done percentage."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        client._driver.set_results(
+            [
+                (
+                    [
+                        {"total": 10, "done": 8, "doing": 0, "blocked": 0, "review": 2},
+                    ],
+                    ["total", "done", "doing", "blocked", "review"],
+                    {},
+                )
+            ]
+        )
+
+        progress = await manager.get_epic_progress("epic_123")
+
+        assert progress["completion_pct"] == 80.0
+
+    @pytest.mark.asyncio
+    async def test_get_epic_progress_handles_empty_epic(self) -> None:
+        """get_epic_progress should handle epic with no tasks."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        client._driver.set_results([([], [], {})])
+
+        progress = await manager.get_epic_progress("epic_123")
+
+        assert progress["total_tasks"] == 0
+        assert progress["completion_pct"] == 0.0
+
+
+class TestListEpicsForProject:
+    """Tests for EntityManager.list_epics_for_project method."""
+
+    @pytest.mark.asyncio
+    async def test_list_epics_for_project_returns_epics(self) -> None:
+        """list_epics_for_project should return epics for a project."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        now = datetime.now(UTC).isoformat()
+
+        client._driver.set_results(
+            [
+                (
+                    [
+                        {
+                            "uuid": "epic_1",
+                            "name": "Auth Epic",
+                            "entity_type": "epic",
+                            "group_id": TEST_ORG_ID,
+                            "project_id": "proj_123",
+                            "status": "in_progress",
+                            "created_at": now,
+                            "updated_at": now,
+                        },
+                        {
+                            "uuid": "epic_2",
+                            "name": "API Epic",
+                            "entity_type": "epic",
+                            "group_id": TEST_ORG_ID,
+                            "project_id": "proj_123",
+                            "status": "planning",
+                            "created_at": now,
+                            "updated_at": now,
+                        },
+                    ],
+                    ["uuid", "name", "entity_type", "group_id", "project_id", "status", "created_at", "updated_at"],
+                    {},
+                )
+            ]
+        )
+
+        epics = await manager.list_epics_for_project("proj_123")
+
+        assert len(epics) == 2
+        assert all(e.entity_type == EntityType.EPIC for e in epics)
+
+    @pytest.mark.asyncio
+    async def test_list_epics_for_project_filters_by_status(self) -> None:
+        """list_epics_for_project should filter by status when specified."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        client._driver.set_results([([], [], {})])
+
+        await manager.list_epics_for_project("proj_123", status="in_progress")
+
+        _query, params = client._driver.queries[0]
+        assert params.get("status") == "in_progress"
+
+    @pytest.mark.asyncio
+    async def test_list_epics_for_project_queries_correctly(self) -> None:
+        """list_epics_for_project should use correct parameters."""
+        client = MockGraphClient()
+        manager = EntityManager(client, group_id=TEST_ORG_ID)
+
+        client._driver.set_results([([], [], {})])
+
+        await manager.list_epics_for_project("proj_123", limit=10)
+
+        _query, params = client._driver.queries[0]
+        assert params["project_id"] == "proj_123"
+        assert params["group_id"] == TEST_ORG_ID
+        assert params["limit"] == 10
