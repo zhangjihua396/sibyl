@@ -592,6 +592,206 @@ class EntityManager:
             log.exception("Failed to list entities", entity_type=entity_type, error=str(e))
             return []
 
+    async def get_tasks_for_epic(
+        self,
+        epic_id: str,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> list[Entity]:
+        """Get all tasks belonging to an epic.
+
+        Args:
+            epic_id: The epic's unique identifier.
+            status: Optional status filter (todo, doing, done, etc.).
+            limit: Maximum results to return.
+
+        Returns:
+            List of Task entities belonging to the epic.
+        """
+        log.debug("Fetching tasks for epic", epic_id=epic_id, status=status)
+
+        try:
+            # Build query with optional status filter
+            status_clause = "AND n.status = $status" if status else ""
+            query = f"""
+                MATCH (n)
+                WHERE n.entity_type = 'task'
+                  AND n.group_id = $group_id
+                  AND n.epic_id = $epic_id
+                  {status_clause}
+                RETURN n.uuid AS uuid,
+                       n.name AS name,
+                       n.entity_type AS entity_type,
+                       n.group_id AS group_id,
+                       n.content AS content,
+                       n.description AS description,
+                       n.summary AS summary,
+                       n.metadata AS metadata,
+                       n.created_at AS created_at,
+                       n.status AS status,
+                       n.priority AS priority,
+                       n.project_id AS project_id,
+                       n.epic_id AS epic_id,
+                       n.task_order AS task_order
+                ORDER BY n.task_order DESC, n.created_at DESC
+                LIMIT $limit
+            """
+
+            params: dict[str, Any] = {
+                "group_id": self._group_id,
+                "epic_id": epic_id,
+                "limit": limit,
+            }
+            if status:
+                params["status"] = status
+
+            result = await self._driver.execute_query(query, **params)
+
+            entities: list[Entity] = []
+            records = GraphClient.normalize_result(result)
+            for record in records:
+                try:
+                    entity = self._record_to_entity(record)
+                    entities.append(entity)
+                except Exception as e:
+                    log.debug("Failed to convert record", error=str(e))
+
+            log.debug("Fetched tasks for epic", epic_id=epic_id, count=len(entities))
+            return entities
+
+        except Exception as e:
+            log.exception("Failed to get tasks for epic", epic_id=epic_id, error=str(e))
+            return []
+
+    async def get_epic_progress(self, epic_id: str) -> dict[str, Any]:
+        """Get progress statistics for an epic.
+
+        Args:
+            epic_id: The epic's unique identifier.
+
+        Returns:
+            Dict with total_tasks, completed_tasks, in_progress_tasks, and completion_pct.
+        """
+        log.debug("Getting epic progress", epic_id=epic_id)
+
+        try:
+            result = await self._driver.execute_query(
+                """
+                MATCH (n)
+                WHERE n.entity_type = 'task'
+                  AND n.group_id = $group_id
+                  AND n.epic_id = $epic_id
+                RETURN
+                    count(n) AS total,
+                    sum(CASE WHEN n.status = 'done' THEN 1 ELSE 0 END) AS done,
+                    sum(CASE WHEN n.status = 'doing' THEN 1 ELSE 0 END) AS doing,
+                    sum(CASE WHEN n.status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
+                    sum(CASE WHEN n.status = 'review' THEN 1 ELSE 0 END) AS review
+                """,
+                group_id=self._group_id,
+                epic_id=epic_id,
+            )
+
+            records = GraphClient.normalize_result(result)
+            if records:
+                record = records[0]
+                total = record.get("total", 0) or 0
+                done = record.get("done", 0) or 0
+                doing = record.get("doing", 0) or 0
+                blocked = record.get("blocked", 0) or 0
+                review = record.get("review", 0) or 0
+
+                return {
+                    "total_tasks": total,
+                    "completed_tasks": done,
+                    "in_progress_tasks": doing,
+                    "blocked_tasks": blocked,
+                    "in_review_tasks": review,
+                    "completion_pct": round((done / total * 100) if total > 0 else 0, 1),
+                }
+
+            return {
+                "total_tasks": 0,
+                "completed_tasks": 0,
+                "in_progress_tasks": 0,
+                "blocked_tasks": 0,
+                "in_review_tasks": 0,
+                "completion_pct": 0.0,
+            }
+
+        except Exception as e:
+            log.exception("Failed to get epic progress", epic_id=epic_id, error=str(e))
+            return {"total_tasks": 0, "completed_tasks": 0, "completion_pct": 0.0}
+
+    async def list_epics_for_project(
+        self,
+        project_id: str,
+        status: str | None = None,
+        limit: int = 50,
+    ) -> list[Entity]:
+        """Get all epics belonging to a project.
+
+        Args:
+            project_id: The project's unique identifier.
+            status: Optional status filter (planning, in_progress, completed, etc.).
+            limit: Maximum results to return.
+
+        Returns:
+            List of Epic entities belonging to the project.
+        """
+        log.debug("Fetching epics for project", project_id=project_id, status=status)
+
+        try:
+            status_clause = "AND n.status = $status" if status else ""
+            query = f"""
+                MATCH (n)
+                WHERE n.entity_type = 'epic'
+                  AND n.group_id = $group_id
+                  AND n.project_id = $project_id
+                  {status_clause}
+                RETURN n.uuid AS uuid,
+                       n.name AS name,
+                       n.entity_type AS entity_type,
+                       n.group_id AS group_id,
+                       n.content AS content,
+                       n.description AS description,
+                       n.metadata AS metadata,
+                       n.created_at AS created_at,
+                       n.status AS status,
+                       n.priority AS priority,
+                       n.project_id AS project_id,
+                       n.total_tasks AS total_tasks,
+                       n.completed_tasks AS completed_tasks
+                ORDER BY n.priority ASC, n.created_at DESC
+                LIMIT $limit
+            """
+
+            params: dict[str, Any] = {
+                "group_id": self._group_id,
+                "project_id": project_id,
+                "limit": limit,
+            }
+            if status:
+                params["status"] = status
+
+            result = await self._driver.execute_query(query, **params)
+
+            entities: list[Entity] = []
+            records = GraphClient.normalize_result(result)
+            for record in records:
+                try:
+                    entity = self._record_to_entity(record)
+                    entities.append(entity)
+                except Exception as e:
+                    log.debug("Failed to convert record", error=str(e))
+
+            log.debug("Fetched epics for project", project_id=project_id, count=len(entities))
+            return entities
+
+        except Exception as e:
+            log.exception("Failed to list epics for project", project_id=project_id, error=str(e))
+            return []
+
     def _record_to_entity(self, node_data: dict[str, Any]) -> Entity:
         """Convert a raw database record to an Entity.
 
