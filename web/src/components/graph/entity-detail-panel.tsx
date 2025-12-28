@@ -2,13 +2,18 @@
 
 import Link from 'next/link';
 import { memo } from 'react';
-import { EntityBadge } from '@/components/ui/badge';
+import { EntityBadge, RelationshipBadge } from '@/components/ui/badge';
+import { Network } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
 import { useEntity, useRelatedEntities } from '@/lib/hooks';
 
 interface RelatedEntity {
   id: string;
   name: string;
+  type: string;
+  relationship: string;
+  direction: 'outgoing' | 'incoming';
+  distance?: number;
 }
 
 interface EntityDetailPanelProps {
@@ -98,24 +103,54 @@ export const EntityDetailPanel = memo(function EntityDetailPanel({
             {/* Related entities */}
             {related?.entities && related.entities.length > 0 && (
               <div className="pt-4 border-t border-sc-fg-subtle/20">
-                <h5 className="text-xs font-medium text-sc-fg-muted mb-2">
+                <h5 className="text-xs font-medium text-sc-fg-muted mb-3">
                   Related ({related.entities.length})
                 </h5>
-                <div className={`${isSheet ? 'flex flex-wrap gap-1.5' : 'space-y-1'}`}>
-                  {(related.entities as RelatedEntity[]).slice(0, isSheet ? 8 : 5).map(rel => (
-                    <div
-                      key={rel.id}
-                      className={`text-xs px-2 py-1 bg-sc-bg-highlight rounded truncate text-sc-fg-muted ${
-                        isSheet ? 'inline-block' : ''
-                      }`}
+                <div className="space-y-2">
+                  {(related.entities as RelatedEntity[])
+                    .filter((rel, idx, arr) => arr.findIndex(r => r.id === rel.id) === idx)
+                    .slice(0, isSheet ? 8 : 6)
+                    .map(rel => (
+                      <div
+                        key={rel.id}
+                        className="group flex items-center gap-2 p-2 bg-sc-bg-highlight/50 hover:bg-sc-bg-highlight rounded-lg transition-colors"
+                      >
+                        {/* Entity type indicator */}
+                        <EntityBadge type={rel.type} size="sm" />
+
+                        {/* Name - clickable link to entity page */}
+                        <Link
+                          href={`/entities/${rel.id}`}
+                          className="flex-1 text-xs text-sc-fg-muted hover:text-sc-fg-primary truncate transition-colors"
+                          title={rel.name}
+                        >
+                          {rel.name}
+                        </Link>
+
+                        {/* Relationship badge */}
+                        <RelationshipBadge
+                          type={rel.relationship}
+                          direction={rel.direction}
+                          size="xs"
+                        />
+
+                        {/* View in graph icon */}
+                        <Link
+                          href={`/graph?selected=${rel.id}`}
+                          className="p-1 text-sc-fg-subtle hover:text-sc-purple opacity-0 group-hover:opacity-100 transition-all"
+                          title="View in graph"
+                        >
+                          <Network width={14} height={14} />
+                        </Link>
+                      </div>
+                    ))}
+                  {related.entities.length > (isSheet ? 8 : 6) && (
+                    <Link
+                      href={`/entities/${entityId}#related`}
+                      className="block text-xs text-sc-fg-subtle hover:text-sc-purple px-2 py-1 transition-colors"
                     >
-                      {rel.name}
-                    </div>
-                  ))}
-                  {related.entities.length > (isSheet ? 8 : 5) && (
-                    <div className="text-xs text-sc-fg-subtle px-2">
-                      +{related.entities.length - (isSheet ? 8 : 5)} more
-                    </div>
+                      +{related.entities.length - (isSheet ? 8 : 6)} more →
+                    </Link>
                   )}
                 </div>
               </div>

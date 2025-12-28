@@ -5,14 +5,23 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { EntityBreadcrumb } from '@/components/layout/breadcrumb';
-import { EntityBadge } from '@/components/ui/badge';
+import { EntityBadge, RelationshipBadge } from '@/components/ui/badge';
 import { Button, ColorButton } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Network } from '@/components/ui/icons';
 import { Input, Textarea } from '@/components/ui/input';
 import { Markdown } from '@/components/ui/markdown';
 import type { Entity } from '@/lib/api';
 import { ENTITY_COLORS, type EntityType, formatDateTime } from '@/lib/constants';
-import { useDeleteEntity, useEntity, useUpdateEntity } from '@/lib/hooks';
+import { useDeleteEntity, useEntity, useRelatedEntities, useUpdateEntity } from '@/lib/hooks';
+
+interface RelatedEntity {
+  id: string;
+  name: string;
+  type: string;
+  relationship: string;
+  direction: 'outgoing' | 'incoming';
+}
 
 interface EntityDetailContentProps {
   initialEntity: Entity;
@@ -24,6 +33,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
 
   // Hydrate from server data, then use client cache
   const { data: entity } = useEntity(entityId, initialEntity);
+  const { data: related } = useRelatedEntities(entityId);
   const updateEntity = useUpdateEntity();
   const deleteEntity = useDeleteEntity();
 
@@ -220,6 +230,60 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                 </div>
               )}
             </dl>
+          </Card>
+
+          {/* Related Entities */}
+          <Card id="related">
+            <h2 className="text-lg font-semibold text-sc-fg-primary mb-4">
+              Related
+              {related?.entities && related.entities.length > 0 && (
+                <span className="ml-2 text-sm font-normal text-sc-fg-muted">
+                  ({related.entities.length})
+                </span>
+              )}
+            </h2>
+            {related?.entities && related.entities.length > 0 ? (
+              <div className="space-y-2">
+                {(related.entities as RelatedEntity[])
+                  .filter((rel, idx, arr) => arr.findIndex(r => r.id === rel.id) === idx)
+                  .map(rel => (
+                    <div
+                      key={rel.id}
+                      className="group flex items-center gap-2 p-2 bg-sc-bg-highlight/50 hover:bg-sc-bg-highlight rounded-lg transition-colors"
+                    >
+                      {/* Entity type badge */}
+                      <EntityBadge type={rel.type} size="sm" />
+
+                      {/* Name - clickable link */}
+                      <Link
+                        href={`/entities/${rel.id}`}
+                        className="flex-1 text-sm text-sc-fg-muted hover:text-sc-fg-primary truncate transition-colors"
+                        title={rel.name}
+                      >
+                        {rel.name}
+                      </Link>
+
+                      {/* Relationship badge */}
+                      <RelationshipBadge
+                        type={rel.relationship}
+                        direction={rel.direction}
+                        size="xs"
+                      />
+
+                      {/* View in graph icon */}
+                      <Link
+                        href={`/graph?selected=${rel.id}`}
+                        className="p-1 text-sc-fg-subtle hover:text-sc-purple opacity-0 group-hover:opacity-100 transition-all"
+                        title="View in graph"
+                      >
+                        <Network width={14} height={14} />
+                      </Link>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p className="text-sc-fg-muted text-sm italic">No related entities found</p>
+            )}
           </Card>
 
           {/* Metadata */}

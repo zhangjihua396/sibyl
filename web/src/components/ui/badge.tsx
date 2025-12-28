@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { Xmark } from '@/components/ui/icons';
-import { ENTITY_COLORS, type EntityType } from '@/lib/constants';
+import { ENTITY_COLORS, type EntityType, getRelationshipConfig } from '@/lib/constants';
 import { EntityIcon } from './entity-icon';
 
 type BadgeSize = 'sm' | 'md' | 'lg';
@@ -41,6 +41,39 @@ export function EntityBadge({
     >
       {showIcon && <EntityIcon type={type} size={sizeConfig.iconSize} className="opacity-80" />}
       {type.replace(/_/g, ' ')}
+    </span>
+  );
+}
+
+// Relationship type badge with SilkCircuit colors
+interface RelationshipBadgeProps {
+  type: string;
+  direction?: 'outgoing' | 'incoming';
+  size?: 'xs' | 'sm';
+  className?: string;
+}
+
+export function RelationshipBadge({
+  type,
+  direction,
+  size = 'xs',
+  className = '',
+}: RelationshipBadgeProps) {
+  const config = getRelationshipConfig(type);
+  const sizeClasses = size === 'xs' ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-0.5 text-xs';
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded font-medium ${sizeClasses} ${className}`}
+      style={{
+        backgroundColor: `${config.color}15`,
+        color: config.color,
+      }}
+      title={`${direction === 'incoming' ? '← ' : '→ '}${config.label}`}
+    >
+      {direction === 'incoming' && <span className="opacity-60">←</span>}
+      {config.label}
+      {direction === 'outgoing' && <span className="opacity-60">→</span>}
     </span>
   );
 }
