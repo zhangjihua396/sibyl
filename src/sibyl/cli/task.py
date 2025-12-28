@@ -542,16 +542,50 @@ def complete_task(
 
 @app.command("archive")
 def archive_task(
-    task_id: Annotated[str, typer.Argument(help="Task ID to archive")],
+    task_id: Annotated[str | None, typer.Argument(help="Task ID to archive")] = None,
     reason: Annotated[str | None, typer.Option("--reason", "-r", help="Archive reason")] = None,
     yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
+    stdin: Annotated[
+        bool, typer.Option("--stdin", help="Read task IDs from stdin (one per line)")
+    ] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
 ) -> None:
-    """Archive a task (terminal state). Default: JSON output."""
-    if not yes:
-        confirm = typer.confirm(f"Archive task {task_id[:8]}...? This cannot be undone.")
+    """Archive task(s). Supports --stdin for bulk operations.
+
+    Examples:
+        sibyl task archive task_xxx --yes
+        sibyl task list -s todo -q "test" | jq -r '.[].id' | sibyl task archive --stdin --yes
+    """
+    import sys
+
+    # Collect task IDs
+    task_ids: list[str] = []
+
+    if stdin:
+        # Read from stdin
+        for line in sys.stdin:
+            line = line.strip()
+            if line and line.startswith("task_"):
+                task_ids.append(line)
+        if not task_ids:
+            error("No task IDs found on stdin")
+            raise typer.Exit(1)
+    elif task_id:
+        task_ids = [task_id]
+    else:
+        error("Either task_id argument or --stdin is required")
+        raise typer.Exit(1)
+
+    # Require --yes for bulk operations
+    if len(task_ids) > 1 and not yes:
+        error(f"Bulk archive requires --yes flag (found {len(task_ids)} tasks)")
+        raise typer.Exit(1)
+
+    # Single task confirmation
+    if len(task_ids) == 1 and not yes:
+        confirm = typer.confirm(f"Archive task {task_ids[0][:12]}...? This cannot be undone.")
         if not confirm:
             info("Cancelled")
             return
@@ -559,28 +593,37 @@ def archive_task(
     @run_async
     async def _archive() -> None:
         client = get_client()
+        results: list[dict] = []
+        archived = 0
+        failed = 0
 
-        try:
-            resolved_id = await _resolve_task_id(client, task_id)
-
-            if table_out:
-                with spinner("Archiving task...") as progress:
-                    progress.add_task("Archiving task...", total=None)
-                    response = await client.archive_task(resolved_id, reason)
-            else:
+        for tid in task_ids:
+            try:
+                resolved_id = await _resolve_task_id(client, tid)
                 response = await client.archive_task(resolved_id, reason)
+                results.append({"id": resolved_id, **response})
+                if response.get("success"):
+                    archived += 1
+                else:
+                    failed += 1
+            except SibylClientError as e:
+                results.append({"id": tid, "success": False, "error": str(e)})
+                failed += 1
 
-            if not table_out:
-                print_json(response)
-                return
+        if not table_out:
+            print_json(results if len(results) > 1 else results[0])
+            return
 
-            if response.get("success"):
-                success(f"Task archived: {resolved_id[:16]}...")
+        # Table output
+        if len(task_ids) == 1:
+            if results[0].get("success"):
+                success(f"Task archived: {results[0]['id'][:16]}...")
             else:
-                error(f"Failed to archive task: {response.get('message', 'Unknown error')}")
-
-        except SibylClientError as e:
-            _handle_client_error(e)
+                error(f"Failed: {results[0].get('message', results[0].get('error', 'Unknown'))}")
+        else:
+            success(f"Archived {archived} task(s)")
+            if failed:
+                error(f"Failed: {failed} task(s)")
 
     _archive()
 
