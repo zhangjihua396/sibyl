@@ -41,10 +41,13 @@ def create_cmd(
     try:
         result = _run()
         if switch and "access_token" in result:
-            token = str(result["access_token"]).strip()
+            token = str(result.get("access_token", "")).strip()
+            refresh = str(result.get("refresh_token", "")).strip() or None
+            expires_raw = result.get("expires_in")
+            expires_in = int(expires_raw) if expires_raw is not None else None
             if token:
-                set_tokens(client.base_url, token)
-            success("Switched org (token saved to ~/.sibyl/auth.json)")
+                set_tokens(client.base_url, token, refresh_token=refresh, expires_in=expires_in)
+                success("Switched org (tokens saved to ~/.sibyl/auth.json)")
         print_json(result)
     except SibylClientError as e:
         error(str(e))
@@ -61,9 +64,12 @@ def switch_cmd(slug: str) -> None:
     try:
         result = _run()
         token = str(result.get("access_token", "")).strip()
+        refresh = str(result.get("refresh_token", "")).strip() or None
+        expires_raw = result.get("expires_in")
+        expires_in = int(expires_raw) if expires_raw is not None else None
         if token:
-            set_tokens(client.base_url, token)
-            success("Org switched (token saved to ~/.sibyl/auth.json)")
+            set_tokens(client.base_url, token, refresh_token=refresh, expires_in=expires_in)
+            success("Org switched (tokens saved to ~/.sibyl/auth.json)")
         print_json(result)
     except SibylClientError as e:
         error(str(e))

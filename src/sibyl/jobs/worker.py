@@ -29,12 +29,12 @@ from sibyl.db.models import utcnow_naive
 log = structlog.get_logger()
 
 
-async def _safe_broadcast(event: str, data: dict[str, Any]) -> None:
+async def _safe_broadcast(event: str, data: dict[str, Any], *, org_id: str | None) -> None:
     """Broadcast event, silently ignoring failures (WebSocket may not be available)."""
     try:
         from sibyl.api.websocket import broadcast_event
 
-        await broadcast_event(event, data)
+        await broadcast_event(event, data, org_id=org_id)
     except Exception:
         log.debug("Broadcast failed (WebSocket unavailable)", event=event)
 
@@ -122,6 +122,7 @@ async def crawl_source(
             "source_name": source_name,
             "max_pages": max_pages,
         },
+        org_id=organization_id,
     )
 
     # Progress callback: update DB + broadcast after each document
@@ -144,6 +145,7 @@ async def crawl_source(
                 "chunks_added": chunks_added,
                 "errors": stats.errors,
             },
+            org_id=organization_id,
         )
 
     # Run ingestion
@@ -182,7 +184,7 @@ async def crawl_source(
         }
 
         # Broadcast completion
-        await _safe_broadcast("crawl_complete", result)
+        await _safe_broadcast("crawl_complete", result, org_id=organization_id)
 
         log.info("Crawl job complete", **result)
         return result
@@ -196,7 +198,11 @@ async def crawl_source(
                 db_source.current_job_id = None  # Clear job on failure
                 db_source.last_error = str(e)[:1000]
 
-        await _safe_broadcast("crawl_complete", {"source_id": source_id, "error": str(e)})
+        await _safe_broadcast(
+            "crawl_complete",
+            {"source_id": source_id, "error": str(e)},
+            org_id=organization_id,
+        )
 
         log.exception("Crawl job failed", source_id=source_id)
         raise
@@ -220,6 +226,7 @@ async def sync_source(ctx: dict[str, Any], source_id: str) -> dict[str, Any]:  #
         source = await session.get(CrawlSource, UUID(source_id))
         if not source:
             raise ValueError(f"Source not found: {source_id}")
+        organization_id = str(source.organization_id)
 
         # Count actual documents
         doc_result = await session.execute(
@@ -273,6 +280,7 @@ async def sync_source(ctx: dict[str, Any], source_id: str) -> dict[str, Any]:  #
         }
 
     log.info("Sync job complete", **result)
+    await _safe_broadcast("crawl_sync_complete", result, org_id=organization_id)
     return result
 
 
@@ -443,6 +451,7 @@ async def create_entity(
                 "entity_type": entity_type,
                 "name": entity_data.get("name"),
             },
+            org_id=group_id,
         )
 
         log.info("create_entity_completed", **result)
@@ -505,6 +514,7 @@ async def update_entity(
                     "entity_type": entity_type,
                     "fields": list(updates.keys()),
                 },
+                org_id=group_id,
             )
 
             log.info(

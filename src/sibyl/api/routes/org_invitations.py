@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
@@ -12,10 +12,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sibyl import config as config_module
 from sibyl.auth.audit import AuditLogger
 from sibyl.auth.dependencies import get_current_user
+from sibyl.auth.http import select_access_token
 from sibyl.auth.invitations import InvitationError, InvitationManager
-from sibyl.auth.jwt import create_access_token
+from sibyl.auth.jwt import create_access_token, create_refresh_token
 from sibyl.auth.memberships import OrganizationMembershipManager
 from sibyl.auth.organizations import OrganizationManager
+from sibyl.auth.sessions import SessionManager
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import OrganizationRole, User
 
@@ -45,6 +47,27 @@ def _set_access_cookie(response: Response, token: str) -> None:
         max_age=int(
             timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
         ),
+        domain=config_module.settings.cookie_domain,
+        path="/",
+    )
+
+
+def _set_auth_cookies(
+    response: Response,
+    *,
+    access_token: str,
+    refresh_token: str,
+    refresh_expires: datetime,
+) -> None:
+    _set_access_cookie(response, access_token)
+    refresh_max_age = int((refresh_expires - datetime.now(UTC)).total_seconds())
+    response.set_cookie(
+        "sibyl_refresh_token",
+        refresh_token,
+        httponly=True,
+        secure=_cookie_secure(),
+        samesite="lax",
+        max_age=max(refresh_max_age, 0),
         domain=config_module.settings.cookie_domain,
         path="/",
     )
@@ -161,8 +184,48 @@ async def accept_invitation(
     except InvitationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    access = create_access_token(user_id=user.id, organization_id=invite.organization_id)
-    _set_access_cookie(response, access)
+    access_token = create_access_token(user_id=user.id, organization_id=invite.organization_id)
+    refresh_token, refresh_expires = create_refresh_token(
+        user_id=user.id, organization_id=invite.organization_id
+    )
+
+    # Rotate the current session to keep refresh token org-consistent.
+    current = select_access_token(
+        authorization=request.headers.get("authorization"),
+        cookie_token=request.cookies.get("sibyl_access_token"),
+    )
+    access_expires = datetime.now(UTC) + timedelta(
+        minutes=config_module.settings.access_token_expire_minutes
+    )
+    session_mgr = SessionManager(session)
+    if current:
+        existing = await session_mgr.get_session_by_token(current)
+        if existing is not None:
+            await session_mgr.rotate_tokens(
+                existing,
+                new_access_token=access_token,
+                new_access_expires_at=access_expires,
+                new_refresh_token=refresh_token,
+                new_refresh_expires_at=refresh_expires,
+            )
+        else:
+            await session_mgr.create_session(
+                user_id=user.id,
+                organization_id=invite.organization_id,
+                token=access_token,
+                expires_at=access_expires,
+                refresh_token=refresh_token,
+                refresh_token_expires_at=refresh_expires,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+
+    _set_auth_cookies(
+        response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        refresh_expires=refresh_expires,
+    )
     await AuditLogger(session).log(
         action="org.invitation.accept",
         user_id=user.id,
@@ -170,4 +233,10 @@ async def accept_invitation(
         request=request,
         details={"invitation_id": str(invite.id)},
     )
-    return {"access_token": access, "organization_id": str(invite.organization_id)}
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "Bearer",
+        "expires_in": config_module.settings.access_token_expire_minutes * 60,
+        "organization_id": str(invite.organization_id),
+    }

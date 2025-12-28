@@ -56,6 +56,9 @@ class JobInfo:
     finish_time: datetime | None = None
     result: Any = None
     error: str | None = None
+    # Internal fields for filtering/debugging (not intended for API exposure).
+    args: tuple[Any, ...] | None = None
+    kwargs: dict[str, Any] | None = None
 
 
 # Singleton pool for reuse
@@ -323,6 +326,8 @@ async def get_job_status(job_id: str) -> JobInfo:
     if info:
         # JobDef has enqueue_time
         job_info.enqueue_time = getattr(info, "enqueue_time", None)
+        job_info.args = getattr(info, "args", None)
+        job_info.kwargs = getattr(info, "kwargs", None)
 
     # For completed jobs, try to get result (non-blocking)
     if status == ArqJobStatus.complete:

@@ -1183,6 +1183,10 @@ async def logout(
     session: AsyncSession = Depends(get_session_dependency),
 ) -> Response:
     claims = await resolve_claims(request, session)
+    token = select_access_token(
+        authorization=request.headers.get("authorization"),
+        cookie_token=request.cookies.get(ACCESS_TOKEN_COOKIE),
+    )
     user_id: UUID | None = None
     org_id: UUID | None = None
     if claims:
@@ -1204,6 +1208,14 @@ async def logout(
             request=request,
             details={},
         )
+
+    # Best-effort server-side revocation for JWT sessions.
+    if token and not token.startswith("sk_"):
+        session_mgr = SessionManager(session)
+        existing = await session_mgr.get_session_by_token(token)
+        if existing is not None:
+            existing.revoked_at = datetime.now(UTC).replace(tzinfo=None)
+            session.add(existing)
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(
         ACCESS_TOKEN_COOKIE, domain=config_module.settings.cookie_domain, path="/"

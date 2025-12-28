@@ -43,6 +43,7 @@ from sibyl.auth.memberships import OrganizationMembershipManager
 from sibyl.auth.organizations import OrganizationManager
 from sibyl.auth.users import UserManager
 from sibyl.db.connection import get_session
+from sibyl.db.models import OrganizationRole
 
 OAUTH_SCOPE = "mcp"
 
@@ -368,6 +369,7 @@ class SibylMcpOAuthProvider(
             await OrganizationMembershipManager(session).add_member(
                 organization_id=org.id,
                 user_id=user.id,
+                role=OrganizationRole.OWNER,
             )
 
         code = secrets.token_urlsafe(32)

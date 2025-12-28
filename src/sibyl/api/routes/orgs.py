@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -13,15 +13,18 @@ from sibyl import config as config_module
 from sibyl.auth.audit import AuditLogger
 from sibyl.auth.context import AuthContext
 from sibyl.auth.dependencies import get_auth_context, get_current_user
-from sibyl.auth.jwt import create_access_token
+from sibyl.auth.http import select_access_token
+from sibyl.auth.jwt import create_access_token, create_refresh_token
 from sibyl.auth.memberships import OrganizationMembershipManager
 from sibyl.auth.organizations import OrganizationManager, slugify
+from sibyl.auth.sessions import SessionManager
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationMember, OrganizationRole, User
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
 ACCESS_TOKEN_COOKIE = "sibyl_access_token"  # noqa: S105
+REFRESH_TOKEN_COOKIE = "sibyl_refresh_token"  # noqa: S105
 
 
 class OrganizationCreateRequest(BaseModel):
@@ -50,6 +53,27 @@ def _set_access_cookie(response: Response, token: str) -> None:
         max_age=int(
             timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
         ),
+        domain=config_module.settings.cookie_domain,
+        path="/",
+    )
+
+
+def _set_auth_cookies(
+    response: Response,
+    *,
+    access_token: str,
+    refresh_token: str,
+    refresh_expires: datetime,
+) -> None:
+    _set_access_cookie(response, access_token)
+    refresh_max_age = int((refresh_expires - datetime.now(UTC)).total_seconds())
+    response.set_cookie(
+        REFRESH_TOKEN_COOKIE,
+        refresh_token,
+        httponly=True,
+        secure=_cookie_secure(),
+        samesite="lax",
+        max_age=max(refresh_max_age, 0),
         domain=config_module.settings.cookie_domain,
         path="/",
     )
@@ -115,9 +139,46 @@ async def create_org(
 
         structlog.get_logger().debug("Graph index setup deferred", org_id=str(org.id), error=str(e))
 
-    token = create_access_token(user_id=user.id, organization_id=org.id)
+    access_token = create_access_token(user_id=user.id, organization_id=org.id)
+    refresh_token, refresh_expires = create_refresh_token(user_id=user.id, organization_id=org.id)
+
+    # Rotate the current session to keep refresh token org-consistent.
+    current = select_access_token(
+        authorization=request.headers.get("authorization"),
+        cookie_token=request.cookies.get(ACCESS_TOKEN_COOKIE),
+    )
+    access_expires = datetime.now(UTC) + timedelta(
+        minutes=config_module.settings.access_token_expire_minutes
+    )
+    session_mgr = SessionManager(session)
+    if current:
+        existing = await session_mgr.get_session_by_token(current)
+        if existing is not None:
+            await session_mgr.rotate_tokens(
+                existing,
+                new_access_token=access_token,
+                new_access_expires_at=access_expires,
+                new_refresh_token=refresh_token,
+                new_refresh_expires_at=refresh_expires,
+            )
+        else:
+            await session_mgr.create_session(
+                user_id=user.id,
+                organization_id=org.id,
+                token=access_token,
+                expires_at=access_expires,
+                refresh_token=refresh_token,
+                refresh_token_expires_at=refresh_expires,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
     response.status_code = status.HTTP_201_CREATED
-    _set_access_cookie(response, token)
+    _set_auth_cookies(
+        response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        refresh_expires=refresh_expires,
+    )
     await AuditLogger(session).log(
         action="org.create",
         user_id=user.id,
@@ -127,7 +188,10 @@ async def create_org(
     )
     return {
         "organization": {"id": str(org.id), "slug": org.slug, "name": org.name},
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "Bearer",
+        "expires_in": config_module.settings.access_token_expire_minutes * 60,
     }
 
 
@@ -231,8 +295,45 @@ async def switch_org(
     if member is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found")
 
-    token = create_access_token(user_id=user.id, organization_id=org.id)
-    _set_access_cookie(response, token)
+    access_token = create_access_token(user_id=user.id, organization_id=org.id)
+    refresh_token, refresh_expires = create_refresh_token(user_id=user.id, organization_id=org.id)
+
+    current = select_access_token(
+        authorization=request.headers.get("authorization"),
+        cookie_token=request.cookies.get(ACCESS_TOKEN_COOKIE),
+    )
+    access_expires = datetime.now(UTC) + timedelta(
+        minutes=config_module.settings.access_token_expire_minutes
+    )
+    session_mgr = SessionManager(session)
+    if current:
+        existing = await session_mgr.get_session_by_token(current)
+        if existing is not None:
+            await session_mgr.rotate_tokens(
+                existing,
+                new_access_token=access_token,
+                new_access_expires_at=access_expires,
+                new_refresh_token=refresh_token,
+                new_refresh_expires_at=refresh_expires,
+            )
+        else:
+            await session_mgr.create_session(
+                user_id=user.id,
+                organization_id=org.id,
+                token=access_token,
+                expires_at=access_expires,
+                refresh_token=refresh_token,
+                refresh_token_expires_at=refresh_expires,
+                ip_address=request.client.host if request.client else None,
+                user_agent=request.headers.get("user-agent"),
+            )
+
+    _set_auth_cookies(
+        response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        refresh_expires=refresh_expires,
+    )
     await AuditLogger(session).log(
         action="org.switch",
         user_id=user.id,
@@ -242,5 +343,8 @@ async def switch_org(
     )
     return {
         "organization": {"id": str(org.id), "slug": org.slug, "name": org.name},
-        "access_token": token,
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "Bearer",
+        "expires_in": config_module.settings.access_token_expire_minutes * 60,
     }
