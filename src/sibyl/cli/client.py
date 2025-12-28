@@ -165,7 +165,7 @@ class SibylClient:
         try:
             # Use a fresh client without auth header for the refresh call
             async with httpx.AsyncClient(
-                base_url=self.base_url.replace("/api", ""),
+                base_url=self.base_url,
                 timeout=self.timeout,
                 verify=not self.insecure,
             ) as client:

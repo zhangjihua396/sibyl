@@ -14,7 +14,14 @@ import structlog
 from sibyl.graph.client import GraphClient, get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
-from sibyl.models.entities import EntityType, Episode, Pattern, Relationship, RelationshipType
+from sibyl.models.entities import (
+    Entity,
+    EntityType,
+    Episode,
+    Pattern,
+    Relationship,
+    RelationshipType,
+)
 from sibyl.models.tasks import (
     Epic,
     EpicStatus,
@@ -476,6 +483,8 @@ class SearchResponse:
     limit: int = 10
     offset: int = 0
     has_more: bool = False
+    # Agent guidance - tells agents how to get full content
+    usage_hint: str = "Results show previews. To get full content, use: sibyl entity show <id>"
 
 
 @dataclass
@@ -537,7 +546,7 @@ async def _search_documents(
     source_name: str | None = None,
     language: str | None = None,
     limit: int = 10,
-    include_content: bool = True,
+    include_content: bool = True,  # noqa: ARG001 - reserved for future use
 ) -> list[SearchResult]:
     """Search crawled documentation using pgvector similarity.
 
@@ -602,16 +611,29 @@ async def _search_documents(
             # Convert to SearchResult
             results = []
             for chunk, doc, src_name, src_id, similarity in rows:
-                content = chunk.content if include_content else chunk.content[:200]
+                # Truncate content for search results - agents should fetch full content via entity ID
+                content = chunk.content[:200] if chunk.content else ""
+
+                # Build heading context for better preview
+                heading_context = " > ".join(chunk.heading_path) if chunk.heading_path else ""
+                if heading_context:
+                    content = f"[{heading_context}] {content}"
+
+                # Don't expose file:// URLs - agents will try to read them
+                # Instead, provide entity URL for fetching full content
+                display_url = None
+                if doc.url and not doc.url.startswith("file://"):
+                    display_url = doc.url
+
                 results.append(
                     SearchResult(
                         id=str(chunk.id),
                         type="document",
-                        name=doc.title,
+                        name=doc.title or src_name,
                         content=content,
                         score=float(similarity),
                         source=src_name,
-                        url=doc.url,
+                        url=display_url,  # Only show web URLs, not file paths
                         result_origin="document",
                         metadata={
                             "document_id": str(doc.id),
@@ -623,6 +645,8 @@ async def _search_documents(
                             "heading_path": chunk.heading_path or [],
                             "language": chunk.language,
                             "has_code": doc.has_code,
+                            # Help agents understand how to get full content
+                            "hint": "Use 'sibyl entity <id>' or fetch /api/entities/<id> for full content",
                         },
                     )
                 )
@@ -1126,6 +1150,94 @@ async def explore(
         return ExploreResponse(mode=mode, entities=[], total=0, filters=filters)
 
 
+def _passes_entity_filters(
+    entity: Entity,
+    language: str | None,
+    category: str | None,
+    project: str | None,
+    epic: str | None,
+    status: str | None,
+    priority: str | None,
+    complexity: str | None,
+    feature: str | None,
+    tags: str | None,
+    include_archived: bool,
+) -> bool:
+    """Check if an entity passes all specified filters."""
+    # Language filter
+    if language:
+        entity_langs = _get_field(entity, "languages", [])
+        if language.lower() not in [lang.lower() for lang in entity_langs]:
+            return False
+
+    # Category filter
+    if category:
+        entity_cat = _get_field(entity, "category", "")
+        if category.lower() not in entity_cat.lower():
+            return False
+
+    # Project filter (for tasks and epics)
+    if project and _get_field(entity, "project_id") != project:
+        return False
+
+    # Epic filter (for tasks)
+    if epic and _get_field(entity, "epic_id") != epic:
+        return False
+
+    # Status filter (for tasks)
+    if status:
+        entity_status = _get_field(entity, "status")
+        if entity_status is None:
+            return False
+        status_val = _serialize_enum(entity_status)
+        if status.lower() != str(status_val).lower():
+            return False
+
+    # Priority filter (for tasks)
+    if priority:
+        entity_priority = _get_field(entity, "priority")
+        if entity_priority is None:
+            return False
+        priority_val = _serialize_enum(entity_priority)
+        if priority.lower() != str(priority_val).lower():
+            return False
+
+    # Complexity filter (for tasks)
+    if complexity:
+        entity_complexity = _get_field(entity, "complexity")
+        if entity_complexity is None:
+            return False
+        complexity_val = _serialize_enum(entity_complexity)
+        if complexity.lower() != str(complexity_val).lower():
+            return False
+
+    # Feature filter (for tasks)
+    if feature:
+        entity_feature = _get_field(entity, "feature")
+        if entity_feature is None or entity_feature.lower() != feature.lower():
+            return False
+
+    # Tags filter (for tasks) - match if ANY tag matches
+    if tags:
+        tag_list = [t.strip().lower() for t in tags.split(",")]
+        entity_tags = _get_field(entity, "tags", [])
+        entity_tags_lower = [str(t).lower() for t in entity_tags]
+        if not any(t in entity_tags_lower for t in tag_list):
+            return False
+
+    # Archive filter (for projects) - hide archived unless explicitly included
+    if not include_archived:
+        entity_type = _get_field(entity, "entity_type")
+        if entity_type and str(entity_type).lower() == "project":
+            entity_status = _get_field(entity, "status")
+            if entity_status:
+                status_val = _serialize_enum(entity_status)
+                if str(status_val).lower() == "archived":
+                    return False
+
+    return True
+
+
 async def _explore_list(
     types: list[str] | None,
     language: str | None,
@@ -1167,83 +1279,14 @@ async def _explore_list(
         entities = await entity_manager.list_by_type(entity_type, limit=fetch_limit)
         all_entities.extend(entities)
 
-    # Apply filters and convert to summaries
-    filtered_entities = []
-    for entity in all_entities:
-        # Language filter
-        if language:
-            entity_langs = _get_field(entity, "languages", [])
-            if language.lower() not in [lang.lower() for lang in entity_langs]:
-                continue
-
-        # Category filter
-        if category:
-            entity_cat = _get_field(entity, "category", "")
-            if category.lower() not in entity_cat.lower():
-                continue
-
-        # Project filter (for tasks and epics)
-        if project:
-            if _get_field(entity, "project_id") != project:
-                continue
-
-        # Epic filter (for tasks)
-        if epic:
-            if _get_field(entity, "epic_id") != epic:
-                continue
-
-        # Status filter (for tasks)
-        if status:
-            entity_status = _get_field(entity, "status")
-            if entity_status is None:
-                continue
-            status_val = _serialize_enum(entity_status)
-            if status.lower() != str(status_val).lower():
-                continue
-
-        # Priority filter (for tasks)
-        if priority:
-            entity_priority = _get_field(entity, "priority")
-            if entity_priority is None:
-                continue
-            priority_val = _serialize_enum(entity_priority)
-            if priority.lower() != str(priority_val).lower():
-                continue
-
-        # Complexity filter (for tasks)
-        if complexity:
-            entity_complexity = _get_field(entity, "complexity")
-            if entity_complexity is None:
-                continue
-            complexity_val = _serialize_enum(entity_complexity)
-            if complexity.lower() != str(complexity_val).lower():
-                continue
-
-        # Feature filter (for tasks)
-        if feature:
-            entity_feature = _get_field(entity, "feature")
-            if entity_feature is None or entity_feature.lower() != feature.lower():
-                continue
-
-        # Tags filter (for tasks) - match if ANY tag matches
-        if tags:
-            tag_list = [t.strip().lower() for t in tags.split(",")]
-            entity_tags = _get_field(entity, "tags", [])
-            entity_tags_lower = [str(t).lower() for t in entity_tags]
-            if not any(t in entity_tags_lower for t in tag_list):
-                continue
-
-        # Archive filter (for projects) - hide archived unless explicitly included
-        if not include_archived:
-            entity_type = _get_field(entity, "entity_type")
-            if entity_type and str(entity_type).lower() == "project":
-                entity_status = _get_field(entity, "status")
-                if entity_status:
-                    status_val = _serialize_enum(entity_status)
-                    if str(status_val).lower() == "archived":
-                        continue
-
-        filtered_entities.append(entity)
+    # Apply filters
+    filtered_entities = [
+        entity
+        for entity in all_entities
+        if _passes_entity_filters(
+            entity, language, category, project, epic, status, priority, complexity, feature, tags, include_archived
+        )
+    ]
 
     # Apply pagination
     actual_total = len(filtered_entities)

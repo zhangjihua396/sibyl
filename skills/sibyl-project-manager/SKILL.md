@@ -127,6 +127,14 @@ sibyl task update task_xyz --priority high 2>&1
 
 # Update status directly
 sibyl task update task_xyz --status done 2>&1
+
+# Update complexity, tags, tech
+sibyl task update task_xyz --complexity complex 2>&1
+sibyl task update task_xyz --tags bug,urgent,backend 2>&1
+sibyl task update task_xyz --tech python,redis,celery 2>&1
+
+# Combine multiple updates
+sibyl task update task_xyz --priority high --complexity complex --feature backend 2>&1
 ```
 
 ### Complete Task (with learnings)

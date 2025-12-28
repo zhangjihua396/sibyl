@@ -104,6 +104,8 @@ sibyl add "Retry pattern" "Exponential backoff..." --type pattern
 sibyl task create --title "Implement OAuth" --project proj_abc
 sibyl task create --title "Add rate limiting" -p proj_api --priority high
 sibyl task create --title "Fix bug" -p proj_web --assignee alice --tech python,redis
+sibyl task create --title "Complex feature" -p proj_api --complexity complex --tags backend,urgent
+sibyl task create --title "Simple tweak" -p proj_web --complexity trivial --feature ui --tags cleanup
 ```
 
 **IMPORTANT:** Use `--title` (not `-t`). The `-t` flag is for table output!
@@ -173,6 +175,12 @@ sibyl task list -q "test" --status todo 2>&1 | jq -r '.[].id' | sibyl task archi
 # Direct update (bulk/historical updates)
 sibyl task update task_xyz --status done --priority high
 sibyl task update task_xyz -s todo -p medium
+
+# Update complexity, tags, tech
+sibyl task update task_xyz --complexity complex
+sibyl task update task_xyz --tags bug,urgent,backend
+sibyl task update task_xyz --tech python,redis,celery
+sibyl task update task_xyz --feature auth --complexity medium --tags sprint-1
 ```
 
 **Task States:** `backlog ↔ todo ↔ doing ↔ blocked ↔ review ↔ done ↔ archived`

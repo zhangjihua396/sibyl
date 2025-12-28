@@ -778,11 +778,17 @@ def create_task(
     priority: Annotated[
         str, typer.Option("--priority", help="Priority: critical, high, medium, low, someday")
     ] = "medium",
+    complexity: Annotated[
+        str, typer.Option("--complexity", help="Complexity: trivial, simple, medium, complex, epic")
+    ] = "medium",
     assignee: Annotated[
         str | None, typer.Option("--assignee", "-a", help="Initial assignee")
     ] = None,
     epic: Annotated[str | None, typer.Option("--epic", "-e", help="Epic ID to group under")] = None,
     feature: Annotated[str | None, typer.Option("--feature", "-f", help="Feature area")] = None,
+    tags: Annotated[
+        str | None, typer.Option("--tags", help="Comma-separated tags")
+    ] = None,
     technologies: Annotated[
         str | None, typer.Option("--tech", help="Comma-separated technologies")
     ] = None,
@@ -802,18 +808,22 @@ def create_task(
 
         try:
             tech_list = [t.strip() for t in technologies.split(",")] if technologies else None
+            tag_list = [t.strip() for t in tags.split(",")] if tags else None
             assignee_list = [assignee] if assignee else None
 
             # Build metadata
             metadata: dict = {
                 "project_id": project,
                 "priority": priority,
+                "complexity": complexity,
                 "status": "todo",
             }
             if assignee_list:
                 metadata["assignees"] = assignee_list
             if tech_list:
                 metadata["technologies"] = tech_list
+            if tag_list:
+                metadata["tags"] = tag_list
             if feature:
                 metadata["feature"] = feature
             if epic:
@@ -865,10 +875,20 @@ def update_task(
         str | None,
         typer.Option("-p", "--priority", help="Priority: critical|high|medium|low|someday"),
     ] = None,
+    complexity: Annotated[
+        str | None,
+        typer.Option("--complexity", help="Complexity: trivial|simple|medium|complex|epic"),
+    ] = None,
     title: Annotated[str | None, typer.Option("--title", help="Task title")] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to group under")] = None,
     feature: Annotated[str | None, typer.Option("-f", "--feature", help="Feature area")] = None,
+    tags: Annotated[
+        str | None, typer.Option("--tags", help="Comma-separated tags (replaces existing)")
+    ] = None,
+    technologies: Annotated[
+        str | None, typer.Option("--tech", help="Comma-separated technologies (replaces existing)")
+    ] = None,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -881,14 +901,16 @@ def update_task(
 
         try:
             # Check we have something to update
-            if not any([status, priority, title, assignee, epic, feature]):
+            if not any([status, priority, complexity, title, assignee, epic, feature, tags, technologies]):
                 error(
-                    "No fields to update. Use --status, --priority, --title, --assignee, --epic, or --feature"
+                    "No fields to update. Use --status, --priority, --complexity, --title, --assignee, --epic, --feature, --tags, or --tech"
                 )
                 return
 
             resolved_id = await _resolve_task_id(client, task_id)
             assignees = [assignee] if assignee else None
+            tag_list = [t.strip() for t in tags.split(",")] if tags else None
+            tech_list = [t.strip() for t in technologies.split(",")] if technologies else None
 
             if table_out:
                 with spinner("Updating task...") as progress:
@@ -897,20 +919,26 @@ def update_task(
                         task_id=resolved_id,
                         status=status,
                         priority=priority,
+                        complexity=complexity,
                         title=title,
                         assignees=assignees,
                         epic_id=epic,
                         feature=feature,
+                        tags=tag_list,
+                        technologies=tech_list,
                     )
             else:
                 response = await client.update_task(
                     task_id=resolved_id,
                     status=status,
                     priority=priority,
+                    complexity=complexity,
                     title=title,
                     assignees=assignees,
                     epic_id=epic,
                     feature=feature,
+                    tags=tag_list,
+                    technologies=tech_list,
                 )
 
             if not table_out:

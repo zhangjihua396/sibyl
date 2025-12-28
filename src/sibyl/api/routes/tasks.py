@@ -85,11 +85,14 @@ class UpdateTaskRequest(BaseModel):
 
     status: str | None = None
     priority: str | None = None
+    complexity: str | None = None
     title: str | None = None
     description: str | None = None
     assignees: list[str] | None = None
     epic_id: str | None = None
     feature: str | None = None
+    tags: list[str] | None = None
+    technologies: list[str] | None = None
 
 
 class CreateTaskRequest(BaseModel):
@@ -99,9 +102,12 @@ class CreateTaskRequest(BaseModel):
     description: str | None = None
     project_id: str
     priority: str = "medium"
+    complexity: str = "medium"
     status: str = "todo"
     assignees: list[str] = []
+    epic_id: str | None = None
     feature: str | None = None
+    tags: list[str] = []
     technologies: list[str] = []
     depends_on: list[str] = []
 
@@ -118,7 +124,7 @@ async def create_task(
 ) -> TaskActionResponse:
     """Create a new task."""
     from sibyl.models.entities import Relationship, RelationshipType
-    from sibyl.models.tasks import Task, TaskPriority, TaskStatus
+    from sibyl.models.tasks import Task, TaskComplexity, TaskPriority, TaskStatus
 
     try:
         client = await get_graph_client()
@@ -132,9 +138,12 @@ async def create_task(
             description=request.description or "",
             status=TaskStatus(request.status),
             priority=TaskPriority(request.priority),
+            complexity=TaskComplexity(request.complexity),
             project_id=request.project_id,
+            epic_id=request.epic_id,
             assignees=request.assignees,
             feature=request.feature,
+            tags=request.tags,
             technologies=request.technologies,
         )
 
@@ -149,6 +158,16 @@ async def create_task(
             relationship_type=RelationshipType.BELONGS_TO,
         )
         await relationship_manager.create(belongs_to)
+
+        # Create BELONGS_TO relationship with epic (if provided)
+        if request.epic_id:
+            belongs_to_epic = Relationship(
+                id=f"rel_{task_id}_belongs_to_{request.epic_id}",
+                source_id=task_id,
+                target_id=request.epic_id,
+                relationship_type=RelationshipType.BELONGS_TO,
+            )
+            await relationship_manager.create(belongs_to_epic)
 
         # Create DEPENDS_ON relationships
         for dep_id in request.depends_on:
@@ -498,6 +517,12 @@ async def update_task(
             update_data["epic_id"] = request.epic_id
         if request.feature is not None:
             update_data["feature"] = request.feature
+        if request.complexity is not None:
+            update_data["complexity"] = request.complexity
+        if request.tags is not None:
+            update_data["tags"] = request.tags
+        if request.technologies is not None:
+            update_data["technologies"] = request.technologies
 
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")

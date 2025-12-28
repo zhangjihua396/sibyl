@@ -1,14 +1,17 @@
 """Entity CRUD endpoints.
 
 Full create, read, update, delete operations for all entity types.
+Transparently handles both graph entities (FalkorDB) and document chunks (Postgres).
 """
 
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlmodel import col, select
 
 from sibyl.api.schemas import (
     EntityCreate,
@@ -20,8 +23,10 @@ from sibyl.api.websocket import broadcast_event
 from sibyl.auth.audit import AuditLogger
 from sibyl.auth.context import AuthContext
 from sibyl.auth.dependencies import get_auth_context, get_current_organization, require_org_role
+from sibyl.db import CrawledDocument, CrawlSource, DocumentChunk, get_session
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationRole
+from sibyl.errors import EntityNotFoundError
 from sibyl.graph.client import get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.models.entities import EntityType
@@ -140,32 +145,114 @@ async def get_entity(
     entity_id: str,
     org: Organization = Depends(get_current_organization),
 ) -> EntityResponse:
-    """Get a single entity by ID."""
+    """Get a single entity by ID.
+
+    Transparently handles both:
+    - Graph entities (stored in FalkorDB)
+    - Document chunks (stored in Postgres via crawler)
+
+    This provides a seamless experience for search results that may come from either source.
+    """
     try:
         group_id = str(org.id)
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 
-        entity = await entity_manager.get(entity_id)
-        if not entity:
-            raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
+        # Try graph entity first
+        try:
+            entity = await entity_manager.get(entity_id)
+            return EntityResponse(
+                id=entity.id,
+                entity_type=entity.entity_type,
+                name=entity.name,
+                description=entity.description or "",
+                content=(entity.content or "")[:50000],
+                category=getattr(entity, "category", None) or entity.metadata.get("category"),
+                languages=getattr(entity, "languages", None)
+                or entity.metadata.get("languages", [])
+                or [],
+                tags=getattr(entity, "tags", None) or entity.metadata.get("tags", []) or [],
+                metadata=getattr(entity, "metadata", {}) or {},
+                source_file=getattr(entity, "source_file", None),
+                created_at=getattr(entity, "created_at", None),
+                updated_at=getattr(entity, "updated_at", None),
+            )
+        except EntityNotFoundError:
+            log.debug("Entity not in graph, checking document chunks", entity_id=entity_id)
 
-        return EntityResponse(
-            id=entity.id,
-            entity_type=entity.entity_type,
-            name=entity.name,
-            description=entity.description or "",
-            content=(entity.content or "")[:50000],  # Truncate to fit schema
-            category=getattr(entity, "category", None) or entity.metadata.get("category"),
-            languages=getattr(entity, "languages", None)
-            or entity.metadata.get("languages", [])
-            or [],
-            tags=getattr(entity, "tags", None) or entity.metadata.get("tags", []) or [],
-            metadata=getattr(entity, "metadata", {}) or {},
-            source_file=getattr(entity, "source_file", None),
-            created_at=getattr(entity, "created_at", None),
-            updated_at=getattr(entity, "updated_at", None),
-        )
+        # Fallback: check if it's a document chunk
+        try:
+            chunk_uuid = UUID(entity_id)
+        except ValueError:
+            raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}") from None
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(DocumentChunk, CrawledDocument, CrawlSource)
+                .join(CrawledDocument, DocumentChunk.document_id == CrawledDocument.id)
+                .join(CrawlSource, CrawledDocument.source_id == CrawlSource.id)
+                .where(col(DocumentChunk.id) == chunk_uuid)
+                .where(col(CrawlSource.organization_id) == org.id)
+            )
+            row = result.first()
+
+            if not row:
+                raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
+
+            chunk, doc, source = row
+
+            # Build heading path as description
+            heading_desc = " > ".join(chunk.heading_path) if chunk.heading_path else ""
+
+            # For heading chunks, fetch the section content (chunks until next heading)
+            # This provides context instead of just showing the heading text
+            from sibyl.db.models import ChunkType
+
+            section_content = chunk.content or ""
+            if chunk.chunk_type == ChunkType.HEADING:
+                # Get subsequent chunks until next heading (max 10 for reasonable size)
+                following_result = await session.execute(
+                    select(DocumentChunk)
+                    .where(col(DocumentChunk.document_id) == chunk.document_id)
+                    .where(col(DocumentChunk.chunk_index) > chunk.chunk_index)
+                    .order_by(col(DocumentChunk.chunk_index))
+                    .limit(10)
+                )
+                following_chunks = following_result.scalars().all()
+
+                # Concatenate content until we hit another heading
+                section_parts = [section_content]
+                for fc in following_chunks:
+                    if fc.chunk_type == ChunkType.HEADING:
+                        break
+                    section_parts.append(fc.content or "")
+
+                section_content = "\n\n".join(section_parts)
+
+            return EntityResponse(
+                id=str(chunk.id),
+                entity_type=EntityType.DOCUMENT,
+                name=doc.title or source.name,
+                description=heading_desc,
+                content=section_content[:50000],
+                category=chunk.chunk_type.value if chunk.chunk_type else None,
+                languages=[chunk.language] if chunk.language else [],
+                tags=[],
+                metadata={
+                    "source_id": str(source.id),
+                    "source_name": source.name,
+                    "source_url": source.url,
+                    "document_id": str(doc.id),
+                    "document_url": doc.url,
+                    "chunk_index": chunk.chunk_index,
+                    "chunk_type": chunk.chunk_type.value if chunk.chunk_type else None,
+                    "heading_path": chunk.heading_path or [],
+                    "result_origin": "document",
+                },
+                source_file=doc.url,
+                created_at=chunk.created_at,
+                updated_at=chunk.updated_at,
+            )
 
     except HTTPException:
         raise
