@@ -3,6 +3,7 @@
 ✦ SIBYL — knowledge echoes forward
 """
 
+import structlog
 from rich.console import Console
 from rich.text import Text
 
@@ -16,7 +17,7 @@ DIM = "#555566"
 
 
 def print_banner(*, component: str | None = None) -> None:
-    """Print the Sibyl startup banner.
+    """Print the Sibyl startup banner (Rich styled, no timestamp).
 
     Args:
         component: Optional component name (e.g., "worker", "api")
@@ -36,3 +37,19 @@ def print_banner(*, component: str | None = None) -> None:
         banner.append(f"  [{component}]", style=f"dim {NEON_CYAN}")
 
     console.print(banner)
+
+
+def log_banner(*, component: str | None = None) -> None:
+    """Log the Sibyl startup banner via structlog (with timestamp).
+
+    Args:
+        component: Optional component name (e.g., "worker", "api")
+    """
+    log = structlog.get_logger()
+
+    # Build banner string for structlog
+    banner = f"✦ SIBYL — knowledge echoes forward  v{__version__}"
+    if component:
+        banner += f"  [{component}]"
+
+    log.info(banner)
