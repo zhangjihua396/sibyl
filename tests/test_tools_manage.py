@@ -7,7 +7,6 @@ import pytest
 
 from sibyl.models.tasks import TaskStatus
 from sibyl.tools.manage import (
-    ADMIN_ACTIONS,
     ALL_ACTIONS,
     ANALYSIS_ACTIONS,
     EPIC_ACTIONS,
@@ -91,20 +90,15 @@ class TestActionCategories:
         expected = {"estimate", "prioritize", "detect_cycles", "suggest"}
         assert expected == ANALYSIS_ACTIONS
 
-    def test_admin_actions_defined(self) -> None:
-        """Verify all admin actions are defined."""
-        expected = {"health", "stats", "rebuild_index"}
-        assert expected == ADMIN_ACTIONS
-
     def test_all_actions_combined(self) -> None:
         """Verify ALL_ACTIONS includes all categories."""
         assert ALL_ACTIONS == (
-            TASK_ACTIONS | EPIC_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS | ADMIN_ACTIONS
+            TASK_ACTIONS | EPIC_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS
         )
 
     def test_no_duplicate_actions(self) -> None:
         """Verify no action appears in multiple categories."""
-        all_lists = [TASK_ACTIONS, EPIC_ACTIONS, SOURCE_ACTIONS, ANALYSIS_ACTIONS, ADMIN_ACTIONS]
+        all_lists = [TASK_ACTIONS, EPIC_ACTIONS, SOURCE_ACTIONS, ANALYSIS_ACTIONS]
         seen = set()
         for action_set in all_lists:
             for action in action_set:
@@ -438,52 +432,6 @@ class TestTaskWorkflowHandlers:
             assert "done" in result.message or "transition" in result.message.lower()
 
 
-class TestAdminActions:
-    """Tests for admin action handlers."""
-
-    @pytest.mark.asyncio
-    async def test_health_action(self) -> None:
-        """health action should return server health status."""
-        # Patch at the source module where get_health is defined
-        with patch("sibyl.tools.core.get_health") as mock_health:
-            mock_health.return_value = {
-                "status": "healthy",
-                "graph_connected": True,
-                "uptime_seconds": 3600,
-            }
-
-            result = await manage(action="health")
-
-            assert result.success is True
-            assert "healthy" in result.message
-            assert result.data["status"] == "healthy"
-
-    @pytest.mark.asyncio
-    async def test_stats_action(self) -> None:
-        """stats action should return graph statistics."""
-        # Patch at the source module where get_stats is defined
-        with patch("sibyl.tools.core.get_stats") as mock_stats:
-            mock_stats.return_value = {
-                "total_entities": 150,
-                "total_relationships": 75,
-                "entity_types": {"pattern": 50, "task": 100},
-            }
-
-            result = await manage(action="stats")
-
-            assert result.success is True
-            assert "150" in result.message
-            assert result.data["total_entities"] == 150
-
-    @pytest.mark.asyncio
-    async def test_rebuild_index_action(self) -> None:
-        """rebuild_index action should return success."""
-        result = await manage(action="rebuild_index")
-
-        assert result.success is True
-        assert "rebuild" in result.message.lower()
-
-
 class TestSourceActions:
     """Tests for source action handlers."""
 
@@ -682,16 +630,6 @@ class TestManageOrganizationRequired:
         result = await manage(action="estimate", entity_id="task_123")
         assert result.success is False
         assert "organization_id required" in result.message
-
-    @pytest.mark.asyncio
-    async def test_admin_actions_do_not_require_org_id(self) -> None:
-        """Admin actions should NOT require organization_id."""
-        # Health action should work without org_id
-        with patch("sibyl.tools.core.get_health") as mock_health:
-            mock_health.return_value = {"status": "healthy"}
-            result = await manage(action="health")
-            assert result.success is True
-            # Should not fail for missing org_id
 
 
 class TestEpicActions:

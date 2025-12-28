@@ -23,13 +23,19 @@ log = structlog.get_logger()
 router = APIRouter(
     prefix="/admin",
     tags=["admin"],
-    dependencies=[
-        Depends(require_org_role(OrganizationRole.OWNER, OrganizationRole.ADMIN)),
-    ],
+    # No router-level auth - endpoints specify their own requirements
 )
 
+# Role sets for different permission levels
+_READ_ROLES = (OrganizationRole.OWNER, OrganizationRole.ADMIN, OrganizationRole.MEMBER)
+_ADMIN_ROLES = (OrganizationRole.OWNER, OrganizationRole.ADMIN)
 
-@router.get("/health", response_model=HealthResponse)
+
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    dependencies=[Depends(require_org_role(*_READ_ROLES))],
+)
 async def health() -> HealthResponse:
     """Get server health status."""
     try:
@@ -58,7 +64,11 @@ async def health() -> HealthResponse:
         )
 
 
-@router.get("/stats", response_model=StatsResponse)
+@router.get(
+    "/stats",
+    response_model=StatsResponse,
+    dependencies=[Depends(require_org_role(*_READ_ROLES))],
+)
 async def stats(
     org: Organization = Depends(get_current_organization),
 ) -> StatsResponse:
@@ -83,7 +93,11 @@ async def stats(
 # === Backup/Restore Endpoints ===
 
 
-@router.post("/backup", response_model=BackupResponse)
+@router.post(
+    "/backup",
+    response_model=BackupResponse,
+    dependencies=[Depends(require_org_role(*_ADMIN_ROLES))],
+)
 async def create_backup(
     org: Organization = Depends(get_current_organization),
 ) -> BackupResponse:
@@ -126,7 +140,11 @@ async def create_backup(
         raise HTTPException(status_code=500, detail="Backup failed. Please try again.") from e
 
 
-@router.post("/restore", response_model=RestoreResponse)
+@router.post(
+    "/restore",
+    response_model=RestoreResponse,
+    dependencies=[Depends(require_org_role(*_ADMIN_ROLES))],
+)
 async def restore_backup_endpoint(
     request: RestoreRequest,
     org: Organization = Depends(get_current_organization),
@@ -174,7 +192,11 @@ async def restore_backup_endpoint(
 # === Backfill Endpoint ===
 
 
-@router.post("/backfill/task-project-relationships", response_model=BackfillResponse)
+@router.post(
+    "/backfill/task-project-relationships",
+    response_model=BackfillResponse,
+    dependencies=[Depends(require_org_role(*_ADMIN_ROLES))],
+)
 async def backfill_task_relationships(
     request: BackfillRequest,
     org: Organization = Depends(get_current_organization),

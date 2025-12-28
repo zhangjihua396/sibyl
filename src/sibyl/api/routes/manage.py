@@ -54,7 +54,7 @@ async def manage(
 ) -> ManageResponseSchema:
     """Execute a manage action.
 
-    Supports task workflow, source operations, analysis, and admin actions.
+    Supports task workflow, epic workflow, source operations, and analysis actions.
 
     Task Workflow Actions:
         - start_task: Begin work on a task (sets status to 'doing')
@@ -64,6 +64,12 @@ async def manage(
         - complete_task: Mark done (data.learnings optional)
         - archive_task: Archive without completing
         - update_task: Update task fields (data contains updates)
+
+    Epic Workflow Actions:
+        - start_epic: Move epic to in_progress status
+        - complete_epic: Mark epic as completed (data.learnings optional)
+        - archive_epic: Archive epic (data.reason optional)
+        - update_epic: Update epic fields
 
     Source Operations:
         - crawl: Trigger crawl of URL (data.url required, data.depth optional)
@@ -76,10 +82,7 @@ async def manage(
         - detect_cycles: Find circular dependencies in project
         - suggest: Get knowledge suggestions for a task
 
-    Admin Actions:
-        - health: Server health check
-        - stats: Graph statistics
-        - rebuild_index: Rebuild search indices
+    For health/stats, use /admin/health and /admin/stats instead.
     """
     try:
         from sibyl.tools.manage import manage as core_manage

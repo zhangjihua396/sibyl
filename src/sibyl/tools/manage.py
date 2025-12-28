@@ -76,14 +76,7 @@ ANALYSIS_ACTIONS = {
     "suggest",  # Suggest knowledge for task
 }
 
-# Admin actions
-ADMIN_ACTIONS = {
-    "health",  # Server health check
-    "stats",  # Graph statistics
-    "rebuild_index",  # Rebuild FalkorDB indices
-}
-
-ALL_ACTIONS = TASK_ACTIONS | EPIC_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS | ADMIN_ACTIONS
+ALL_ACTIONS = TASK_ACTIONS | EPIC_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS
 
 
 # =============================================================================
@@ -128,16 +121,11 @@ async def manage(
         - detect_cycles: Find circular dependencies (entity_id = project ID)
         - suggest: Suggest relevant knowledge (entity_id = task ID)
 
-    Admin:
-        - health: Server health check
-        - stats: Graph statistics
-        - rebuild_index: Rebuild search indices
-
     Args:
         action: The action to perform (see categories above).
         entity_id: Target entity ID (required for most actions).
         data: Action-specific data dict.
-        organization_id: Organization ID for graph operations (required for non-admin actions).
+        organization_id: Organization ID for graph operations (required).
 
     Returns:
         ManageResponse with success status, message, and action-specific data.
@@ -154,8 +142,7 @@ async def manage(
             message=f"Unknown action: {action}. Valid actions: {sorted(ALL_ACTIONS)}",
         )
 
-    # Admin actions don't require org context
-    if action not in ADMIN_ACTIONS and not organization_id:
+    if not organization_id:
         return ManageResponse(
             success=False,
             action=action,
@@ -180,8 +167,8 @@ async def manage(
             return await _handle_analysis_action(
                 action, entity_id, data, organization_id=organization_id
             )
-        # ADMIN_ACTIONS
-        return await _handle_admin_action(action, entity_id, data, organization_id=organization_id)
+
+        return ManageResponse(success=False, action=action, message="Unhandled action")
 
     except Exception as e:
         log.exception("manage_failed", action=action, error=str(e))
@@ -1055,68 +1042,3 @@ async def _suggest_knowledge(
         },
     )
 
-
-# =============================================================================
-# Admin Action Handlers
-# =============================================================================
-
-
-async def _handle_admin_action(
-    action: str,
-    _entity_id: str | None,
-    _data: dict[str, Any],
-    *,
-    organization_id: str | None,  # noqa: ARG001 - Admin actions don't require org context
-) -> ManageResponse:
-    """Handle admin actions."""
-    if action == "health":
-        return await _get_health()
-
-    if action == "stats":
-        return await _get_stats()
-
-    if action == "rebuild_index":
-        return await _rebuild_index()
-
-    return ManageResponse(success=False, action=action, message="Unknown admin action")
-
-
-async def _get_health() -> ManageResponse:
-    """Get server health status."""
-    from sibyl.tools.core import get_health
-
-    health = await get_health()
-
-    return ManageResponse(
-        success=health.get("status") == "healthy",
-        action="health",
-        message=f"Server is {health.get('status', 'unknown')}",
-        data=health,
-    )
-
-
-async def _get_stats() -> ManageResponse:
-    """Get graph statistics."""
-    from sibyl.tools.core import get_stats
-
-    stats = await get_stats()
-
-    return ManageResponse(
-        success="error" not in stats,
-        action="stats",
-        message=f"Total entities: {stats.get('total_entities', 0)}",
-        data=stats,
-    )
-
-
-async def _rebuild_index() -> ManageResponse:
-    """Rebuild FalkorDB indices."""
-    # Note: Graphiti handles indices automatically
-    # This is a placeholder for any manual index operations
-
-    return ManageResponse(
-        success=True,
-        action="rebuild_index",
-        message="Index rebuild requested (handled by Graphiti driver)",
-        data={"note": "Graphiti manages indices automatically"},
-    )
