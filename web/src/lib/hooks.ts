@@ -12,8 +12,10 @@ import type {
   CodeExampleResponse,
   EntityCreate,
   EntityUpdate,
+  EpicStatus,
   RAGSearchParams,
   RAGSearchResponse,
+  TaskPriority,
   TaskStatus,
 } from './api';
 import { api } from './api';
@@ -87,6 +89,22 @@ export const queryKeys = {
     all: ['projects'] as const,
     list: (includeArchived = false) => ['projects', 'list', { includeArchived }] as const,
     detail: (id: string) => ['projects', 'detail', id] as const,
+  },
+  epics: {
+    all: ['epics'] as const,
+    list: (params?: { project?: string; status?: EpicStatus }) => {
+      const normalized =
+        params && (params.project || params.status)
+          ? {
+              ...(params.project ? { project: params.project } : {}),
+              ...(params.status ? { status: params.status } : {}),
+            }
+          : undefined;
+      return ['epics', 'list', normalized] as const;
+    },
+    detail: (id: string) => ['epics', 'detail', id] as const,
+    tasks: (id: string) => ['epics', 'tasks', id] as const,
+    progress: (id: string) => ['epics', 'progress', id] as const,
   },
   explore: {
     related: (entityId: string) => ['explore', 'related', entityId] as const,
@@ -833,6 +851,70 @@ export function useProject(id: string) {
     queryKey: queryKeys.projects.detail(id),
     queryFn: () => api.projects.get(id),
     enabled: !!id,
+  });
+}
+
+// =============================================================================
+// Epic Hooks
+// =============================================================================
+
+export function useEpics(params?: { project?: string; status?: EpicStatus }) {
+  const normalized =
+    params && (params.project || params.status)
+      ? {
+          ...(params.project ? { project: params.project } : {}),
+          ...(params.status ? { status: params.status } : {}),
+        }
+      : undefined;
+
+  return useQuery({
+    queryKey: queryKeys.epics.list(normalized),
+    queryFn: () => api.epics.list(normalized),
+  });
+}
+
+export function useEpic(id: string) {
+  return useQuery({
+    queryKey: queryKeys.epics.detail(id),
+    queryFn: () => api.epics.get(id),
+    enabled: !!id,
+  });
+}
+
+export function useEpicTasks(epicId: string) {
+  return useQuery({
+    queryKey: queryKeys.epics.tasks(epicId),
+    queryFn: () => api.epics.tasks(epicId),
+    enabled: !!epicId,
+  });
+}
+
+export function useEpicManage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      action,
+      entity_id,
+      params,
+    }: {
+      action: 'start_epic' | 'complete_epic' | 'archive_epic' | 'update_epic';
+      entity_id: string;
+      params?: {
+        learnings?: string;
+        reason?: string;
+        status?: EpicStatus;
+        priority?: TaskPriority;
+        title?: string;
+        assignees?: string[];
+        tags?: string[];
+      };
+    }) => api.epics.manage(action, entity_id, params),
+    onSuccess: () => {
+      // Invalidate epics list and related queries
+      queryClient.invalidateQueries({ queryKey: queryKeys.epics.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+    },
   });
 }
 

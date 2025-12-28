@@ -404,6 +404,63 @@ export interface ManageResponse {
 }
 
 // =============================================================================
+// Epic Types
+// =============================================================================
+
+export type EpicStatus = 'planning' | 'in_progress' | 'blocked' | 'completed' | 'archived';
+
+export interface Epic {
+  id: string;
+  title: string;
+  description: string;
+  project_id: string;
+  status: EpicStatus;
+  priority: TaskPriority;
+  assignees: string[];
+  tags: string[];
+  start_date: string | null;
+  target_date: string | null;
+  completed_date: string | null;
+  total_tasks: number;
+  completed_tasks: number;
+  learnings: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface EpicListResponse {
+  mode: string;
+  entities: EpicSummary[];
+  total: number;
+  filters: Record<string, unknown>;
+}
+
+export interface EpicSummary {
+  id: string;
+  type: string;
+  name: string;
+  description: string;
+  metadata: {
+    status?: EpicStatus;
+    priority?: TaskPriority;
+    project_id?: string;
+    assignees?: string[];
+    total_tasks?: number;
+    completed_tasks?: number;
+    [key: string]: unknown;
+  };
+}
+
+export interface EpicProgress {
+  total_tasks: number;
+  completed_tasks: number;
+  doing_tasks: number;
+  blocked_tasks: number;
+  review_tasks: number;
+  completion_pct: number;
+}
+
+// =============================================================================
 // Source Types (Documentation Crawling)
 // =============================================================================
 
@@ -992,6 +1049,56 @@ export const api = {
       }),
 
     get: (id: string) => fetchApi<Entity>(`/entities/${id}`),
+  },
+
+  // Epics - feature grouping for tasks
+  epics: {
+    list: (params?: { project?: string; status?: EpicStatus }) =>
+      fetchApi<EpicListResponse>('/search/explore', {
+        method: 'POST',
+        body: JSON.stringify({
+          mode: 'list',
+          types: ['epic'],
+          project: params?.project,
+          status: params?.status,
+          limit: 200,
+        }),
+      }),
+
+    get: (id: string) => fetchApi<Entity>(`/entities/${id}`),
+
+    tasks: (id: string) =>
+      fetchApi<TaskListResponse>('/search/explore', {
+        method: 'POST',
+        body: JSON.stringify({
+          mode: 'list',
+          types: ['task'],
+          epic: id,
+          limit: 200,
+        }),
+      }),
+
+    manage: (
+      action: 'start_epic' | 'complete_epic' | 'archive_epic' | 'update_epic',
+      entity_id: string,
+      params?: {
+        learnings?: string;
+        reason?: string;
+        status?: EpicStatus;
+        priority?: TaskPriority;
+        title?: string;
+        assignees?: string[];
+        tags?: string[];
+      }
+    ) =>
+      fetchApi<ManageResponse>('/manage', {
+        method: 'POST',
+        body: JSON.stringify({
+          action,
+          entity_id,
+          data: params,
+        }),
+      }),
   },
 
   // Sources (documentation crawling) - uses dedicated /sources endpoints
