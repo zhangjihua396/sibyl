@@ -540,12 +540,14 @@ class SibylClient:
         language: str | None = None,
         category: str | None = None,
         limit: int = 10,
+        offset: int = 0,
         include_content: bool = True,
     ) -> dict[str, Any]:
         """Semantic search across the knowledge graph."""
         data: dict[str, Any] = {
             "query": query,
             "limit": limit,
+            "offset": offset,
             "include_content": include_content,
         }
         if types:
@@ -570,9 +572,10 @@ class SibylClient:
         epic: str | None = None,
         status: str | None = None,
         limit: int = 50,
+        offset: int = 0,
     ) -> dict[str, Any]:
         """Explore and traverse the knowledge graph."""
-        data: dict[str, Any] = {"mode": mode, "limit": limit, "depth": depth}
+        data: dict[str, Any] = {"mode": mode, "limit": limit, "offset": offset, "depth": depth}
         if types:
             data["types"] = types
         if entity_id:

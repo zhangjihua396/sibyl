@@ -116,7 +116,9 @@ def list_tasks(
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
-    limit: Annotated[int, typer.Option("-n", "--limit", help="Max results")] = 50,
+    limit: Annotated[int, typer.Option("-n", "--limit", help="Max results (max: 200)")] = 50,
+    offset: Annotated[int, typer.Option("--offset", help="Skip first N results")] = 0,
+    page: Annotated[int | None, typer.Option("--page", help="Page number (1-based, uses limit)")] = None,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -128,8 +130,21 @@ def list_tasks(
     """List tasks with optional filters. Use -q for semantic search. Default: JSON output.
 
     Auto-scopes to current project context unless --all is specified.
+
+    Pagination: Use --limit (max 200) and --offset, or --page for convenience.
     """
     fmt = "table" if table_out else ("csv" if csv_out else "json")
+
+    # Clamp limit to API maximum
+    effective_limit = min(limit, 200)
+
+    # Calculate offset from page if provided
+    effective_offset = offset
+    if page is not None:
+        if page < 1:
+            error("--page must be >= 1")
+            raise typer.Exit(1)
+        effective_offset = (page - 1) * effective_limit
 
     # Auto-resolve project from context if not explicitly set
     effective_project = project
@@ -147,7 +162,8 @@ def list_tasks(
                     response = await client.search(
                         query=query,
                         types=["task"],
-                        limit=limit,
+                        limit=effective_limit,
+                        offset=effective_offset,
                     )
                 else:
                     with spinner(f"Searching tasks for '{query}'...") as progress:
@@ -155,10 +171,13 @@ def list_tasks(
                         response = await client.search(
                             query=query,
                             types=["task"],
-                            limit=limit,
+                            limit=effective_limit,
+                            offset=effective_offset,
                         )
                 # Search returns results directly
                 entities = response.get("results", [])
+                has_more = response.get("has_more", False)
+                total = response.get("total", len(entities))
             else:
                 # Only pass single status to API; multiple statuses filtered client-side
                 api_status = None
@@ -172,7 +191,8 @@ def list_tasks(
                         status=api_status,
                         project=effective_project,
                         epic=epic,
-                        limit=limit,
+                        limit=effective_limit,
+                        offset=effective_offset,
                     )
                 else:
                     with spinner("Loading tasks...") as progress:
@@ -183,9 +203,12 @@ def list_tasks(
                             status=api_status,
                             project=effective_project,
                             epic=epic,
-                            limit=limit,
+                            limit=effective_limit,
+                            offset=effective_offset,
                         )
                 entities = response.get("entities", [])
+                has_more = response.get("has_more", False)
+                total = response.get("actual_total") or response.get("total", len(entities))
 
             # Client-side filters (needed for search, or when API doesn't filter)
             if status:
@@ -252,7 +275,14 @@ def list_tasks(
                 )
 
             console.print(table)
-            console.print(f"\n[dim]Showing {len(entities)} task(s)[/dim]")
+
+            # Pagination info
+            start = effective_offset + 1
+            end = effective_offset + len(entities)
+            if has_more:
+                console.print(f"\n[dim]Showing {start}-{end} of {total}+ task(s) (--page {(effective_offset // effective_limit) + 2} for more)[/dim]")
+            else:
+                console.print(f"\n[dim]Showing {len(entities)} task(s)[/dim]")
 
         except SibylClientError as e:
             _handle_client_error(e)
