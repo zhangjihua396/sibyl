@@ -758,6 +758,52 @@ export interface RestoreResponse {
 // API Functions
 // =============================================================================
 
+// Track if we're currently refreshing to prevent multiple refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+/**
+ * Try to refresh the access token using the refresh token cookie.
+ * Returns true if refresh succeeded, false if it failed.
+ */
+async function tryRefreshToken(): Promise<boolean> {
+  // If already refreshing, wait for that to complete
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      return response.ok;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+/**
+ * Redirect to login page with return URL.
+ */
+function redirectToLogin(): never {
+  const currentPath = window.location.pathname + window.location.search;
+  window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
+  // Return a promise that never resolves to prevent further execution
+  return new Promise(() => {
+    // Intentionally empty - blocks until page redirects
+  }) as never;
+}
+
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
@@ -769,16 +815,42 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
   });
 
   if (!response.ok) {
-    // Handle 401 by redirecting to login (token expired or invalid)
-    // But don't redirect if we're already on the login page to avoid infinite loop
+    // Handle 401 - try to refresh token before redirecting to login
     if (response.status === 401 && typeof window !== 'undefined') {
-      if (window.location.pathname !== '/login') {
-        const currentPath = window.location.pathname + window.location.search;
-        window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
-        // Return a promise that never resolves to prevent further execution
-        return new Promise(() => {
-          // Intentionally never resolves - page is redirecting
-        });
+      // Don't try to refresh if we're on login page or if this IS the refresh endpoint
+      if (window.location.pathname !== '/login' && endpoint !== '/auth/refresh') {
+        // Try to refresh the token
+        const refreshed = await tryRefreshToken();
+
+        if (refreshed) {
+          // Retry the original request with new token
+          const retryResponse = await fetch(`${API_BASE}${endpoint}`, {
+            ...options,
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              ...options?.headers,
+            },
+          });
+
+          if (retryResponse.ok) {
+            if (retryResponse.status === 204) {
+              return undefined as T;
+            }
+            return retryResponse.json();
+          }
+
+          // Retry also failed - redirect to login
+          if (retryResponse.status === 401) {
+            return redirectToLogin();
+          }
+
+          const error = await retryResponse.text();
+          throw new Error(error || `API error: ${retryResponse.status}`);
+        }
+
+        // Refresh failed - redirect to login
+        return redirectToLogin();
       }
     }
 

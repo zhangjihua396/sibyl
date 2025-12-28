@@ -21,18 +21,8 @@ import {
 } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
 import type { HierarchicalCluster, HierarchicalEdge, HierarchicalNode } from '@/lib/api';
-import {
-  CLUSTER_COLORS,
-  DEFAULT_ENTITY_COLOR,
-  ENTITY_COLORS,
-  type ENTITY_TYPES,
-  GRAPH_DEFAULTS,
-  getClusterColor,
-  getEntityColor,
-} from '@/lib/constants';
-import { useHierarchicalGraph, useStats } from '@/lib/hooks';
-
-type EntityType = (typeof ENTITY_TYPES)[number];
+import { GRAPH_DEFAULTS, getClusterColor, getEntityColor } from '@/lib/constants';
+import { useHierarchicalGraph } from '@/lib/hooks';
 
 // Dynamic import to avoid SSR issues with canvas
 const ForceGraph2D = dynamic(() => import('react-force-graph-2d'), {
@@ -57,7 +47,10 @@ interface GraphNode extends HierarchicalNode {
   __highlightTime?: number; // For pulse animation
 }
 
-interface GraphLink extends HierarchicalEdge {
+// d3-force mutates source/target from string IDs to node objects at runtime
+interface GraphLink extends Omit<HierarchicalEdge, 'source' | 'target'> {
+  source: string | GraphNode;
+  target: string | GraphNode;
   sourceNode?: GraphNode;
   targetNode?: GraphNode;
 }
@@ -336,7 +329,11 @@ function GraphPageContent() {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
   // Fetch hierarchical graph data with up to 1000 nodes
-  const { data, isLoading, error } = useHierarchicalGraph({
+  const {
+    data,
+    isLoading,
+    error: _error,
+  } = useHierarchicalGraph({
     max_nodes: GRAPH_DEFAULTS.MAX_NODES,
     max_edges: GRAPH_DEFAULTS.MAX_EDGES,
   });
@@ -410,15 +407,13 @@ function GraphPageContent() {
     );
     graphRef.current.d3Force(
       'collision',
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      d3Force.forceCollide<GraphNode>().radius(GRAPH_DEFAULTS.COLLISION_RADIUS) as any
+      d3Force.forceCollide().radius(GRAPH_DEFAULTS.COLLISION_RADIUS)
     );
 
-    // Link force with distance
+    // Link force with distance - ForceFn has [key: string]: any so we can access distance directly
     const linkForce = graphRef.current.d3Force('link');
-    if (linkForce) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (linkForce as any).distance(GRAPH_DEFAULTS.LINK_DISTANCE);
+    if (linkForce && typeof linkForce.distance === 'function') {
+      linkForce.distance(GRAPH_DEFAULTS.LINK_DISTANCE);
     }
   }, []);
 
@@ -489,7 +484,7 @@ function GraphPageContent() {
       // - Show for hub nodes (top 15% by connectivity) when zoomed in (priority 3)
       // - Show more labels as zoom increases
       const isHubNode = degree > maxDegree * 0.15; // Top 15% connectivity
-      const zoomThreshold = isProject ? 1.0 : isHubNode ? 1.5 : 3.0;
+      const _zoomThreshold = isProject ? 1.0 : isHubNode ? 1.5 : 3.0;
 
       let showLabel = isSelected || isHovered;
       if (!showLabel && isProject && globalScale >= 1.0) {
@@ -559,9 +554,12 @@ function GraphPageContent() {
     if (!fg) return;
 
     // Hook into the render cycle to clear labels before drawing
-    const originalRender = (fg as any)._renderFrame;
+    // Access internal _renderFrame property (not in public types)
+    type FGInternal = { _renderFrame?: (...args: unknown[]) => void };
+    const fgInternal = fg as unknown as FGInternal;
+    const originalRender = fgInternal._renderFrame;
     if (originalRender) {
-      (fg as any)._renderFrame = function (...args: any[]) {
+      fgInternal._renderFrame = function (...args: unknown[]) {
         drawnLabelsRef.current = [];
         return originalRender.apply(this, args);
       };
@@ -571,23 +569,26 @@ function GraphPageContent() {
   // Clean link rendering
   const paintLink = useCallback(
     (link: GraphLink, ctx: CanvasRenderingContext2D) => {
-      const source = link.sourceNode || (link as any).source;
-      const target = link.targetNode || (link as any).target;
-      if (!source?.x || !target?.x) return;
-
-      const sourceNode = source as GraphNode;
-      const targetNode = target as GraphNode;
+      // After d3-force processes, source/target become node objects (not strings)
+      const source = link.sourceNode || (typeof link.source === 'object' ? link.source : null);
+      const target = link.targetNode || (typeof link.target === 'object' ? link.target : null);
+      if (!source || !target) return;
+      const sx = source.x;
+      const sy = source.y;
+      const tx = target.x;
+      const ty = target.y;
+      if (sx === undefined || sy === undefined || tx === undefined || ty === undefined) return;
 
       // Highlight links connected to selected/hovered node
       const isHighlighted =
-        sourceNode.id === selectedNodeId ||
-        targetNode.id === selectedNodeId ||
-        sourceNode.id === hoveredNode ||
-        targetNode.id === hoveredNode;
+        source.id === selectedNodeId ||
+        target.id === selectedNodeId ||
+        source.id === hoveredNode ||
+        target.id === hoveredNode;
 
       ctx.beginPath();
-      ctx.moveTo(source.x, source.y);
-      ctx.lineTo(target.x, target.y);
+      ctx.moveTo(sx, sy);
+      ctx.lineTo(tx, ty);
 
       if (isHighlighted) {
         ctx.strokeStyle = '#ffffff50';

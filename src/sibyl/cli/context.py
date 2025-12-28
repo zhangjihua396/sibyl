@@ -73,9 +73,7 @@ def list_cmd(
         info("No contexts configured")
         console.print()
         console.print(f"  [{NEON_CYAN}]Create one:[/{NEON_CYAN}]")
-        console.print(
-            "    sibyl context create local --server http://localhost:3334"
-        )
+        console.print("    sibyl context create local --server http://localhost:3334")
         return
 
     table = create_table("Contexts", "", "Name", "Server", "Org", "Project")
@@ -99,9 +97,7 @@ def list_cmd(
 
 @app.command("show")
 def show_cmd(
-    name: Annotated[
-        str, typer.Argument(help="Context name (omit for active context)")
-    ] = "",
+    name: Annotated[str, typer.Argument(help="Context name (omit for active context)")] = "",
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -136,9 +132,13 @@ def show_cmd(
     console.print()
     console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]   {ctx.server_url}")
     console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]      {ctx.org_slug or '[dim]auto[/dim]'}")
-    console.print(f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {ctx.default_project or '[dim]none[/dim]'}")
+    console.print(
+        f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {ctx.default_project or '[dim]none[/dim]'}"
+    )
     if ctx.insecure:
-        console.print(f"  [{ELECTRIC_YELLOW}]Insecure:[/{ELECTRIC_YELLOW}] SSL verification disabled")
+        console.print(
+            f"  [{ELECTRIC_YELLOW}]Insecure:[/{ELECTRIC_YELLOW}] SSL verification disabled"
+        )
     console.print()
 
 
@@ -148,15 +148,11 @@ def create_cmd(
     server: Annotated[
         str, typer.Option("--server", "-s", help="Server URL")
     ] = "http://localhost:3334",
-    org: Annotated[
-        str, typer.Option("--org", "-o", help="Organization slug (optional)")
-    ] = "",
+    org: Annotated[str, typer.Option("--org", "-o", help="Organization slug (optional)")] = "",
     project: Annotated[
         str, typer.Option("--project", "-p", help="Default project ID (optional)")
     ] = "",
-    use: Annotated[
-        bool, typer.Option("--use", "-u", help="Set as active context")
-    ] = False,
+    use: Annotated[bool, typer.Option("--use", "-u", help="Set as active context")] = False,
     insecure: Annotated[
         bool, typer.Option("--insecure", "-k", help="Skip SSL verification (self-signed certs)")
     ] = False,
@@ -192,7 +188,9 @@ def create_cmd(
     console.print()
     console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]  {ctx.server_url}")
     console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]     {ctx.org_slug or '[dim]auto[/dim]'}")
-    console.print(f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}] {ctx.default_project or '[dim]none[/dim]'}")
+    console.print(
+        f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}] {ctx.default_project or '[dim]none[/dim]'}"
+    )
 
 
 @app.command("use")
@@ -227,9 +225,7 @@ def use_cmd(
 @app.command("update")
 def update_cmd(
     name: Annotated[str, typer.Argument(help="Context name to update")],
-    server: Annotated[
-        str, typer.Option("--server", "-s", help="New server URL")
-    ] = "",
+    server: Annotated[str, typer.Option("--server", "-s", help="New server URL")] = "",
     org: Annotated[
         str, typer.Option("--org", "-o", help="New org slug (use 'auto' to clear)")
     ] = "",
@@ -239,9 +235,7 @@ def update_cmd(
     insecure: Annotated[
         bool, typer.Option("--insecure", "-k", help="Skip SSL verification (self-signed certs)")
     ] = False,
-    secure: Annotated[
-        bool, typer.Option("--secure", help="Re-enable SSL verification")
-    ] = False,
+    secure: Annotated[bool, typer.Option("--secure", help="Re-enable SSL verification")] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -279,15 +273,15 @@ def update_cmd(
     success(f"Updated context '{name}'")
     console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]  {ctx.server_url}")
     console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]     {ctx.org_slug or '[dim]auto[/dim]'}")
-    console.print(f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}] {ctx.default_project or '[dim]none[/dim]'}")
+    console.print(
+        f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}] {ctx.default_project or '[dim]none[/dim]'}"
+    )
 
 
 @app.command("delete")
 def delete_cmd(
     name: Annotated[str, typer.Argument(help="Context name to delete")],
-    yes: Annotated[
-        bool, typer.Option("--yes", "-y", help="Skip confirmation")
-    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
 ) -> None:
     """Delete a context."""
     ctx = get_context(name)

@@ -201,9 +201,7 @@ class TestCreateEpicCommand:
         )
 
         with patch("sibyl.cli.epic.get_client", return_value=mock_client):
-            result = runner.invoke(
-                app, ["create", "--title", "New Epic", "--project", "proj_123"]
-            )
+            result = runner.invoke(app, ["create", "--title", "New Epic", "--project", "proj_123"])
 
         assert result.exit_code == 0
         assert "epic_new" in result.stdout
@@ -211,9 +209,7 @@ class TestCreateEpicCommand:
     def test_create_epic_with_options(self) -> None:
         """Create epic with all options."""
         mock_client = MagicMock()
-        mock_client.create_entity = AsyncMock(
-            return_value={"id": "epic_new123456789"}
-        )
+        mock_client.create_entity = AsyncMock(return_value={"id": "epic_new123456789"})
 
         with patch("sibyl.cli.epic.get_client", return_value=mock_client):
             result = runner.invoke(
@@ -320,9 +316,7 @@ class TestUpdateEpicCommand:
         )
 
         with patch("sibyl.cli.epic.get_client", return_value=mock_client):
-            result = runner.invoke(
-                app, ["update", "epic_1234567890ab", "--status", "blocked"]
-            )
+            result = runner.invoke(app, ["update", "epic_1234567890ab", "--status", "blocked"])
 
         assert result.exit_code == 0
         call_args = mock_client.update_entity.call_args[0]
@@ -458,9 +452,7 @@ class TestListEpicTasksCommand:
         )
 
         with patch("sibyl.cli.epic.get_client", return_value=mock_client):
-            result = runner.invoke(
-                app, ["tasks", "epic_1234567890ab", "--status", "doing"]
-            )
+            result = runner.invoke(app, ["tasks", "epic_1234567890ab", "--status", "doing"])
 
         assert result.exit_code == 0
         assert "task_123" in result.stdout

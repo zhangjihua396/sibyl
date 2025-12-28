@@ -23,7 +23,7 @@ log = structlog.get_logger()
 # Cluster Cache for Visualization
 # =============================================================================
 
-CLUSTER_CACHE: dict[str, tuple[datetime, list["ClusterSummary"]]] = {}
+CLUSTER_CACHE: dict[str, tuple[datetime, list[ClusterSummary]]] = {}
 CLUSTER_CACHE_TTL = timedelta(minutes=5)
 
 
@@ -49,7 +49,7 @@ class ClusterSummary:
 
 
 async def get_clusters_for_visualization(
-    client: "GraphClient",
+    client: GraphClient,
     organization_id: str,
     force_refresh: bool = False,
 ) -> list[ClusterSummary]:
@@ -109,7 +109,7 @@ async def get_clusters_for_visualization(
 
 
 async def _create_type_based_clusters(
-    client: "GraphClient",
+    client: GraphClient,
     organization_id: str,
 ) -> list[ClusterSummary]:
     """Create clusters based on entity type (fallback when no networkx)."""
@@ -153,9 +153,9 @@ async def _create_type_based_clusters(
 
 
 async def _enrich_cluster_summaries(
-    client: "GraphClient",
+    client: GraphClient,
     organization_id: str,
-    detected: list["DetectedCommunity"],
+    detected: list[DetectedCommunity],
 ) -> list[ClusterSummary]:
     """Convert DetectedCommunity to ClusterSummary with type distribution."""
     summaries = []
@@ -173,9 +173,7 @@ async def _enrich_cluster_summaries(
 
         type_dist: dict[str, int] = {}
         try:
-            result = await client.execute_read_org(
-                query, organization_id, ids=community.member_ids
-            )
+            result = await client.execute_read_org(query, organization_id, ids=community.member_ids)
             for record in result:
                 if isinstance(record, (list, tuple)):
                     t = record[0] if len(record) > 0 else "unknown"
@@ -205,7 +203,7 @@ async def _enrich_cluster_summaries(
 
 
 async def get_cluster_nodes(
-    client: "GraphClient",
+    client: GraphClient,
     organization_id: str,
     cluster_id: str,
 ) -> dict[str, Any]:
@@ -240,19 +238,23 @@ async def get_cluster_nodes(
         result = await client.execute_read_org(node_query, organization_id, ids=member_ids)
         for record in result:
             if isinstance(record, (list, tuple)):
-                nodes.append({
-                    "id": record[0],
-                    "name": record[1] or record[0][:20],
-                    "type": record[2] or "unknown",
-                    "summary": record[3] or "",
-                })
+                nodes.append(
+                    {
+                        "id": record[0],
+                        "name": record[1] or record[0][:20],
+                        "type": record[2] or "unknown",
+                        "summary": record[3] or "",
+                    }
+                )
             else:
-                nodes.append({
-                    "id": record.get("id"),
-                    "name": record.get("name") or record.get("id", "")[:20],
-                    "type": record.get("type", "unknown"),
-                    "summary": record.get("summary", ""),
-                })
+                nodes.append(
+                    {
+                        "id": record.get("id"),
+                        "name": record.get("name") or record.get("id", "")[:20],
+                        "type": record.get("type", "unknown"),
+                        "summary": record.get("summary", ""),
+                    }
+                )
     except Exception as e:
         log.warning("get_cluster_nodes_failed", cluster_id=cluster_id, error=str(e))
 
@@ -268,17 +270,21 @@ async def get_cluster_nodes(
         result = await client.execute_read_org(edge_query, organization_id, ids=member_ids)
         for record in result:
             if isinstance(record, (list, tuple)):
-                edges.append({
-                    "source": record[0],
-                    "target": record[1],
-                    "type": record[2] or "RELATED",
-                })
+                edges.append(
+                    {
+                        "source": record[0],
+                        "target": record[1],
+                        "type": record[2] or "RELATED",
+                    }
+                )
             else:
-                edges.append({
-                    "source": record.get("source"),
-                    "target": record.get("target"),
-                    "type": record.get("rel_type", "RELATED"),
-                })
+                edges.append(
+                    {
+                        "source": record.get("source"),
+                        "target": record.get("target"),
+                        "type": record.get("rel_type", "RELATED"),
+                    }
+                )
     except Exception as e:
         log.warning("get_cluster_edges_failed", cluster_id=cluster_id, error=str(e))
 
@@ -330,12 +336,200 @@ class HierarchicalGraphData:
     displayed_edges: int  # How many we're sending to UI
 
 
+async def _get_graph_totals(
+    client: GraphClient,
+    organization_id: str,
+) -> tuple[int, int]:
+    """Get total node and edge counts (no LIMIT) for stats display."""
+    total_nodes = 0
+    total_edges = 0
+
+    try:
+        result = await client.execute_read_org(
+            "MATCH (n) WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id RETURN count(n) AS cnt",
+            organization_id,
+            group_id=organization_id,
+        )
+        if result:
+            record = result[0]
+            total_nodes = record[0] if isinstance(record, (list, tuple)) else record.get("cnt", 0)
+    except Exception as e:
+        log.warning("count_nodes_failed", error=str(e))
+
+    try:
+        result = await client.execute_read_org(
+            "MATCH ()-[r]->() WHERE r.group_id = $group_id RETURN count(r) AS cnt",
+            organization_id,
+            group_id=organization_id,
+        )
+        if result:
+            record = result[0]
+            total_edges = record[0] if isinstance(record, (list, tuple)) else record.get("cnt", 0)
+    except Exception as e:
+        log.warning("count_edges_failed", error=str(e))
+
+    return total_nodes, total_edges
+
+
+async def _fetch_graph_nodes(
+    client: GraphClient,
+    organization_id: str,
+    node_to_cluster: dict[str, str],
+    max_nodes: int,
+) -> tuple[list[dict[str, Any]], set[str]]:
+    """Fetch nodes with cluster assignments."""
+    query = """
+    MATCH (n)
+    WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
+    RETURN n.uuid AS id, n.name AS name, n.entity_type AS type, n.summary AS summary
+    LIMIT $limit
+    """
+    nodes: list[dict[str, Any]] = []
+    node_ids: set[str] = set()
+
+    try:
+        result = await client.execute_read_org(
+            query, organization_id, group_id=organization_id, limit=max_nodes
+        )
+        for record in result:
+            if isinstance(record, (list, tuple)):
+                node_id, name, entity_type, summary = (
+                    record[0] if len(record) > 0 else None,
+                    record[1] if len(record) > 1 else "",
+                    record[2] if len(record) > 2 else "unknown",
+                    record[3] if len(record) > 3 else "",
+                )
+            else:
+                node_id = record.get("id")
+                name = record.get("name", "")
+                entity_type = record.get("type", "unknown")
+                summary = record.get("summary", "")
+
+            if node_id:
+                node_ids.add(node_id)
+                nodes.append(
+                    {
+                        "id": node_id,
+                        "name": name or node_id[:20],
+                        "type": entity_type or "unknown",
+                        "summary": summary or "",
+                        "cluster_id": node_to_cluster.get(node_id, "unclustered"),
+                    }
+                )
+    except Exception as e:
+        log.warning("fetch_nodes_failed", error=str(e))
+
+    return nodes, node_ids
+
+
+async def _fetch_graph_edges(
+    client: GraphClient,
+    organization_id: str,
+    node_ids: set[str],
+    max_edges: int,
+) -> list[dict[str, Any]]:
+    """Fetch edges between nodes in our set."""
+    query = """
+    MATCH (a)-[r]->(b)
+    WHERE r.group_id = $group_id
+    RETURN a.uuid AS source, b.uuid AS target, COALESCE(r.name, type(r)) AS type
+    LIMIT $limit
+    """
+    edges: list[dict[str, Any]] = []
+
+    try:
+        result = await client.execute_read_org(
+            query, organization_id, group_id=organization_id, limit=max_edges
+        )
+        for record in result:
+            if isinstance(record, (list, tuple)):
+                source, target, rel_type = (
+                    record[0] if len(record) > 0 else None,
+                    record[1] if len(record) > 1 else None,
+                    record[2] if len(record) > 2 else "RELATED",
+                )
+            else:
+                source = record.get("source")
+                target = record.get("target")
+                rel_type = record.get("type", "RELATED")
+
+            if source and target and source in node_ids and target in node_ids:
+                edges.append({"source": source, "target": target, "type": rel_type or "RELATED"})
+    except Exception as e:
+        log.warning("fetch_edges_failed", error=str(e))
+
+    return edges
+
+
+def _build_cluster_metadata(
+    nodes: list[dict[str, Any]],
+    clusters_meta: list[dict[str, Any]],
+    node_to_cluster: dict[str, str],
+    edges: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Build enriched cluster metadata and inter-cluster edges."""
+    # Count entity types per cluster
+    cluster_type_counts: dict[str, dict[str, int]] = {}
+    for node in nodes:
+        cluster_id = node["cluster_id"]
+        entity_type = node["type"]
+        if cluster_id not in cluster_type_counts:
+            cluster_type_counts[cluster_id] = {}
+        cluster_type_counts[cluster_id][entity_type] = (
+            cluster_type_counts[cluster_id].get(entity_type, 0) + 1
+        )
+
+    # Enrich clusters with type distribution
+    enriched_clusters = []
+    for cluster in clusters_meta:
+        type_dist = cluster_type_counts.get(cluster["id"], {})
+        dominant = max(type_dist.items(), key=lambda x: x[1])[0] if type_dist else "unknown"
+        enriched_clusters.append(
+            {**cluster, "type_distribution": type_dist, "dominant_type": dominant}
+        )
+
+    # Add unclustered pseudo-cluster if needed
+    unclustered_types = cluster_type_counts.get("unclustered", {})
+    if unclustered_types:
+        dominant = (
+            max(unclustered_types.items(), key=lambda x: x[1])[0]
+            if unclustered_types
+            else "unknown"
+        )
+        enriched_clusters.append(
+            {
+                "id": "unclustered",
+                "member_count": sum(unclustered_types.values()),
+                "level": 0,
+                "type_distribution": unclustered_types,
+                "dominant_type": dominant,
+            }
+        )
+
+    # Calculate inter-cluster edges
+    cluster_edge_counts: dict[tuple[str, str], int] = {}
+    for edge in edges:
+        src_cluster = node_to_cluster.get(edge["source"], "unclustered")
+        tgt_cluster = node_to_cluster.get(edge["target"], "unclustered")
+        if src_cluster != tgt_cluster:
+            sorted_pair = sorted([src_cluster, tgt_cluster])
+            pair: tuple[str, str] = (sorted_pair[0], sorted_pair[1])
+            cluster_edge_counts[pair] = cluster_edge_counts.get(pair, 0) + 1
+
+    cluster_edges = [
+        {"source": p[0], "target": p[1], "weight": c}
+        for p, c in cluster_edge_counts.items()
+        if c > 0
+    ]
+
+    return enriched_clusters, cluster_edges
+
+
 async def get_hierarchical_graph(
-    client: "GraphClient",
+    client: GraphClient,
     organization_id: str,
     max_nodes: int = 1000,
     max_edges: int = 5000,
-    force_refresh: bool = False,
 ) -> HierarchicalGraphData:
     """Get graph data with cluster assignments for rich visualization.
 
@@ -347,93 +541,35 @@ async def get_hierarchical_graph(
         organization_id: Organization UUID.
         max_nodes: Maximum nodes to return (will sample if exceeded).
         max_edges: Maximum edges to return.
-        force_refresh: Bypass cluster cache.
 
     Returns:
         HierarchicalGraphData with nodes, edges, and cluster metadata.
     """
-    log.info(
-        "get_hierarchical_graph_start",
-        org_id=organization_id,
-        max_nodes=max_nodes,
-        max_edges=max_edges,
-    )
+    log.info("get_hierarchical_graph_start", org_id=organization_id, max_nodes=max_nodes)
 
-    # First, get REAL total counts (no LIMIT) for stats display
-    total_node_count = 0
-    total_edge_count = 0
+    # Get real totals for stats display
+    total_node_count, total_edge_count = await _get_graph_totals(client, organization_id)
+    log.info("graph_totals_queried", total_nodes=total_node_count, total_edges=total_edge_count)
 
-    count_node_query = """
-    MATCH (n)
-    WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
-    RETURN count(n) AS cnt
-    """
-
-    count_edge_query = """
-    MATCH ()-[r]->()
-    WHERE r.group_id = $group_id
-    RETURN count(r) AS cnt
-    """
-
-    try:
-        node_count_result = await client.execute_read_org(
-            count_node_query, organization_id, group_id=organization_id
-        )
-        if node_count_result:
-            record = node_count_result[0]
-            total_node_count = record[0] if isinstance(record, (list, tuple)) else record.get("cnt", 0)
-    except Exception as e:
-        log.warning("count_nodes_failed", error=str(e))
-
-    try:
-        edge_count_result = await client.execute_read_org(
-            count_edge_query, organization_id, group_id=organization_id
-        )
-        if edge_count_result:
-            record = edge_count_result[0]
-            total_edge_count = record[0] if isinstance(record, (list, tuple)) else record.get("cnt", 0)
-    except Exception as e:
-        log.warning("count_edges_failed", error=str(e))
-
-    log.info(
-        "graph_totals_queried",
-        total_nodes=total_node_count,
-        total_edges=total_edge_count,
-    )
-
-    # Get or compute cluster assignments
+    # Get cluster assignments via community detection
     node_to_cluster: dict[str, str] = {}
     clusters_meta: list[dict[str, Any]] = []
 
     try:
-        # Try to get real community detection
         detected = await detect_communities(
             client,
             organization_id,
             config=CommunityConfig(
-                resolutions=[1.0],
-                min_community_size=2,
-                max_levels=1,
-                store_in_graph=False,
+                resolutions=[1.0], min_community_size=2, max_levels=1, store_in_graph=False
             ),
             algorithm="louvain",
         )
-
         if detected:
-            # Build node -> cluster mapping
             for community in detected:
-                cluster_id = community.id
                 for member_id in community.member_ids:
-                    node_to_cluster[member_id] = cluster_id
-
-            # Build cluster metadata
+                    node_to_cluster[member_id] = community.id
             clusters_meta = [
-                {
-                    "id": c.id,
-                    "member_count": c.member_count,
-                    "level": c.level,
-                }
-                for c in detected
+                {"id": c.id, "member_count": c.member_count, "level": c.level} for c in detected
             ]
             log.info(
                 "community_detection_success",
@@ -442,149 +578,19 @@ async def get_hierarchical_graph(
             )
         else:
             log.warning("community_detection_empty", msg="no communities detected")
-
     except ImportError:
         log.warning("networkx_not_available", msg="community detection unavailable")
     except Exception as e:
         log.warning("community_detection_failed", error=str(e))
 
-    # Fetch nodes with limit
-    node_query = """
-    MATCH (n)
-    WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
-    RETURN n.uuid AS id,
-           n.name AS name,
-           n.entity_type AS type,
-           n.summary AS summary
-    LIMIT $limit
-    """
+    # Fetch nodes and edges
+    nodes, node_ids = await _fetch_graph_nodes(client, organization_id, node_to_cluster, max_nodes)
+    edges = await _fetch_graph_edges(client, organization_id, node_ids, max_edges)
 
-    nodes: list[dict[str, Any]] = []
-    node_ids: set[str] = set()
-
-    try:
-        result = await client.execute_read_org(
-            node_query, organization_id, group_id=organization_id, limit=max_nodes
-        )
-
-        for record in result:
-            if isinstance(record, (list, tuple)):
-                node_id = record[0] if len(record) > 0 else None
-                name = record[1] if len(record) > 1 else ""
-                entity_type = record[2] if len(record) > 2 else "unknown"
-                summary = record[3] if len(record) > 3 else ""
-            else:
-                node_id = record.get("id")
-                name = record.get("name", "")
-                entity_type = record.get("type", "unknown")
-                summary = record.get("summary", "")
-
-            if node_id:
-                node_ids.add(node_id)
-                # Assign cluster - use "unclustered" if not in a community
-                cluster_id = node_to_cluster.get(node_id, "unclustered")
-
-                nodes.append({
-                    "id": node_id,
-                    "name": name or node_id[:20],
-                    "type": entity_type or "unknown",
-                    "summary": summary or "",
-                    "cluster_id": cluster_id,
-                })
-
-    except Exception as e:
-        log.warning("fetch_nodes_failed", error=str(e))
-
-    # Fetch edges between the nodes we have
-    edge_query = """
-    MATCH (a)-[r]->(b)
-    WHERE r.group_id = $group_id
-    RETURN a.uuid AS source,
-           b.uuid AS target,
-           COALESCE(r.name, type(r)) AS type
-    LIMIT $limit
-    """
-
-    edges: list[dict[str, Any]] = []
-
-    try:
-        result = await client.execute_read_org(
-            edge_query, organization_id, group_id=organization_id, limit=max_edges
-        )
-
-        for record in result:
-            if isinstance(record, (list, tuple)):
-                source = record[0] if len(record) > 0 else None
-                target = record[1] if len(record) > 1 else None
-                rel_type = record[2] if len(record) > 2 else "RELATED"
-            else:
-                source = record.get("source")
-                target = record.get("target")
-                rel_type = record.get("type", "RELATED")
-
-            # Only include edges where both endpoints are in our node set
-            if source and target and source in node_ids and target in node_ids:
-                edges.append({
-                    "source": source,
-                    "target": target,
-                    "type": rel_type or "RELATED",
-                })
-
-    except Exception as e:
-        log.warning("fetch_edges_failed", error=str(e))
-
-    # Build cluster type distribution and colors
-    cluster_type_counts: dict[str, dict[str, int]] = {}
-    for node in nodes:
-        cluster_id = node["cluster_id"]
-        entity_type = node["type"]
-        if cluster_id not in cluster_type_counts:
-            cluster_type_counts[cluster_id] = {}
-        cluster_type_counts[cluster_id][entity_type] = (
-            cluster_type_counts[cluster_id].get(entity_type, 0) + 1
-        )
-
-    # Enrich clusters_meta with type distribution
-    enriched_clusters = []
-    for cluster in clusters_meta:
-        cluster_id = cluster["id"]
-        type_dist = cluster_type_counts.get(cluster_id, {})
-        dominant_type = max(type_dist.items(), key=lambda x: x[1])[0] if type_dist else "unknown"
-        enriched_clusters.append({
-            **cluster,
-            "type_distribution": type_dist,
-            "dominant_type": dominant_type,
-        })
-
-    # Add unclustered "cluster" if any nodes are unclustered
-    unclustered_types = cluster_type_counts.get("unclustered", {})
-    if unclustered_types:
-        unclustered_count = sum(unclustered_types.values())
-        dominant_type = max(unclustered_types.items(), key=lambda x: x[1])[0] if unclustered_types else "unknown"
-        enriched_clusters.append({
-            "id": "unclustered",
-            "member_count": unclustered_count,
-            "level": 0,
-            "type_distribution": unclustered_types,
-            "dominant_type": dominant_type,
-        })
-
-    # Calculate inter-cluster edges
-    cluster_edge_counts: dict[tuple[str, str], int] = {}
-    for edge in edges:
-        source_cluster = node_to_cluster.get(edge["source"], "unclustered")
-        target_cluster = node_to_cluster.get(edge["target"], "unclustered")
-
-        if source_cluster != target_cluster:
-            # Normalize edge direction for counting
-            pair = tuple(sorted([source_cluster, target_cluster]))
-            cluster_edge_counts[pair] = cluster_edge_counts.get(pair, 0) + 1
-
-    cluster_edges = [
-        {"source": pair[0], "target": pair[1], "weight": count}
-        for pair, count in cluster_edge_counts.items()
-        if count > 0
-    ]
+    # Build cluster metadata
+    enriched_clusters, cluster_edges = _build_cluster_metadata(
+        nodes, clusters_meta, node_to_cluster, edges
+    )
 
     log.info(
         "get_hierarchical_graph_complete",
@@ -593,7 +599,6 @@ async def get_hierarchical_graph(
         displayed_nodes=len(nodes),
         displayed_edges=len(edges),
         clusters=len(enriched_clusters),
-        cluster_edges=len(cluster_edges),
     )
 
     return HierarchicalGraphData(
@@ -652,7 +657,7 @@ class DetectedCommunity:
         return len(self.member_ids)
 
 
-async def export_to_networkx(client: "GraphClient", organization_id: str) -> Any:
+async def export_to_networkx(client: GraphClient, organization_id: str) -> Any:
     """Export knowledge graph to NetworkX format.
 
     Args:

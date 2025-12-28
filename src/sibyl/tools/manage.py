@@ -747,7 +747,6 @@ async def _link_graph(
     from sibyl.db import CrawledDocument, DocumentChunk, get_session
     from sibyl.graph.client import get_graph_client
 
-    batch_size = data.get("batch_size", 100)
     max_chunks = data.get("max_chunks", 1000)
 
     # Build query for unlinked chunks
@@ -782,7 +781,8 @@ async def _link_graph(
     client = await get_graph_client()
     integration = GraphIntegrationService(client, organization_id)
 
-    stats = await integration.process_chunks(list(chunks), batch_size=batch_size)
+    source_name = source_id or "all_sources"
+    stats = await integration.process_chunks(list(chunks), source_name=source_name)
 
     return ManageResponse(
         success=True,

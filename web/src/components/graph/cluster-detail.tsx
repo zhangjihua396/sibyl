@@ -1,8 +1,8 @@
 'use client';
 
 import { ArrowLeft } from 'lucide-react';
-import { KnowledgeGraph, type KnowledgeGraphRef } from './knowledge-graph';
 import { useRef } from 'react';
+import { KnowledgeGraph, type KnowledgeGraphRef } from './knowledge-graph';
 
 interface ClusterDetailProps {
   clusterId: string;
@@ -28,7 +28,12 @@ interface ClusterDetailProps {
   onBack: () => void;
 }
 
-export function ClusterDetail({ clusterId, data, isLoading, onBack }: ClusterDetailProps) {
+export function ClusterDetail({
+  clusterId: _clusterId,
+  data,
+  isLoading,
+  onBack,
+}: ClusterDetailProps) {
   const graphRef = useRef<KnowledgeGraphRef>(null);
 
   if (isLoading) {

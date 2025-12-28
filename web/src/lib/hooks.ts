@@ -641,7 +641,7 @@ export function useClusters(params?: { refresh?: boolean }) {
 export function useClusterDetail(clusterId: string | null) {
   return useQuery({
     queryKey: queryKeys.graph.clusterDetail(clusterId || ''),
-    queryFn: () => api.graph.clusterDetail(clusterId!),
+    queryFn: () => api.graph.clusterDetail(clusterId ?? ''),
     enabled: !!clusterId,
   });
 }

@@ -285,9 +285,7 @@ def create_epic(
     assignee: Annotated[
         str | None, typer.Option("--assignee", "-a", help="Epic lead/owner")
     ] = None,
-    tags: Annotated[
-        str | None, typer.Option("--tags", help="Comma-separated tags")
-    ] = None,
+    tags: Annotated[str | None, typer.Option("--tags", help="Comma-separated tags")] = None,
     sync: Annotated[
         bool,
         typer.Option("--sync", help="Wait for epic creation (slower but immediately available)"),
@@ -378,9 +376,9 @@ def start_epic(
             if table_out:
                 with spinner("Starting epic...") as progress:
                     progress.add_task("Starting epic...", total=None)
-                    response = await client.update_entity(resolved_id, updates)
+                    response = await client.update_entity(resolved_id, **updates)
             else:
-                response = await client.update_entity(resolved_id, updates)
+                response = await client.update_entity(resolved_id, **updates)
 
             if not table_out:
                 print_json(response)
@@ -424,9 +422,9 @@ def complete_epic(
             if table_out:
                 with spinner("Completing epic...") as progress:
                     progress.add_task("Completing epic...", total=None)
-                    response = await client.update_entity(resolved_id, updates)
+                    response = await client.update_entity(resolved_id, **updates)
             else:
-                response = await client.update_entity(resolved_id, updates)
+                response = await client.update_entity(resolved_id, **updates)
 
             if not table_out:
                 print_json(response)
@@ -476,9 +474,9 @@ def archive_epic(
             if table_out:
                 with spinner("Archiving epic...") as progress:
                     progress.add_task("Archiving epic...", total=None)
-                    response = await client.update_entity(resolved_id, updates)
+                    response = await client.update_entity(resolved_id, **updates)
             else:
-                response = await client.update_entity(resolved_id, updates)
+                response = await client.update_entity(resolved_id, **updates)
 
             if not table_out:
                 print_json(response)
@@ -499,7 +497,8 @@ def archive_epic(
 def update_epic(
     epic_id: Annotated[str, typer.Argument(help="Epic ID to update")],
     status: Annotated[
-        str | None, typer.Option("-s", "--status", help="Status: planning|in_progress|blocked|completed")
+        str | None,
+        typer.Option("-s", "--status", help="Status: planning|in_progress|blocked|completed"),
     ] = None,
     priority: Annotated[
         str | None,
@@ -544,9 +543,9 @@ def update_epic(
             if table_out:
                 with spinner("Updating epic...") as progress:
                     progress.add_task("Updating epic...", total=None)
-                    response = await client.update_entity(resolved_id, updates)
+                    response = await client.update_entity(resolved_id, **updates)
             else:
-                response = await client.update_entity(resolved_id, updates)
+                response = await client.update_entity(resolved_id, **updates)
 
             if not table_out:
                 print_json(response)
@@ -603,11 +602,7 @@ def list_epic_tasks(
             entities = response.get("entities", [])
 
             # Filter by epic_id
-            entities = [
-                e
-                for e in entities
-                if e.get("metadata", {}).get("epic_id") == resolved_id
-            ]
+            entities = [e for e in entities if e.get("metadata", {}).get("epic_id") == resolved_id]
 
             # Filter by status if specified
             if status:

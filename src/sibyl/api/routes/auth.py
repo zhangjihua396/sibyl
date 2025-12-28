@@ -45,6 +45,7 @@ GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"  # noqa: S105
 GITHUB_API_URL = "https://api.github.com"
 
 ACCESS_TOKEN_COOKIE = "sibyl_access_token"  # noqa: S105
+REFRESH_TOKEN_COOKIE = "sibyl_refresh_token"  # noqa: S105
 OAUTH_STATE_COOKIE = "sibyl_oauth_state"
 
 
@@ -65,6 +66,41 @@ def _cookie_secure() -> bool:
     if config_module.settings.cookie_secure is not None:
         return bool(config_module.settings.cookie_secure)
     return config_module.settings.server_url.startswith("https://")
+
+
+def _set_auth_cookies(
+    response: Response,
+    *,
+    access_token: str,
+    refresh_token: str,
+    refresh_expires: datetime,
+) -> None:
+    """Set both access and refresh token cookies on a response."""
+    # Access token cookie (short-lived, 1 hour)
+    response.set_cookie(
+        ACCESS_TOKEN_COOKIE,
+        access_token,
+        httponly=True,
+        secure=_cookie_secure(),
+        samesite="lax",
+        max_age=int(
+            timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
+        ),
+        domain=config_module.settings.cookie_domain,
+        path="/",
+    )
+    # Refresh token cookie (long-lived, 30 days)
+    refresh_max_age = int((refresh_expires - datetime.now(UTC)).total_seconds())
+    response.set_cookie(
+        REFRESH_TOKEN_COOKIE,
+        refresh_token,
+        httponly=True,
+        secure=_cookie_secure(),
+        samesite="lax",
+        max_age=max(refresh_max_age, 0),
+        domain=config_module.settings.cookie_domain,
+        path="/",
+    )
 
 
 def _frontend_redirect(request: Request) -> str:
@@ -321,17 +357,11 @@ async def github_callback(
     )
 
     response = RedirectResponse(url=_frontend_redirect(request), status_code=status.HTTP_302_FOUND)
-    response.set_cookie(
-        ACCESS_TOKEN_COOKIE,
-        access_token,
-        httponly=True,
-        secure=_cookie_secure(),
-        samesite="lax",
-        max_age=int(
-            timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
-        ),
-        domain=config_module.settings.cookie_domain,
-        path="/",
+    _set_auth_cookies(
+        response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        refresh_expires=refresh_expires,
     )
     response.delete_cookie(
         OAUTH_STATE_COOKIE, domain=config_module.settings.cookie_domain, path="/"
@@ -403,17 +433,11 @@ async def local_signup(
     else:
         response = Response(status_code=status.HTTP_201_CREATED)
 
-    response.set_cookie(
-        ACCESS_TOKEN_COOKIE,
-        access_token,
-        httponly=True,
-        secure=_cookie_secure(),
-        samesite="lax",
-        max_age=int(
-            timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
-        ),
-        domain=config_module.settings.cookie_domain,
-        path="/",
+    _set_auth_cookies(
+        response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        refresh_expires=refresh_expires,
     )
     if isinstance(response, RedirectResponse):
         return response
@@ -486,17 +510,11 @@ async def local_login(
     else:
         response = Response(status_code=status.HTTP_200_OK)
 
-    response.set_cookie(
-        ACCESS_TOKEN_COOKIE,
-        access_token,
-        httponly=True,
-        secure=_cookie_secure(),
-        samesite="lax",
-        max_age=int(
-            timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
-        ),
-        domain=config_module.settings.cookie_domain,
-        path="/",
+    _set_auth_cookies(
+        response,
+        access_token=access_token,
+        refresh_token=refresh_token,
+        refresh_expires=refresh_expires,
     )
     if isinstance(response, RedirectResponse):
         return response
@@ -1059,14 +1077,31 @@ async def refresh_tokens(
     request: Request,
     session: AsyncSession = Depends(get_session_dependency),
 ):
-    """Exchange a refresh token for new access + refresh tokens (token rotation)."""
+    """Exchange a refresh token for new access + refresh tokens (token rotation).
+
+    Accepts refresh token from:
+    1. Request body (for API clients)
+    2. Cookie (for browser clients)
+    """
     _ = _require_jwt_secret()
+
+    # Try body first, then cookie
+    refresh_token: str | None = None
     data = await _read_auth_payload(request)
-    body = RefreshTokenRequest.model_validate(data)
+    if data.get("refresh_token"):
+        refresh_token = data["refresh_token"]
+    else:
+        refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
+
+    if not refresh_token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No refresh token provided",
+        )
 
     # Verify the refresh token JWT
     try:
-        claims = verify_refresh_token(body.refresh_token)
+        claims = verify_refresh_token(refresh_token)
     except JwtError as e:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1075,7 +1110,7 @@ async def refresh_tokens(
 
     # Find the session by refresh token
     session_mgr = SessionManager(session)
-    user_session = await session_mgr.get_session_by_refresh_token(body.refresh_token)
+    user_session = await session_mgr.get_session_by_refresh_token(refresh_token)
     if user_session is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -1124,7 +1159,7 @@ async def refresh_tokens(
         details={"session_id": str(user_session.id)},
     )
 
-    # Set new access token cookie
+    # Set new auth cookies
     response = JSONResponse(
         content={
             "access_token": new_access_token,
@@ -1133,17 +1168,11 @@ async def refresh_tokens(
             "expires_in": config_module.settings.access_token_expire_minutes * 60,
         }
     )
-    response.set_cookie(
-        ACCESS_TOKEN_COOKIE,
-        new_access_token,
-        httponly=True,
-        secure=_cookie_secure(),
-        samesite="lax",
-        max_age=int(
-            timedelta(minutes=config_module.settings.access_token_expire_minutes).total_seconds()
-        ),
-        domain=config_module.settings.cookie_domain,
-        path="/",
+    _set_auth_cookies(
+        response,
+        access_token=new_access_token,
+        refresh_token=new_refresh_token,
+        refresh_expires=new_refresh_expires,
     )
     return response
 
@@ -1178,6 +1207,9 @@ async def logout(
     response = Response(status_code=status.HTTP_204_NO_CONTENT)
     response.delete_cookie(
         ACCESS_TOKEN_COOKIE, domain=config_module.settings.cookie_domain, path="/"
+    )
+    response.delete_cookie(
+        REFRESH_TOKEN_COOKIE, domain=config_module.settings.cookie_domain, path="/"
     )
     return response
 

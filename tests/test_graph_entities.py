@@ -1216,7 +1216,18 @@ class TestGetTasksForEpic:
                             "updated_at": now,
                         },
                     ],
-                    ["uuid", "name", "entity_type", "group_id", "status", "priority", "epic_id", "project_id", "created_at", "updated_at"],
+                    [
+                        "uuid",
+                        "name",
+                        "entity_type",
+                        "group_id",
+                        "status",
+                        "priority",
+                        "epic_id",
+                        "project_id",
+                        "created_at",
+                        "updated_at",
+                    ],
                     {},
                 )
             ]
@@ -1357,7 +1368,16 @@ class TestListEpicsForProject:
                             "updated_at": now,
                         },
                     ],
-                    ["uuid", "name", "entity_type", "group_id", "project_id", "status", "created_at", "updated_at"],
+                    [
+                        "uuid",
+                        "name",
+                        "entity_type",
+                        "group_id",
+                        "project_id",
+                        "status",
+                        "created_at",
+                        "updated_at",
+                    ],
                     {},
                 )
             ]

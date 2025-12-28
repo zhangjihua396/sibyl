@@ -125,7 +125,9 @@ def _register_oauth_client(
     reg_resp = httpx.post(registration_endpoint, json=reg_payload, timeout=10, verify=not insecure)
     if reg_resp.status_code >= 400:
         reg_payload["token_endpoint_auth_method"] = "client_secret_post"  # noqa: S105
-        reg_resp = httpx.post(registration_endpoint, json=reg_payload, timeout=10, verify=not insecure)
+        reg_resp = httpx.post(
+            registration_endpoint, json=reg_payload, timeout=10, verify=not insecure
+        )
     reg_resp.raise_for_status()
 
     reg = reg_resp.json()
@@ -440,7 +442,10 @@ def _login_auto(
     # 1) Device flow (preferred)
     try:
         tok = _login_via_device_flow(
-            api_url=api_url, no_browser=no_browser, timeout_seconds=timeout_seconds, insecure=insecure
+            api_url=api_url,
+            no_browser=no_browser,
+            timeout_seconds=timeout_seconds,
+            insecure=insecure,
         )
         _persist_tokens(
             api_url=api_url,
@@ -470,7 +475,10 @@ def _login_auto(
     # 2) OAuth PKCE
     try:
         tok = _login_via_oauth(
-            api_url=api_url, no_browser=no_browser, timeout_seconds=timeout_seconds, insecure=insecure
+            api_url=api_url,
+            no_browser=no_browser,
+            timeout_seconds=timeout_seconds,
+            insecure=insecure,
         )
         _persist_tokens(
             api_url=api_url,
@@ -579,7 +587,10 @@ def login_cmd(
         None, "--password", "-p", help="Password for local login (method=local)"
     ),
     insecure: bool = typer.Option(
-        False, "--insecure", "-k", help="Disable SSL certificate verification (for self-signed certs)"
+        False,
+        "--insecure",
+        "-k",
+        help="Disable SSL certificate verification (for self-signed certs)",
     ),
 ) -> None:
     """Login to a Sibyl server and save credentials.

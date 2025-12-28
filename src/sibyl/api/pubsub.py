@@ -81,9 +81,7 @@ class RedisPubSub:
 
         log.info("redis_pubsub_disconnected")
 
-    async def publish(
-        self, event: str, data: dict[str, Any], org_id: str | None = None
-    ) -> None:
+    async def publish(self, event: str, data: dict[str, Any], org_id: str | None = None) -> None:
         """Publish an event to the Redis channel.
 
         Args:
@@ -186,9 +184,7 @@ async def shutdown_pubsub() -> None:
     await pubsub.disconnect()
 
 
-async def publish_event(
-    event: str, data: dict[str, Any], *, org_id: str | None = None
-) -> None:
+async def publish_event(event: str, data: dict[str, Any], *, org_id: str | None = None) -> None:
     """Publish an event to Redis for cross-pod broadcast.
 
     This is the main interface for other modules to send realtime updates.

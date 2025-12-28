@@ -104,6 +104,95 @@ async def _resolve_task_id(client: "SibylClient", task_id: str) -> str:
         return task_id
 
 
+def _apply_task_filters(
+    entities: list[dict],
+    status: str | None,
+    project: str | None,
+    epic: str | None,
+    assignee: str | None,
+) -> list[dict]:
+    """Apply client-side filters to task entities."""
+    result = entities
+
+    if status:
+        # Support comma-separated statuses (e.g., "todo,doing")
+        status_list = [s.strip() for s in status.split(",")]
+        result = [e for e in result if e.get("metadata", {}).get("status") in status_list]
+
+    if project:
+        result = [e for e in result if e.get("metadata", {}).get("project_id") == project]
+
+    if epic:
+        result = [e for e in result if e.get("metadata", {}).get("epic_id") == epic]
+
+    if assignee:
+        result = [
+            e
+            for e in result
+            if assignee.lower() in str(e.get("metadata", {}).get("assignees", [])).lower()
+        ]
+
+    return result
+
+
+def _output_tasks_csv(entities: list[dict]) -> None:
+    """Output tasks as CSV to stdout."""
+    import csv
+    import sys
+
+    writer = csv.writer(sys.stdout)
+    writer.writerow(["id", "title", "status", "priority", "project", "assignees"])
+    for e in entities:
+        meta = e.get("metadata", {})
+        writer.writerow(
+            [
+                e.get("id", ""),
+                e.get("name", ""),
+                meta.get("status", ""),
+                meta.get("priority", ""),
+                meta.get("project_id", ""),
+                ",".join(meta.get("assignees", [])),
+            ]
+        )
+
+
+def _output_tasks_table(
+    entities: list[dict],
+    effective_offset: int,
+    effective_limit: int,
+    has_more: bool,
+    total: int,
+) -> None:
+    """Output tasks as a formatted table."""
+    if not entities:
+        info("No tasks found")
+        return
+
+    table = create_table("Tasks", "ID", "Title", "Status", "Priority", "Assignees")
+    for e in entities:
+        meta = e.get("metadata", {})
+        table.add_row(
+            e.get("id", "")[:8] + "...",
+            truncate(e.get("name", ""), 40),
+            format_status(meta.get("status", "unknown")),
+            format_priority(meta.get("priority", "medium")),
+            ", ".join(meta.get("assignees", []))[:20] or "-",
+        )
+
+    console.print(table)
+
+    # Pagination info
+    start = effective_offset + 1
+    end = effective_offset + len(entities)
+    if has_more:
+        next_page = (effective_offset // effective_limit) + 2
+        console.print(
+            f"\n[dim]Showing {start}-{end} of {total}+ task(s) (--page {next_page} for more)[/dim]"
+        )
+    else:
+        console.print(f"\n[dim]Showing {len(entities)} task(s)[/dim]")
+
+
 @app.command("list")
 def list_tasks(
     query: Annotated[
@@ -111,14 +200,18 @@ def list_tasks(
     ] = None,
     status: Annotated[
         str | None,
-        typer.Option("-s", "--status", help="Filter by status (comma-separated: todo,doing,blocked)"),
+        typer.Option(
+            "-s", "--status", help="Filter by status (comma-separated: todo,doing,blocked)"
+        ),
     ] = None,
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
     limit: Annotated[int, typer.Option("-n", "--limit", help="Max results (max: 200)")] = 50,
     offset: Annotated[int, typer.Option("--offset", help="Skip first N results")] = 0,
-    page: Annotated[int | None, typer.Option("--page", help="Page number (1-based, uses limit)")] = None,
+    page: Annotated[
+        int | None, typer.Option("--page", help="Page number (1-based, uses limit)")
+    ] = None,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -211,78 +304,14 @@ def list_tasks(
                 total = response.get("actual_total") or response.get("total", len(entities))
 
             # Client-side filters (needed for search, or when API doesn't filter)
-            if status:
-                # Support comma-separated statuses (e.g., "todo,doing")
-                status_list = [s.strip() for s in status.split(",")]
-                entities = [
-                    e for e in entities if e.get("metadata", {}).get("status") in status_list
-                ]
-            if effective_project:
-                entities = [
-                    e
-                    for e in entities
-                    if e.get("metadata", {}).get("project_id") == effective_project
-                ]
-            if epic:
-                entities = [
-                    e for e in entities if e.get("metadata", {}).get("epic_id") == epic
-                ]
-            if assignee:
-                entities = [
-                    e
-                    for e in entities
-                    if assignee.lower() in str(e.get("metadata", {}).get("assignees", [])).lower()
-                ]
+            entities = _apply_task_filters(entities, status, effective_project, epic, assignee)
 
             if fmt == "json":
                 print_json(entities)
-                return
-
-            if fmt == "csv":
-                import csv
-                import sys
-
-                writer = csv.writer(sys.stdout)
-                writer.writerow(["id", "title", "status", "priority", "project", "assignees"])
-                for e in entities:
-                    meta = e.get("metadata", {})
-                    writer.writerow(
-                        [
-                            e.get("id", ""),
-                            e.get("name", ""),
-                            meta.get("status", ""),
-                            meta.get("priority", ""),
-                            meta.get("project_id", ""),
-                            ",".join(meta.get("assignees", [])),
-                        ]
-                    )
-                return
-
-            # Table format
-            if not entities:
-                info("No tasks found")
-                return
-
-            table = create_table("Tasks", "ID", "Title", "Status", "Priority", "Assignees")
-            for e in entities:
-                meta = e.get("metadata", {})
-                table.add_row(
-                    e.get("id", "")[:8] + "...",
-                    truncate(e.get("name", ""), 40),
-                    format_status(meta.get("status", "unknown")),
-                    format_priority(meta.get("priority", "medium")),
-                    ", ".join(meta.get("assignees", []))[:20] or "-",
-                )
-
-            console.print(table)
-
-            # Pagination info
-            start = effective_offset + 1
-            end = effective_offset + len(entities)
-            if has_more:
-                console.print(f"\n[dim]Showing {start}-{end} of {total}+ task(s) (--page {(effective_offset // effective_limit) + 2} for more)[/dim]")
+            elif fmt == "csv":
+                _output_tasks_csv(entities)
             else:
-                console.print(f"\n[dim]Showing {len(entities)} task(s)[/dim]")
+                _output_tasks_table(entities, effective_offset, effective_limit, has_more, total)
 
         except SibylClientError as e:
             _handle_client_error(e)

@@ -477,9 +477,7 @@ async def get_clusters(
         client = await get_graph_client()
         group_id = str(org.id)
 
-        clusters = await get_clusters_for_visualization(
-            client, group_id, force_refresh=refresh
-        )
+        clusters = await get_clusters_for_visualization(client, group_id, force_refresh=refresh)
 
         # Transform to API response format
         cluster_data = [
@@ -533,7 +531,9 @@ async def get_cluster_detail(
                 type=n["type"],
                 label=(n["name"] or n["id"][:20])[:50],
                 color=get_entity_color(
-                    EntityType(n["type"]) if n["type"] in [e.value for e in EntityType] else EntityType.EPISODE
+                    EntityType(n["type"])
+                    if n["type"] in [e.value for e in EntityType]
+                    else EntityType.EPISODE
                 ),
                 size=1.5,
                 metadata={"summary": n.get("summary", "")},
@@ -577,7 +577,6 @@ async def get_hierarchical_graph_data(
     org: Organization = Depends(get_current_organization),
     max_nodes: int = Query(default=1000, ge=100, le=2000, description="Maximum nodes"),
     max_edges: int = Query(default=5000, ge=500, le=10000, description="Maximum edges"),
-    refresh: bool = Query(default=False, description="Force refresh clusters"),
 ) -> dict:
     """Get hierarchical graph data with cluster assignments.
 
@@ -601,7 +600,6 @@ async def get_hierarchical_graph_data(
             group_id,
             max_nodes=max_nodes,
             max_edges=max_edges,
-            force_refresh=refresh,
         )
 
         # Transform nodes to include colors
@@ -613,11 +611,13 @@ async def get_hierarchical_graph_data(
             except ValueError:
                 entity_type = EntityType.EPISODE
 
-            colored_nodes.append({
-                **node,
-                "label": (node.get("name") or node["id"][:20])[:50],
-                "color": get_entity_color(entity_type),
-            })
+            colored_nodes.append(
+                {
+                    **node,
+                    "label": (node.get("name") or node["id"][:20])[:50],
+                    "color": get_entity_color(entity_type),
+                }
+            )
 
         return {
             "nodes": colored_nodes,

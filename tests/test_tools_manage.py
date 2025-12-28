@@ -738,9 +738,7 @@ class TestEpicActions:
             assert result.success is True
             assert result.data["status"] == "in_progress"
             assert "started" in result.message.lower()
-            mock_manager.update.assert_called_once_with(
-                "epic_123", {"status": "in_progress"}
-            )
+            mock_manager.update.assert_called_once_with("epic_123", {"status": "in_progress"})
 
     @pytest.mark.asyncio
     async def test_complete_epic_with_learnings(self) -> None:
