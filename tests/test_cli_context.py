@@ -103,7 +103,7 @@ class TestContextCRUD:
             create_context(name="dupe", server_url="http://other.com")
 
     def test_create_context_set_active(self, isolated_config):
-        ctx = create_context(
+        create_context(
             name="auto-active",
             server_url="http://localhost:3334",
             set_active=True,
@@ -244,3 +244,90 @@ class TestEffectiveSettings:
         )
         proj = get_effective_project()
         assert proj == "proj_from_ctx"
+
+
+class TestContextOverride:
+    """Test global context override (--context flag / SIBYL_CONTEXT env)."""
+
+    def test_context_override_flag(self, monkeypatch):
+        """Test that set_context_override sets the override."""
+        from sibyl.cli import state
+
+        # Clear any existing override
+        state.clear_context_override()
+        assert state.get_context_override() is None
+
+        # Set override
+        state.set_context_override("prod")
+        assert state.get_context_override() == "prod"
+
+        # Clear again
+        state.clear_context_override()
+        assert state.get_context_override() is None
+
+    def test_context_override_env_var(self, monkeypatch):
+        """Test that SIBYL_CONTEXT env var is used as fallback."""
+        from sibyl.cli import state
+
+        # Clear any existing override
+        state.clear_context_override()
+
+        # Set env var
+        monkeypatch.setenv("SIBYL_CONTEXT", "staging")
+        assert state.get_context_override() == "staging"
+
+        # Clear env var
+        monkeypatch.delenv("SIBYL_CONTEXT", raising=False)
+        assert state.get_context_override() is None
+
+    def test_context_override_priority(self, monkeypatch):
+        """Test that explicit flag takes precedence over env var."""
+        from sibyl.cli import state
+
+        # Set env var
+        monkeypatch.setenv("SIBYL_CONTEXT", "from-env")
+
+        # Set explicit override
+        state.set_context_override("from-flag")
+
+        # Flag should take precedence
+        assert state.get_context_override() == "from-flag"
+
+        # Clear flag, env should be used
+        state.clear_context_override()
+        assert state.get_context_override() == "from-env"
+
+
+class TestClientContextAwareness:
+    """Test that get_client() respects context settings."""
+
+    def test_get_client_uses_override(self, isolated_config, monkeypatch):
+        """Test get_client uses context override when set."""
+        from sibyl.cli import state
+        from sibyl.cli.client import _get_default_api_url, clear_client_cache
+
+        # Create contexts
+        create_context(
+            name="local",
+            server_url="http://localhost:3334",
+            set_active=True,
+        )
+        create_context(
+            name="prod",
+            server_url="https://prod.sibyl.example.com",
+        )
+
+        clear_client_cache()
+
+        # Default uses active context
+        url = _get_default_api_url()
+        assert "localhost" in url
+
+        # Set override to prod
+        state.set_context_override("prod")
+        url = _get_default_api_url(context_name="prod")
+        assert "prod.sibyl" in url
+
+        # Cleanup
+        state.clear_context_override()
+        clear_client_cache()

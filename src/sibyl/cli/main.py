@@ -42,6 +42,7 @@ from sibyl.cli.generate import app as generate_app
 from sibyl.cli.org import app as org_app
 from sibyl.cli.project import app as project_app
 from sibyl.cli.source import app as source_app
+from sibyl.cli.state import set_context_override
 from sibyl.cli.task import app as task_app
 from sibyl.cli.up_cmd import down, status as up_status, up
 
@@ -52,6 +53,7 @@ app = typer.Typer(
     add_completion=False,
     no_args_is_help=False,  # We handle no-args ourselves for first-run UX
 )
+
 
 # Register subcommand groups
 app.add_typer(task_app, name="task")
@@ -644,8 +646,28 @@ def worker(
 
 
 @app.callback(invoke_without_command=True)
-def main_callback(ctx: typer.Context) -> None:
-    """Handle no-args case with welcome message."""
+def main_callback(
+    ctx: typer.Context,
+    context: Annotated[
+        str | None,
+        typer.Option(
+            "--context",
+            "-C",  # Capital C to avoid conflict with subcommand -c options
+            help="Use a specific context for this command (overrides active context)",
+            envvar="SIBYL_CONTEXT",
+        ),
+    ] = None,
+) -> None:
+    """Sibyl - Oracle of Development Wisdom.
+
+    Use --context/-C to override the active context for any command.
+    You can also set SIBYL_CONTEXT environment variable.
+    """
+    # Set context override before any subcommand runs
+    if context:
+        set_context_override(context)
+
+    # Handle no-args case with welcome message
     if ctx.invoked_subcommand is not None:
         return
 
