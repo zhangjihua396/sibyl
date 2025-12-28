@@ -567,6 +567,39 @@ async def device_token(
     return JSONResponse(status_code=status.HTTP_200_OK, content=tok)
 
 
+def _render_device_result_page(*, title: str, message: str, success: bool = True) -> HTMLResponse:
+    """Render a styled result page for device auth (approved/denied)."""
+    icon = "✓" if success else "✗"
+    accent = "#50fa7b" if success else "#ff6363"  # SilkCircuit green/red
+
+    html = f"""
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{title} — Sibyl</title>
+  <style>
+    :root {{ color-scheme: dark; }}
+    body {{ font-family: system-ui, -apple-system, Segoe UI, sans-serif; background: #0a0812; color: #e8e8f0; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; }}
+    .wrap {{ text-align: center; max-width: 400px; padding: 48px 32px; background: #12101a; border: 1px solid #2a2a3a; border-radius: 16px; }}
+    .icon {{ font-size: 48px; color: {accent}; margin-bottom: 16px; }}
+    h1 {{ margin: 0 0 12px; font-size: 24px; color: {accent}; }}
+    p {{ color: #a7a7c7; margin: 0; line-height: 1.5; }}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="icon">{icon}</div>
+    <h1>{title}</h1>
+    <p>{message}</p>
+  </div>
+</body>
+</html>
+"""
+    return HTMLResponse(html, status_code=200)
+
+
 def _render_device_verify_page(
     *,
     user_code: str | None,
@@ -810,9 +843,10 @@ async def device_verify_post(
             request=request,
             details={"device_request_id": str(req.id), "client_name": req.client_name},
         )
-        return HTMLResponse(
-            "<h1>Denied</h1><p>You can close this tab and return to your terminal.</p>",
-            status_code=200,
+        return _render_device_result_page(
+            title="Access Denied",
+            message="You can close this tab and return to your terminal.",
+            success=False,
         )
 
     if action != "approve":
@@ -832,9 +866,10 @@ async def device_verify_post(
         request=request,
         details={"device_request_id": str(req.id), "client_name": req.client_name},
     )
-    return HTMLResponse(
-        "<h1>Approved</h1><p>Device login approved. You can close this tab and return to your terminal.</p>",
-        status_code=200,
+    return _render_device_result_page(
+        title="Device Approved",
+        message="You're all set! Close this tab and return to your terminal.",
+        success=True,
     )
 
 
