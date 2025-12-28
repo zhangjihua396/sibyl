@@ -118,17 +118,36 @@ web/src/
 
 ### FalkorDB Write Concurrency
 
-GraphClient uses a semaphore to limit concurrent writes (default: 20) to prevent connection
-contention:
+GraphClient uses a semaphore to limit concurrent writes (max 20) to prevent connection corruption:
 
 ```python
-# GraphClient limits concurrent writes
+# ALL writes MUST use the write lock to prevent FalkorDB corruption
 async with self._client.write_lock:
     await self._driver.execute_query(...)
+
+# Three write methods (prefer org-scoped):
+await client.execute_write_org(org_id, query, **params)  # Multi-tenant (preferred)
+await client.execute_write(query, **params)              # Default graph only (legacy)
 
 # SEMAPHORE_LIMIT controls Graphiti's LLM concurrency (separate from DB writes)
 SEMAPHORE_LIMIT=10  # Controls parallel LLM calls to avoid rate limits
 ```
+
+### Multi-Tenancy (Organization Scoping)
+
+**Every graph operation requires org context - there are NO defaults:**
+
+```python
+# org_id is MANDATORY for all managers
+manager = EntityManager(client, group_id=str(org.id))  # Must be string
+
+# API routes extract org from auth context
+group_id = str(org.id)  # From authenticated request
+entity_manager = EntityManager(client, group_id=group_id)
+```
+
+Each organization gets its own isolated FalkorDB graph (named by org UUID). Forgetting org scope
+queries the wrong graph or breaks isolation.
 
 ### Entity Creation Dual Path
 
