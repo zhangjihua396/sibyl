@@ -4,6 +4,7 @@ from sibyl.api.routes.admin import router as admin_router
 from sibyl.api.routes.auth import router as auth_router
 from sibyl.api.routes.crawler import router as crawler_router
 from sibyl.api.routes.entities import router as entities_router
+from sibyl.api.routes.epics import router as epics_router
 from sibyl.api.routes.graph import router as graph_router
 from sibyl.api.routes.jobs import router as jobs_router
 from sibyl.api.routes.manage import router as manage_router
@@ -21,6 +22,7 @@ __all__ = [
     "auth_router",
     "crawler_router",
     "entities_router",
+    "epics_router",
     "graph_router",
     "jobs_router",
     "invitations_router",

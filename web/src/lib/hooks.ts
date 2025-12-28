@@ -844,10 +844,36 @@ export function useTaskManage() {
       entity_id,
       params,
     }: {
-      action: Parameters<typeof api.tasks.manage>[0];
+      action: 'start_task' | 'block_task' | 'unblock_task' | 'submit_review' | 'complete_task' | 'archive';
       entity_id: string;
-      params?: Parameters<typeof api.tasks.manage>[2];
-    }) => api.tasks.manage(action, entity_id, params),
+      params?: {
+        assignee?: string;
+        blocker?: string;
+        reason?: string;
+        commit_shas?: string[];
+        pr_url?: string;
+        actual_hours?: number;
+        learnings?: string;
+      };
+    }) => {
+      // Route to RESTful endpoints based on action
+      switch (action) {
+        case 'start_task':
+          return api.tasks.start(entity_id, params?.assignee ? { assignee: params.assignee } : undefined);
+        case 'block_task':
+          return api.tasks.block(entity_id, params?.blocker || params?.reason || 'Blocked');
+        case 'unblock_task':
+          return api.tasks.unblock(entity_id);
+        case 'submit_review':
+          return api.tasks.review(entity_id, { pr_url: params?.pr_url, commit_shas: params?.commit_shas });
+        case 'complete_task':
+          return api.tasks.complete(entity_id, { actual_hours: params?.actual_hours, learnings: params?.learnings });
+        case 'archive':
+          return api.tasks.archive(entity_id, params?.reason ? { reason: params.reason } : undefined);
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
     },
@@ -944,10 +970,32 @@ export function useEpicManage() {
         status?: EpicStatus;
         priority?: TaskPriority;
         title?: string;
+        description?: string;
         assignees?: string[];
         tags?: string[];
       };
-    }) => api.epics.manage(action, entity_id, params),
+    }) => {
+      // Route to RESTful endpoints based on action
+      switch (action) {
+        case 'start_epic':
+          return api.epics.start(entity_id);
+        case 'complete_epic':
+          return api.epics.complete(entity_id, params?.learnings ? { learnings: params.learnings } : undefined);
+        case 'archive_epic':
+          return api.epics.archive(entity_id, params?.reason ? { reason: params.reason } : undefined);
+        case 'update_epic':
+          return api.epics.update(entity_id, {
+            status: params?.status,
+            priority: params?.priority,
+            title: params?.title,
+            description: params?.description,
+            assignees: params?.assignees,
+            tags: params?.tags,
+          });
+        default:
+          throw new Error(`Unknown action: ${action}`);
+      }
+    },
     onSuccess: () => {
       // Invalidate epics list and related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.epics.all });

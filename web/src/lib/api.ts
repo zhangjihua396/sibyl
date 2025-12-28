@@ -474,6 +474,22 @@ export interface ManageResponse {
   data: Record<string, unknown>;
 }
 
+export interface TaskActionResponse {
+  success: boolean;
+  action: string;
+  task_id: string;
+  message: string;
+  data: Record<string, unknown>;
+}
+
+export interface EpicActionResponse {
+  success: boolean;
+  action: string;
+  epic_id: string;
+  message: string;
+  data: Record<string, unknown>;
+}
+
 // =============================================================================
 // Epic Types
 // =============================================================================
@@ -1167,31 +1183,40 @@ export const api = {
 
     get: (id: string) => fetchApi<Entity>(`/entities/${id}`),
 
-    manage: (
-      action:
-        | 'start_task'
-        | 'block_task'
-        | 'unblock_task'
-        | 'submit_review'
-        | 'complete_task'
-        | 'archive',
-      entity_id: string,
-      params?: {
-        assignee?: string;
-        blocker?: string;
-        commit_shas?: string[];
-        pr_url?: string;
-        actual_hours?: number;
-        learnings?: string;
-      }
-    ) =>
-      fetchApi<ManageResponse>('/manage', {
+    // RESTful task workflow endpoints
+    start: (id: string, params?: { assignee?: string }) =>
+      fetchApi<TaskActionResponse>(`/tasks/${id}/start`, {
         method: 'POST',
-        body: JSON.stringify({
-          action,
-          entity_id,
-          ...params,
-        }),
+        body: params ? JSON.stringify(params) : undefined,
+      }),
+
+    block: (id: string, reason: string) =>
+      fetchApi<TaskActionResponse>(`/tasks/${id}/block`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+
+    unblock: (id: string) =>
+      fetchApi<TaskActionResponse>(`/tasks/${id}/unblock`, {
+        method: 'POST',
+      }),
+
+    review: (id: string, params?: { pr_url?: string; commit_shas?: string[] }) =>
+      fetchApi<TaskActionResponse>(`/tasks/${id}/review`, {
+        method: 'POST',
+        body: params ? JSON.stringify(params) : undefined,
+      }),
+
+    complete: (id: string, params?: { actual_hours?: number; learnings?: string }) =>
+      fetchApi<TaskActionResponse>(`/tasks/${id}/complete`, {
+        method: 'POST',
+        body: params ? JSON.stringify(params) : undefined,
+      }),
+
+    archive: (id: string, params?: { reason?: string }) =>
+      fetchApi<TaskActionResponse>(`/tasks/${id}/archive`, {
+        method: 'POST',
+        body: params ? JSON.stringify(params) : undefined,
       }),
 
     updateStatus: (id: string, status: TaskStatus) =>
@@ -1244,26 +1269,38 @@ export const api = {
         }),
       }),
 
-    manage: (
-      action: 'start_epic' | 'complete_epic' | 'archive_epic' | 'update_epic',
-      entity_id: string,
-      params?: {
-        learnings?: string;
-        reason?: string;
+    // RESTful epic workflow endpoints
+    start: (id: string) =>
+      fetchApi<EpicActionResponse>(`/epics/${id}/start`, {
+        method: 'POST',
+      }),
+
+    complete: (id: string, params?: { learnings?: string }) =>
+      fetchApi<EpicActionResponse>(`/epics/${id}/complete`, {
+        method: 'POST',
+        body: params ? JSON.stringify(params) : undefined,
+      }),
+
+    archive: (id: string, params?: { reason?: string }) =>
+      fetchApi<EpicActionResponse>(`/epics/${id}/archive`, {
+        method: 'POST',
+        body: params ? JSON.stringify(params) : undefined,
+      }),
+
+    update: (
+      id: string,
+      params: {
         status?: EpicStatus;
         priority?: TaskPriority;
         title?: string;
+        description?: string;
         assignees?: string[];
         tags?: string[];
       }
     ) =>
-      fetchApi<ManageResponse>('/manage', {
-        method: 'POST',
-        body: JSON.stringify({
-          action,
-          entity_id,
-          data: params,
-        }),
+      fetchApi<EpicActionResponse>(`/epics/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(params),
       }),
   },
 
