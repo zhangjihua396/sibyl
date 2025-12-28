@@ -36,6 +36,7 @@ from sibyl.cli.context import app as context_app
 from sibyl.cli.crawl import app as crawl_app
 from sibyl.cli.db import app as db_app
 from sibyl.cli.entity import app as entity_app
+from sibyl.cli.epic import app as epic_app
 from sibyl.cli.explore import app as explore_app
 from sibyl.cli.export import app as export_app
 from sibyl.cli.generate import app as generate_app
@@ -57,6 +58,7 @@ app = typer.Typer(
 
 # Register subcommand groups
 app.add_typer(task_app, name="task")
+app.add_typer(epic_app, name="epic")
 app.add_typer(project_app, name="project")
 app.add_typer(entity_app, name="entity")
 app.add_typer(explore_app, name="explore")
