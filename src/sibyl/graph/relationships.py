@@ -281,14 +281,18 @@ class RelationshipManager:
             else:  # both
                 match_clause = "MATCH (n {uuid: $entity_id})-[r]-(m)"
 
+            # Handle both edge property schemas:
+            # - Our edges: source_node_uuid, target_node_uuid
+            # - Graphiti edges: source_uuid, target_uuid
+            # Fallback to node UUIDs if edge properties are missing
             query = f"""
                 {match_clause}
                 WHERE r.group_id = $group_id
                 RETURN r.uuid as uuid,
-                       r.name as name,
-                       r.source_node_uuid as source_id,
-                       r.target_node_uuid as target_id,
-                       r.weight as weight
+                       COALESCE(r.name, type(r)) as name,
+                       COALESCE(r.source_node_uuid, r.source_uuid, n.uuid) as source_id,
+                       COALESCE(r.target_node_uuid, r.target_uuid, m.uuid) as target_id,
+                       COALESCE(r.weight, 1.0) as weight
             """
 
             result = await self._driver.execute_query(

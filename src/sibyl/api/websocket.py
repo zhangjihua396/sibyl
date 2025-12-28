@@ -21,6 +21,10 @@ from typing import Any
 import structlog
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
+from sibyl import config as config_module
+from sibyl.auth.http import extract_bearer_token
+from sibyl.auth.jwt import JwtError, verify_access_token
+
 log = structlog.get_logger()
 
 # Flag to track if Redis pub/sub is available
@@ -258,26 +262,28 @@ def disable_pubsub() -> None:
 
 
 def _extract_org_from_token(websocket: WebSocket) -> str | None:
-    """Extract organization ID from the auth cookie JWT."""
-    import base64
-    import json
+    """Extract organization ID from a verified access token.
 
-    cookie = websocket.cookies.get("sibyl_access_token")
-    if not cookie:
+    WebSocket requests don't pass through HTTP middleware, so we must validate
+    the token here. We accept either:
+      - Authorization: Bearer <access_token> (non-browser clients)
+      - Cookie: sibyl_access_token=<access_token> (browser clients)
+    """
+    if config_module.settings.disable_auth:
+        return None
+
+    auth_header = websocket.headers.get("authorization")
+    token = extract_bearer_token(auth_header) or websocket.cookies.get("sibyl_access_token")
+    if not token:
         return None
 
     try:
-        # JWT format: header.payload.signature
-        payload = cookie.split(".")[1]
-        # Add padding if needed
-        padding = 4 - len(payload) % 4
-        if padding != 4:
-            payload += "=" * padding
-        decoded = base64.b64decode(payload)
-        claims = json.loads(decoded)
-        return claims.get("org")
-    except Exception:
+        claims = verify_access_token(token)
+    except JwtError:
         return None
+
+    org_id = claims.get("org")
+    return str(org_id) if org_id else None
 
 
 async def websocket_handler(websocket: WebSocket) -> None:
@@ -298,6 +304,11 @@ async def websocket_handler(websocket: WebSocket) -> None:
     """
     manager = get_manager()
     org_id = _extract_org_from_token(websocket)
+    if not config_module.settings.disable_auth and not org_id:
+        await websocket.accept()
+        await websocket.close(code=1008)
+        return
+
     await manager.connect(websocket, org_id=org_id)
 
     try:

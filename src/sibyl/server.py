@@ -17,11 +17,12 @@ from sibyl.config import settings
 log = structlog.get_logger()
 
 
-def _get_org_id_from_context() -> str | None:
+async def _get_org_id_from_context() -> str | None:
     """Extract organization ID from the authenticated MCP context.
 
-    Uses FastMCP's get_access_token() to retrieve JWT claims and extract
-    the 'org' claim containing the organization ID.
+    FastMCP exposes an AccessToken object, but it does not include decoded JWT
+    claims. To avoid trusting unverified data (and to support API keys), we
+    validate the raw token and extract the 'org' claim.
 
     Returns:
         The organization ID string if authenticated and org-scoped, None otherwise.
@@ -30,14 +31,32 @@ def _get_org_id_from_context() -> str | None:
     if token is None:
         return None
 
-    claims = token.claims or {}
+    raw = token.token
+    if not raw:
+        return None
+
+    if raw.startswith("sk_"):
+        from sibyl.auth.api_keys import ApiKeyManager
+        from sibyl.db.connection import get_session
+
+        async with get_session() as session:
+            auth = await ApiKeyManager.from_session(session).authenticate(raw)
+        return str(auth.organization_id) if auth else None
+
+    from sibyl.auth.jwt import JwtError, verify_access_token
+
+    try:
+        claims = verify_access_token(raw)
+    except JwtError:
+        return None
+
     org_id = claims.get("org")
     if org_id:
         log.debug("mcp_org_context", org_id=org_id)
-    return org_id
+    return str(org_id) if org_id else None
 
 
-def _require_org_id() -> str:
+async def _require_org_id() -> str:
     """Require organization ID from MCP context.
 
     Raises:
@@ -46,7 +65,7 @@ def _require_org_id() -> str:
     Returns:
         The organization ID string.
     """
-    org_id = _get_org_id_from_context()
+    org_id = await _get_org_id_from_context()
     if not org_id:
         raise ValueError("Organization context required. Authenticate with an org-scoped token.")
     return org_id
@@ -94,6 +113,9 @@ def create_mcp_server(
         from sibyl.auth.mcp_oauth import SibylMcpOAuthProvider
 
         auth_server_provider = SibylMcpOAuthProvider()
+        # NOTE: FastMCP does not allow configuring both an auth_server_provider
+        # and a token_verifier at the same time. Our OAuth provider implements
+        # access token validation via `load_access_token()`, so we rely on it.
 
     mcp = FastMCP(
         settings.server_name,
@@ -225,7 +247,7 @@ def _register_tools(mcp: FastMCP) -> None:
         from sibyl.tools.core import search as _search
 
         # Get org context from authenticated MCP session
-        org_id = _require_org_id()
+        org_id = await _require_org_id()
 
         result = await _search(
             query=query,
@@ -302,7 +324,7 @@ def _register_tools(mcp: FastMCP) -> None:
         from sibyl.tools.core import explore as _explore
 
         # Get org context from authenticated MCP session
-        org_id = _require_org_id()
+        org_id = await _require_org_id()
 
         result = await _explore(
             mode=mode,
@@ -393,7 +415,7 @@ def _register_tools(mcp: FastMCP) -> None:
         from sibyl.tools.core import add as _add
 
         # Get org context from authenticated MCP session
-        org_id = _require_org_id()
+        org_id = await _require_org_id()
 
         # Inject org context into metadata
         full_metadata = metadata or {}
@@ -483,7 +505,7 @@ def _register_tools(mcp: FastMCP) -> None:
         from sibyl.tools.manage import manage as _manage
 
         # Get org context from authenticated MCP session
-        org_id = _require_org_id()
+        org_id = await _require_org_id()
 
         # Inject org context into data
         full_data = data or {}
@@ -521,7 +543,7 @@ def _register_resources(mcp: FastMCP) -> None:
         from sibyl.tools.core import get_health
 
         # Get org context (optional for health - basic health works without org)
-        org_id = _get_org_id_from_context()
+        org_id = await _get_org_id_from_context()
         health = await get_health(organization_id=org_id)
         return json.dumps(health, indent=2)
 
@@ -542,6 +564,6 @@ def _register_resources(mcp: FastMCP) -> None:
         from sibyl.tools.core import get_stats
 
         # Get org context (required for stats)
-        org_id = _require_org_id()
+        org_id = await _require_org_id()
         stats = await get_stats(organization_id=org_id)
         return json.dumps(stats, indent=2)

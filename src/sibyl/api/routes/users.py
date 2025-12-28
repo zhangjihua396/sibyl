@@ -293,7 +293,7 @@ async def list_sessions(
     current_token_hash = None
     token = select_access_token(
         authorization=request.headers.get("authorization"),
-        cookie_token=request.cookies.get("access_token"),
+        cookie_token=request.cookies.get("sibyl_access_token"),
     )
     if token:
         import hashlib
@@ -324,7 +324,7 @@ async def revoke_all_sessions(
     current_token_hash = None
     token = select_access_token(
         authorization=request.headers.get("authorization"),
-        cookie_token=request.cookies.get("access_token"),
+        cookie_token=request.cookies.get("sibyl_access_token"),
     )
     if token:
         import hashlib

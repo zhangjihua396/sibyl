@@ -328,7 +328,11 @@ async def delete_document(
             chunks_deleted=chunks_deleted,
         )
 
-    await broadcast_event("entity_deleted", {"type": "crawled_document", "id": document_id})
+    await broadcast_event(
+        "entity_deleted",
+        {"type": "crawled_document", "id": document_id},
+        org_id=str(org.id),
+    )
     return {"deleted": document_id, "chunks_deleted": chunks_deleted}
 
 
@@ -439,7 +443,11 @@ async def create_source(
 
         response = _source_to_response(source)
 
-    await broadcast_event("entity_created", {"type": "crawl_source", "id": str(source.id)})
+    await broadcast_event(
+        "entity_created",
+        {"type": "crawl_source", "id": str(source.id)},
+        org_id=str(org.id),
+    )
     return response
 
 
@@ -504,7 +512,11 @@ async def update_source(
 
         response = _source_to_response(source)
 
-    await broadcast_event("entity_updated", {"type": "crawl_source", "id": str(source.id)})
+    await broadcast_event(
+        "entity_updated",
+        {"type": "crawl_source", "id": str(source.id)},
+        org_id=str(org.id),
+    )
     return response
 
 
@@ -538,7 +550,11 @@ async def delete_source(
 
         log.info("Deleted crawl source", id=source_id, name=source.name)
 
-    await broadcast_event("entity_deleted", {"type": "crawl_source", "id": source_id})
+    await broadcast_event(
+        "entity_deleted",
+        {"type": "crawl_source", "id": source_id},
+        org_id=str(org.id),
+    )
     return {"deleted": True, "id": source_id}
 
 
@@ -681,7 +697,11 @@ async def cancel_crawl(
             job_cancelled=cancelled,
         )
 
-        await broadcast_event("entity_updated", {"type": "crawl_source", "id": source_id})
+        await broadcast_event(
+            "entity_updated",
+            {"type": "crawl_source", "id": source_id},
+            org_id=str(org.id),
+        )
 
         return CrawlIngestResponse(
             source_id=source_id,
@@ -692,16 +712,17 @@ async def cancel_crawl(
 
 
 @router.post("/{source_id}/sync")
-async def sync_source(source_id: str) -> dict[str, Any]:
-    """Sync source stats from actual document/chunk counts.
+async def sync_source(
+    source_id: str,
+    org: Organization = Depends(get_current_organization),
+) -> dict[str, Any]:
+    """Sync source stats from actual document/chunk counts (org-scoped).
 
     Useful for fixing stuck sources or after manual data changes.
     Recalculates document_count, chunk_count, and fixes status if stuck.
     """
     async with get_session() as session:
-        source = await session.get(CrawlSource, UUID(source_id))
-        if not source:
-            raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
+        source = await _get_org_source(session, source_id, org)
 
         # Count actual documents
         doc_count_result = await session.execute(
@@ -751,7 +772,11 @@ async def sync_source(source_id: str) -> dict[str, Any]:
             new_chunk_count=actual_chunk_count,
         )
 
-    await broadcast_event("entity_updated", {"type": "crawl_source", "id": source_id})
+    await broadcast_event(
+        "entity_updated",
+        {"type": "crawl_source", "id": source_id},
+        org_id=str(org.id),
+    )
 
     return {
         "source_id": source_id,
@@ -779,21 +804,30 @@ async def sync_source(source_id: str) -> dict[str, Any]:
 
 
 @router.get("/link-graph/status", response_model=LinkGraphStatusResponse)
-async def get_link_graph_status() -> LinkGraphStatusResponse:
-    """Get status of pending graph linking work.
+async def get_link_graph_status(
+    org: Organization = Depends(get_current_organization),
+) -> LinkGraphStatusResponse:
+    """Get status of pending graph linking work (org-scoped).
 
     Shows how many chunks still need entity extraction per source.
     """
     async with get_session() as session:
         # Total chunks
-        total_result = await session.execute(select(func.count(DocumentChunk.id)))
+        total_result = await session.execute(
+            select(func.count(DocumentChunk.id))
+            .join(CrawledDocument, col(CrawledDocument.id) == col(DocumentChunk.document_id))
+            .join(CrawlSource, col(CrawlSource.id) == col(CrawledDocument.source_id))
+            .where(col(CrawlSource.organization_id) == org.id)
+        )
         total_chunks = total_result.scalar() or 0
 
         # Chunks with entities
         linked_result = await session.execute(
-            select(func.count(DocumentChunk.id)).where(
-                col(DocumentChunk.has_entities) == True  # noqa: E712
-            )
+            select(func.count(DocumentChunk.id))
+            .join(CrawledDocument, col(CrawledDocument.id) == col(DocumentChunk.document_id))
+            .join(CrawlSource, col(CrawlSource.id) == col(CrawledDocument.source_id))
+            .where(col(CrawlSource.organization_id) == org.id)
+            .where(col(DocumentChunk.has_entities) == True)  # noqa: E712
         )
         chunks_with_entities = linked_result.scalar() or 0
 
@@ -805,6 +839,7 @@ async def get_link_graph_status() -> LinkGraphStatusResponse:
             )
             .join(CrawledDocument, CrawledDocument.source_id == CrawlSource.id)
             .join(DocumentChunk, DocumentChunk.document_id == CrawledDocument.id)
+            .where(col(CrawlSource.organization_id) == org.id)
             .where(col(DocumentChunk.has_entities) == False)  # noqa: E712
             .group_by(CrawlSource.name)
         )
@@ -881,15 +916,25 @@ async def _process_graph_linking(
             detail="Entity extraction not configured",
         ) from e
 
-    # Get sources to process
+    org_uuid = UUID(organization_id)
+
+    # Get sources to process (org-scoped)
     async with get_session() as session:
         if source_id:
-            source = await session.get(CrawlSource, UUID(source_id))
+            result = await session.execute(
+                select(CrawlSource).where(
+                    col(CrawlSource.id) == UUID(source_id),
+                    col(CrawlSource.organization_id) == org_uuid,
+                )
+            )
+            source = result.scalar_one_or_none()
             if not source:
                 raise HTTPException(status_code=404, detail=f"Source not found: {source_id}")
             sources = [source]
         else:
-            result = await session.execute(select(CrawlSource))
+            result = await session.execute(
+                select(CrawlSource).where(col(CrawlSource.organization_id) == org_uuid)
+            )
             sources = list(result.scalars().all())
 
         if not sources:
@@ -935,13 +980,15 @@ async def _process_graph_linking(
 
     # Count remaining unprocessed chunks
     async with get_session() as session:
-        remaining_query = select(func.count(DocumentChunk.id)).where(
-            col(DocumentChunk.has_entities) == False  # noqa: E712
+        remaining_query = (
+            select(func.count(DocumentChunk.id))
+            .join(CrawledDocument, col(CrawledDocument.id) == col(DocumentChunk.document_id))
+            .join(CrawlSource, col(CrawlSource.id) == col(CrawledDocument.source_id))
+            .where(col(CrawlSource.organization_id) == org_uuid)
+            .where(col(DocumentChunk.has_entities) == False)  # noqa: E712
         )
         if source_id:
-            remaining_query = remaining_query.join(CrawledDocument).where(
-                col(CrawledDocument.source_id) == UUID(source_id)
-            )
+            remaining_query = remaining_query.where(col(CrawledDocument.source_id) == UUID(source_id))
         remaining_result = await session.execute(remaining_query)
         chunks_remaining = remaining_result.scalar() or 0
 
@@ -963,7 +1010,11 @@ async def _process_graph_linking(
             message="No unprocessed chunks found",
         )
 
-    await broadcast_event("graph_updated", {"chunks_processed": total_chunks})
+    await broadcast_event(
+        "graph_updated",
+        {"chunks_processed": total_chunks},
+        org_id=str(org_uuid),
+    )
 
     return LinkGraphResponse(
         source_id=source_id,

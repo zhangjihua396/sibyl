@@ -3,12 +3,15 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from uuid import uuid4
 
 from sibyl.api.websocket import (
     Connection,
     ConnectionManager,
     _extract_org_from_token,
 )
+from sibyl.auth.jwt import create_access_token
+from sibyl.config import Settings
 
 
 class TestConnection:
@@ -109,47 +112,51 @@ class TestExtractOrgFromToken:
         """Missing cookie should return None."""
         ws = MagicMock()
         ws.cookies = {}
+        ws.headers = {}
         result = _extract_org_from_token(ws)
         assert result is None
 
-    def test_valid_jwt_with_org(self) -> None:
-        """Valid JWT with org claim should extract org_id."""
-        import base64
-        import json
+    def test_valid_jwt_with_org(self, monkeypatch) -> None:
+        """Valid signed JWT with org claim should extract org_id."""
+        monkeypatch.setenv("SIBYL_JWT_SECRET", "secret")
+        monkeypatch.setenv("SIBYL_JWT_ALGORITHM", "HS256")
 
-        # Create a mock JWT payload
-        payload = {"sub": "user123", "org": "org_abc123"}
-        payload_json = json.dumps(payload)
-        payload_b64 = base64.b64encode(payload_json.encode()).decode()
-        # JWT format: header.payload.signature (we only care about payload)
-        fake_jwt = f"header.{payload_b64}.signature"
+        from sibyl import config as config_module
 
+        config_module.settings = Settings(_env_file=None)  # type: ignore[assignment]
+
+        org_id = uuid4()
+        token = create_access_token(user_id=uuid4(), organization_id=org_id)
         ws = MagicMock()
-        ws.cookies = {"sibyl_access_token": fake_jwt}
+        ws.cookies = {"sibyl_access_token": token}
+        ws.headers = {}
 
         result = _extract_org_from_token(ws)
-        assert result == "org_abc123"
+        assert result == str(org_id)
 
     def test_malformed_jwt(self) -> None:
         """Malformed JWT should return None."""
         ws = MagicMock()
         ws.cookies = {"sibyl_access_token": "not-a-valid-jwt"}
+        ws.headers = {}
 
         result = _extract_org_from_token(ws)
         assert result is None
 
-    def test_jwt_without_org_claim(self) -> None:
-        """JWT without org claim should return None."""
-        import base64
-        import json
+    def test_jwt_without_org_claim(self, monkeypatch) -> None:
+        """JWT without org claim should return None (org-scoped WS required)."""
+        monkeypatch.setenv("SIBYL_JWT_SECRET", "secret")
+        monkeypatch.setenv("SIBYL_JWT_ALGORITHM", "HS256")
 
-        payload = {"sub": "user123"}  # No org claim
-        payload_json = json.dumps(payload)
-        payload_b64 = base64.b64encode(payload_json.encode()).decode()
-        fake_jwt = f"header.{payload_b64}.signature"
+        from sibyl import config as config_module
+
+        config_module.settings = Settings(_env_file=None)  # type: ignore[assignment]
+
+        token = create_access_token(user_id=uuid4(), organization_id=None)
 
         ws = MagicMock()
-        ws.cookies = {"sibyl_access_token": fake_jwt}
+        ws.cookies = {"sibyl_access_token": token}
+        ws.headers = {}
 
         result = _extract_org_from_token(ws)
         assert result is None
