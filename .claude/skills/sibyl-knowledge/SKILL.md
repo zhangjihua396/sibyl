@@ -115,6 +115,18 @@ sibyl task list --status todo
 sibyl task list --status doing
 sibyl task list --assignee alice
 
+# Multiple statuses (comma-separated)
+sibyl task list --status todo,doing,blocked
+
+# Semantic search within tasks (use -q for query mode)
+sibyl task list -q "authentication"
+sibyl task list -q "fix bug" --status todo
+
+# Pagination (max 200 per page)
+sibyl task list --status todo --limit 100
+sibyl task list --status todo --page 2
+sibyl task list --status todo --limit 50 --offset 100
+
 # Show task details
 sibyl task show task_xyz
 
@@ -133,8 +145,11 @@ sibyl task review task_xyz --pr "github.com/.../pull/42"
 # Complete with learnings (IMPORTANT: capture what you learned!)
 sibyl task complete task_xyz --hours 4.5 --learnings "Token refresh needs..."
 
-# Archive
+# Archive single task
 sibyl task archive task_xyz --yes
+
+# Bulk archive via stdin (pipe task IDs)
+sibyl task list -q "test" --status todo 2>&1 | jq -r '.[].id' | sibyl task archive --stdin --yes
 
 # Direct update (bulk/historical updates)
 sibyl task update task_xyz --status done --priority high
