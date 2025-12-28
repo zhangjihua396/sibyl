@@ -2,6 +2,15 @@
 
 Broadcasts entity changes, search results, and system events to connected clients.
 Scoped by organization for multi-tenant security.
+
+Multi-pod Architecture:
+    When running multiple backend pods, broadcasts use Redis pub/sub to fan out
+    events across all pods. Each pod subscribes to the Redis channel and forwards
+    received messages to its locally connected WebSocket clients.
+
+    Pod A (event) -> Redis pub/sub -> Pod A, B, C (local broadcast to clients)
+
+For single-pod deployments, broadcasts work locally without Redis.
 """
 
 import asyncio
@@ -13,6 +22,9 @@ import structlog
 from starlette.websockets import WebSocket, WebSocketDisconnect
 
 log = structlog.get_logger()
+
+# Flag to track if Redis pub/sub is available
+_pubsub_enabled: bool = False
 
 
 @dataclass
@@ -181,6 +193,10 @@ async def broadcast_event(event: str, data: dict[str, Any], *, org_id: str | Non
 
     This is the main interface for other modules to send realtime updates.
 
+    When Redis pub/sub is enabled (multi-pod mode), events are published to Redis
+    and each pod forwards them to local connections. Otherwise, broadcasts directly
+    to local connections only.
+
     Args:
         event: Event type name.
         data: Event payload.
@@ -195,8 +211,50 @@ async def broadcast_event(event: str, data: dict[str, Any], *, org_id: str | Non
         - ingest_complete: Ingestion finished
         - health_update: Server health changed (system-wide, no org filter)
     """
+    if _pubsub_enabled:
+        # Multi-pod mode: publish to Redis, all pods receive and broadcast locally
+        from sibyl.api.pubsub import publish_event
+
+        await publish_event(event, data, org_id=org_id)
+    else:
+        # Single-pod mode: broadcast directly to local connections
+        manager = get_manager()
+        await manager.broadcast(event, data, org_id=org_id)
+
+
+async def local_broadcast(event: str, data: dict[str, Any], org_id: str | None) -> None:
+    """Broadcast to local WebSocket connections only.
+
+    Called by Redis pub/sub listener when a message is received.
+    This avoids re-publishing to Redis (which would cause infinite loop).
+
+    Args:
+        event: Event type name.
+        data: Event payload.
+        org_id: Organization to broadcast to.
+    """
     manager = get_manager()
     await manager.broadcast(event, data, org_id=org_id)
+
+
+def enable_pubsub() -> None:
+    """Enable Redis pub/sub for multi-pod broadcasts.
+
+    Called during server startup when Redis is available.
+    """
+    global _pubsub_enabled  # noqa: PLW0603
+    _pubsub_enabled = True
+    log.info("websocket_pubsub_enabled")
+
+
+def disable_pubsub() -> None:
+    """Disable Redis pub/sub (fallback to local-only broadcasts).
+
+    Called during shutdown or if Redis becomes unavailable.
+    """
+    global _pubsub_enabled  # noqa: PLW0603
+    _pubsub_enabled = False
+    log.info("websocket_pubsub_disabled")
 
 
 def _extract_org_from_token(websocket: WebSocket) -> str | None:

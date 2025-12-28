@@ -112,6 +112,22 @@ def create_combined_app(
         except Exception as e:
             log.warning("FalkorDB unavailable at startup", error=str(e))
 
+        # Initialize Redis pub/sub for cross-pod WebSocket broadcasts
+        pubsub_initialized = False
+        try:
+            from sibyl.api.pubsub import init_pubsub, shutdown_pubsub
+            from sibyl.api.websocket import enable_pubsub, local_broadcast
+
+            await init_pubsub(local_broadcast)
+            enable_pubsub()
+            pubsub_initialized = True
+            log.info("WebSocket pub/sub enabled for multi-pod broadcasts")
+        except Exception as e:
+            log.warning(
+                "Redis pub/sub unavailable - WebSocket broadcasts will be local only",
+                error=str(e),
+            )
+
         # Optionally start embedded arq worker (dev mode only)
         worker_task = None
         if embed_worker:
@@ -122,6 +138,17 @@ def create_combined_app(
         # The MCP session manager needs to be started for streamable HTTP
         async with mcp.session_manager.run():
             yield
+
+        # Shutdown pub/sub
+        if pubsub_initialized:
+            try:
+                from sibyl.api.pubsub import shutdown_pubsub
+                from sibyl.api.websocket import disable_pubsub
+
+                disable_pubsub()
+                await shutdown_pubsub()
+            except Exception as e:
+                log.warning("Error shutting down pub/sub", error=str(e))
 
         # Shutdown embedded worker if running
         if worker_task:
