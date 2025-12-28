@@ -14,7 +14,7 @@ import { LoadingState } from '@/components/ui/spinner';
 import { FilterChip, TagChip } from '@/components/ui/toggle';
 import { ErrorState } from '@/components/ui/tooltip';
 import type { TaskStatus } from '@/lib/api';
-import { useCreateEntity, useProjects, useTasks, useTaskUpdateStatus } from '@/lib/hooks';
+import { useCreateEntity, useEpics, useProjects, useTasks, useTaskUpdateStatus } from '@/lib/hooks';
 
 function TasksPageContent() {
   const router = useRouter();
@@ -30,11 +30,17 @@ function TasksPageContent() {
 
   const { data: tasksData, isLoading, error } = useTasks({ project: projectFilter });
   const { data: projectsData } = useProjects();
+  const { data: epicsData } = useEpics();
   const updateStatus = useTaskUpdateStatus();
   const createEntity = useCreateEntity();
 
   const projects = projectsData?.entities ?? [];
   const allTasks = tasksData?.entities ?? [];
+  const epics = (epicsData?.entities ?? []).map(e => ({
+    id: e.id,
+    name: e.name,
+    projectId: e.metadata?.project_id as string | undefined,
+  }));
 
   // Extract all unique tags from tasks
   const allTags = useMemo(() => {
@@ -140,6 +146,7 @@ function TasksPageContent() {
             status: 'todo',
             priority: task.priority,
             project_id: task.projectId,
+            epic_id: task.epicId,
             feature: task.feature,
             assignees: task.assignees,
             due_date: task.dueDate,
@@ -330,6 +337,7 @@ function TasksPageContent() {
         onClose={() => setIsQuickTaskOpen(false)}
         onSubmit={handleCreateTask}
         projects={projects.map(p => ({ id: p.id, name: p.name }))}
+        epics={epics}
         defaultProjectId={projectFilter}
         isSubmitting={createEntity.isPending}
       />

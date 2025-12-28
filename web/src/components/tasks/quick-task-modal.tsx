@@ -9,6 +9,7 @@ export interface QuickTaskData {
   description?: string;
   priority: TaskPriority;
   projectId?: string;
+  epicId?: string;
   feature?: string;
   assignees?: string[];
   dueDate?: string;
@@ -20,7 +21,9 @@ interface QuickTaskModalProps {
   onClose: () => void;
   onSubmit: (task: QuickTaskData) => void;
   projects?: Array<{ id: string; name: string }>;
+  epics?: Array<{ id: string; name: string; projectId?: string }>;
   defaultProjectId?: string;
+  defaultEpicId?: string;
   isSubmitting?: boolean;
 }
 
@@ -29,13 +32,16 @@ export function QuickTaskModal({
   onClose,
   onSubmit,
   projects,
+  epics,
   defaultProjectId,
+  defaultEpicId,
   isSubmitting,
 }: QuickTaskModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [projectId, setProjectId] = useState(defaultProjectId ?? '');
+  const [epicId, setEpicId] = useState(defaultEpicId ?? '');
   const [feature, setFeature] = useState('');
   const [assigneesInput, setAssigneesInput] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -50,6 +56,7 @@ export function QuickTaskModal({
       setDescription('');
       setPriority('medium');
       setProjectId(defaultProjectId ?? '');
+      setEpicId(defaultEpicId ?? '');
       setFeature('');
       setAssigneesInput('');
       setDueDate('');
@@ -57,7 +64,20 @@ export function QuickTaskModal({
       setShowAdvanced(false);
       setTimeout(() => inputRef.current?.focus(), 0);
     }
-  }, [isOpen, defaultProjectId]);
+  }, [isOpen, defaultProjectId, defaultEpicId]);
+
+  // Filter epics by selected project
+  const filteredEpics = epics?.filter(e => !projectId || e.projectId === projectId) ?? [];
+
+  // Reset epic if it doesn't belong to selected project
+  useEffect(() => {
+    if (epicId && projectId) {
+      const epicBelongsToProject = epics?.find(e => e.id === epicId)?.projectId === projectId;
+      if (!epicBelongsToProject) {
+        setEpicId('');
+      }
+    }
+  }, [projectId, epicId, epics]);
 
   const handleSubmit = useCallback(
     (e?: React.FormEvent) => {
@@ -74,6 +94,7 @@ export function QuickTaskModal({
         description: description.trim() || undefined,
         priority,
         projectId: projectId || undefined,
+        epicId: epicId || undefined,
         feature: feature.trim() || undefined,
         assignees: assignees.length > 0 ? assignees : undefined,
         dueDate: dueDate || undefined,
@@ -85,6 +106,7 @@ export function QuickTaskModal({
       description,
       priority,
       projectId,
+      epicId,
       feature,
       assigneesInput,
       dueDate,
@@ -195,6 +217,28 @@ export function QuickTaskModal({
                   {projects.map(p => (
                     <option key={p.id} value={p.id}>
                       {p.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Epic select - only show if epics exist */}
+            {filteredEpics.length > 0 && (
+              <div className="flex-1">
+                <label htmlFor="quick-task-epic" className="block text-xs text-sc-fg-subtle mb-1">
+                  <span className="text-[#ffb86c]">◈</span> Epic
+                </label>
+                <select
+                  id="quick-task-epic"
+                  value={epicId}
+                  onChange={e => setEpicId(e.target.value)}
+                  className="w-full px-3 py-2 bg-sc-bg-highlight border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary focus:border-sc-purple focus:outline-none focus:ring-2 focus:ring-sc-purple/10 transition-all"
+                >
+                  <option value="">No epic</option>
+                  {filteredEpics.map(e => (
+                    <option key={e.id} value={e.id}>
+                      {e.name}
                     </option>
                   ))}
                 </select>
