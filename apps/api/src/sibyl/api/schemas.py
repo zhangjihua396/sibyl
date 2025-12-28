@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-from sibyl.models.entities import EntityType, RelationshipType
+from sibyl_core.models.entities import EntityType, RelationshipType
 
 # =============================================================================
 # Entity Schemas
@@ -158,10 +158,12 @@ class ExploreRequest(BaseModel):
     epic: str | None = Field(default=None, description="Filter by epic ID (for tasks)")
     status: str | None = Field(default=None, description="Filter by status (for tasks)")
     priority: str | None = Field(
-        default=None, description="Filter by priority (for tasks): critical, high, medium, low, someday"
+        default=None,
+        description="Filter by priority (for tasks): critical, high, medium, low, someday",
     )
     complexity: str | None = Field(
-        default=None, description="Filter by complexity (for tasks): trivial, simple, medium, complex, epic"
+        default=None,
+        description="Filter by complexity (for tasks): trivial, simple, medium, complex, epic",
     )
     feature: str | None = Field(default=None, description="Filter by feature area (for tasks)")
     tags: str | None = Field(

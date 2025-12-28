@@ -50,7 +50,7 @@ def backup_db(
     async def _backup() -> None:
         from dataclasses import asdict
 
-        from sibyl.tools.admin import create_backup
+        from sibyl_core.tools.admin import create_backup
 
         try:
             with spinner("Creating backup...") as progress:
@@ -108,7 +108,7 @@ def restore_db(
 
     @run_async
     async def _restore() -> None:
-        from sibyl.tools.admin import BackupData, restore_backup
+        from sibyl_core.tools.admin import BackupData, restore_backup
 
         try:
             # Load backup file (sync I/O before async work)
@@ -187,7 +187,7 @@ def clear_db(
 
     @run_async
     async def _clear() -> None:
-        from sibyl.graph.client import get_graph_client
+        from sibyl_core.graph.client import get_graph_client
 
         try:
             with spinner("Clearing database...") as progress:
@@ -213,7 +213,7 @@ def db_stats() -> None:
 
     @run_async
     async def _stats() -> None:
-        from sibyl.graph.client import get_graph_client
+        from sibyl_core.graph.client import get_graph_client
 
         try:
             with spinner("Loading stats...") as progress:
@@ -281,7 +281,7 @@ def db_fix_embeddings(
 
     @run_async
     async def _fix() -> None:
-        from sibyl.tools.admin import migrate_fix_name_embedding_types
+        from sibyl_core.tools.admin import migrate_fix_name_embedding_types
 
         try:
             warn("Running embedding repair migration (this mutates graph data)")
@@ -331,7 +331,7 @@ def backfill_task_relationships(
 
     @run_async
     async def _backfill() -> None:
-        from sibyl.tools.admin import backfill_task_project_relationships
+        from sibyl_core.tools.admin import backfill_task_project_relationships
 
         try:
             if dry_run:
@@ -680,7 +680,7 @@ def backup_all(
         async def _backup_graph() -> bool:
             from dataclasses import asdict
 
-            from sibyl.tools.admin import create_backup
+            from sibyl_core.tools.admin import create_backup
 
             try:
                 result = await create_backup(organization_id=org_id)
@@ -762,7 +762,7 @@ def _restore_graph_from_file(graph_path: Path, org_id: str, clean: bool) -> None
 
     @run_async
     async def _restore() -> bool:
-        from sibyl.tools.admin import BackupData, restore_backup
+        from sibyl_core.tools.admin import BackupData, restore_backup
 
         try:
             backup_dict = json.loads(graph_path.read_text(encoding="utf-8"))

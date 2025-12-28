@@ -6,8 +6,8 @@ validating response schemas.
 
 from typing import Any
 
-from sibyl.models.entities import EntityType
-from sibyl.tools.core import (
+from sibyl_core.models.entities import EntityType
+from sibyl_core.tools.core import (
     AddResponse,
     ExploreResponse,
     SearchResponse,
@@ -15,7 +15,7 @@ from sibyl.tools.core import (
     explore,
     search,
 )
-from sibyl.tools.manage import ManageResponse, manage
+from sibyl_core.tools.manage import ManageResponse, manage
 from tests.harness.context import ToolTestContext
 from tests.harness.mocks import (
     create_test_entity,

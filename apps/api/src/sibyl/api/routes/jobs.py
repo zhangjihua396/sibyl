@@ -23,11 +23,10 @@ router = APIRouter(
     prefix="/jobs",
     tags=["jobs"],
     dependencies=[
-        Depends(
-            require_org_admin()
-        ),
+        Depends(require_org_admin()),
     ],
 )
+
 
 async def _job_visible_to_org(
     job: Any,

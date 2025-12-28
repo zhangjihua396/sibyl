@@ -252,7 +252,7 @@ def _register_tools(mcp: FastMCP) -> None:
             # 1. search("OAuth") -> returns results with IDs
             # 2. sibyl entity show <id> -> returns full content
         """
-        from sibyl.tools.core import search as _search
+        from sibyl_core.tools.core import search as _search
 
         # Get org context from authenticated MCP session
         org_id = await _require_org_id()
@@ -329,7 +329,7 @@ def _register_tools(mcp: FastMCP) -> None:
             explore(mode="traverse", entity_id="topic:auth", depth=2)
             explore(mode="dependencies", entity_id="task_xyz")
         """
-        from sibyl.tools.core import explore as _explore
+        from sibyl_core.tools.core import explore as _explore
 
         # Get org context from authenticated MCP session
         org_id = await _require_org_id()
@@ -420,7 +420,7 @@ def _register_tools(mcp: FastMCP) -> None:
             add("Auth System", "Authentication and authorization",
                 entity_type="project", repository_url="github.com/org/auth")
         """
-        from sibyl.tools.core import add as _add
+        from sibyl_core.tools.core import add as _add
 
         # Get org context from authenticated MCP session
         org_id = await _require_org_id()
@@ -510,7 +510,7 @@ def _register_tools(mcp: FastMCP) -> None:
             manage("estimate", entity_id="task-456")
             manage("health")
         """
-        from sibyl.tools.manage import manage as _manage
+        from sibyl_core.tools.manage import manage as _manage
 
         # Get org context from authenticated MCP session
         org_id = await _require_org_id()
@@ -548,7 +548,7 @@ def _register_resources(mcp: FastMCP) -> None:
         """
         import json
 
-        from sibyl.tools.core import get_health
+        from sibyl_core.tools.core import get_health
 
         # Get org context (optional for health - basic health works without org)
         org_id = await _get_org_id_from_context()
@@ -569,7 +569,7 @@ def _register_resources(mcp: FastMCP) -> None:
         """
         import json
 
-        from sibyl.tools.core import get_stats
+        from sibyl_core.tools.core import get_stats
 
         # Get org context (required for stats)
         org_id = await _require_org_id()

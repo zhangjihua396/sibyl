@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sibyl.models.entities import Entity, EntityType, Relationship, RelationshipType
-from sibyl.models.tasks import Task, TaskStatus
-from sibyl.tasks.manager import TaskManager
+from sibyl_core.models.entities import Entity, EntityType, Relationship, RelationshipType
+from sibyl_core.models.tasks import Task, TaskStatus
+from sibyl_core.tasks.manager import TaskManager
 
 
 @pytest.fixture

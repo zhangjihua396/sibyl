@@ -1,6 +1,6 @@
 """Tests for Pydantic models."""
 
-from sibyl.models.entities import (
+from sibyl_core.models.entities import (
     Entity,
     EntityType,
     Pattern,
@@ -66,7 +66,7 @@ class TestCypherInjectionPrevention:
 
     def test_validate_relationship_type_valid(self) -> None:
         """Test that valid relationship types pass validation."""
-        from sibyl.graph.relationships import _validate_relationship_type
+        from sibyl_core.graph.relationships import _validate_relationship_type
 
         # All enum values should be valid
         for rel_type in RelationshipType:
@@ -77,7 +77,7 @@ class TestCypherInjectionPrevention:
         """Test that injection attempts are rejected."""
         import pytest
 
-        from sibyl.graph.relationships import _validate_relationship_type
+        from sibyl_core.graph.relationships import _validate_relationship_type
 
         # Common injection patterns
         injection_attempts = [
@@ -94,7 +94,7 @@ class TestCypherInjectionPrevention:
 
     def test_sanitize_pagination_valid(self) -> None:
         """Test that valid pagination values are passed through."""
-        from sibyl.graph.relationships import _sanitize_pagination
+        from sibyl_core.graph.relationships import _sanitize_pagination
 
         assert _sanitize_pagination(0) == 0
         assert _sanitize_pagination(10) == 10
@@ -102,14 +102,14 @@ class TestCypherInjectionPrevention:
 
     def test_sanitize_pagination_negative(self) -> None:
         """Test that negative values are clamped to 0."""
-        from sibyl.graph.relationships import _sanitize_pagination
+        from sibyl_core.graph.relationships import _sanitize_pagination
 
         assert _sanitize_pagination(-1) == 0
         assert _sanitize_pagination(-100) == 0
 
     def test_sanitize_pagination_exceeds_max(self) -> None:
         """Test that values exceeding max are clamped."""
-        from sibyl.graph.relationships import _sanitize_pagination
+        from sibyl_core.graph.relationships import _sanitize_pagination
 
         # Default max is 10000
         assert _sanitize_pagination(50000) == 10000
@@ -120,7 +120,7 @@ class TestCypherInjectionPrevention:
         """Test that non-integer values raise TypeError."""
         import pytest
 
-        from sibyl.graph.relationships import _sanitize_pagination
+        from sibyl_core.graph.relationships import _sanitize_pagination
 
         with pytest.raises(TypeError, match="must be int"):
             _sanitize_pagination("10")  # type: ignore[arg-type]

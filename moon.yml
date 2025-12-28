@@ -10,7 +10,7 @@ tasks:
   # Development
   # ==========================================================================
   dev:
-    command: 'docker compose up -d && sleep 1 && npx concurrently --kill-others-on-fail -n "api,web" -c "magenta,cyan" "moon run api:serve" "moon run web:dev"'
+    command: 'docker compose up -d && sleep 1 && npx concurrently --kill-others-on-fail -n "api,worker,web" -c "magenta,yellow,cyan" "moon run api:serve" "moon run api:worker" "moon run web:dev"'
     local: true
     options:
       persistent: true

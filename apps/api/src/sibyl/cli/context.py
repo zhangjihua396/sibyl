@@ -67,9 +67,7 @@ def callback(
 
     # Table output
     console.print()
-    console.print(
-        f"  [{ELECTRIC_PURPLE}]Context:[/{ELECTRIC_PURPLE}] [bold]{active.name}[/bold]"
-    )
+    console.print(f"  [{ELECTRIC_PURPLE}]Context:[/{ELECTRIC_PURPLE}] [bold]{active.name}[/bold]")
     console.print(f"  [{SUCCESS_GREEN}](active)[/{SUCCESS_GREEN}]")
     console.print()
     console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]   {active.server_url}")

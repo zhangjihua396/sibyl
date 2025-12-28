@@ -36,6 +36,7 @@ if settings.disable_auth:
         settings.environment,
     )
 
+
 def _is_rest_request(request: Request) -> bool:
     return request.url.path.startswith("/api/")
 

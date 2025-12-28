@@ -13,10 +13,10 @@ from collections.abc import AsyncGenerator
 import pytest
 
 from sibyl.config import settings
-from sibyl.errors import GraphConnectionError
-from sibyl.graph.client import GraphClient, get_graph_client, reset_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.models.entities import EntityType, Pattern
+from sibyl_core.errors import GraphConnectionError
+from sibyl_core.graph.client import GraphClient, get_graph_client, reset_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.models.entities import EntityType, Pattern
 
 
 @pytest.fixture

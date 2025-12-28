@@ -15,7 +15,7 @@ from sibyl.api.routes.metrics import (
     _count_recent_tasks,
     _parse_iso_date,
 )
-from sibyl.models.entities import Entity
+from sibyl_core.models.entities import Entity
 
 # =============================================================================
 # Helper Function Tests

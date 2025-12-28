@@ -15,7 +15,7 @@ from sibyl.generator.templates import (
     TEAM_NAMES,
     TemplateGenerator,
 )
-from sibyl.models.entities import Entity, EntityType
+from sibyl_core.models.entities import Entity, EntityType
 
 # Cache directory for LLM responses
 CACHE_DIR = Path.home() / ".cache" / "sibyl" / "generator"

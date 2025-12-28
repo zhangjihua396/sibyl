@@ -5,8 +5,8 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from sibyl.models.entities import EntityType
-from sibyl.models.tasks import (
+from sibyl_core.models.entities import EntityType
+from sibyl_core.models.tasks import (
     Epic,
     EpicStatus,
     ErrorPattern,

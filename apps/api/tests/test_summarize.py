@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sibyl.graph.summarize import (
+from sibyl_core.graph.summarize import (
     CommunitySummary,
     SummaryConfig,
     format_entity_for_prompt,

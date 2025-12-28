@@ -892,7 +892,7 @@ async def _process_graph_linking(
 ) -> LinkGraphResponse:
     """Internal function to process graph linking for one or all sources."""
     from sibyl.crawler.graph_integration import GraphIntegrationService
-    from sibyl.graph.client import get_graph_client
+    from sibyl_core.graph.client import get_graph_client
 
     # Connect to graph
     try:
@@ -988,7 +988,9 @@ async def _process_graph_linking(
             .where(col(DocumentChunk.has_entities) == False)  # noqa: E712
         )
         if source_id:
-            remaining_query = remaining_query.where(col(CrawledDocument.source_id) == UUID(source_id))
+            remaining_query = remaining_query.where(
+                col(CrawledDocument.source_id) == UUID(source_id)
+            )
         remaining_result = await session.execute(remaining_query)
         chunks_remaining = remaining_result.scalar() or 0
 

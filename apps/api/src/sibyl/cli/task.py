@@ -128,9 +128,7 @@ def _apply_task_filters(
         # Support comma-separated priorities (e.g., "critical,high")
         priority_list = [p.strip().lower() for p in priority.split(",")]
         result = [
-            e
-            for e in result
-            if e.get("metadata", {}).get("priority", "").lower() in priority_list
+            e for e in result if e.get("metadata", {}).get("priority", "").lower() in priority_list
         ]
 
     if complexity:
@@ -155,10 +153,7 @@ def _apply_task_filters(
         result = [
             e
             for e in result
-            if any(
-                t.lower() in tag_list
-                for t in e.get("metadata", {}).get("tags", [])
-            )
+            if any(t.lower() in tag_list for t in e.get("metadata", {}).get("tags", []))
         ]
 
     if project:
@@ -249,13 +244,15 @@ def list_tasks(
     priority: Annotated[
         str | None,
         typer.Option(
-            "--priority", help="Filter by priority (comma-separated: critical,high,medium,low,someday)"
+            "--priority",
+            help="Filter by priority (comma-separated: critical,high,medium,low,someday)",
         ),
     ] = None,
     complexity: Annotated[
         str | None,
         typer.Option(
-            "--complexity", help="Filter by complexity (comma-separated: trivial,simple,medium,complex,epic)"
+            "--complexity",
+            help="Filter by complexity (comma-separated: trivial,simple,medium,complex,epic)",
         ),
     ] = None,
     feature: Annotated[
@@ -383,7 +380,15 @@ def list_tasks(
 
             # Client-side filters (needed for search, or when API doesn't filter)
             entities = _apply_task_filters(
-                entities, status, priority, complexity, feature, tags, effective_project, epic, assignee
+                entities,
+                status,
+                priority,
+                complexity,
+                feature,
+                tags,
+                effective_project,
+                epic,
+                assignee,
             )
 
             if fmt == "json":
@@ -790,9 +795,7 @@ def create_task(
     ] = None,
     epic: Annotated[str | None, typer.Option("--epic", "-e", help="Epic ID to group under")] = None,
     feature: Annotated[str | None, typer.Option("--feature", "-f", help="Feature area")] = None,
-    tags: Annotated[
-        str | None, typer.Option("--tags", help="Comma-separated tags")
-    ] = None,
+    tags: Annotated[str | None, typer.Option("--tags", help="Comma-separated tags")] = None,
     technologies: Annotated[
         str | None, typer.Option("--tech", help="Comma-separated technologies")
     ] = None,
@@ -905,7 +908,9 @@ def update_task(
 
         try:
             # Check we have something to update
-            if not any([status, priority, complexity, title, assignee, epic, feature, tags, technologies]):
+            if not any(
+                [status, priority, complexity, title, assignee, epic, feature, tags, technologies]
+            ):
                 error(
                     "No fields to update. Use --status, --priority, --complexity, --title, --assignee, --epic, --feature, --tags, or --tech"
                 )

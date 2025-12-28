@@ -74,7 +74,9 @@ def pagination_hint(
 
     if has_more:
         next_page = (offset // limit) + 2
-        msg = f"Showing {start}-{end} of {total}+ {entity_type}{plural} (--page {next_page} for more)"
+        msg = (
+            f"Showing {start}-{end} of {total}+ {entity_type}{plural} (--page {next_page} for more)"
+        )
     else:
         msg = f"Showing {count} {entity_type}{plural}"
 

@@ -39,7 +39,7 @@ _ADMIN_ROLES = (OrganizationRole.OWNER, OrganizationRole.ADMIN)
 async def health() -> HealthResponse:
     """Get server health status."""
     try:
-        from sibyl.tools.core import get_health
+        from sibyl_core.tools.core import get_health
 
         health_data = await get_health()
 
@@ -74,7 +74,7 @@ async def stats(
 ) -> StatsResponse:
     """Get knowledge graph statistics."""
     try:
-        from sibyl.tools.core import get_stats
+        from sibyl_core.tools.core import get_stats
 
         stats_data = await get_stats(organization_id=str(org.id))
 
@@ -106,7 +106,7 @@ async def create_backup(
     Returns JSON backup data that can be saved to a file or stored.
     """
     try:
-        from sibyl.tools.admin import create_backup as do_backup
+        from sibyl_core.tools.admin import create_backup as do_backup
 
         result = await do_backup(organization_id=str(org.id))
 
@@ -155,7 +155,7 @@ async def restore_backup_endpoint(
     By default, skips entities that already exist.
     """
     try:
-        from sibyl.tools.admin import BackupData, restore_backup as do_restore
+        from sibyl_core.tools.admin import BackupData, restore_backup as do_restore
 
         # Convert schema to dataclass
         backup_data = BackupData(
@@ -209,7 +209,7 @@ async def backfill_task_relationships(
     Use dry_run=true to preview what would be created.
     """
     try:
-        from sibyl.tools.admin import backfill_task_project_relationships
+        from sibyl_core.tools.admin import backfill_task_project_relationships
 
         result = await backfill_task_project_relationships(
             organization_id=str(org.id),

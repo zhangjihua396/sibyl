@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sibyl.models.tasks import TaskStatus
-from sibyl.tools.manage import (
+from sibyl_core.models.tasks import TaskStatus
+from sibyl_core.tools.manage import (
     ALL_ACTIONS,
     ANALYSIS_ACTIONS,
     EPIC_ACTIONS,
@@ -320,10 +320,10 @@ class TestTaskWorkflowHandlers:
         mock_task.branch_name = "feature/test-task"
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager"),
-            patch("sibyl.tools.manage.RelationshipManager"),
-            patch("sibyl.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager"),
+            patch("sibyl_core.tools.manage.RelationshipManager"),
+            patch("sibyl_core.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
         ):
             mock_client.return_value = MagicMock()
             mock_engine = MagicMock()
@@ -349,10 +349,10 @@ class TestTaskWorkflowHandlers:
         mock_task.status = TaskStatus.BLOCKED
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager"),
-            patch("sibyl.tools.manage.RelationshipManager"),
-            patch("sibyl.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager"),
+            patch("sibyl_core.tools.manage.RelationshipManager"),
+            patch("sibyl_core.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
         ):
             mock_client.return_value = MagicMock()
             mock_engine = MagicMock()
@@ -377,10 +377,10 @@ class TestTaskWorkflowHandlers:
         mock_task.status = TaskStatus.DONE
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager"),
-            patch("sibyl.tools.manage.RelationshipManager"),
-            patch("sibyl.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager"),
+            patch("sibyl_core.tools.manage.RelationshipManager"),
+            patch("sibyl_core.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
         ):
             mock_client.return_value = MagicMock()
             mock_engine = MagicMock()
@@ -404,13 +404,13 @@ class TestTaskWorkflowHandlers:
     @pytest.mark.asyncio
     async def test_invalid_transition_error(self) -> None:
         """Task workflow should handle InvalidTransitionError gracefully."""
-        from sibyl.errors import InvalidTransitionError
+        from sibyl_core.errors import InvalidTransitionError
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager"),
-            patch("sibyl.tools.manage.RelationshipManager"),
-            patch("sibyl.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager"),
+            patch("sibyl_core.tools.manage.RelationshipManager"),
+            patch("sibyl_core.tasks.workflow.TaskWorkflowEngine") as mock_workflow,
         ):
             mock_client.return_value = MagicMock()
             mock_engine = MagicMock()
@@ -438,9 +438,9 @@ class TestSourceActions:
     @pytest.mark.asyncio
     async def test_crawl_creates_source(self) -> None:
         """crawl action should create a source entity."""
-        with patch("sibyl.tools.manage.get_graph_client") as mock_client:
+        with patch("sibyl_core.tools.manage.get_graph_client") as mock_client:
             mock_client.return_value = MagicMock()
-            with patch("sibyl.tools.manage.EntityManager") as mock_manager_class:
+            with patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class:
                 mock_manager = MagicMock()
                 mock_manager.create = AsyncMock(return_value="source_abc123")
                 mock_manager_class.return_value = mock_manager
@@ -459,9 +459,9 @@ class TestSourceActions:
     @pytest.mark.asyncio
     async def test_sync_source_not_found(self) -> None:
         """sync action should fail gracefully if source not found."""
-        with patch("sibyl.tools.manage.get_graph_client") as mock_client:
+        with patch("sibyl_core.tools.manage.get_graph_client") as mock_client:
             mock_client.return_value = MagicMock()
-            with patch("sibyl.tools.manage.EntityManager") as mock_manager_class:
+            with patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class:
                 mock_manager = MagicMock()
                 mock_manager.get = AsyncMock(side_effect=Exception("Not found"))
                 mock_manager_class.return_value = mock_manager
@@ -478,9 +478,9 @@ class TestSourceActions:
     @pytest.mark.asyncio
     async def test_sync_source_success(self) -> None:
         """sync action should update source status to pending."""
-        with patch("sibyl.tools.manage.get_graph_client") as mock_client:
+        with patch("sibyl_core.tools.manage.get_graph_client") as mock_client:
             mock_client.return_value = MagicMock()
-            with patch("sibyl.tools.manage.EntityManager") as mock_manager_class:
+            with patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class:
                 mock_manager = MagicMock()
                 mock_manager.get = AsyncMock(return_value=MagicMock(id="source_123"))
                 mock_manager.update = AsyncMock(return_value=MagicMock())
@@ -505,9 +505,9 @@ class TestSourceActions:
             MagicMock(id="source_3"),
         ]
 
-        with patch("sibyl.tools.manage.get_graph_client") as mock_client:
+        with patch("sibyl_core.tools.manage.get_graph_client") as mock_client:
             mock_client.return_value = MagicMock()
-            with patch("sibyl.tools.manage.EntityManager") as mock_manager_class:
+            with patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class:
                 mock_manager = MagicMock()
                 mock_manager.list_by_type = AsyncMock(return_value=mock_sources)
                 mock_manager.update = AsyncMock(return_value=MagicMock())
@@ -526,14 +526,14 @@ class TestAnalysisActions:
     @pytest.mark.asyncio
     async def test_prioritize_empty_project(self) -> None:
         """prioritize action should handle empty project."""
-        with patch("sibyl.tools.manage.get_graph_client") as mock_client:
+        with patch("sibyl_core.tools.manage.get_graph_client") as mock_client:
             mock_client.return_value = MagicMock()
-            with patch("sibyl.tools.manage.EntityManager") as mock_manager_class:
+            with patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class:
                 mock_manager = MagicMock()
                 mock_manager.list_by_type = AsyncMock(return_value=[])
                 mock_manager_class.return_value = mock_manager
 
-                with patch("sibyl.tools.manage.RelationshipManager"):
+                with patch("sibyl_core.tools.manage.RelationshipManager"):
                     result = await manage(
                         action="prioritize",
                         entity_id="proj_123",
@@ -563,9 +563,9 @@ class TestAnalysisActions:
         ]
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
-            patch("sibyl.tools.manage.RelationshipManager"),
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.RelationshipManager"),
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()
@@ -590,9 +590,9 @@ class TestAnalysisActions:
     async def test_detect_cycles_returns_no_cycles(self) -> None:
         """detect_cycles action should return empty cycles (placeholder impl)."""
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager"),
-            patch("sibyl.tools.manage.RelationshipManager"),
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager"),
+            patch("sibyl_core.tools.manage.RelationshipManager"),
         ):
             mock_client.return_value = MagicMock()
 
@@ -652,14 +652,14 @@ class TestEpicActions:
     @pytest.mark.asyncio
     async def test_start_epic_success(self) -> None:
         """start_epic should update status to in_progress."""
-        from sibyl.models.entities import EntityType
+        from sibyl_core.models.entities import EntityType
 
         mock_epic = MagicMock()
         mock_epic.entity_type = EntityType.EPIC
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()
@@ -681,14 +681,14 @@ class TestEpicActions:
     @pytest.mark.asyncio
     async def test_complete_epic_with_learnings(self) -> None:
         """complete_epic should capture learnings."""
-        from sibyl.models.entities import EntityType
+        from sibyl_core.models.entities import EntityType
 
         mock_epic = MagicMock()
         mock_epic.entity_type = EntityType.EPIC
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()
@@ -714,14 +714,14 @@ class TestEpicActions:
     @pytest.mark.asyncio
     async def test_archive_epic_with_reason(self) -> None:
         """archive_epic should archive with optional reason."""
-        from sibyl.models.entities import EntityType
+        from sibyl_core.models.entities import EntityType
 
         mock_epic = MagicMock()
         mock_epic.entity_type = EntityType.EPIC
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()
@@ -743,14 +743,14 @@ class TestEpicActions:
     @pytest.mark.asyncio
     async def test_update_epic_filters_allowed_fields(self) -> None:
         """update_epic should only allow specific fields."""
-        from sibyl.models.entities import EntityType
+        from sibyl_core.models.entities import EntityType
 
         mock_epic = MagicMock()
         mock_epic.entity_type = EntityType.EPIC
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()
@@ -780,8 +780,8 @@ class TestEpicActions:
     async def test_epic_not_found(self) -> None:
         """Epic action should fail if epic not found."""
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()
@@ -800,14 +800,14 @@ class TestEpicActions:
     @pytest.mark.asyncio
     async def test_entity_not_epic_type(self) -> None:
         """Epic action should fail if entity is not an epic."""
-        from sibyl.models.entities import EntityType
+        from sibyl_core.models.entities import EntityType
 
         mock_task = MagicMock()
         mock_task.entity_type = EntityType.TASK
 
         with (
-            patch("sibyl.tools.manage.get_graph_client") as mock_client,
-            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+            patch("sibyl_core.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl_core.tools.manage.EntityManager") as mock_manager_class,
         ):
             mock_client.return_value = MagicMock()
             mock_manager = MagicMock()

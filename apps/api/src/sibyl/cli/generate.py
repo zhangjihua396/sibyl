@@ -94,8 +94,8 @@ def generate_realistic(  # noqa: PLR0915 - complex CLI command
         from sibyl.generator.llm import LLMContentGenerator
         from sibyl.generator.relationships import RelationshipWeaver
         from sibyl.generator.templates import TemplateGenerator
-        from sibyl.graph.entities import EntityManager
-        from sibyl.graph.relationships import RelationshipManager
+        from sibyl_core.graph.entities import EntityManager
+        from sibyl_core.graph.relationships import RelationshipManager
 
         # Build config
         model_type = ModelType.OPUS if model.lower() == "opus" else ModelType.SONNET
@@ -149,7 +149,7 @@ def generate_realistic(  # noqa: PLR0915 - complex CLI command
                 with spinner("Storing in graph...") as progress:
                     progress.add_task("Storing in graph...", total=None)
 
-                    from sibyl.graph.client import get_graph_client
+                    from sibyl_core.graph.client import get_graph_client
 
                     client = await get_graph_client()
                     entity_mgr = EntityManager(client, group_id=org_id)
@@ -224,8 +224,8 @@ def generate_stress(
     async def _stress() -> None:
         from sibyl.generator.config import StressConfig
         from sibyl.generator.stress import StressTestGenerator
-        from sibyl.graph.entities import EntityManager
-        from sibyl.graph.relationships import RelationshipManager
+        from sibyl_core.graph.entities import EntityManager
+        from sibyl_core.graph.relationships import RelationshipManager
 
         stress_config = StressConfig(
             entities=entities,
@@ -265,7 +265,7 @@ def generate_stress(
                 with spinner("Storing in graph (this may take a while)...") as progress:
                     task = progress.add_task("Storing...", total=None)
 
-                    from sibyl.graph.client import get_graph_client
+                    from sibyl_core.graph.client import get_graph_client
 
                     client = await get_graph_client()
                     entity_mgr = EntityManager(client, group_id=org_id)
@@ -370,8 +370,8 @@ def generate_scenario(  # noqa: PLR0915 - complex CLI command
     async def _scenario() -> None:
         from sibyl.generator.config import ModelType
         from sibyl.generator.scenarios import ScenarioRunner
-        from sibyl.graph.entities import EntityManager
-        from sibyl.graph.relationships import RelationshipManager
+        from sibyl_core.graph.entities import EntityManager
+        from sibyl_core.graph.relationships import RelationshipManager
 
         model_type = ModelType.OPUS if model.lower() == "opus" else ModelType.SONNET
 
@@ -409,7 +409,7 @@ def generate_scenario(  # noqa: PLR0915 - complex CLI command
                 with spinner("Storing in graph...") as progress:
                     progress.add_task("Storing...", total=None)
 
-                    from sibyl.graph.client import get_graph_client
+                    from sibyl_core.graph.client import get_graph_client
 
                     client = await get_graph_client()
                     entity_mgr = EntityManager(client, group_id=org_id)
@@ -473,7 +473,7 @@ def clean_generated(
 
     @run_async
     async def _clean() -> None:
-        from sibyl.graph.client import get_graph_client
+        from sibyl_core.graph.client import get_graph_client
 
         try:
             with spinner("Cleaning generated data...") as progress:

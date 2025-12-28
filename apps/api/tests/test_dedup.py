@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sibyl.retrieval.dedup import (
+from sibyl_core.retrieval.dedup import (
     DedupConfig,
     DuplicatePair,
     EntityDeduplicator,

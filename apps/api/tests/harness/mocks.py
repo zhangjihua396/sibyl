@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from typing import Any
 from uuid import uuid4
 
-from sibyl.models.entities import Entity, EntityType, Relationship, RelationshipType
+from sibyl_core.models.entities import Entity, EntityType, Relationship, RelationshipType
 
 
 @dataclass
@@ -119,7 +119,7 @@ class MockEntityManager:
     async def get(self, entity_id: str) -> Entity:
         """Get entity by ID."""
         if entity_id not in self._entities:
-            from sibyl.errors import EntityNotFoundError
+            from sibyl_core.errors import EntityNotFoundError
 
             raise EntityNotFoundError("Entity", entity_id)
         return self._entities[entity_id]

@@ -6,9 +6,9 @@ and provides useful helpers for testing MCP tools.
 
 import pytest
 
-from sibyl.models.entities import EntityType
-from sibyl.tools.core import AddResponse, ExploreResponse, SearchResponse
-from sibyl.tools.manage import ManageResponse
+from sibyl_core.models.entities import EntityType
+from sibyl_core.tools.core import AddResponse, ExploreResponse, SearchResponse
+from sibyl_core.tools.manage import ManageResponse
 from tests.harness import (
     MockEntityManager,
     MockGraphClient,
@@ -85,7 +85,7 @@ class TestMockEntityManager:
     @pytest.mark.asyncio
     async def test_get_missing_entity_raises(self) -> None:
         """Get should raise for missing entity."""
-        from sibyl.errors import EntityNotFoundError
+        from sibyl_core.errors import EntityNotFoundError
 
         manager = MockEntityManager()
 

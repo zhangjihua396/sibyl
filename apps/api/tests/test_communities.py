@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sibyl.graph.communities import (
+from sibyl_core.graph.communities import (
     CommunityConfig,
     DetectedCommunity,
     detect_communities,
@@ -335,7 +335,7 @@ class TestDetectCommunities:
         mock_partition = {"e1": 0, "e2": 0, "e3": 1, "e4": 1}
         mock_modularity = 0.5
 
-        with patch("sibyl.graph.communities.detect_communities_louvain") as mock_louvain:
+        with patch("sibyl_core.graph.communities.detect_communities_louvain") as mock_louvain:
             mock_louvain.return_value = (mock_partition, mock_modularity)
 
             config = CommunityConfig(resolutions=[1.0], max_levels=1)

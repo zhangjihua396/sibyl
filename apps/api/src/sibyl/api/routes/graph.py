@@ -6,10 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sibyl.api.schemas import GraphData, GraphEdge, GraphNode, SubgraphRequest
 from sibyl.auth.dependencies import get_current_organization, require_org_role
 from sibyl.db.models import Organization, OrganizationRole
-from sibyl.graph.client import GraphClient, get_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.graph.relationships import RelationshipManager
-from sibyl.models.entities import EntityType, RelationshipType
+from sibyl_core.graph.client import GraphClient, get_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.graph.relationships import RelationshipManager
+from sibyl_core.models.entities import EntityType, RelationshipType
 
 log = structlog.get_logger()
 _READ_ROLES = (
@@ -471,7 +471,7 @@ async def get_clusters(
     Returns community-detected clusters with type distribution for coloring.
     Results are cached for 5 minutes to avoid expensive recomputation.
     """
-    from sibyl.graph.communities import get_clusters_for_visualization
+    from sibyl_core.graph.communities import get_clusters_for_visualization
 
     try:
         client = await get_graph_client()
@@ -513,7 +513,7 @@ async def get_cluster_detail(
     org: Organization = Depends(get_current_organization),
 ) -> dict:
     """Get nodes and edges within a specific cluster for drill-down view."""
-    from sibyl.graph.communities import get_cluster_nodes
+    from sibyl_core.graph.communities import get_cluster_nodes
 
     try:
         client = await get_graph_client()
@@ -589,7 +589,7 @@ async def get_hierarchical_graph_data(
     - Cluster metadata for legends
     - Inter-cluster edges for summary views
     """
-    from sibyl.graph.communities import get_hierarchical_graph
+    from sibyl_core.graph.communities import get_hierarchical_graph
 
     try:
         client = await get_graph_client()

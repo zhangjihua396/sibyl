@@ -5,7 +5,7 @@ import pytest
 
 from sibyl.api.routes.entities import create_entity
 from sibyl.api.schemas import EntityCreate
-from sibyl.models.entities import EntityType
+from sibyl_core.models.entities import EntityType
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_entities_create_passes_task_fields_to_add() -> None:
     add_result.message = "ok"
 
     with (
-        patch("sibyl.tools.core.add", AsyncMock(return_value=add_result)) as add,
+        patch("sibyl_core.tools.core.add", AsyncMock(return_value=add_result)) as add,
         patch("sibyl.api.routes.entities.broadcast_event", AsyncMock()),
     ):
         resp = await create_entity(

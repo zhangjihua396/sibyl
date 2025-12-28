@@ -300,7 +300,9 @@ class SibylMcpOAuthProvider(
             mgr = SessionManager(session)
             existing = await mgr.get_session_by_refresh_token(refresh_token.token)
             if existing is None:
-                raise TokenError(error="invalid_grant", error_description="refresh token does not exist")
+                raise TokenError(
+                    error="invalid_grant", error_description="refresh token does not exist"
+                )
             await mgr.rotate_tokens(
                 existing,
                 new_access_token=access,
@@ -328,9 +330,7 @@ class SibylMcpOAuthProvider(
             scopes = list(auth.scopes or []) or [OAUTH_SCOPE]
             if scopes and OAUTH_SCOPE not in scopes:
                 return None
-            return AccessToken(
-                token=token, client_id=f"api_key:{auth.api_key_id}", scopes=scopes
-            )
+            return AccessToken(token=token, client_id=f"api_key:{auth.api_key_id}", scopes=scopes)
 
         try:
             claims = verify_access_token(token)
@@ -503,7 +503,9 @@ class SibylMcpOAuthProvider(
                 expires_at=time.time() + 5 * 60,
             )
 
-        return RedirectResponse(url=_add_query_params("/_oauth/org", {"req": request_id}), status_code=302)
+        return RedirectResponse(
+            url=_add_query_params("/_oauth/org", {"req": request_id}), status_code=302
+        )
 
     async def ui_org_get(self, request: Request) -> Response:
         request_id = (request.query_params.get("req") or "").strip()
@@ -516,13 +518,17 @@ class SibylMcpOAuthProvider(
 
         authed = self._get_authed_user(request_id)
         if authed is None:
-            return RedirectResponse(url=_add_query_params("/_oauth/login", {"req": request_id}), status_code=302)
+            return RedirectResponse(
+                url=_add_query_params("/_oauth/login", {"req": request_id}), status_code=302
+            )
 
         async with get_session() as session:
             orgs = await self._list_user_orgs(session, user_id=authed.user_id)
 
         if not orgs:
-            return RedirectResponse(url=_add_query_params("/_oauth/login", {"req": request_id}), status_code=302)
+            return RedirectResponse(
+                url=_add_query_params("/_oauth/login", {"req": request_id}), status_code=302
+            )
 
         options = "\n".join(
             (

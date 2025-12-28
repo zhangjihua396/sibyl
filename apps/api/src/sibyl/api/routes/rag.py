@@ -714,8 +714,8 @@ async def get_document_related_entities(
     # Search the knowledge graph using document title as query
     entities: list[DocumentRelatedEntity] = []
     try:
-        from sibyl.graph.client import get_graph_client
-        from sibyl.graph.entities import EntityManager
+        from sibyl_core.graph.client import get_graph_client
+        from sibyl_core.graph.entities import EntityManager
 
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=auth.organization_id)

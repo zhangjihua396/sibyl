@@ -101,7 +101,9 @@ def get_access_token_expires_at(api_url: str, path: Path | None = None) -> int |
     return int(expires_at) if expires_at is not None else None
 
 
-def is_access_token_expired(api_url: str, path: Path | None = None, buffer_seconds: int = 60) -> bool:
+def is_access_token_expired(
+    api_url: str, path: Path | None = None, buffer_seconds: int = 60
+) -> bool:
     """Check if access token is expired or about to expire."""
     expires_at = get_access_token_expires_at(api_url, path)
     if expires_at is None:

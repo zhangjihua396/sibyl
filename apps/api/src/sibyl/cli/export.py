@@ -42,9 +42,9 @@ def export_graph(
 
     @run_async
     async def _export() -> None:
-        from sibyl.graph.client import get_graph_client
-        from sibyl.graph.entities import EntityManager
-        from sibyl.graph.relationships import RelationshipManager
+        from sibyl_core.graph.client import get_graph_client
+        from sibyl_core.graph.entities import EntityManager
+        from sibyl_core.graph.relationships import RelationshipManager
 
         try:
             with spinner("Exporting graph...") as progress:
@@ -111,7 +111,7 @@ def export_tasks(
 
     @run_async
     async def _export() -> None:
-        from sibyl.tools.core import explore
+        from sibyl_core.tools.core import explore
 
         try:
             with spinner("Exporting tasks...") as progress:
@@ -192,7 +192,7 @@ def export_entities(
 
     @run_async
     async def _export() -> None:
-        from sibyl.tools.core import explore
+        from sibyl_core.tools.core import explore
 
         try:
             with spinner(f"Exporting {entity_type}s...") as progress:

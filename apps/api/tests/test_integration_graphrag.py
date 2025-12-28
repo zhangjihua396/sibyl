@@ -16,13 +16,13 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sibyl.retrieval import (
+from sibyl_core.retrieval import (
     BM25Index,
     rrf_merge,
     temporal_boost,
 )
-from sibyl.retrieval.dedup import EntityDeduplicator, cosine_similarity
-from sibyl.retrieval.fusion import rrf_merge_with_metadata
+from sibyl_core.retrieval.dedup import EntityDeduplicator, cosine_similarity
+from sibyl_core.retrieval.fusion import rrf_merge_with_metadata
 
 
 class TestHybridSearchPipeline:

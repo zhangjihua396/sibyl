@@ -129,7 +129,7 @@ async def create_org(
 
     # Initialize graph indexes for the new org (vector index for semantic search)
     try:
-        from sibyl.graph.client import get_graph_client
+        from sibyl_core.graph.client import get_graph_client
 
         client = await get_graph_client()
         await client.ensure_indexes(str(org.id))

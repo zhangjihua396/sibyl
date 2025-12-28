@@ -6,12 +6,12 @@ from dataclasses import dataclass
 
 import structlog
 
-from sibyl.graph.client import get_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.graph.relationships import RelationshipManager
 from sibyl.ingestion.extractor import ExtractedEntity
 from sibyl.ingestion.relationships import ExtractedRelationship, RelationType
-from sibyl.models.entities import Entity, Relationship, RelationshipType
+from sibyl_core.graph.client import get_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.graph.relationships import RelationshipManager
+from sibyl_core.models.entities import Entity, Relationship, RelationshipType
 
 log = structlog.get_logger()
 

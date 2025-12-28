@@ -17,9 +17,9 @@ from sibyl.api.schemas import (
 )
 from sibyl.auth.dependencies import get_current_organization, require_org_role
 from sibyl.db.models import Organization, OrganizationRole
-from sibyl.graph.client import get_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.models.entities import EntityType
+from sibyl_core.graph.client import get_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.models.entities import EntityType
 
 log = structlog.get_logger()
 

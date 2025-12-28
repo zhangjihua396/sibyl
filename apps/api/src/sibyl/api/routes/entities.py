@@ -26,10 +26,10 @@ from sibyl.auth.dependencies import get_auth_context, get_current_organization, 
 from sibyl.db import CrawledDocument, CrawlSource, DocumentChunk, get_session
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationRole
-from sibyl.errors import EntityNotFoundError
-from sibyl.graph.client import get_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.models.entities import EntityType
+from sibyl_core.errors import EntityNotFoundError
+from sibyl_core.graph.client import get_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.models.entities import EntityType
 
 log = structlog.get_logger()
 _READ_ROLES = (
@@ -307,7 +307,7 @@ async def create_entity(
     immediate workflow operations like start/complete).
     """
     try:
-        from sibyl.tools.core import add
+        from sibyl_core.tools.core import add
 
         group_id = str(org.id)
 

@@ -34,6 +34,10 @@ class CoreConfig(BaseSettings):
         default="INFO",
         description="Logging level",
     )
+    server_name: str = Field(
+        default="sibyl",
+        description="Server/instance name for identification",
+    )
 
     # FalkorDB configuration
     falkordb_host: str = Field(default="localhost", description="FalkorDB host")
@@ -115,3 +119,6 @@ class CoreConfig(BaseSettings):
 
 # Default core config instance
 core_config = CoreConfig()
+
+# Alias for backwards compatibility with tools that import 'settings'
+settings = core_config

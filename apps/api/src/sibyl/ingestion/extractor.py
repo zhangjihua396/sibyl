@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from sibyl.ingestion.chunker import Episode
-from sibyl.models.entities import EntityType
+from sibyl_core.models.entities import EntityType
 
 
 class ExtractedEntityType(StrEnum):

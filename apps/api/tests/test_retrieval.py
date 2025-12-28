@@ -5,14 +5,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from sibyl.retrieval.bm25 import BM25Index, tokenize
-from sibyl.retrieval.fusion import (
+from sibyl_core.retrieval.bm25 import BM25Index, tokenize
+from sibyl_core.retrieval.fusion import (
     rrf_merge,
     rrf_merge_with_metadata,
     rrf_score,
     weighted_score_merge,
 )
-from sibyl.retrieval.temporal import (
+from sibyl_core.retrieval.temporal import (
     calculate_age_days,
     calculate_boost,
     get_entity_timestamp,

@@ -104,7 +104,7 @@ def create_combined_app(  # noqa: PLR0915
                 log.warning("Source recovery failed", error=str(e))
 
         try:
-            from sibyl.graph.client import get_graph_client
+            from sibyl_core.graph.client import get_graph_client
 
             client = await get_graph_client()
             if client.is_connected:
@@ -180,7 +180,7 @@ def run_server(
         transport: Transport type ('streamable-http', 'sse', or 'stdio')
     """
     from sibyl.banner import print_banner
-    from sibyl.tools.admin import mark_server_started
+    from sibyl_core.tools.admin import mark_server_started
 
     log = structlog.get_logger()
 

@@ -4,7 +4,7 @@ import uuid
 from collections import defaultdict
 
 from sibyl.generator.config import GeneratorConfig
-from sibyl.models.entities import Entity, EntityType, Relationship, RelationshipType
+from sibyl_core.models.entities import Entity, EntityType, Relationship, RelationshipType
 
 
 class RelationshipWeaver:

@@ -45,7 +45,7 @@ async def search(
     - include_documents/include_graph: Toggle which stores to search
     """
     try:
-        from sibyl.tools.core import search as core_search
+        from sibyl_core.tools.core import search as core_search
 
         group_id = str(org.id)
         result = await core_search(
@@ -84,7 +84,7 @@ async def explore(
 ) -> ExploreResponse:
     """Explore and traverse the knowledge graph."""
     try:
-        from sibyl.tools.core import explore as core_explore
+        from sibyl_core.tools.core import explore as core_explore
 
         group_id = str(org.id)
         result = await core_explore(

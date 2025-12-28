@@ -13,10 +13,10 @@ from uuid import uuid4
 
 import pytest
 
-from sibyl.errors import EntityNotFoundError
-from sibyl.graph.entities import EntityManager, sanitize_search_query
-from sibyl.models.entities import Entity, EntityType
-from sibyl.models.tasks import Epic, EpicStatus, Project, Task, TaskPriority, TaskStatus
+from sibyl_core.errors import EntityNotFoundError
+from sibyl_core.graph.entities import EntityManager, sanitize_search_query
+from sibyl_core.models.entities import Entity, EntityType
+from sibyl_core.models.tasks import Epic, EpicStatus, Project, Task, TaskPriority, TaskStatus
 
 
 class MockDriver:
@@ -264,7 +264,7 @@ class TestEntityManagerCreateDirect:
             description="Created directly",
         )
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_node:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_node:
             mock_instance = MagicMock()
             mock_instance.save = AsyncMock()
             mock_entity_node.return_value = mock_instance
@@ -286,7 +286,7 @@ class TestEntityManagerCreateDirect:
             description="Has embedding",
         )
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_node:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_node:
             mock_instance = MagicMock()
             mock_instance.save = AsyncMock()
             mock_entity_node.return_value = mock_instance
@@ -311,7 +311,7 @@ class TestEntityManagerCreateDirect:
             project_id="proj_123",
         )
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_node:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_node:
             mock_instance = MagicMock()
             mock_instance.save = AsyncMock()
             mock_entity_node.return_value = mock_instance
@@ -334,10 +334,10 @@ class TestEntityManagerGet:
         client = MockGraphClient()
         manager = EntityManager(client, group_id=TEST_ORG_ID)
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_node:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_node:
             mock_entity_node.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
-            with patch("sibyl.graph.entities.EpisodicNode") as mock_episodic:
+            with patch("sibyl_core.graph.entities.EpisodicNode") as mock_episodic:
                 mock_episodic.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
                 with pytest.raises(EntityNotFoundError):
@@ -359,7 +359,7 @@ class TestEntityManagerGet:
         mock_node.attributes = {"entity_type": "pattern", "description": "Test desc"}
         mock_node.name_embedding = None
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(return_value=mock_node)
 
             entity = await manager.get("entity_123")
@@ -379,10 +379,10 @@ class TestEntityManagerGet:
         mock_node.labels = []
         mock_node.attributes = {}
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(return_value=mock_node)
 
-            with patch("sibyl.graph.entities.EpisodicNode") as mock_episodic:
+            with patch("sibyl_core.graph.entities.EpisodicNode") as mock_episodic:
                 mock_episodic.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
                 with pytest.raises(EntityNotFoundError):
@@ -402,10 +402,10 @@ class TestEntityManagerGet:
         mock_episodic.source_description = "MCP Entity"
         mock_episodic.created_at = datetime.now(UTC)
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
-            with patch("sibyl.graph.entities.EpisodicNode") as mock_episodic_cls:
+            with patch("sibyl_core.graph.entities.EpisodicNode") as mock_episodic_cls:
                 mock_episodic_cls.get_by_uuid = AsyncMock(return_value=mock_episodic)
 
                 entity = await manager.get("episodic_456")
@@ -508,7 +508,7 @@ class TestEntityManagerDelete:
         mock_node.group_id = TEST_ORG_ID
         mock_node.delete = AsyncMock()
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(return_value=mock_node)
 
             result = await manager.delete("entity_123")
@@ -526,10 +526,10 @@ class TestEntityManagerDelete:
         mock_episodic.group_id = TEST_ORG_ID
         mock_episodic.delete = AsyncMock()
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
-            with patch("sibyl.graph.entities.EpisodicNode") as mock_episodic_cls:
+            with patch("sibyl_core.graph.entities.EpisodicNode") as mock_episodic_cls:
                 mock_episodic_cls.get_by_uuid = AsyncMock(return_value=mock_episodic)
 
                 result = await manager.delete("episodic_456")
@@ -542,10 +542,10 @@ class TestEntityManagerDelete:
         client = MockGraphClient()
         manager = EntityManager(client, group_id=TEST_ORG_ID)
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
-            with patch("sibyl.graph.entities.EpisodicNode") as mock_episodic_cls:
+            with patch("sibyl_core.graph.entities.EpisodicNode") as mock_episodic_cls:
                 mock_episodic_cls.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
                 with pytest.raises(EntityNotFoundError):
@@ -561,10 +561,10 @@ class TestEntityManagerDelete:
         mock_node.uuid = "entity_123"
         mock_node.group_id = "different_org"  # Wrong org
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_cls:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_cls:
             mock_entity_cls.get_by_uuid = AsyncMock(return_value=mock_node)
 
-            with patch("sibyl.graph.entities.EpisodicNode") as mock_episodic_cls:
+            with patch("sibyl_core.graph.entities.EpisodicNode") as mock_episodic_cls:
                 mock_episodic_cls.get_by_uuid = AsyncMock(side_effect=Exception("Not found"))
 
                 with pytest.raises(EntityNotFoundError):
@@ -1028,7 +1028,7 @@ class TestBulkCreateDirect:
             for i in range(5)
         ]
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_node:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_node:
             mock_instance = MagicMock()
             mock_instance.save = AsyncMock()
             mock_entity_node.return_value = mock_instance
@@ -1061,7 +1061,7 @@ class TestBulkCreateDirect:
             if call_count == 2:
                 raise RuntimeError("Simulated failure")
 
-        with patch("sibyl.graph.entities.EntityNode") as mock_entity_node:
+        with patch("sibyl_core.graph.entities.EntityNode") as mock_entity_node:
             mock_instance = MagicMock()
             mock_instance.save = mock_save
             mock_entity_node.return_value = mock_instance

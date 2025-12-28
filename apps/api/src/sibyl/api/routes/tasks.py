@@ -13,11 +13,11 @@ from pydantic import BaseModel
 from sibyl.api.websocket import broadcast_event
 from sibyl.auth.dependencies import get_current_organization, require_org_role
 from sibyl.db.models import Organization, OrganizationRole
-from sibyl.errors import EntityNotFoundError, InvalidTransitionError
-from sibyl.graph.client import get_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.graph.relationships import RelationshipManager
-from sibyl.tasks.workflow import TaskWorkflowEngine
+from sibyl_core.errors import EntityNotFoundError, InvalidTransitionError
+from sibyl_core.graph.client import get_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.graph.relationships import RelationshipManager
+from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
 log = structlog.get_logger()
 _WRITE_ROLES = (
@@ -123,8 +123,8 @@ async def create_task(
     org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Create a new task."""
-    from sibyl.models.entities import Relationship, RelationshipType
-    from sibyl.models.tasks import Task, TaskComplexity, TaskPriority, TaskStatus
+    from sibyl_core.models.entities import Relationship, RelationshipType
+    from sibyl_core.models.tasks import Task, TaskComplexity, TaskPriority, TaskStatus
 
     try:
         client = await get_graph_client()

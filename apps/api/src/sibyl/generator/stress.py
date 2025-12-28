@@ -7,7 +7,7 @@ from datetime import UTC, datetime, timedelta
 
 from sibyl.generator.base import BaseGenerator, GeneratorResult
 from sibyl.generator.config import GeneratorConfig, StressConfig
-from sibyl.models.entities import Entity, EntityType, Relationship, RelationshipType
+from sibyl_core.models.entities import Entity, EntityType, Relationship, RelationshipType
 
 # Map string types to EntityType enum
 ENTITY_TYPE_MAP: dict[str, EntityType] = {

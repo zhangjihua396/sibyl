@@ -466,7 +466,7 @@ class TestConvenienceFunctions:
         # Patch at the import location inside the function
         with (
             patch(
-                "sibyl.graph.client.get_graph_client",
+                "sibyl_core.graph.client.get_graph_client",
                 new_callable=AsyncMock,
                 return_value=mock_client,
             ),
@@ -492,7 +492,7 @@ class TestConvenienceFunctions:
 
         # Patch at the import location inside the function
         with patch(
-            "sibyl.graph.client.get_graph_client",
+            "sibyl_core.graph.client.get_graph_client",
             new_callable=AsyncMock,
             side_effect=Exception("Graph unavailable"),
         ):

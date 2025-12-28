@@ -68,7 +68,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Pre-warm graph client on startup for fast first requests."""
     log.info("Pre-warming graph client connection...")
     try:
-        from sibyl.graph.client import get_graph_client
+        from sibyl_core.graph.client import get_graph_client
 
         await get_graph_client()
         log.info("Graph client ready")

@@ -9,10 +9,10 @@ Tests complete user journeys through the 4-tool API:
 
 import pytest
 
-from sibyl.models.entities import EntityType, RelationshipType
-from sibyl.models.tasks import TaskStatus
-from sibyl.tools.core import add, explore, search
-from sibyl.tools.manage import manage
+from sibyl_core.models.entities import EntityType, RelationshipType
+from sibyl_core.models.tasks import TaskStatus
+from sibyl_core.tools.core import add, explore, search
+from sibyl_core.tools.manage import manage
 from tests.harness import (
     ToolTestContext,
     create_test_entity,

@@ -69,6 +69,13 @@ tasks:
       envFile: '.env'
       persistent: true
 
+  worker:
+    command: 'uv run arq sibyl.jobs.WorkerSettings'
+    local: true
+    options:
+      envFile: '.env'
+      persistent: true
+
   # Database
   db-migrate:
     command: 'uv run alembic upgrade head'

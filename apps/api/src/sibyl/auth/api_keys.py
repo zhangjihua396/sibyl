@@ -93,7 +93,9 @@ class ApiKeyManager:
             key_salt=salt_hex,
             key_hash=hash_hex,
             scopes=normalized_scopes,
-            expires_at=expires_at.replace(tzinfo=None) if expires_at and expires_at.tzinfo else expires_at,
+            expires_at=expires_at.replace(tzinfo=None)
+            if expires_at and expires_at.tzinfo
+            else expires_at,
         )
         self._session.add(record)
         await self._session.flush()

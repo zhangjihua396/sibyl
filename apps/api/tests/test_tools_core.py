@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from sibyl.models.entities import EntityType
-from sibyl.tools.core import (
+from sibyl_core.models.entities import EntityType
+from sibyl_core.tools.core import (
     VALID_ENTITY_TYPES,
     AddResponse,
     EntitySummary,
@@ -534,7 +534,7 @@ class TestGetHealth:
         async def failing_client() -> None:
             raise ConnectionError("Cannot connect to FalkorDB")
 
-        with patch("sibyl.tools.core.get_graph_client", failing_client):
+        with patch("sibyl_core.tools.core.get_graph_client", failing_client):
             result = await get_health()
 
             assert result["status"] == "unhealthy"
@@ -565,9 +565,9 @@ class TestGetStats:
         )
 
         with (
-            patch("sibyl.tools.core.get_graph_client", AsyncMock(return_value=mock_client)),
+            patch("sibyl_core.tools.core.get_graph_client", AsyncMock(return_value=mock_client)),
             patch(
-                "sibyl.tools.core.GraphClient.normalize_result",
+                "sibyl_core.tools.core.GraphClient.normalize_result",
                 return_value=[
                     {"type": "pattern", "count": 10},
                     {"type": "rule", "count": 5},
@@ -586,13 +586,13 @@ class TestAutoTagTask:
 
     def test_imports_correctly(self) -> None:
         """auto_tag_task should be importable."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         assert callable(auto_tag_task)
 
     def test_auto_tag_detects_frontend(self) -> None:
         """auto_tag_task should detect frontend technologies."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         tags = auto_tag_task(
             title="Fix React component",
@@ -605,7 +605,7 @@ class TestAutoTagTask:
 
     def test_auto_tag_detects_backend(self) -> None:
         """auto_tag_task should detect backend technologies."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         tags = auto_tag_task(
             title="Add API endpoint",
@@ -617,7 +617,7 @@ class TestAutoTagTask:
 
     def test_auto_tag_detects_testing(self) -> None:
         """auto_tag_task should detect testing context."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         tags = auto_tag_task(
             title="Write unit tests",
@@ -630,7 +630,7 @@ class TestAutoTagTask:
 
     def test_auto_tag_with_technologies(self) -> None:
         """auto_tag_task should include technology tags."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         tags = auto_tag_task(
             title="Implement feature",
@@ -642,7 +642,7 @@ class TestAutoTagTask:
 
     def test_auto_tag_with_domain(self) -> None:
         """auto_tag_task should include domain tag."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         tags = auto_tag_task(
             title="Fix auth bug",
@@ -655,7 +655,7 @@ class TestAutoTagTask:
 
     def test_auto_tag_preserves_explicit_tags(self) -> None:
         """auto_tag_task should preserve explicit tags."""
-        from sibyl.tools.core import auto_tag_task
+        from sibyl_core.tools.core import auto_tag_task
 
         tags = auto_tag_task(
             title="Task",
@@ -673,7 +673,7 @@ class TestGetProjectTags:
     @pytest.mark.asyncio
     async def test_returns_list_of_tags(self) -> None:
         """get_project_tags should return list of strings."""
-        from sibyl.tools.core import get_project_tags
+        from sibyl_core.tools.core import get_project_tags
 
         mock_client = MagicMock()
         mock_client.execute_read_org = AsyncMock(return_value=[{"tags": ["backend", "api"]}])
@@ -685,7 +685,7 @@ class TestGetProjectTags:
     @pytest.mark.asyncio
     async def test_handles_empty_result(self) -> None:
         """get_project_tags should handle no results."""
-        from sibyl.tools.core import get_project_tags
+        from sibyl_core.tools.core import get_project_tags
 
         mock_client = MagicMock()
         mock_client.execute_read_org = AsyncMock(return_value=[])
@@ -700,7 +700,7 @@ class TestHelperFunctions:
 
     def test_get_field_returns_value(self) -> None:
         """_get_field should return attribute value."""
-        from sibyl.tools.core import _get_field
+        from sibyl_core.tools.core import _get_field
 
         class MockEntity:
             name = "Test"
@@ -710,7 +710,7 @@ class TestHelperFunctions:
 
     def test_get_field_returns_default(self) -> None:
         """_get_field should return default for missing attr."""
-        from sibyl.tools.core import _get_field
+        from sibyl_core.tools.core import _get_field
 
         # Use an entity-like object with empty metadata
         class MockEntity:
@@ -721,21 +721,21 @@ class TestHelperFunctions:
 
     def test_serialize_enum_converts(self) -> None:
         """_serialize_enum should convert enum to value."""
-        from sibyl.tools.core import _serialize_enum
+        from sibyl_core.tools.core import _serialize_enum
 
         result = _serialize_enum(EntityType.PATTERN)
         assert result == "pattern"
 
     def test_serialize_enum_returns_non_enum(self) -> None:
         """_serialize_enum should return non-enum as-is."""
-        from sibyl.tools.core import _serialize_enum
+        from sibyl_core.tools.core import _serialize_enum
 
         result = _serialize_enum("plain_string")
         assert result == "plain_string"
 
     def test_build_entity_metadata(self) -> None:
         """_build_entity_metadata should extract entity metadata."""
-        from sibyl.tools.core import _build_entity_metadata
+        from sibyl_core.tools.core import _build_entity_metadata
 
         entity = create_test_entity(entity_type=EntityType.PATTERN, name="Test")
 
@@ -745,7 +745,7 @@ class TestHelperFunctions:
 
     def test_generate_id(self) -> None:
         """_generate_id should create deterministic IDs."""
-        from sibyl.tools.core import _generate_id
+        from sibyl_core.tools.core import _generate_id
 
         id1 = _generate_id("task", "project_1", "title_1")
         id2 = _generate_id("task", "project_1", "title_1")

@@ -24,7 +24,7 @@ import structlog
 
 from sibyl.config import settings
 from sibyl.db import DocumentChunk, get_session
-from sibyl.graph.client import GraphClient
+from sibyl_core.graph.client import GraphClient
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -597,7 +597,7 @@ async def integrate_document_with_graph(
     Returns:
         IntegrationStats
     """
-    from sibyl.graph.client import get_graph_client
+    from sibyl_core.graph.client import get_graph_client
 
     try:
         graph_client = await get_graph_client()

@@ -5,11 +5,11 @@ import uuid
 import pytest
 
 from sibyl.config import settings
-from sibyl.errors import GraphConnectionError
-from sibyl.graph.client import get_graph_client, reset_graph_client
-from sibyl.graph.entities import EntityManager
-from sibyl.graph.relationships import RelationshipManager
-from sibyl.models.entities import EntityType, Pattern, Relationship, RelationshipType
+from sibyl_core.errors import GraphConnectionError
+from sibyl_core.graph.client import get_graph_client, reset_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.graph.relationships import RelationshipManager
+from sibyl_core.models.entities import EntityType, Pattern, Relationship, RelationshipType
 
 # Test organization ID for multi-tenancy
 TEST_ORG_ID = f"test_org_{uuid.uuid4().hex[:8]}"

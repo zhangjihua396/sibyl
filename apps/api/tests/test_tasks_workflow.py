@@ -2,9 +2,9 @@
 
 import pytest
 
-from sibyl.errors import InvalidTransitionError
-from sibyl.models.tasks import Task, TaskComplexity, TaskStatus
-from sibyl.tasks.workflow import (
+from sibyl_core.errors import InvalidTransitionError
+from sibyl_core.models.tasks import Task, TaskComplexity, TaskStatus
+from sibyl_core.tasks.workflow import (
     ALL_STATUSES,
     get_allowed_transitions,
     is_valid_transition,
@@ -170,7 +170,7 @@ class TestBranchNameGeneration:
 
     def test_basic_branch_name(self) -> None:
         """Test basic branch name generation."""
-        from sibyl.tasks.workflow import TaskWorkflowEngine
+        from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
         # Create a minimal task for testing
         task = Task(
@@ -191,7 +191,7 @@ class TestBranchNameGeneration:
 
     def test_feature_prefix_with_feature(self) -> None:
         """Test feature prefix when task has feature."""
-        from sibyl.tasks.workflow import TaskWorkflowEngine
+        from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
         task = Task(
             id="def67890-test-id",
@@ -209,7 +209,7 @@ class TestBranchNameGeneration:
 
     def test_epic_prefix_for_epic_complexity(self) -> None:
         """Test epic prefix for epic complexity tasks."""
-        from sibyl.tasks.workflow import TaskWorkflowEngine
+        from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
         task = Task(
             id="ghi11111-test-id",
@@ -227,7 +227,7 @@ class TestBranchNameGeneration:
 
     def test_branch_name_slug_sanitization(self) -> None:
         """Test that special characters are sanitized from branch names."""
-        from sibyl.tasks.workflow import TaskWorkflowEngine
+        from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
         task = Task(
             id="jkl22222-test-id",
@@ -251,7 +251,7 @@ class TestBranchNameGeneration:
 
     def test_branch_name_truncation(self) -> None:
         """Test that long titles are truncated."""
-        from sibyl.tasks.workflow import TaskWorkflowEngine
+        from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
         long_title = "A" * 100  # Very long title
         task = Task(
@@ -434,7 +434,7 @@ class _FakeGraphClient:
 @pytest.mark.asyncio
 async def test_workflow_transitions_persist_status_and_branch() -> None:
     """Ensure workflow updates status and branch using the managers."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-1",
@@ -470,7 +470,7 @@ async def test_workflow_transitions_persist_status_and_branch() -> None:
 @pytest.mark.asyncio
 async def test_submit_for_review_transitions_to_review() -> None:
     """Test submit_for_review transitions task to review status."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-review-1",
@@ -494,7 +494,7 @@ async def test_submit_for_review_transitions_to_review() -> None:
 @pytest.mark.asyncio
 async def test_submit_for_review_without_pr_url() -> None:
     """Test submit_for_review works without PR URL."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-review-2",
@@ -516,7 +516,7 @@ async def test_submit_for_review_without_pr_url() -> None:
 @pytest.mark.asyncio
 async def test_archive_task_transitions_to_archived() -> None:
     """Test archive_task transitions task to archived status."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-archive-1",
@@ -538,7 +538,7 @@ async def test_archive_task_transitions_to_archived() -> None:
 @pytest.mark.asyncio
 async def test_archive_task_without_reason() -> None:
     """Test archive_task works without a reason."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-archive-2",
@@ -560,7 +560,7 @@ async def test_archive_task_without_reason() -> None:
 @pytest.mark.asyncio
 async def test_cannot_transition_from_archived() -> None:
     """Test that transitions from ARCHIVED status raise error."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-archived",
@@ -582,7 +582,7 @@ async def test_cannot_transition_from_archived() -> None:
 @pytest.mark.asyncio
 async def test_complete_task_with_learnings_creates_episode() -> None:
     """Test that completing task with learnings triggers episode creation."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-learning",
@@ -625,7 +625,7 @@ async def test_complete_task_with_learnings_creates_episode() -> None:
 @pytest.mark.asyncio
 async def test_transition_task_no_op() -> None:
     """Test that transition to same status is a no-op."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-noop",
@@ -647,7 +647,7 @@ async def test_transition_task_no_op() -> None:
 @pytest.mark.asyncio
 async def test_transition_task_with_updates() -> None:
     """Test transition_task applies additional updates."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-updates",
@@ -672,7 +672,7 @@ async def test_transition_task_with_updates() -> None:
 @pytest.mark.asyncio
 async def test_start_task_adds_assignee() -> None:
     """Test start_task adds assignee to task."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-assignee",
@@ -696,7 +696,7 @@ async def test_start_task_adds_assignee() -> None:
 @pytest.mark.asyncio
 async def test_start_task_does_not_duplicate_assignee() -> None:
     """Test start_task doesn't add duplicate assignee."""
-    from sibyl.tasks.workflow import TaskWorkflowEngine
+    from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
     task = Task(
         id="task-dup-assignee",

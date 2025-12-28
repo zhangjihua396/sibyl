@@ -35,8 +35,8 @@ from sibyl.db import (
     SourceType,
     get_session,
 )
-from sibyl.graph.entities import EntityManager
-from sibyl.models.entities import Entity, EntityType
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.models.entities import Entity, EntityType
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -122,7 +122,7 @@ class IngestionPipeline:
 
         if self.integrate_with_graph:
             try:
-                from sibyl.graph.client import get_graph_client
+                from sibyl_core.graph.client import get_graph_client
 
                 graph_client = await get_graph_client()
                 self._graph_integration = GraphIntegrationService(

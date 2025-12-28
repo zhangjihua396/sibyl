@@ -310,17 +310,17 @@ async def create_entity(
     Returns:
         Dict with creation results
     """
-    from sibyl.graph.client import get_graph_client
-    from sibyl.graph.entities import EntityManager
-    from sibyl.graph.relationships import RelationshipManager
-    from sibyl.models.entities import (
+    from sibyl_core.graph.client import get_graph_client
+    from sibyl_core.graph.entities import EntityManager
+    from sibyl_core.graph.relationships import RelationshipManager
+    from sibyl_core.models.entities import (
         Entity,
         Episode,
         Pattern,
         Relationship,
         RelationshipType,
     )
-    from sibyl.models.tasks import Project, Task
+    from sibyl_core.models.tasks import Project, Task
 
     relationships = relationships or []
 
@@ -393,7 +393,7 @@ async def create_entity(
         auto_links_created = 0
         if auto_link and auto_link_params:
             try:
-                from sibyl.tools.core import _auto_discover_links
+                from sibyl_core.tools.core import _auto_discover_links
 
                 auto_link_results = await _auto_discover_links(
                     entity_manager=entity_manager,
@@ -488,8 +488,8 @@ async def update_entity(
     Returns:
         Dict with update results
     """
-    from sibyl.graph.client import get_graph_client
-    from sibyl.graph.entities import EntityManager
+    from sibyl_core.graph.client import get_graph_client
+    from sibyl_core.graph.entities import EntityManager
 
     log.info(
         "update_entity_started",

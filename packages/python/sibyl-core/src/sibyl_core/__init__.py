@@ -12,6 +12,7 @@ This package provides:
 
 from sibyl_core.config import CoreConfig, core_config
 from sibyl_core.errors import (
+    ConventionsMCPError,
     EntityCreationError,
     EntityNotFoundError,
     GraphConnectionError,
@@ -30,6 +31,7 @@ __all__ = [
     "CoreConfig",
     "core_config",
     # Errors
+    "ConventionsMCPError",
     "EntityCreationError",
     "EntityNotFoundError",
     "GraphConnectionError",

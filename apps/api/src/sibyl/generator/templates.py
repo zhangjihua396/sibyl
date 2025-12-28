@@ -4,7 +4,7 @@ from datetime import timedelta
 
 from sibyl.generator.base import BaseGenerator, GeneratorResult
 from sibyl.generator.config import GeneratorConfig
-from sibyl.models.entities import Entity, EntityType
+from sibyl_core.models.entities import Entity, EntityType
 
 # Template data for realistic generation
 PATTERN_TEMPLATES = {

@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from sibyl.models.tasks import TaskStatus
-from sibyl.tasks.dependencies import (
+from sibyl_core.models.tasks import TaskStatus
+from sibyl_core.tasks.dependencies import (
     CycleResult,
     DependencyResult,
     TaskOrderResult,

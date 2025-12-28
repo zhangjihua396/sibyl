@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from graphiti_core.edges import EntityEdge
 
-from sibyl.graph.relationships import RelationshipManager
-from sibyl.models.entities import Relationship, RelationshipType
+from sibyl_core.graph.relationships import RelationshipManager
+from sibyl_core.models.entities import Relationship, RelationshipType
 
 
 @pytest.fixture
@@ -248,7 +248,7 @@ class TestCreate:
         sample_relationship: Relationship,
     ) -> None:
         """Should raise ConventionsMCPError on failure."""
-        from sibyl.errors import ConventionsMCPError
+        from sibyl_core.errors import ConventionsMCPError
 
         with patch.object(EntityEdge, "get_between_nodes", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = RuntimeError("Connection failed")
@@ -506,7 +506,7 @@ class TestDelete:
         relationship_manager: RelationshipManager,
     ) -> None:
         """Should raise ConventionsMCPError on failure."""
-        from sibyl.errors import ConventionsMCPError
+        from sibyl_core.errors import ConventionsMCPError
 
         relationship_manager._driver.execute_query = AsyncMock(
             side_effect=RuntimeError("Connection failed")
@@ -557,7 +557,7 @@ class TestListAll:
         relationship_manager: RelationshipManager,
     ) -> None:
         """Should list all relationships."""
-        from sibyl.graph.client import GraphClient
+        from sibyl_core.graph.client import GraphClient
 
         relationship_manager._driver.execute_query = AsyncMock(return_value=MagicMock())
 
@@ -586,7 +586,7 @@ class TestListAll:
         relationship_manager: RelationshipManager,
     ) -> None:
         """Should filter by relationship types in query."""
-        from sibyl.graph.client import GraphClient
+        from sibyl_core.graph.client import GraphClient
 
         relationship_manager._driver.execute_query = AsyncMock(return_value=MagicMock())
 
@@ -610,7 +610,7 @@ class TestListAll:
         relationship_manager: RelationshipManager,
     ) -> None:
         """Should default to RELATED_TO for unknown types."""
-        from sibyl.graph.client import GraphClient
+        from sibyl_core.graph.client import GraphClient
 
         relationship_manager._driver.execute_query = AsyncMock(return_value=MagicMock())
 
@@ -735,7 +735,7 @@ class TestGetRelatedEntities:
                 new_callable=AsyncMock,
                 return_value=many_relationships,
             ),
-            patch("sibyl.graph.entities.EntityManager"),
+            patch("sibyl_core.graph.entities.EntityManager"),
         ):
             # Mock execute_read_org
             relationship_manager._client.execute_read_org = AsyncMock(return_value=[])
@@ -767,7 +767,7 @@ class TestGetRelatedEntities:
                     ),
                 ],
             ),
-            patch("sibyl.graph.entities.EntityManager"),
+            patch("sibyl_core.graph.entities.EntityManager"),
         ):
             # Return node without properties attribute
             mock_node = MagicMock(spec=[])  # No properties

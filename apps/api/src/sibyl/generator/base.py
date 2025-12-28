@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sibyl.generator.config import GeneratorConfig
-from sibyl.models.entities import Entity, Relationship
+from sibyl_core.models.entities import Entity, Relationship
 
 if TYPE_CHECKING:
     from random import Random
