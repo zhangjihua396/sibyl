@@ -15,7 +15,15 @@ from sibyl.graph.client import GraphClient, get_graph_client
 from sibyl.graph.entities import EntityManager
 from sibyl.graph.relationships import RelationshipManager
 from sibyl.models.entities import EntityType, Episode, Pattern, Relationship, RelationshipType
-from sibyl.models.tasks import Project, ProjectStatus, Task, TaskPriority, TaskStatus
+from sibyl.models.tasks import (
+    Epic,
+    EpicStatus,
+    Project,
+    ProjectStatus,
+    Task,
+    TaskPriority,
+    TaskStatus,
+)
 from sibyl.retrieval import HybridConfig, hybrid_search, temporal_boost
 from sibyl.utils.resilience import TIMEOUTS, with_timeout
 
@@ -1403,8 +1411,9 @@ async def add(  # noqa: PLR0915
     tags: list[str] | None = None,
     related_to: list[str] | None = None,
     metadata: dict[str, Any] | None = None,
-    # Task-specific parameters
+    # Task/Epic-specific parameters
     project: str | None = None,
+    epic: str | None = None,
     priority: str | None = None,
     assignees: list[str] | None = None,
     due_date: str | None = None,
@@ -1420,36 +1429,40 @@ async def add(  # noqa: PLR0915
     """Add new knowledge to the Sibyl knowledge graph.
 
     Use this tool to create entities with automatic relationship discovery.
-    Supports episodes (learnings), patterns, tasks, and projects.
+    Supports episodes (learnings), patterns, tasks, epics, and projects.
 
     ENTITY TYPES:
     • episode: Temporal knowledge snapshot (default) - insights, learnings, discoveries
     • pattern: Coding pattern or best practice
-    • task: Work item with workflow state machine
-    • project: Container for related tasks
+    • task: Work item with workflow state machine (REQUIRES project)
+    • epic: Feature initiative grouping related tasks (REQUIRES project)
+    • project: Container for epics and tasks
 
     USE CASES:
     • Record a learning: add("Redis pooling insight", "Discovered that...", category="debugging")
     • Create a pattern: add("Error handling pattern", "...", entity_type="pattern", languages=["python"])
-    • Create a task: add("Implement OAuth", "...", entity_type="task", project="sibyl-project", priority="high")
+    • Create an epic: add("OAuth Integration", "...", entity_type="epic", project="proj_abc", priority="high")
+    • Create a task: add("Implement OAuth", "...", entity_type="task", project="proj_abc", epic="epic_xyz")
     • Create a project: add("Auth System", "...", entity_type="project", repository_url="...")
     • Auto-link to related knowledge: add("OAuth insight", "...", auto_link=True)
 
-    IMPORTANT: Tasks REQUIRE a project. Always specify project="<project_id>" when creating tasks.
+    IMPORTANT: Tasks and Epics REQUIRE a project. Always specify project="<project_id>".
+    Tasks can optionally belong to an epic via epic="<epic_id>".
     Use explore(mode="list", types=["project"]) to find available projects first.
 
     Args:
         title: Short title (max 200 chars).
         content: Full content/description (max 50k chars).
-        entity_type: Type to create - episode (default), pattern, task, project.
+        entity_type: Type to create - episode (default), pattern, task, epic, project.
         category: Domain category (authentication, database, api, debugging, etc.).
         languages: Programming languages (python, typescript, rust, etc.).
         tags: Searchable tags for discovery.
         related_to: Entity IDs to explicitly link (creates RELATED_TO edges).
         metadata: Additional structured data.
-        project: Project ID for tasks (REQUIRED for tasks, creates BELONGS_TO edge).
-        priority: Task priority - critical, high, medium (default), low, someday.
-        assignees: List of assignee names for tasks.
+        project: Project ID (REQUIRED for tasks and epics, creates BELONGS_TO edge).
+        epic: Epic ID for tasks (optional, creates BELONGS_TO edge).
+        priority: Task/epic priority - critical, high, medium (default), low, someday.
+        assignees: List of assignee names for tasks/epics.
         due_date: Due date for tasks (ISO format: 2024-03-15).
         technologies: Technologies involved (for tasks).
         depends_on: Task IDs this depends on (creates DEPENDS_ON edges).
@@ -1594,6 +1607,7 @@ async def add(  # noqa: PLR0915
                 status=TaskStatus.TODO,
                 priority=task_priority,
                 project_id=project or None,
+                epic_id=epic or None,
                 assignees=assignees or [],
                 due_date=parsed_due_date,
                 technologies=task_technologies,
@@ -1610,6 +1624,45 @@ async def add(  # noqa: PLR0915
                 status=ProjectStatus.ACTIVE,
                 repository_url=repository_url,
                 tech_stack=technologies or languages or [],
+                tags=tags or [],
+                metadata=full_metadata,
+            )
+
+        elif entity_type == "epic":
+            # Validate project_id is provided for epics
+            if not project:
+                return AddResponse(
+                    success=False,
+                    id=None,
+                    message="Epics require a project. Use explore(types=['project']) to find projects.",
+                    timestamp=datetime.now(UTC),
+                )
+
+            # Parse priority
+            epic_priority = TaskPriority.MEDIUM
+            if priority:
+                try:
+                    epic_priority = TaskPriority(priority.lower())
+                except ValueError:
+                    log.warning("invalid_priority", priority=priority)
+
+            # Parse target date if provided
+            parsed_target_date = None
+            if due_date:
+                try:
+                    parsed_target_date = datetime.fromisoformat(due_date)
+                except ValueError:
+                    log.warning("invalid_target_date", due_date=due_date)
+
+            entity = Epic(  # type: ignore[call-arg]  # model_validator sets name from title
+                id=entity_id,
+                title=title,
+                description=content,
+                status=EpicStatus.PLANNING,
+                priority=epic_priority,
+                project_id=project,
+                assignees=assignees or [],
+                target_date=parsed_target_date,
                 tags=tags or [],
                 metadata=full_metadata,
             )
@@ -1642,6 +1695,30 @@ async def add(  # noqa: PLR0915
 
         # Task -> Project (BELONGS_TO)
         if entity_type == "task" and project:
+            relationships_to_create.append(
+                {
+                    "id": f"rel_{entity_id}_belongs_to_{project}",
+                    "source_id": entity_id,
+                    "target_id": project,
+                    "type": "BELONGS_TO",
+                    "metadata": {"created_at": datetime.now(UTC).isoformat()},
+                }
+            )
+
+        # Task -> Epic (BELONGS_TO)
+        if entity_type == "task" and epic:
+            relationships_to_create.append(
+                {
+                    "id": f"rel_{entity_id}_belongs_to_{epic}",
+                    "source_id": entity_id,
+                    "target_id": epic,
+                    "type": "BELONGS_TO",
+                    "metadata": {"created_at": datetime.now(UTC).isoformat()},
+                }
+            )
+
+        # Epic -> Project (BELONGS_TO)
+        if entity_type == "epic" and project:
             relationships_to_create.append(
                 {
                     "id": f"rel_{entity_id}_belongs_to_{project}",
@@ -1686,7 +1763,7 @@ async def add(  # noqa: PLR0915
         if sync:
             # Use create_direct() for structured entities (faster, generates embeddings)
             # Use create() for episodes (LLM extraction may add value)
-            if entity_type in ("task", "project", "pattern"):
+            if entity_type in ("task", "project", "epic", "pattern"):
                 created_id = await entity_manager.create_direct(entity)
             else:
                 created_id = await entity_manager.create(entity)
@@ -1774,7 +1851,7 @@ async def add(  # noqa: PLR0915
             # If arq queue fails, fall back to sync creation
             log.warning("arq_queue_failed_falling_back_to_sync", error=str(e))
             # Use create_direct() for structured entities (faster, generates embeddings)
-            if entity_type in ("task", "project", "pattern"):
+            if entity_type in ("task", "project", "epic", "pattern"):
                 created_id = await entity_manager.create_direct(entity)
             else:
                 created_id = await entity_manager.create(entity)
