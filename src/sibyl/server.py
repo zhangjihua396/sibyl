@@ -173,6 +173,12 @@ def _register_tools(mcp: FastMCP) -> None:
         AND crawled documentation (pgvector similarity search). Results are
         merged and ranked by relevance score.
 
+        IMPORTANT FOR AGENTS:
+        - Results contain PREVIEWS only (truncated content)
+        - To get FULL content, use: sibyl entity show <id>
+        - Do NOT try to read URLs directly - content is stored in Sibyl
+        - The 'id' field is the entity/chunk ID to fetch full content
+
         Args:
             query: Natural language search query
             types: Entity types to search. Options: pattern, rule, template,
@@ -195,9 +201,15 @@ def _register_tools(mcp: FastMCP) -> None:
             boost_recent: Boost recent results in ranking (default: True)
 
         Returns:
-            Unified search results with id, type, name, content, score, url,
-            result_origin (graph/document), and metadata. Also includes
-            graph_count and document_count for result breakdown.
+            Search results with:
+            - id: Entity/chunk ID (use with 'sibyl entity show <id>' for full content)
+            - type: Entity type (pattern, rule, task, document, etc.)
+            - name: Title/name of the result
+            - content: PREVIEW only - truncated, use entity show for full content
+            - score: Relevance score (0-1)
+            - source: Source name for documentation results
+            - result_origin: "graph" or "document" indicating data source
+            - usage_hint: Instructions for getting full content
 
         Examples:
             # Search everything
@@ -206,14 +218,9 @@ def _register_tools(mcp: FastMCP) -> None:
             # Search only documentation
             search("Next.js middleware", include_graph=False)
 
-            # Search specific doc source
-            search("environment variables", source_name="next-dynenv")
-
-            # Search only knowledge graph
-            search("OAuth implementation", include_documents=False)
-
-            # Search by type
-            search("error handling", types=["pattern", "document"])
+            # Get full content of a result
+            # 1. search("OAuth") -> returns results with IDs
+            # 2. sibyl entity show <id> -> returns full content
         """
         from sibyl.tools.core import search as _search
 
