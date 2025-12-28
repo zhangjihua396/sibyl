@@ -24,6 +24,7 @@ class EntityType(StrEnum):
 
     # Task management types
     PROJECT = "project"
+    EPIC = "epic"  # Feature initiative grouping tasks
     TASK = "task"
     TEAM = "team"
     ERROR_PATTERN = "error_pattern"
@@ -53,8 +54,8 @@ class RelationshipType(StrEnum):
     DERIVED_FROM = "DERIVED_FROM"
 
     # Task management relationships
-    BELONGS_TO = "BELONGS_TO"  # Task -> Project
-    CONTAINS = "CONTAINS"  # Project -> Task
+    BELONGS_TO = "BELONGS_TO"  # Task -> Project, Epic -> Project
+    CONTAINS = "CONTAINS"  # Project -> Epic, Epic -> Task
     DEPENDS_ON = "DEPENDS_ON"  # Task -> Task (blocking)
     BLOCKS = "BLOCKS"  # Task -> Task (inverse of DEPENDS_ON)
     ASSIGNED_TO = "ASSIGNED_TO"  # Task -> Person

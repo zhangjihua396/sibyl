@@ -29,6 +29,8 @@ from sibyl.models.sources import (
     SourceType,
 )
 from sibyl.models.tasks import (
+    Epic,
+    EpicStatus,
     ErrorPattern,
     Milestone,
     Project,
@@ -81,6 +83,8 @@ __all__ = [
     "Tool",
     "Topic",
     # Task management
+    "Epic",
+    "EpicStatus",
     "ErrorPattern",
     "Milestone",
     "Project",

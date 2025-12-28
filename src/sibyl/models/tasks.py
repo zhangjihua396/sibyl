@@ -55,7 +55,8 @@ class Task(Entity):
 
     # Project organization
     project_id: str | None = Field(default=None, description="Parent project UUID (optional)")
-    feature: str | None = Field(default=None, description="Feature area")
+    epic_id: str | None = Field(default=None, description="Parent epic UUID (optional)")
+    feature: str | None = Field(default=None, description="Feature area (lightweight grouping)")
     sprint: str | None = Field(default=None, description="Sprint/milestone")
 
     # Assignment and time
@@ -146,6 +147,62 @@ class Project(Entity):
     @classmethod
     def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Set name and content from project-specific fields."""
+        if isinstance(data, dict):
+            if "name" not in data and "title" in data:
+                data["name"] = data["title"]
+            if "content" not in data and "description" in data:
+                data["content"] = data["description"]
+        return data
+
+
+class EpicStatus(StrEnum):
+    """Epic lifecycle states."""
+
+    PLANNING = "planning"  # Scoping, not started
+    IN_PROGRESS = "in_progress"  # Active development
+    BLOCKED = "blocked"  # Waiting on something
+    COMPLETED = "completed"  # All work done
+    ARCHIVED = "archived"  # Historical record
+
+
+class Epic(Entity):
+    """A feature initiative grouping related tasks within a project.
+
+    Epics provide a layer between Projects and Tasks for organizing
+    larger feature work that spans multiple tasks and sessions.
+    """
+
+    entity_type: EntityType = EntityType.EPIC
+
+    # Core fields
+    title: str = Field(..., max_length=200, description="Epic title")
+    description: str = Field(default="", description="Epic description and goals")
+    status: EpicStatus = Field(default=EpicStatus.PLANNING, description="Epic status")
+    priority: TaskPriority = Field(default=TaskPriority.MEDIUM, description="Priority level")
+
+    # Hierarchy - epics belong to projects
+    project_id: str = Field(..., description="Parent project UUID (required)")
+
+    # Timeline
+    start_date: datetime | None = Field(default=None, description="When work started")
+    target_date: datetime | None = Field(default=None, description="Target completion")
+    completed_date: datetime | None = Field(default=None, description="Actual completion")
+
+    # Progress tracking (computed or cached)
+    total_tasks: int = Field(default=0, description="Total tasks in epic")
+    completed_tasks: int = Field(default=0, description="Tasks completed")
+
+    # Team and organization
+    assignees: list[str] = Field(default_factory=list, description="Epic leads/owners")
+    tags: list[str] = Field(default_factory=list, description="Epic tags")
+
+    # Learning capture
+    learnings: str = Field(default="", description="What was learned completing this epic")
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set name and content from epic-specific fields."""
         if isinstance(data, dict):
             if "name" not in data and "title" in data:
                 data["name"] = data["title"]
