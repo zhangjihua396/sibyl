@@ -37,6 +37,7 @@ class Context:
     server_url: str = "http://localhost:3334"
     org_slug: str | None = None  # None = auto-pick first/only org
     default_project: str | None = None
+    insecure: bool = False  # Skip SSL verification (for self-signed certs)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dict for TOML storage."""
@@ -44,6 +45,7 @@ class Context:
             "server_url": self.server_url,
             "org_slug": self.org_slug or "",
             "default_project": self.default_project or "",
+            "insecure": self.insecure,
         }
 
     @classmethod
@@ -54,6 +56,7 @@ class Context:
             server_url=data.get("server_url", "http://localhost:3334"),
             org_slug=data.get("org_slug") or None,
             default_project=data.get("default_project") or None,
+            insecure=bool(data.get("insecure", False)),
         )
 
 
@@ -404,6 +407,7 @@ def create_context(
     default_project: str | None = None,
     *,
     set_active: bool = False,
+    insecure: bool = False,
 ) -> Context:
     """Create a new context.
 
@@ -413,6 +417,7 @@ def create_context(
         org_slug: Organization slug (optional, auto-picked if None).
         default_project: Default project ID (optional).
         set_active: If True, make this the active context.
+        insecure: If True, skip SSL verification (for self-signed certs).
 
     Returns:
         The created Context.
@@ -431,6 +436,7 @@ def create_context(
         server_url=server_url,
         org_slug=org_slug,
         default_project=default_project,
+        insecure=insecure,
     )
 
     contexts[name] = context.to_dict()
@@ -448,6 +454,7 @@ def update_context(
     server_url: str | None = None,
     org_slug: str | None = ...,  # type: ignore[assignment]
     default_project: str | None = ...,  # type: ignore[assignment]
+    insecure: bool | None = None,
 ) -> Context:
     """Update an existing context.
 
@@ -456,6 +463,7 @@ def update_context(
         server_url: New server URL (None = keep existing).
         org_slug: New org slug (... = keep existing, None = clear).
         default_project: New default project (... = keep existing, None = clear).
+        insecure: SSL verification setting (None = keep existing).
 
     Returns:
         The updated Context.
@@ -477,6 +485,8 @@ def update_context(
         ctx_data["org_slug"] = org_slug or ""
     if default_project is not ...:
         ctx_data["default_project"] = default_project or ""
+    if insecure is not None:
+        ctx_data["insecure"] = insecure
 
     config["contexts"] = contexts
     save_config(config)

@@ -12,6 +12,7 @@ import typer
 from sibyl.cli.client import clear_client_cache
 from sibyl.cli.common import (
     ELECTRIC_PURPLE,
+    ELECTRIC_YELLOW,
     NEON_CYAN,
     SUCCESS_GREEN,
     console,
@@ -47,6 +48,7 @@ def _context_to_dict(ctx: Context) -> dict:
         "server_url": ctx.server_url,
         "org_slug": ctx.org_slug,
         "default_project": ctx.default_project,
+        "insecure": ctx.insecure,
     }
 
 
@@ -132,9 +134,11 @@ def show_cmd(
     if is_active:
         console.print(f"  [{SUCCESS_GREEN}](active)[/{SUCCESS_GREEN}]")
     console.print()
-    console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]  {ctx.server_url}")
-    console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]     {ctx.org_slug or '[dim]auto[/dim]'}")
-    console.print(f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}] {ctx.default_project or '[dim]none[/dim]'}")
+    console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]   {ctx.server_url}")
+    console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]      {ctx.org_slug or '[dim]auto[/dim]'}")
+    console.print(f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {ctx.default_project or '[dim]none[/dim]'}")
+    if ctx.insecure:
+        console.print(f"  [{ELECTRIC_YELLOW}]Insecure:[/{ELECTRIC_YELLOW}] SSL verification disabled")
     console.print()
 
 
@@ -153,6 +157,9 @@ def create_cmd(
     use: Annotated[
         bool, typer.Option("--use", "-u", help="Set as active context")
     ] = False,
+    insecure: Annotated[
+        bool, typer.Option("--insecure", "-k", help="Skip SSL verification (self-signed certs)")
+    ] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -165,6 +172,7 @@ def create_cmd(
             org_slug=org or None,
             default_project=project or None,
             set_active=use,
+            insecure=insecure,
         )
     except ValueError as e:
         error(str(e))
@@ -179,6 +187,8 @@ def create_cmd(
     success(f"Created context '{name}'")
     if use:
         info("Set as active context")
+    if insecure:
+        info("SSL verification disabled")
     console.print()
     console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]  {ctx.server_url}")
     console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]     {ctx.org_slug or '[dim]auto[/dim]'}")
@@ -226,6 +236,12 @@ def update_cmd(
     project: Annotated[
         str, typer.Option("--project", "-p", help="New default project (use 'none' to clear)")
     ] = "",
+    insecure: Annotated[
+        bool, typer.Option("--insecure", "-k", help="Skip SSL verification (self-signed certs)")
+    ] = False,
+    secure: Annotated[
+        bool, typer.Option("--secure", help="Re-enable SSL verification")
+    ] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -239,9 +255,13 @@ def update_cmd(
         kwargs["org_slug"] = None if org.lower() == "auto" else org
     if project:
         kwargs["default_project"] = None if project.lower() == "none" else project
+    if insecure:
+        kwargs["insecure"] = True
+    elif secure:
+        kwargs["insecure"] = False
 
     if not kwargs:
-        error("Nothing to update. Provide --server, --org, or --project")
+        error("Nothing to update. Provide --server, --org, --project, --insecure, or --secure")
         raise typer.Exit(1)
 
     try:

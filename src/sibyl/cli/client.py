@@ -147,6 +147,22 @@ class SibylClient:
         self.timeout = timeout
         self.auth_token = auth_token or _load_default_auth_token(self.base_url)
         self._client: httpx.AsyncClient | None = None
+        # Load insecure setting from context
+        self.insecure = self._get_insecure_from_context(context_name)
+
+    def _get_insecure_from_context(self, context_name: str | None) -> bool:
+        """Get insecure setting from context config."""
+        from sibyl.cli import config_store
+
+        if context_name:
+            ctx = config_store.get_context(context_name)
+            if ctx:
+                return ctx.insecure
+        # Check active context
+        ctx = config_store.get_active_context()
+        if ctx:
+            return ctx.insecure
+        return False
 
     def _default_headers(self) -> dict[str, str]:
         headers: dict[str, str] = {"Content-Type": "application/json"}
@@ -161,6 +177,7 @@ class SibylClient:
                 base_url=self.base_url,
                 timeout=self.timeout,
                 headers=self._default_headers(),
+                verify=not self.insecure,
             )
         return self._client
 
@@ -185,6 +202,7 @@ class SibylClient:
             async with httpx.AsyncClient(
                 base_url=self.base_url.replace("/api", ""),
                 timeout=self.timeout,
+                verify=not self.insecure,
             ) as client:
                 response = await client.post(
                     "/auth/refresh",
@@ -735,18 +753,29 @@ _clients: dict[str | None, SibylClient] = {}
 def get_client(context_name: str | None = None) -> SibylClient:
     """Get a client instance for the given context.
 
-    Clients are cached by context name. Passing None uses the active context.
+    Clients are cached by context name. Passing None uses the global override,
+    then falls back to active context.
+
+    Priority for context resolution:
+    1. Explicit context_name parameter
+    2. Global --context flag override
+    3. SIBYL_CONTEXT environment variable
+    4. Active context from config
 
     Args:
-        context_name: Optional context name. None = use active context.
+        context_name: Optional context name. None = use override or active context.
 
     Returns:
         SibylClient configured for the specified context.
     """
     global _clients  # noqa: PLW0602
 
-    # For None (active context), we need to resolve the actual context name
-    # to ensure cache invalidation works when active context changes
+    # Check for global override if no explicit context provided
+    if context_name is None:
+        from sibyl.cli.state import get_context_override
+
+        context_name = get_context_override()
+
     cache_key = context_name
 
     if cache_key not in _clients:

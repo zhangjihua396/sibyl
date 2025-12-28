@@ -619,10 +619,10 @@ def login_cmd(
 
         existing = get_context(context)
         if existing:
-            update_context(context, server_url=server_url)
+            update_context(context, server_url=server_url, insecure=insecure)
             info(f"Updated context '{context}' with server {server_url}")
         else:
-            create_context(name=context, server_url=server_url, set_active=True)
+            create_context(name=context, server_url=server_url, set_active=True, insecure=insecure)
             success(f"Created context '{context}' and set as active")
 
         clear_client_cache()
