@@ -17,7 +17,7 @@ from sibyl.errors import EntityNotFoundError, SearchError
 from sibyl.graph.client import GraphClient
 from sibyl.models.entities import Entity, EntityType
 from sibyl.models.sources import Community, Document, Source
-from sibyl.models.tasks import ErrorPattern, Milestone, Project, Task, Team
+from sibyl.models.tasks import Epic, ErrorPattern, Milestone, Project, Task, Team
 
 log = structlog.get_logger()
 
@@ -551,6 +551,7 @@ class EntityManager:
                        n.status AS status,
                        n.priority AS priority,
                        n.project_id AS project_id,
+                       n.epic_id AS epic_id,
                        n.task_order AS task_order,
                        n.feature AS feature,
                        n.complexity AS complexity,
@@ -701,12 +702,13 @@ class EntityManager:
             if value is not None:
                 props[field] = value
 
-        # Task-specific fields (if present)
+        # Task/Epic-specific fields (if present)
         task_fields = (
             "status",
             "priority",
             "task_order",
             "project_id",
+            "epic_id",
             "feature",
             "sprint",
             "assignees",
@@ -769,6 +771,7 @@ class EntityManager:
             metadata["status"] = entity.status.value if entity.status else "todo"
             metadata["priority"] = entity.priority.value if entity.priority else "medium"
             metadata["project_id"] = entity.project_id
+            metadata["epic_id"] = entity.epic_id
             metadata["task_order"] = entity.task_order
             if entity.assignees:
                 metadata["assignees"] = entity.assignees
@@ -794,6 +797,18 @@ class EntityManager:
                 metadata["tech_stack"] = entity.tech_stack
             if entity.repository_url:
                 metadata["repository_url"] = entity.repository_url
+
+        # Add Epic-specific fields
+        elif isinstance(entity, Epic):
+            metadata["status"] = entity.status.value if entity.status else "planning"
+            metadata["priority"] = entity.priority.value if entity.priority else "medium"
+            metadata["project_id"] = entity.project_id
+            if entity.assignees:
+                metadata["assignees"] = entity.assignees
+            if entity.target_date:
+                metadata["target_date"] = entity.target_date.isoformat()
+            if entity.learnings:
+                metadata["learnings"] = entity.learnings
 
         # Common fields (check hasattr since not all entities have these)
         if hasattr(entity, "languages") and entity.languages:
@@ -905,7 +920,7 @@ class EntityManager:
 
         return "\n".join(parts)
 
-    def _format_specialized_fields(
+    def _format_specialized_fields(  # noqa: PLR0915
         self,
         entity: Entity,
         sanitize: Any,
@@ -940,6 +955,16 @@ class EntityManager:
                 parts.append(f"Tech Stack: {', '.join(entity.tech_stack)}")
             if entity.features:
                 parts.append(f"Features: {', '.join(entity.features[:5])}")
+
+        elif isinstance(entity, Epic):
+            if entity.status:
+                parts.append(f"Status: {entity.status}")
+            if entity.priority:
+                parts.append(f"Priority: {entity.priority}")
+            if entity.project_id:
+                parts.append(f"Project ID: {entity.project_id}")
+            if entity.assignees:
+                parts.append(f"Assignees: {', '.join(entity.assignees[:5])}")
 
         elif isinstance(entity, Source):
             parts.append(f"URL: {sanitize(entity.url)}")
