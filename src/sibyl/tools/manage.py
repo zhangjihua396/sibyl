@@ -51,6 +51,14 @@ TASK_ACTIONS = {
     "update_task",  # Update task fields
 }
 
+# Epic workflow actions
+EPIC_ACTIONS = {
+    "start_epic",  # Move epic to in_progress status
+    "complete_epic",  # Mark epic as completed with learnings
+    "archive_epic",  # Archive epic
+    "update_epic",  # Update epic fields
+}
+
 # Source operations
 SOURCE_ACTIONS = {
     "crawl",  # Trigger crawl of URL
@@ -75,7 +83,7 @@ ADMIN_ACTIONS = {
     "rebuild_index",  # Rebuild FalkorDB indices
 }
 
-ALL_ACTIONS = TASK_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS | ADMIN_ACTIONS
+ALL_ACTIONS = TASK_ACTIONS | EPIC_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS | ADMIN_ACTIONS
 
 
 # =============================================================================
@@ -102,6 +110,12 @@ async def manage(
         - complete_task: Mark done and capture learnings (data.learnings optional)
         - archive_task: Archive without completing
         - update_task: Update task fields (data contains field updates)
+
+    Epic Workflow:
+        - start_epic: Move epic to in_progress status
+        - complete_epic: Mark epic as completed (data.learnings optional)
+        - archive_epic: Archive epic (data.reason optional)
+        - update_epic: Update epic fields (data contains field updates)
 
     Source Operations:
         - crawl: Trigger crawl of URL (data.url, data.depth optional)
@@ -152,6 +166,10 @@ async def manage(
         # Route to appropriate handler
         if action in TASK_ACTIONS:
             return await _handle_task_action(
+                action, entity_id, data, organization_id=organization_id
+            )
+        if action in EPIC_ACTIONS:
+            return await _handle_epic_action(
                 action, entity_id, data, organization_id=organization_id
             )
         if action in SOURCE_ACTIONS:
@@ -395,6 +413,164 @@ async def _update_task(
         action="update_task",
         entity_id=entity_id,
         message="Failed to update task",
+    )
+
+
+# =============================================================================
+# Epic Workflow Handlers
+# =============================================================================
+
+
+async def _handle_epic_action(
+    action: str,
+    entity_id: str | None,
+    data: dict[str, Any],
+    *,
+    organization_id: str | None,
+) -> ManageResponse:
+    """Handle epic workflow actions.
+
+    Epics have simpler state transitions than tasks (no workflow engine needed).
+    """
+    if not entity_id and action != "update_epic":
+        return ManageResponse(
+            success=False,
+            action=action,
+            message="entity_id required for epic actions",
+        )
+
+    if not organization_id:
+        return ManageResponse(
+            success=False,
+            action=action,
+            message="organization_id required for epic actions",
+        )
+
+    client = await get_graph_client()
+    entity_manager = EntityManager(client, group_id=organization_id)
+
+    # Get the epic
+    try:
+        epic = await entity_manager.get(entity_id) if entity_id else None
+        if entity_id and not epic:
+            return ManageResponse(
+                success=False,
+                action=action,
+                entity_id=entity_id,
+                message=f"Epic not found: {entity_id}",
+            )
+        if epic and epic.entity_type != EntityType.EPIC:
+            return ManageResponse(
+                success=False,
+                action=action,
+                entity_id=entity_id,
+                message=f"Entity is not an epic: {entity_id}",
+            )
+    except Exception:
+        return ManageResponse(
+            success=False,
+            action=action,
+            entity_id=entity_id,
+            message=f"Epic not found: {entity_id}",
+        )
+
+    if action == "start_epic":
+        updates = {"status": "in_progress"}
+        await entity_manager.update(entity_id, updates)
+        return ManageResponse(
+            success=True,
+            action=action,
+            entity_id=entity_id,
+            message="Epic started",
+            data={"status": "in_progress"},
+        )
+
+    if action == "complete_epic":
+        learnings = data.get("learnings", "")
+        updates = {
+            "status": "completed",
+            "completed_date": datetime.now(UTC).isoformat(),
+        }
+        if learnings:
+            updates["learnings"] = learnings
+        await entity_manager.update(entity_id, updates)
+        return ManageResponse(
+            success=True,
+            action=action,
+            entity_id=entity_id,
+            message="Epic completed" + (" with learnings captured" if learnings else ""),
+            data={"status": "completed", "learnings": learnings},
+        )
+
+    if action == "archive_epic":
+        reason = data.get("reason", "")
+        updates = {"status": "archived"}
+        await entity_manager.update(entity_id, updates)
+        return ManageResponse(
+            success=True,
+            action=action,
+            entity_id=entity_id,
+            message="Epic archived" + (f": {reason}" if reason else ""),
+            data={"status": "archived"},
+        )
+
+    if action == "update_epic":
+        return await _update_epic(entity_manager, entity_id, data)
+
+    return ManageResponse(success=False, action=action, message="Unknown epic action")
+
+
+async def _update_epic(
+    entity_manager: EntityManager,
+    entity_id: str | None,
+    data: dict[str, Any],
+) -> ManageResponse:
+    """Update epic fields."""
+    if not entity_id:
+        return ManageResponse(
+            success=False,
+            action="update_epic",
+            message="entity_id required for update_epic",
+        )
+
+    # Filter allowed update fields
+    allowed_fields = {
+        "title",
+        "description",
+        "status",
+        "priority",
+        "start_date",
+        "target_date",
+        "assignees",
+        "tags",
+        "learnings",
+    }
+
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if not updates:
+        return ManageResponse(
+            success=False,
+            action="update_epic",
+            entity_id=entity_id,
+            message=f"No valid fields to update. Allowed: {sorted(allowed_fields)}",
+        )
+
+    result = await entity_manager.update(entity_id, updates)
+    if result:
+        return ManageResponse(
+            success=True,
+            action="update_epic",
+            entity_id=entity_id,
+            message=f"Epic updated: {', '.join(updates.keys())}",
+            data={"updated_fields": list(updates.keys())},
+        )
+
+    return ManageResponse(
+        success=False,
+        action="update_epic",
+        entity_id=entity_id,
+        message="Failed to update epic",
     )
 
 

@@ -10,6 +10,7 @@ from sibyl.tools.manage import (
     ADMIN_ACTIONS,
     ALL_ACTIONS,
     ANALYSIS_ACTIONS,
+    EPIC_ACTIONS,
     SOURCE_ACTIONS,
     TASK_ACTIONS,
     ManageResponse,
@@ -77,8 +78,13 @@ class TestActionCategories:
 
     def test_source_actions_defined(self) -> None:
         """Verify all source actions are defined."""
-        expected = {"crawl", "sync", "refresh"}
+        expected = {"crawl", "sync", "refresh", "link_graph", "link_graph_status"}
         assert expected == SOURCE_ACTIONS
+
+    def test_epic_actions_defined(self) -> None:
+        """Verify all epic actions are defined."""
+        expected = {"start_epic", "complete_epic", "archive_epic", "update_epic"}
+        assert expected == EPIC_ACTIONS
 
     def test_analysis_actions_defined(self) -> None:
         """Verify all analysis actions are defined."""
@@ -92,11 +98,13 @@ class TestActionCategories:
 
     def test_all_actions_combined(self) -> None:
         """Verify ALL_ACTIONS includes all categories."""
-        assert ALL_ACTIONS == (TASK_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS | ADMIN_ACTIONS)
+        assert ALL_ACTIONS == (
+            TASK_ACTIONS | EPIC_ACTIONS | SOURCE_ACTIONS | ANALYSIS_ACTIONS | ADMIN_ACTIONS
+        )
 
     def test_no_duplicate_actions(self) -> None:
         """Verify no action appears in multiple categories."""
-        all_lists = [TASK_ACTIONS, SOURCE_ACTIONS, ANALYSIS_ACTIONS, ADMIN_ACTIONS]
+        all_lists = [TASK_ACTIONS, EPIC_ACTIONS, SOURCE_ACTIONS, ANALYSIS_ACTIONS, ADMIN_ACTIONS]
         seen = set()
         for action_set in all_lists:
             for action in action_set:
@@ -684,3 +692,197 @@ class TestManageOrganizationRequired:
             result = await manage(action="health")
             assert result.success is True
             # Should not fail for missing org_id
+
+
+class TestEpicActions:
+    """Tests for epic action handlers."""
+
+    @pytest.mark.asyncio
+    async def test_epic_action_requires_entity_id(self) -> None:
+        """Epic actions should require entity_id (except update_epic)."""
+        result = await manage(action="start_epic", organization_id=TEST_ORG_ID)
+        assert result.success is False
+        assert "entity_id required" in result.message
+
+    @pytest.mark.asyncio
+    async def test_epic_action_requires_org_id(self) -> None:
+        """Epic actions should require organization_id."""
+        result = await manage(action="start_epic", entity_id="epic_123")
+        assert result.success is False
+        assert "organization_id required" in result.message
+
+    @pytest.mark.asyncio
+    async def test_start_epic_success(self) -> None:
+        """start_epic should update status to in_progress."""
+        from sibyl.models.entities import EntityType
+
+        mock_epic = MagicMock()
+        mock_epic.entity_type = EntityType.EPIC
+
+        with (
+            patch("sibyl.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+        ):
+            mock_client.return_value = MagicMock()
+            mock_manager = MagicMock()
+            mock_manager.get = AsyncMock(return_value=mock_epic)
+            mock_manager.update = AsyncMock(return_value=MagicMock())
+            mock_manager_class.return_value = mock_manager
+
+            result = await manage(
+                action="start_epic",
+                entity_id="epic_123",
+                organization_id=TEST_ORG_ID,
+            )
+
+            assert result.success is True
+            assert result.data["status"] == "in_progress"
+            assert "started" in result.message.lower()
+            mock_manager.update.assert_called_once_with(
+                "epic_123", {"status": "in_progress"}
+            )
+
+    @pytest.mark.asyncio
+    async def test_complete_epic_with_learnings(self) -> None:
+        """complete_epic should capture learnings."""
+        from sibyl.models.entities import EntityType
+
+        mock_epic = MagicMock()
+        mock_epic.entity_type = EntityType.EPIC
+
+        with (
+            patch("sibyl.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+        ):
+            mock_client.return_value = MagicMock()
+            mock_manager = MagicMock()
+            mock_manager.get = AsyncMock(return_value=mock_epic)
+            mock_manager.update = AsyncMock(return_value=MagicMock())
+            mock_manager_class.return_value = mock_manager
+
+            result = await manage(
+                action="complete_epic",
+                entity_id="epic_123",
+                data={"learnings": "OAuth redirect URIs matter"},
+                organization_id=TEST_ORG_ID,
+            )
+
+            assert result.success is True
+            assert "learnings captured" in result.message
+            assert result.data["status"] == "completed"
+            # Verify update was called with learnings
+            call_args = mock_manager.update.call_args[0][1]
+            assert call_args["status"] == "completed"
+            assert call_args["learnings"] == "OAuth redirect URIs matter"
+
+    @pytest.mark.asyncio
+    async def test_archive_epic_with_reason(self) -> None:
+        """archive_epic should archive with optional reason."""
+        from sibyl.models.entities import EntityType
+
+        mock_epic = MagicMock()
+        mock_epic.entity_type = EntityType.EPIC
+
+        with (
+            patch("sibyl.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+        ):
+            mock_client.return_value = MagicMock()
+            mock_manager = MagicMock()
+            mock_manager.get = AsyncMock(return_value=mock_epic)
+            mock_manager.update = AsyncMock(return_value=MagicMock())
+            mock_manager_class.return_value = mock_manager
+
+            result = await manage(
+                action="archive_epic",
+                entity_id="epic_123",
+                data={"reason": "Superseded by new architecture"},
+                organization_id=TEST_ORG_ID,
+            )
+
+            assert result.success is True
+            assert result.data["status"] == "archived"
+            assert "Superseded" in result.message
+
+    @pytest.mark.asyncio
+    async def test_update_epic_filters_allowed_fields(self) -> None:
+        """update_epic should only allow specific fields."""
+        from sibyl.models.entities import EntityType
+
+        mock_epic = MagicMock()
+        mock_epic.entity_type = EntityType.EPIC
+
+        with (
+            patch("sibyl.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+        ):
+            mock_client.return_value = MagicMock()
+            mock_manager = MagicMock()
+            mock_manager.get = AsyncMock(return_value=mock_epic)
+            mock_manager.update = AsyncMock(return_value=MagicMock())
+            mock_manager_class.return_value = mock_manager
+
+            result = await manage(
+                action="update_epic",
+                entity_id="epic_123",
+                data={
+                    "title": "New Title",
+                    "invalid_field": "ignored",
+                    "priority": "high",
+                },
+                organization_id=TEST_ORG_ID,
+            )
+
+            assert result.success is True
+            # Verify only allowed fields were passed
+            call_args = mock_manager.update.call_args[0][1]
+            assert "title" in call_args
+            assert "priority" in call_args
+            assert "invalid_field" not in call_args
+
+    @pytest.mark.asyncio
+    async def test_epic_not_found(self) -> None:
+        """Epic action should fail if epic not found."""
+        with (
+            patch("sibyl.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+        ):
+            mock_client.return_value = MagicMock()
+            mock_manager = MagicMock()
+            mock_manager.get = AsyncMock(return_value=None)
+            mock_manager_class.return_value = mock_manager
+
+            result = await manage(
+                action="start_epic",
+                entity_id="epic_nonexistent",
+                organization_id=TEST_ORG_ID,
+            )
+
+            assert result.success is False
+            assert "not found" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_entity_not_epic_type(self) -> None:
+        """Epic action should fail if entity is not an epic."""
+        from sibyl.models.entities import EntityType
+
+        mock_task = MagicMock()
+        mock_task.entity_type = EntityType.TASK
+
+        with (
+            patch("sibyl.tools.manage.get_graph_client") as mock_client,
+            patch("sibyl.tools.manage.EntityManager") as mock_manager_class,
+        ):
+            mock_client.return_value = MagicMock()
+            mock_manager = MagicMock()
+            mock_manager.get = AsyncMock(return_value=mock_task)
+            mock_manager_class.return_value = mock_manager
+
+            result = await manage(
+                action="start_epic",
+                entity_id="task_123",
+                organization_id=TEST_ORG_ID,
+            )
+
+            assert result.success is False
+            assert "not an epic" in result.message.lower()
