@@ -1,3 +1,5 @@
+import os
+
 from sibyl.cli.auth_store import (
     clear_tokens,
     get_access_token,
@@ -67,3 +69,12 @@ def test_auth_store_with_refresh_token(tmp_path) -> None:
 
     assert get_access_token(TEST_API_URL, path) == "access"
     assert get_refresh_token(TEST_API_URL, path) == "refresh"
+
+
+def test_auth_store_sets_secure_file_permissions(tmp_path) -> None:
+    if os.name == "nt":
+        return
+    path = tmp_path / "auth.json"
+    set_tokens(TEST_API_URL, "tok", path=path)
+    mode = path.stat().st_mode & 0o777
+    assert mode == 0o600

@@ -723,12 +723,30 @@ def api_key_list() -> None:
 def api_key_create(
     name: str = typer.Option(..., "--name", "-n", help="Display name for this key"),
     live: bool = typer.Option(True, "--live/--test", help="Use sk_live_ (default) or sk_test_"),
+    scopes: str = typer.Option(
+        "mcp",
+        "--scopes",
+        help="Comma-separated scopes (default: mcp)",
+    ),
+    expires_days: int | None = typer.Option(
+        None,
+        "--expires-days",
+        help="Optional expiry in days (1-365)",
+        min=1,
+        max=365,
+    ),
 ) -> None:
     client = get_client()
 
     @run_async
     async def _run() -> dict:
-        return await client.create_api_key(name=name, live=live)
+        scope_list = [s.strip() for s in (scopes or "").split(",") if s.strip()]
+        return await client.create_api_key(
+            name=name,
+            live=live,
+            scopes=scope_list,
+            expires_days=expires_days,
+        )
 
     try:
         result = _run()

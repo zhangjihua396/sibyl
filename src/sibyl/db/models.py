@@ -294,6 +294,13 @@ class ApiKey(TimestampMixin, table=True):
     key_salt: str = Field(max_length=64, description="Hex-encoded salt")
     key_hash: str = Field(max_length=128, description="Hex-encoded derived key hash")
 
+    scopes: list[str] = Field(
+        default_factory=list,
+        sa_type=ARRAY(String),
+        description="Granted scopes for this API key (e.g. mcp, api:read, api:write)",
+    )
+    expires_at: datetime | None = Field(default=None, description="Optional expiry timestamp")
+
     revoked_at: datetime | None = Field(default=None, description="Revocation timestamp")
     last_used_at: datetime | None = Field(default=None, description="Last usage timestamp")
 

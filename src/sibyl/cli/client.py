@@ -319,8 +319,20 @@ class SibylClient:
     async def list_api_keys(self) -> dict[str, Any]:
         return await self._request("GET", "/auth/api-keys")
 
-    async def create_api_key(self, name: str, live: bool = True) -> dict[str, Any]:
-        return await self._request("POST", "/auth/api-keys", json={"name": name, "live": live})
+    async def create_api_key(
+        self,
+        *,
+        name: str,
+        live: bool = True,
+        scopes: list[str] | None = None,
+        expires_days: int | None = None,
+    ) -> dict[str, Any]:
+        payload: dict[str, Any] = {"name": name, "live": live}
+        if scopes is not None:
+            payload["scopes"] = scopes
+        if expires_days is not None:
+            payload["expires_days"] = expires_days
+        return await self._request("POST", "/auth/api-keys", json=payload)
 
     async def revoke_api_key(self, api_key_id: str) -> dict[str, Any]:
         return await self._request("POST", f"/auth/api-keys/{api_key_id}/revoke")

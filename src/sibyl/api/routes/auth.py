@@ -52,6 +52,10 @@ OAUTH_STATE_COOKIE = "sibyl_oauth_state"
 class ApiKeyCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     live: bool = Field(default=True, description="Use sk_live_ prefix (true) or sk_test_ (false)")
+    scopes: list[str] = Field(default_factory=lambda: ["mcp"], description="Granted scopes")
+    expires_days: int | None = Field(
+        default=None, ge=1, le=365, description="Optional expiry in days"
+    )
 
 
 class MeUpdateRequest(BaseModel):
@@ -1244,6 +1248,8 @@ async def list_api_keys(
                 "id": str(k.id),
                 "name": k.name,
                 "prefix": k.key_prefix,
+                "scopes": list(k.scopes or []),
+                "expires_at": k.expires_at,
                 "revoked_at": k.revoked_at,
                 "last_used_at": k.last_used_at,
                 "created_at": k.created_at,
@@ -1264,11 +1270,18 @@ async def create_api_key(
     if ctx.organization is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organization context")
 
+    expires_at = (
+        datetime.now(UTC) + timedelta(days=int(body.expires_days))
+        if body.expires_days is not None
+        else None
+    )
     record, raw = await ApiKeyManager(session).create(
         organization_id=ctx.organization.id,
         user_id=ctx.user.id,
         name=body.name,
         live=body.live,
+        scopes=body.scopes,
+        expires_at=expires_at,
     )
     await AuditLogger(session).log(
         action="auth.api_key.create",
@@ -1281,6 +1294,8 @@ async def create_api_key(
         "id": str(record.id),
         "name": record.name,
         "prefix": record.key_prefix,
+        "scopes": list(record.scopes or []),
+        "expires_at": record.expires_at,
         "api_key": raw,
     }
 

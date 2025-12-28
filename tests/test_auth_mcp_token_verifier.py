@@ -39,7 +39,12 @@ async def test_mcp_token_verifier_rejects_invalid_jwt(monkeypatch) -> None:
 
 @pytest.mark.asyncio
 async def test_mcp_token_verifier_accepts_api_key(monkeypatch) -> None:
-    auth = ApiKeyAuth(api_key_id=uuid4(), user_id=uuid4(), organization_id=uuid4())
+    auth = ApiKeyAuth(
+        api_key_id=uuid4(),
+        user_id=uuid4(),
+        organization_id=uuid4(),
+        scopes=["mcp"],
+    )
 
     @asynccontextmanager
     async def fake_get_session():
@@ -70,6 +75,31 @@ async def test_mcp_token_verifier_rejects_unknown_api_key(monkeypatch) -> None:
     ):
         manager = AsyncMock()
         manager.authenticate = AsyncMock(return_value=None)
+        from_session.return_value = manager
+
+        access = await SibylMcpTokenVerifier().verify_token("sk_live_test")
+        assert access is None
+
+
+@pytest.mark.asyncio
+async def test_mcp_token_verifier_rejects_api_key_without_mcp_scope() -> None:
+    auth = ApiKeyAuth(
+        api_key_id=uuid4(),
+        user_id=uuid4(),
+        organization_id=uuid4(),
+        scopes=["api:read"],
+    )
+
+    @asynccontextmanager
+    async def fake_get_session():
+        yield AsyncMock()
+
+    with (
+        patch("sibyl.auth.mcp_auth.get_session", fake_get_session),
+        patch("sibyl.auth.mcp_auth.ApiKeyManager.from_session") as from_session,
+    ):
+        manager = AsyncMock()
+        manager.authenticate = AsyncMock(return_value=auth)
         from_session.return_value = manager
 
         access = await SibylMcpTokenVerifier().verify_token("sk_live_test")

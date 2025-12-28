@@ -7,6 +7,7 @@ The context system determines which server URL to use.
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,13 @@ def write_auth_data(data: dict[str, Any], path: Path | None = None) -> None:
     p = path or auth_path()
     p.parent.mkdir(parents=True, exist_ok=True)
     p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    # Best-effort hardening: keep tokens readable only by the current user.
+    if os.name != "nt":
+        try:
+            os.chmod(p, 0o600)
+            os.chmod(p.parent, 0o700)
+        except Exception:
+            pass
 
 
 def normalize_api_url(api_url: str) -> str:

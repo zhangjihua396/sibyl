@@ -59,6 +59,7 @@ class ApiKeyAuth:
     api_key_id: UUID
     user_id: UUID
     organization_id: UUID
+    scopes: list[str]
 
 
 class ApiKeyManager:
@@ -76,9 +77,13 @@ class ApiKeyManager:
         user_id: UUID,
         name: str,
         live: bool = True,
+        scopes: list[str] | None = None,
+        expires_at: datetime | None = None,
     ) -> tuple[ApiKey, str]:
         raw = generate_api_key(live=live)
         salt_hex, hash_hex = hash_api_key(raw)
+
+        normalized_scopes = [s.strip() for s in (scopes or ["mcp"]) if str(s).strip()]
 
         record = ApiKey(
             organization_id=organization_id,
@@ -87,6 +92,8 @@ class ApiKeyManager:
             key_prefix=api_key_prefix(raw),
             key_salt=salt_hex,
             key_hash=hash_hex,
+            scopes=normalized_scopes,
+            expires_at=expires_at.replace(tzinfo=None) if expires_at and expires_at.tzinfo else expires_at,
         )
         self._session.add(record)
         await self._session.flush()
@@ -96,8 +103,11 @@ class ApiKeyManager:
         prefix = api_key_prefix(raw_key)
         result = await self._session.execute(select(ApiKey).where(ApiKey.key_prefix == prefix))
         candidates = list(result.scalars().all())
+        now = datetime.now(UTC).replace(tzinfo=None)
         for key in candidates:
             if key.revoked_at is not None:
+                continue
+            if key.expires_at is not None and key.expires_at <= now:
                 continue
             if verify_api_key(raw_key, salt_hex=key.key_salt, hash_hex=key.key_hash):
                 key.last_used_at = datetime.now(UTC).replace(tzinfo=None)
@@ -106,6 +116,7 @@ class ApiKeyManager:
                     api_key_id=key.id,
                     user_id=key.user_id,
                     organization_id=key.organization_id,
+                    scopes=list(key.scopes or []),
                 )
         return None
 

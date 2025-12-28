@@ -161,6 +161,21 @@ async def get_entity(
         # Try graph entity first
         try:
             entity = await entity_manager.get(entity_id)
+
+            # Enrich epics with progress stats
+            metadata = getattr(entity, "metadata", {}) or {}
+            if entity.entity_type == "epic":
+                progress = await entity_manager.get_epic_progress(entity_id)
+                metadata = {
+                    **metadata,
+                    "total_tasks": progress.get("total_tasks", 0),
+                    "completed_tasks": progress.get("completed_tasks", 0),
+                    "in_progress_tasks": progress.get("in_progress_tasks", 0),
+                    "blocked_tasks": progress.get("blocked_tasks", 0),
+                    "in_review_tasks": progress.get("in_review_tasks", 0),
+                    "completion_pct": progress.get("completion_pct", 0.0),
+                }
+
             return EntityResponse(
                 id=entity.id,
                 entity_type=entity.entity_type,
@@ -172,7 +187,7 @@ async def get_entity(
                 or entity.metadata.get("languages", [])
                 or [],
                 tags=getattr(entity, "tags", None) or entity.metadata.get("tags", []) or [],
-                metadata=getattr(entity, "metadata", {}) or {},
+                metadata=metadata,
                 source_file=getattr(entity, "source_file", None),
                 created_at=getattr(entity, "created_at", None),
                 updated_at=getattr(entity, "updated_at", None),
@@ -301,6 +316,8 @@ async def create_entity(
         epic = entity.metadata.get("epic_id") if entity.metadata else None
         priority = entity.metadata.get("priority") if entity.metadata else None
         assignees = entity.metadata.get("assignees") if entity.metadata else None
+        technologies = entity.metadata.get("technologies") if entity.metadata else None
+        depends_on = entity.metadata.get("depends_on") if entity.metadata else None
         auto_link = bool(entity.metadata.get("auto_link")) if entity.metadata else False
 
         # Use description as content fallback (frontend sends description, add() needs content)
@@ -325,6 +342,8 @@ async def create_entity(
             epic=epic,
             priority=priority,
             assignees=assignees,
+            technologies=technologies,
+            depends_on=depends_on,
             # Auto-link
             auto_link=auto_link,
             # Sync for projects, async for everything else

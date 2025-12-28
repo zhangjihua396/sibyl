@@ -19,6 +19,15 @@ from sibyl.db.models import Organization, OrganizationMember, OrganizationRole, 
 
 _logger = logging.getLogger(__name__)
 
+# API key scope enforcement for REST.
+#
+# API keys are intended for least-privilege automation. For REST usage, we enforce:
+# - Safe methods (GET/HEAD/OPTIONS): require api:read OR api:write
+# - Mutating methods: require api:write
+_SAFE_HTTP_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+_REST_READ_SCOPES = frozenset({"api:read", "api:write"})
+_REST_WRITE_SCOPE = "api:write"
+
 # Security warning at startup if auth is disabled
 if settings.disable_auth:
     _logger.warning(
@@ -26,6 +35,16 @@ if settings.disable_auth:
         "This should only be used for local development. Environment: %s",
         settings.environment,
     )
+
+def _is_rest_request(request: Request) -> bool:
+    return request.url.path.startswith("/api/")
+
+
+def _api_key_allows_rest(*, scopes: list[str], method: str) -> bool:
+    normalized = {s.strip() for s in scopes if str(s).strip()}
+    if method.upper() in _SAFE_HTTP_METHODS:
+        return bool(normalized & _REST_READ_SCOPES)
+    return _REST_WRITE_SCOPE in normalized
 
 
 async def resolve_claims(request: Request, session: AsyncSession | None = None) -> dict | None:
@@ -48,7 +67,20 @@ async def resolve_claims(request: Request, session: AsyncSession | None = None) 
     if session is not None and token.startswith("sk_"):
         auth = await ApiKeyManager(session).authenticate(token)
         if auth:
-            return {"sub": str(auth.user_id), "org": str(auth.organization_id), "typ": "api_key"}
+            scopes = list(auth.scopes or [])
+            if _is_rest_request(request) and not _api_key_allows_rest(
+                scopes=scopes, method=request.method
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Insufficient API key scope",
+                )
+            return {
+                "sub": str(auth.user_id),
+                "org": str(auth.organization_id),
+                "typ": "api_key",
+                "scopes": scopes,
+            }
 
     return None
 

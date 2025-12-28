@@ -113,6 +113,12 @@ cookie) and supports scoped API keys for programmatic access.
 
 - Set `SIBYL_MCP_AUTH_MODE=auto|on|off` (auto enforces when `SIBYL_JWT_SECRET` is set)
 
+**API key scopes:**
+
+- `mcp`: required for `/mcp` tool calls (MCP clients)
+- `api:read`: allows REST safe methods (`GET/HEAD/OPTIONS`) with an API key
+- `api:write`: allows REST writes (and implies read) with an API key
+
 ## 🪄 The CLI
 
 **The CLI is the preferred interface.** Clean JSON output, optimized for AI agents.

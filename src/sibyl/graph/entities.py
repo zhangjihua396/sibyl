@@ -4,6 +4,7 @@ This module provides entity CRUD operations using Graphiti's native node APIs.
 All graph operations go through EntityNode/EpisodicNode rather than raw Cypher.
 """
 
+import json
 import re
 from datetime import UTC, datetime
 from typing import Any
@@ -526,20 +527,21 @@ class EntityManager:
     ) -> list[Entity]:
         """List all entities of a specific type using direct Cypher query.
 
-        Note: Graphiti's get_by_group_ids() doesn't return custom properties like
-        entity_type, so we use a direct Cypher query instead.
+        Note: Filters like status, priority, epic_id are stored in metadata JSON,
+        not as top-level node properties. We use BELONGS_TO relationship for epic
+        filtering and parse metadata for other filters in Python.
 
         Args:
             entity_type: The type of entities to list.
             limit: Maximum results to return.
             offset: Pagination offset.
             project_id: Filter by project ID.
-            epic_id: Filter by epic ID.
-            status: Filter by status (for tasks).
-            priority: Filter by priority (for tasks).
-            complexity: Filter by complexity (for tasks).
-            feature: Filter by feature area (for tasks).
-            tags: Filter by tags (matches if ANY tag present).
+            epic_id: Filter by epic ID (uses BELONGS_TO relationship).
+            status: Filter by status (for tasks, parsed from metadata).
+            priority: Filter by priority (for tasks, parsed from metadata).
+            complexity: Filter by complexity (for tasks, parsed from metadata).
+            feature: Filter by feature area (for tasks, parsed from metadata).
+            tags: Filter by tags (matches if ANY tag present, parsed from metadata).
             include_archived: Include archived entities.
 
         Returns:
@@ -551,62 +553,24 @@ class EntityManager:
             limit=limit,
             offset=offset,
             project_id=project_id,
+            epic_id=epic_id,
             status=status,
             priority=priority,
         )
 
-        # Build dynamic WHERE clauses
-        where_clauses = ["n.entity_type = $entity_type", "n.group_id = $group_id"]
+        # Build base query - filters are applied in Python from metadata
         params: dict[str, Any] = {
             "entity_type": entity_type.value,
             "group_id": self._group_id,
-            "offset": offset,
-            "limit": limit,
         }
 
-        if project_id:
-            where_clauses.append("n.project_id = $project_id")
-            params["project_id"] = project_id
-
+        # Use BELONGS_TO relationship for epic filtering (most reliable)
         if epic_id:
-            where_clauses.append("n.epic_id = $epic_id")
-            params["epic_id"] = epic_id
-
-        if status:
-            where_clauses.append("n.status = $status")
-            params["status"] = status
-
-        if priority:
-            where_clauses.append("n.priority = $priority")
-            params["priority"] = priority
-
-        if complexity:
-            where_clauses.append("n.complexity = $complexity")
-            params["complexity"] = complexity
-
-        if feature:
-            where_clauses.append("n.feature = $feature")
-            params["feature"] = feature
-
-        if tags:
-            # Match if entity has ANY of the specified tags
-            # FalkorDB uses list operations - check intersection
-            where_clauses.append("size([t IN $tags WHERE t IN n.tags]) > 0")
-            params["tags"] = tags
-
-        if not include_archived:
-            where_clauses.append("(n.status IS NULL OR n.status <> 'archived')")
-
-        where_clause = " AND ".join(where_clauses)
-
-        try:
-            # Direct Cypher query to get entities with all their properties
-            # This is more reliable than Graphiti's get_by_group_ids which doesn't
-            # return custom properties like entity_type
-            result = await self._driver.execute_query(
-                f"""
-                MATCH (n)
-                WHERE {where_clause}
+            query = """
+                MATCH (n)-[:BELONGS_TO]->(e)
+                WHERE n.entity_type = $entity_type
+                  AND n.group_id = $group_id
+                  AND e.uuid = $epic_id
                 RETURN n.uuid AS uuid,
                        n.name AS name,
                        n.entity_type AS entity_type,
@@ -617,33 +581,95 @@ class EntityManager:
                        n.metadata AS metadata,
                        n.created_at AS created_at,
                        n.updated_at AS updated_at,
-                       n.status AS status,
-                       n.priority AS priority,
-                       n.project_id AS project_id,
-                       n.epic_id AS epic_id,
-                       n.task_order AS task_order,
-                       n.feature AS feature,
-                       n.complexity AS complexity,
-                       n.due_date AS due_date,
-                       n.tags AS tags,
-                       n.assignees AS assignees,
-                       n.learnings AS learnings,
                        labels(n) AS labels
                 ORDER BY n.created_at DESC
-                SKIP $offset
-                LIMIT $limit
-                """,
-                **params,
-            )
+            """
+            params["epic_id"] = epic_id
+        else:
+            query = """
+                MATCH (n)
+                WHERE n.entity_type = $entity_type
+                  AND n.group_id = $group_id
+                RETURN n.uuid AS uuid,
+                       n.name AS name,
+                       n.entity_type AS entity_type,
+                       n.group_id AS group_id,
+                       n.content AS content,
+                       n.description AS description,
+                       n.summary AS summary,
+                       n.metadata AS metadata,
+                       n.created_at AS created_at,
+                       n.updated_at AS updated_at,
+                       labels(n) AS labels
+                ORDER BY n.created_at DESC
+            """
+
+        try:
+            result = await self._driver.execute_query(query, **params)
 
             entities: list[Entity] = []
+            skipped = 0
 
             # Handle FalkorDB result format using normalize helper
             records = GraphClient.normalize_result(result)
             for record in records:
                 try:
                     entity = self._record_to_entity(record)
+
+                    # Parse metadata for filtering (stored as JSON string)
+                    metadata = entity.metadata or {}
+
+                    # Filter by project_id from metadata
+                    if project_id and metadata.get("project_id") != project_id:
+                        continue
+
+                    # Filter by status from metadata
+                    if status:
+                        entity_status = metadata.get("status")
+                        if entity_status != status:
+                            continue
+
+                    # Filter by priority from metadata
+                    if priority:
+                        entity_priority = metadata.get("priority")
+                        if entity_priority != priority:
+                            continue
+
+                    # Filter by complexity from metadata
+                    if complexity:
+                        entity_complexity = metadata.get("complexity")
+                        if entity_complexity != complexity:
+                            continue
+
+                    # Filter by feature from metadata
+                    if feature:
+                        entity_feature = metadata.get("feature")
+                        if entity_feature != feature:
+                            continue
+
+                    # Filter by tags from metadata (match if ANY tag present)
+                    if tags:
+                        entity_tags = metadata.get("tags", [])
+                        if not any(t in entity_tags for t in tags):
+                            continue
+
+                    # Filter archived unless include_archived is True
+                    if not include_archived:
+                        entity_status = metadata.get("status")
+                        if entity_status == "archived":
+                            continue
+
+                    # Apply pagination
+                    if skipped < offset:
+                        skipped += 1
+                        continue
+
                     entities.append(entity)
+
+                    # Check limit
+                    if len(entities) >= limit:
+                        break
+
                 except Exception as e:
                     log.debug("Failed to convert record to entity", error=str(e))
 
@@ -677,14 +703,13 @@ class EntityManager:
         log.debug("Fetching tasks for epic", epic_id=epic_id, status=status)
 
         try:
-            # Build query with optional status filter
-            status_clause = "AND n.status = $status" if status else ""
-            query = f"""
-                MATCH (n)
+            # Use BELONGS_TO relationship to find tasks in epic
+            # Status is stored in metadata JSON, so we filter in Python if needed
+            query = """
+                MATCH (n)-[:BELONGS_TO]->(e)
                 WHERE n.entity_type = 'task'
                   AND n.group_id = $group_id
-                  AND n.epic_id = $epic_id
-                  {status_clause}
+                  AND e.uuid = $epic_id
                 RETURN n.uuid AS uuid,
                        n.name AS name,
                        n.entity_type AS entity_type,
@@ -693,13 +718,8 @@ class EntityManager:
                        n.description AS description,
                        n.summary AS summary,
                        n.metadata AS metadata,
-                       n.created_at AS created_at,
-                       n.status AS status,
-                       n.priority AS priority,
-                       n.project_id AS project_id,
-                       n.epic_id AS epic_id,
-                       n.task_order AS task_order
-                ORDER BY n.task_order DESC, n.created_at DESC
+                       n.created_at AS created_at
+                ORDER BY n.created_at DESC
                 LIMIT $limit
             """
 
@@ -708,8 +728,6 @@ class EntityManager:
                 "epic_id": epic_id,
                 "limit": limit,
             }
-            if status:
-                params["status"] = status
 
             result = await self._driver.execute_query(query, **params)
 
@@ -718,6 +736,11 @@ class EntityManager:
             for record in records:
                 try:
                     entity = self._record_to_entity(record)
+                    # Filter by status in Python since it's in metadata
+                    if status:
+                        entity_status = entity.metadata.get("status") if entity.metadata else None
+                        if entity_status != status:
+                            continue
                     entities.append(entity)
                 except Exception as e:
                     log.debug("Failed to convert record", error=str(e))
@@ -741,48 +764,53 @@ class EntityManager:
         log.debug("Getting epic progress", epic_id=epic_id)
 
         try:
+            # Use BELONGS_TO relationship to find tasks, then count by status in Python
+            # since status is stored in metadata JSON
             result = await self._driver.execute_query(
                 """
-                MATCH (n)
+                MATCH (n)-[:BELONGS_TO]->(e)
                 WHERE n.entity_type = 'task'
                   AND n.group_id = $group_id
-                  AND n.epic_id = $epic_id
-                RETURN
-                    count(n) AS total,
-                    sum(CASE WHEN n.status = 'done' THEN 1 ELSE 0 END) AS done,
-                    sum(CASE WHEN n.status = 'doing' THEN 1 ELSE 0 END) AS doing,
-                    sum(CASE WHEN n.status = 'blocked' THEN 1 ELSE 0 END) AS blocked,
-                    sum(CASE WHEN n.status = 'review' THEN 1 ELSE 0 END) AS review
+                  AND e.uuid = $epic_id
+                RETURN n.metadata AS metadata
                 """,
                 group_id=self._group_id,
                 epic_id=epic_id,
             )
 
             records = GraphClient.normalize_result(result)
-            if records:
-                record = records[0]
-                total = record.get("total", 0) or 0
-                done = record.get("done", 0) or 0
-                doing = record.get("doing", 0) or 0
-                blocked = record.get("blocked", 0) or 0
-                review = record.get("review", 0) or 0
 
-                return {
-                    "total_tasks": total,
-                    "completed_tasks": done,
-                    "in_progress_tasks": doing,
-                    "blocked_tasks": blocked,
-                    "in_review_tasks": review,
-                    "completion_pct": round((done / total * 100) if total > 0 else 0, 1),
-                }
+            # Count statuses from metadata
+            total = len(records)
+            done = 0
+            doing = 0
+            blocked = 0
+            review = 0
+
+            for record in records:
+                metadata = record.get("metadata")
+                if isinstance(metadata, str):
+                    try:
+                        metadata = json.loads(metadata)
+                    except json.JSONDecodeError:
+                        metadata = {}
+                status = metadata.get("status") if metadata else None
+                if status == "done":
+                    done += 1
+                elif status == "doing":
+                    doing += 1
+                elif status == "blocked":
+                    blocked += 1
+                elif status == "review":
+                    review += 1
 
             return {
-                "total_tasks": 0,
-                "completed_tasks": 0,
-                "in_progress_tasks": 0,
-                "blocked_tasks": 0,
-                "in_review_tasks": 0,
-                "completion_pct": 0.0,
+                "total_tasks": total,
+                "completed_tasks": done,
+                "in_progress_tasks": doing,
+                "blocked_tasks": blocked,
+                "in_review_tasks": review,
+                "completion_pct": round((done / total * 100) if total > 0 else 0, 1),
             }
 
         except Exception as e:

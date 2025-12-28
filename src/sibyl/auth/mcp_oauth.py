@@ -257,8 +257,11 @@ class SibylMcpOAuthProvider(
                 auth = await ApiKeyManager.from_session(session).authenticate(token)
             if auth is None:
                 return None
+            scopes = list(auth.scopes or []) or [OAUTH_SCOPE]
+            if scopes and OAUTH_SCOPE not in scopes:
+                return None
             return AccessToken(
-                token=token, client_id=f"api_key:{auth.api_key_id}", scopes=[OAUTH_SCOPE]
+                token=token, client_id=f"api_key:{auth.api_key_id}", scopes=scopes
             )
 
         try:
