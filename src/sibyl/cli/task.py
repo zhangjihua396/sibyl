@@ -110,7 +110,8 @@ def list_tasks(
         str | None, typer.Option("-q", "--query", help="Search query (name/description)")
     ] = None,
     status: Annotated[
-        str | None, typer.Option("-s", "--status", help="todo|doing|blocked|review|done")
+        str | None,
+        typer.Option("-s", "--status", help="Filter by status (comma-separated: todo,doing,blocked)"),
     ] = None,
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
@@ -159,11 +160,16 @@ def list_tasks(
                 # Search returns results directly
                 entities = response.get("results", [])
             else:
+                # Only pass single status to API; multiple statuses filtered client-side
+                api_status = None
+                if status and "," not in status:
+                    api_status = status
+
                 if fmt in ("json", "csv"):
                     response = await client.explore(
                         mode="list",
                         types=["task"],
-                        status=status,
+                        status=api_status,
                         project=effective_project,
                         epic=epic,
                         limit=limit,
@@ -174,7 +180,7 @@ def list_tasks(
                         response = await client.explore(
                             mode="list",
                             types=["task"],
-                            status=status,
+                            status=api_status,
                             project=effective_project,
                             epic=epic,
                             limit=limit,
@@ -183,7 +189,11 @@ def list_tasks(
 
             # Client-side filters (needed for search, or when API doesn't filter)
             if status:
-                entities = [e for e in entities if e.get("metadata", {}).get("status") == status]
+                # Support comma-separated statuses (e.g., "todo,doing")
+                status_list = [s.strip() for s in status.split(",")]
+                entities = [
+                    e for e in entities if e.get("metadata", {}).get("status") in status_list
+                ]
             if effective_project:
                 entities = [
                     e
