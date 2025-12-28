@@ -4,7 +4,7 @@ import pytest
 
 from sibyl.auth.oauth_state import OAuthStateError, issue_state, verify_state
 
-TEST_SECRET = "secret"  # noqa: S105
+TEST_SECRET = "secret"
 
 
 def test_oauth_state_roundtrip() -> None:

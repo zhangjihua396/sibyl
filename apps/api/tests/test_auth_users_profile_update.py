@@ -71,7 +71,7 @@ async def test_user_manager_change_password_requires_current_password(monkeypatc
     with pytest.raises(ValueError, match="Current password is required"):
         await manager.change_password(
             user,
-            PasswordChange(current_password=None, new_password="newpw"),  # noqa: S106
+            PasswordChange(current_password=None, new_password="newpw"),
         )
 
 
@@ -99,7 +99,7 @@ async def test_user_manager_change_password_roundtrip(monkeypatch) -> None:
 
     await manager.change_password(
         user,
-        PasswordChange(current_password="oldpw", new_password="newpw"),  # noqa: S106
+        PasswordChange(current_password="oldpw", new_password="newpw"),
     )
 
     assert user.password_salt

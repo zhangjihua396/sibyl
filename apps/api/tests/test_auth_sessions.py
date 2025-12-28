@@ -43,7 +43,7 @@ class TestSessionManager:
 
     def test_hash_token_is_deterministic(self) -> None:
         """Token hashing should be deterministic."""
-        token = "test-token-12345"  # noqa: S105
+        token = "test-token-12345"
         hash1 = SessionManager.hash_token(token)
         hash2 = SessionManager.hash_token(token)
         assert hash1 == hash2
@@ -64,7 +64,7 @@ class TestSessionManager:
 
         manager = SessionManager(db_session)
         user_id = uuid4()
-        token = "raw-token-abc123"  # noqa: S105
+        token = "raw-token-abc123"
         expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=24)
 
         session = await manager.create_session(
@@ -85,7 +85,7 @@ class TestSessionManager:
         """Should return session when token matches and not revoked."""
         db_session = AsyncMock()
         user_id = uuid4()
-        token = "test-token"  # noqa: S105
+        token = "test-token"
         expected_session = make_session_record(
             user_id=user_id,
             token_hash=SessionManager.hash_token(token),
@@ -120,8 +120,8 @@ class TestSessionManager:
         db_session = AsyncMock()
         user_id = uuid4()
         sessions = [
-            make_session_record(user_id=user_id, token_hash="hash1"),  # noqa: S106
-            make_session_record(user_id=user_id, token_hash="hash2"),  # noqa: S106
+            make_session_record(user_id=user_id, token_hash="hash1"),
+            make_session_record(user_id=user_id, token_hash="hash2"),
         ]
 
         mock_result = MagicMock()
@@ -140,7 +140,7 @@ class TestSessionManager:
     async def test_update_activity_updates_timestamp(self) -> None:
         """Should update last_active_at for valid session."""
         db_session = AsyncMock()
-        token = "test-token"  # noqa: S105
+        token = "test-token"
         session_record = make_session_record(
             token_hash=SessionManager.hash_token(token),
             last_active_at=datetime.now(UTC).replace(tzinfo=None) - timedelta(hours=1),
@@ -210,10 +210,10 @@ class TestSessionManager:
         """Should revoke all sessions except the one with excluded token hash."""
         db_session = AsyncMock()
         user_id = uuid4()
-        current_token_hash = "current-hash"  # noqa: S105
+        current_token_hash = "current-hash"
         sessions = [
-            make_session_record(user_id=user_id, token_hash="other1"),  # noqa: S106
-            make_session_record(user_id=user_id, token_hash="other2"),  # noqa: S106
+            make_session_record(user_id=user_id, token_hash="other1"),
+            make_session_record(user_id=user_id, token_hash="other2"),
         ]
 
         mock_result = MagicMock()
@@ -236,7 +236,7 @@ class TestSessionManager:
         """Should clear is_current on other sessions and set on target."""
         db_session = AsyncMock()
         user_id = uuid4()
-        token = "new-current-token"  # noqa: S105
+        token = "new-current-token"
         target_session = make_session_record(
             user_id=user_id,
             token_hash=SessionManager.hash_token(token),

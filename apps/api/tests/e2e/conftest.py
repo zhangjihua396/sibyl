@@ -22,7 +22,7 @@ API_BASE_URL = "http://localhost:3334/api"
 HEALTH_TIMEOUT = 30  # seconds to wait for services
 HEALTH_INTERVAL = 0.5  # seconds between health checks
 E2E_TEST_EMAIL = "e2e-test@sibyl.dev"
-E2E_TEST_PASSWORD = "e2e-test-password-secure-123!"  # noqa: S105
+E2E_TEST_PASSWORD = "e2e-test-password-secure-123!"
 
 
 # =============================================================================

@@ -11,7 +11,7 @@ from sibyl.db.models import UserSession
 
 @pytest.mark.asyncio
 async def test_list_sessions_marks_current_from_sibyl_access_token_cookie() -> None:
-    token = "access-token-value"  # noqa: S105
+    token = "access-token-value"
     current_hash = SessionManager.hash_token(token)
 
     session_row = UserSession(

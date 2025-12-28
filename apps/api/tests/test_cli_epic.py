@@ -253,8 +253,8 @@ class TestStartEpicCommand:
 
         assert result.exit_code == 0
         # Verify update was called with in_progress status
-        call_args = mock_client.update_entity.call_args[0]
-        assert call_args[1]["status"] == "in_progress"
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert call_kwargs["status"] == "in_progress"
 
 
 class TestCompleteEpicCommand:
@@ -272,8 +272,8 @@ class TestCompleteEpicCommand:
             result = runner.invoke(app, ["complete", "epic_1234567890ab"])
 
         assert result.exit_code == 0
-        call_args = mock_client.update_entity.call_args[0]
-        assert call_args[1]["status"] == "completed"
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert call_kwargs["status"] == "completed"
 
     def test_complete_epic_with_learnings(self) -> None:
         """Complete epic should capture learnings."""
@@ -290,8 +290,9 @@ class TestCompleteEpicCommand:
             )
 
         assert result.exit_code == 0
-        call_args = mock_client.update_entity.call_args[0]
-        assert call_args[1]["learnings"] == "OAuth needs exact redirect URIs"
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert call_kwargs["status"] == "completed"
+        assert call_kwargs["learnings"] == "OAuth needs exact redirect URIs"
 
 
 class TestUpdateEpicCommand:
@@ -319,8 +320,8 @@ class TestUpdateEpicCommand:
             result = runner.invoke(app, ["update", "epic_1234567890ab", "--status", "blocked"])
 
         assert result.exit_code == 0
-        call_args = mock_client.update_entity.call_args[0]
-        assert call_args[1]["status"] == "blocked"
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert call_kwargs["status"] == "blocked"
 
     def test_update_epic_multiple_fields(self) -> None:
         """Update epic with multiple fields."""
@@ -344,9 +345,9 @@ class TestUpdateEpicCommand:
             )
 
         assert result.exit_code == 0
-        call_args = mock_client.update_entity.call_args[0]
-        assert call_args[1]["priority"] == "critical"
-        assert call_args[1]["assignees"] == ["bob"]
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert call_kwargs["priority"] == "critical"
+        assert call_kwargs["assignees"] == ["bob"]
 
 
 class TestArchiveEpicCommand:
@@ -364,8 +365,8 @@ class TestArchiveEpicCommand:
             result = runner.invoke(app, ["archive", "epic_1234567890ab", "--yes"])
 
         assert result.exit_code == 0
-        call_args = mock_client.update_entity.call_args[0]
-        assert call_args[1]["status"] == "archived"
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert call_kwargs["status"] == "archived"
 
     def test_archive_epic_with_reason(self) -> None:
         """Archive epic with reason."""
@@ -382,8 +383,8 @@ class TestArchiveEpicCommand:
             )
 
         assert result.exit_code == 0
-        call_args = mock_client.update_entity.call_args[0]
-        assert "Superseded" in call_args[1]["learnings"]
+        call_kwargs = mock_client.update_entity.call_args.kwargs
+        assert "Superseded" in call_kwargs["learnings"]
 
 
 class TestListEpicTasksCommand:

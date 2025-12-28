@@ -755,17 +755,40 @@ class TestEntityManagerListByType:
 
     @pytest.mark.asyncio
     async def test_list_by_type_respects_limit(self) -> None:
-        """list_by_type should respect limit parameter."""
+        """list_by_type should respect limit parameter via Python-side filtering."""
         client = MockGraphClient()
         manager = EntityManager(client, group_id=TEST_ORG_ID)
 
-        client._driver.set_results([([], [], {})])
+        now = datetime.now(UTC).isoformat()
 
-        await manager.list_by_type(EntityType.PATTERN, limit=5, offset=10)
+        # Return 10 records - limit should filter to 5 in Python
+        client._driver.set_results(
+            [
+                (
+                    [
+                        {
+                            "uuid": f"p{i}",
+                            "name": f"Pattern {i}",
+                            "entity_type": "pattern",
+                            "group_id": TEST_ORG_ID,
+                            "description": f"Desc {i}",
+                            "created_at": now,
+                            "updated_at": now,
+                        }
+                        for i in range(10)
+                    ],
+                    ["uuid", "name", "entity_type", "group_id", "description", "created_at", "updated_at"],
+                    {},
+                )
+            ]
+        )
 
-        _query, params = client._driver.queries[0]
-        assert params["limit"] == 5
-        assert params["offset"] == 10
+        results = await manager.list_by_type(EntityType.PATTERN, limit=5, offset=2)
+
+        # Should skip first 2 (offset) and return next 5 (limit)
+        assert len(results) == 5
+        assert results[0].id == "p2"  # Skipped p0, p1
+        assert results[4].id == "p6"  # Last one should be p6
 
 
 class TestNodeToEntityConversion:
@@ -1240,17 +1263,47 @@ class TestGetTasksForEpic:
 
     @pytest.mark.asyncio
     async def test_get_tasks_for_epic_filters_by_status(self) -> None:
-        """get_tasks_for_epic should filter by status when specified."""
+        """get_tasks_for_epic should filter by status in Python from metadata."""
         client = MockGraphClient()
         manager = EntityManager(client, group_id=TEST_ORG_ID)
 
-        client._driver.set_results([([], [], {})])
+        now = datetime.now(UTC).isoformat()
 
-        await manager.get_tasks_for_epic("epic_123", status="todo")
+        # Return tasks with different statuses - filtering happens in Python
+        client._driver.set_results(
+            [
+                (
+                    [
+                        {
+                            "uuid": "task_1",
+                            "name": "Todo Task",
+                            "entity_type": "task",
+                            "group_id": TEST_ORG_ID,
+                            "metadata": json.dumps({"status": "todo"}),
+                            "created_at": now,
+                            "updated_at": now,
+                        },
+                        {
+                            "uuid": "task_2",
+                            "name": "Doing Task",
+                            "entity_type": "task",
+                            "group_id": TEST_ORG_ID,
+                            "metadata": json.dumps({"status": "doing"}),
+                            "created_at": now,
+                            "updated_at": now,
+                        },
+                    ],
+                    ["uuid", "name", "entity_type", "group_id", "metadata", "created_at", "updated_at"],
+                    {},
+                )
+            ]
+        )
 
-        # Verify query includes status filter
-        _query, params = client._driver.queries[0]
-        assert params.get("status") == "todo"
+        tasks = await manager.get_tasks_for_epic("epic_123", status="todo")
+
+        # Should only return the todo task (filtered in Python)
+        assert len(tasks) == 1
+        assert tasks[0].id == "task_1"
 
     @pytest.mark.asyncio
     async def test_get_tasks_for_epic_respects_limit(self) -> None:
@@ -1271,18 +1324,28 @@ class TestGetEpicProgress:
 
     @pytest.mark.asyncio
     async def test_get_epic_progress_returns_counts(self) -> None:
-        """get_epic_progress should return task counts by status."""
+        """get_epic_progress should return task counts by status from metadata."""
         client = MockGraphClient()
         manager = EntityManager(client, group_id=TEST_ORG_ID)
 
-        # Set up mock result matching the query structure
+        # Set up mock result with metadata field containing status
+        # The implementation fetches metadata and counts statuses in Python
         client._driver.set_results(
             [
                 (
                     [
-                        {"total": 10, "done": 3, "doing": 2, "blocked": 1, "review": 1},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "doing"})},
+                        {"metadata": json.dumps({"status": "doing"})},
+                        {"metadata": json.dumps({"status": "blocked"})},
+                        {"metadata": json.dumps({"status": "review"})},
+                        {"metadata": json.dumps({"status": "todo"})},
+                        {"metadata": json.dumps({"status": "todo"})},
+                        {"metadata": json.dumps({"status": "todo"})},
                     ],
-                    ["total", "done", "doing", "blocked", "review"],
+                    ["metadata"],
                     {},
                 )
             ]
@@ -1298,17 +1361,27 @@ class TestGetEpicProgress:
 
     @pytest.mark.asyncio
     async def test_get_epic_progress_calculates_percentages(self) -> None:
-        """get_epic_progress should calculate done percentage."""
+        """get_epic_progress should calculate done percentage from metadata."""
         client = MockGraphClient()
         manager = EntityManager(client, group_id=TEST_ORG_ID)
 
+        # 8 done + 2 review = 10 total, 80% completion
         client._driver.set_results(
             [
                 (
                     [
-                        {"total": 10, "done": 8, "doing": 0, "blocked": 0, "review": 2},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "done"})},
+                        {"metadata": json.dumps({"status": "review"})},
+                        {"metadata": json.dumps({"status": "review"})},
                     ],
-                    ["total", "done", "doing", "blocked", "review"],
+                    ["metadata"],
                     {},
                 )
             ]

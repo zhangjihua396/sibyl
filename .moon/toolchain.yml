@@ -11,5 +11,5 @@ node:
   packageManager: pnpm
 
 python:
-  # Use uv for dependency management
+  version: '3.13'
   packageManager: uv

@@ -29,6 +29,7 @@ from sibyl.auth.device_authorization import (
     DeviceTokenError,
     normalize_user_code,
 )
+from sibyl.auth.http import select_access_token
 from sibyl.auth.jwt import JwtError, create_access_token, create_refresh_token, verify_refresh_token
 from sibyl.auth.memberships import OrganizationMembershipManager
 from sibyl.auth.oauth_state import OAuthStateError, issue_state, verify_state
@@ -104,6 +105,15 @@ def _set_auth_cookies(
         max_age=max(refresh_max_age, 0),
         domain=config_module.settings.cookie_domain,
         path="/",
+    )
+
+
+def _clear_auth_cookies(response: Response) -> None:
+    response.delete_cookie(
+        ACCESS_TOKEN_COOKIE, domain=config_module.settings.cookie_domain, path="/"
+    )
+    response.delete_cookie(
+        REFRESH_TOKEN_COOKIE, domain=config_module.settings.cookie_domain, path="/"
     )
 
 
@@ -1092,43 +1102,42 @@ async def refresh_tokens(
     # Try body first, then cookie
     refresh_token: str | None = None
     data = await _read_auth_payload(request)
-    if data.get("refresh_token"):
+    refresh_from_body = bool(data.get("refresh_token"))
+    if refresh_from_body:
         refresh_token = data["refresh_token"]
     else:
         refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE)
 
-    if not refresh_token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="No refresh token provided",
+    def _unauthorized(detail: str) -> Response:
+        response = JSONResponse(
+            content={"detail": detail}, status_code=status.HTTP_401_UNAUTHORIZED
         )
+        # Browser clients rely on cookie refresh; if it's invalid, clear cookies so the
+        # frontend can reach `/login` without getting stuck in a redirect/refresh loop.
+        if not refresh_from_body:
+            _clear_auth_cookies(response)
+        return response
+
+    if not refresh_token:
+        return _unauthorized("No refresh token provided")
 
     # Verify the refresh token JWT
     try:
         claims = verify_refresh_token(refresh_token)
     except JwtError as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid refresh token: {e}",
-        ) from e
+        return _unauthorized(f"Invalid refresh token: {e}")
 
     # Find the session by refresh token
     session_mgr = SessionManager(session)
     user_session = await session_mgr.get_session_by_refresh_token(refresh_token)
     if user_session is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Session not found or revoked",
-        )
+        return _unauthorized("Session not found or revoked")
 
     # Extract user/org from claims
     try:
         user_id = UUID(str(claims["sub"]))
-    except (KeyError, ValueError) as e:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token claims",
-        ) from e
+    except (KeyError, ValueError):
+        return _unauthorized("Invalid token claims")
 
     org_raw = claims.get("org")
     org_id = UUID(str(org_raw)) if org_raw else None

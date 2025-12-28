@@ -512,7 +512,7 @@ def setup() -> None:
         result = sock.connect_ex((settings.falkordb_host, settings.falkordb_port))
         sock.close()
         falkor_running = result == 0
-    except Exception:  # noqa: S110
+    except Exception:
         pass  # Socket connection check - failure means not running
 
     if falkor_running:

@@ -769,12 +769,19 @@ export interface RestoreResponse {
 // Track if we're currently refreshing to prevent multiple refresh attempts
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
+let refreshCooldownUntil = 0;
+let logoutPromise: Promise<void> | null = null;
 
 /**
  * Try to refresh the access token using the refresh token cookie.
  * Returns true if refresh succeeded, false if it failed.
  */
 async function tryRefreshToken(): Promise<boolean> {
+  const now = Date.now();
+  if (now < refreshCooldownUntil) {
+    return false;
+  }
+
   // If already refreshing, wait for that to complete
   if (isRefreshing && refreshPromise) {
     return refreshPromise;
@@ -788,8 +795,31 @@ async function tryRefreshToken(): Promise<boolean> {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
       });
-      return response.ok;
+      if (response.ok) {
+        refreshCooldownUntil = 0;
+        return true;
+      }
+
+      const retryAfter = response.headers.get('Retry-After');
+      if (response.status === 429 && retryAfter) {
+        const retryAfterSeconds = Number(retryAfter);
+        if (Number.isFinite(retryAfterSeconds)) {
+          refreshCooldownUntil = Date.now() + retryAfterSeconds * 1000;
+          return false;
+        }
+
+        const retryAt = Date.parse(retryAfter);
+        if (!Number.isNaN(retryAt)) {
+          refreshCooldownUntil = Math.max(Date.now() + 30_000, retryAt);
+          return false;
+        }
+      }
+
+      // Default cooldown to avoid hammering refresh on repeated 401s across many requests.
+      refreshCooldownUntil = Date.now() + (response.status === 429 ? 60_000 : 30_000);
+      return false;
     } catch {
+      refreshCooldownUntil = Date.now() + 30_000;
       return false;
     } finally {
       isRefreshing = false;
@@ -800,10 +830,34 @@ async function tryRefreshToken(): Promise<boolean> {
   return refreshPromise;
 }
 
+async function bestEffortLogout(): Promise<void> {
+  if (logoutPromise) return logoutPromise;
+
+  logoutPromise = (async () => {
+    try {
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+      });
+    } catch {
+      // Ignore network errors - we're already falling back to login.
+    } finally {
+      logoutPromise = null;
+    }
+  })();
+
+  return logoutPromise;
+}
+
 /**
  * Redirect to login page with return URL.
  */
 function redirectToLogin(): never {
+  // Best-effort: clear cookies so middleware doesn't bounce `/login` back to `/`.
+  void bestEffortLogout();
+
   const currentPath = window.location.pathname + window.location.search;
   window.location.href = `/login?next=${encodeURIComponent(currentPath)}`;
   // Return a promise that never resolves to prevent further execution
@@ -857,7 +911,7 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
           throw new Error(error || `API error: ${retryResponse.status}`);
         }
 
-        // Refresh failed - redirect to login
+        // Refresh failed - redirect to login (and avoid refresh hammering via cooldown)
         return redirectToLogin();
       }
     }

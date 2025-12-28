@@ -23,11 +23,8 @@ function hasAuthCookie(request: NextRequest): boolean {
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  // Login page: redirect to home if already has token
+  // Login page: always allow (cookies may exist but be invalid/expired)
   if (pathname === '/login') {
-    if (hasAuthCookie(request)) {
-      return NextResponse.redirect(new URL('/', request.url));
-    }
     return NextResponse.next();
   }
 

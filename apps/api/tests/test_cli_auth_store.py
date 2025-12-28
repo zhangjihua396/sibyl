@@ -65,7 +65,7 @@ def test_auth_store_with_refresh_token(tmp_path) -> None:
     from sibyl.cli.auth_store import get_refresh_token
 
     path = tmp_path / "auth.json"
-    set_tokens(TEST_API_URL, "access", refresh_token="refresh", expires_in=3600, path=path)  # noqa: S106
+    set_tokens(TEST_API_URL, "access", refresh_token="refresh", expires_in=3600, path=path)
 
     assert get_access_token(TEST_API_URL, path) == "access"
     assert get_refresh_token(TEST_API_URL, path) == "refresh"

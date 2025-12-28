@@ -5,7 +5,7 @@ from sibyl.cli.client import SibylClient
 
 @pytest.mark.asyncio
 async def test_cli_create_org_payload() -> None:
-    client = SibylClient(base_url="http://example.test", auth_token="t")  # noqa: S106
+    client = SibylClient(base_url="http://example.test", auth_token="t")
     seen = {}
 
     async def _request(method, path, json=None, params=None):
