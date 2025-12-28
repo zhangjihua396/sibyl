@@ -152,19 +152,22 @@ def run_server(
         port: Port to listen on (defaults to settings.server_port)
         transport: Transport type ('streamable-http', 'sse', or 'stdio')
     """
+    from sibyl.banner import print_banner
+    from sibyl.tools.admin import mark_server_started
+
     log = structlog.get_logger()
 
     # Use settings defaults if not specified
     host = host or settings.server_host
     port = port or settings.server_port
 
-    from sibyl.tools.admin import mark_server_started
+    # Print the gorgeous banner
+    print_banner(component="server")
 
     mark_server_started()
 
     log.info(
         "Starting Sibyl Server",
-        version="0.1.0",
         name=settings.server_name,
         transport=transport,
         host=host,

@@ -51,8 +51,12 @@ def get_redis_settings() -> RedisSettings:
 
 async def startup(ctx: dict[str, Any]) -> None:
     """Worker startup - initialize resources."""
+    from sibyl.banner import print_banner
+
+    print_banner(component="worker")
+
     log.info(
-        "Job worker online - ready to process jobs",
+        "Job worker online",
         functions=[
             "crawl_source",
             "sync_source",

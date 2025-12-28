@@ -1,8 +1,9 @@
 'use client';
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { type ReactNode, useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 
+import { printConsoleGreeting } from '@/lib/console-greeting';
 import { useMe, useRealtimeUpdates } from '@/lib/hooks';
 
 function RealtimeProvider({ children }: { children: ReactNode }) {
@@ -25,6 +26,10 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       })
   );
+
+  useEffect(() => {
+    printConsoleGreeting();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
