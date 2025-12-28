@@ -8,7 +8,7 @@ import structlog
 
 from sibyl.errors import InvalidTransitionError
 from sibyl.models.entities import EntityType, Episode, Relationship, RelationshipType
-from sibyl.models.tasks import Task, TaskStatus
+from sibyl.models.tasks import EpicStatus, Task, TaskStatus
 
 if TYPE_CHECKING:
     from sibyl.graph.client import GraphClient
@@ -287,6 +287,11 @@ class TaskWorkflowEngine:
         if task.project_id:
             await self._update_project_progress(task.project_id)
 
+        # Auto-complete epic if all tasks are done
+        epic_completed = await self._maybe_complete_epic(updated_task)
+        if epic_completed:
+            log.info("Epic auto-completed", epic_id=task.epic_id, task_id=task_id)
+
         log.info("Task completed successfully", task_id=task_id)
         return updated_task
 
@@ -385,6 +390,11 @@ class TaskWorkflowEngine:
         # Update project progress
         if task.project_id:
             await self._update_project_progress(task.project_id)
+
+        # Auto-complete epic if all tasks are done/archived
+        epic_completed = await self._maybe_complete_epic(updated_task)
+        if epic_completed:
+            log.info("Epic auto-completed", epic_id=task.epic_id, task_id=task_id)
 
         log.info("Task archived", task_id=task_id)
         return updated_task
@@ -555,6 +565,80 @@ class TaskWorkflowEngine:
                 done=done,
                 doing=doing,
             )
+
+    async def _maybe_complete_epic(self, task: Task) -> bool:
+        """Auto-complete epic if all its tasks are done.
+
+        Epics are organizational containers - they auto-complete when all
+        their tasks reach terminal states (done or archived).
+
+        Args:
+            task: The task that was just completed/archived
+
+        Returns:
+            True if epic was auto-completed, False otherwise
+        """
+        epic_id = task.epic_id
+        if not epic_id:
+            return False
+
+        log.debug("Checking epic auto-completion", epic_id=epic_id, task_id=task.id)
+
+        # Query all tasks in this epic and their statuses
+        query = """
+        MATCH (epic {uuid: $epic_id})<-[:BELONGS_TO]-(t)
+        WHERE t.entity_type = 'task'
+        WITH epic,
+             count(t) as total,
+             count(CASE WHEN t.status IN ['done', 'archived'] THEN 1 END) as terminal
+        RETURN epic.status as epic_status, total, terminal
+        """
+
+        rows = await self._graph_client.execute_read_org(
+            query, self._organization_id, epic_id=epic_id
+        )
+
+        if not rows:
+            log.warning("Epic not found for auto-completion", epic_id=epic_id)
+            return False
+
+        record = rows[0]
+        total = record.get("total", 0)
+        terminal = record.get("terminal", 0)
+        current_status = record.get("epic_status", "planning")
+
+        # Already completed or no tasks
+        if current_status in ["completed", "archived"] or total == 0:
+            return False
+
+        # All tasks in terminal state - auto-complete the epic
+        if total == terminal:
+            log.info(
+                "Auto-completing epic - all tasks done",
+                epic_id=epic_id,
+                total_tasks=total,
+            )
+
+            await self._entity_manager.update(
+                epic_id,
+                {
+                    "status": EpicStatus.COMPLETED,
+                    "completed_date": datetime.now(UTC),
+                    "total_tasks": total,
+                    "completed_tasks": terminal,
+                },
+            )
+            return True
+
+        # Update progress stats even if not complete
+        await self._entity_manager.update(
+            epic_id,
+            {
+                "total_tasks": total,
+                "completed_tasks": terminal,
+            },
+        )
+        return False
 
     def _generate_branch_name(self, task: Task) -> str:
         """Generate conventional branch name for task.

@@ -2,14 +2,13 @@
 
 import { useRouter } from 'next/navigation';
 import { use, useMemo } from 'react';
-import { toast } from 'sonner';
 import { EntityBreadcrumb } from '@/components/layout/breadcrumb';
 import { CheckCircle, Clock, Layers, Pause, Target, Zap } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
 import { ErrorState } from '@/components/ui/tooltip';
 import type { EpicStatus, TaskPriority } from '@/lib/api';
 import { EPIC_STATUS_CONFIG, TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/lib/constants';
-import { useEpic, useEpicManage, useEpicTasks, useProjects } from '@/lib/hooks';
+import { useEpic, useEpicTasks, useProjects } from '@/lib/hooks';
 
 interface EpicDetailPageProps {
   params: Promise<{ id: string }>;
@@ -21,7 +20,6 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
   const { data: epic, isLoading, error } = useEpic(id);
   const { data: tasksData, isLoading: tasksLoading } = useEpicTasks(id);
   const { data: projectsData } = useProjects();
-  const epicManage = useEpicManage();
 
   // Find parent project for breadcrumb
   const parentProject = useMemo(() => {
@@ -32,36 +30,28 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
   }, [epic, projectsData]);
 
   const tasks = tasksData?.entities ?? [];
-  const metadata = epic?.metadata ?? {};
-  const status = (metadata.status ?? 'planning') as EpicStatus;
-  const priority = (metadata.priority ?? 'medium') as TaskPriority;
-  const statusConfig = EPIC_STATUS_CONFIG[status];
+  const priority = (epic?.metadata?.priority ?? 'medium') as TaskPriority;
   const priorityConfig = TASK_PRIORITY_CONFIG[priority];
 
-  // Task progress
+  // Task progress - this drives epic status
   const totalTasks = tasks.length;
-  const doneTasks = tasks.filter(t => t.metadata?.status === 'done').length;
+  const doneTasks = tasks.filter(t =>
+    ['done', 'archived'].includes(t.metadata?.status as string)
+  ).length;
   const doingTasks = tasks.filter(t => t.metadata?.status === 'doing').length;
   const blockedTasks = tasks.filter(t => t.metadata?.status === 'blocked').length;
   const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
 
-  const handleStartEpic = async () => {
-    try {
-      await epicManage.mutateAsync({ action: 'start_epic', entity_id: id });
-      toast.success('Epic started');
-    } catch {
-      toast.error('Failed to start epic');
-    }
-  };
+  // Derive status from task states (epics auto-complete when all tasks done)
+  const derivedStatus: EpicStatus = useMemo(() => {
+    if (totalTasks === 0) return 'planning';
+    if (progressPercent === 100) return 'completed';
+    if (blockedTasks > 0) return 'blocked';
+    if (doingTasks > 0) return 'in_progress';
+    return 'planning';
+  }, [totalTasks, progressPercent, blockedTasks, doingTasks]);
 
-  const handleCompleteEpic = async () => {
-    try {
-      await epicManage.mutateAsync({ action: 'complete_epic', entity_id: id });
-      toast.success('Epic completed');
-    } catch {
-      toast.error('Failed to complete epic');
-    }
-  };
+  const statusConfig = EPIC_STATUS_CONFIG[derivedStatus];
 
   if (error) {
     return (
@@ -84,9 +74,9 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
     );
   }
 
-  const isBlocked = status === 'blocked';
-  const isInProgress = status === 'in_progress';
-  const isCompleted = status === 'completed';
+  const isBlocked = derivedStatus === 'blocked';
+  const isInProgress = derivedStatus === 'in_progress';
+  const isCompleted = derivedStatus === 'completed';
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -109,46 +99,60 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
         />
 
         <div className="pl-5 pr-4 py-4">
-          {/* Top badges */}
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <div className="flex items-center gap-2">
-              {/* Priority */}
-              <span
-                className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded border ${priorityConfig?.bgClass ?? 'bg-[#ffb86c]/20'} ${priorityConfig?.textClass ?? 'text-[#ffb86c]'} border-current/30`}
-              >
-                {priority === 'critical' && (
-                  <Zap width={12} height={12} className="animate-pulse" />
-                )}
-                {priorityConfig?.label ?? priority}
-              </span>
-
-              {/* Epic badge */}
-              <span className="text-xs px-2 py-0.5 rounded bg-[#ffb86c]/20 text-[#ffb86c] border border-[#ffb86c]/30 font-medium">
-                Epic
-              </span>
-
-              {/* Project */}
-              {parentProject && (
-                <button
-                  type="button"
-                  onClick={() => router.push(`/projects/${parentProject.id}`)}
-                  className="text-xs px-2 py-0.5 rounded bg-sc-bg-elevated text-sc-fg-muted hover:text-sc-cyan hover:bg-sc-cyan/10 transition-colors flex items-center gap-1"
-                >
-                  <Target width={12} height={12} />
-                  {parentProject.name}
-                </button>
-              )}
-            </div>
-
-            {/* Status */}
-            <span
-              className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded ${statusConfig?.bgClass} ${statusConfig?.textClass}`}
-            >
-              {isBlocked && <Pause width={12} height={12} />}
-              {isInProgress && <Clock width={12} height={12} className="animate-pulse" />}
-              {isCompleted && <CheckCircle width={12} height={12} />}
-              {statusConfig?.label}
+          {/* Status Banner - prominent at top */}
+          <div
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg mb-4 ${statusConfig?.bgClass}`}
+          >
+            {isBlocked && <Pause width={16} height={16} className="text-sc-red" />}
+            {isInProgress && (
+              <Clock width={16} height={16} className="text-sc-purple animate-pulse" />
+            )}
+            {isCompleted && <CheckCircle width={16} height={16} className="text-sc-green" />}
+            {!isBlocked && !isInProgress && !isCompleted && (
+              <Layers width={16} height={16} className="text-sc-cyan" />
+            )}
+            <span className={`text-sm font-medium ${statusConfig?.textClass}`}>
+              {isCompleted
+                ? 'All tasks complete'
+                : isBlocked
+                  ? `${blockedTasks} task${blockedTasks > 1 ? 's' : ''} blocked`
+                  : isInProgress
+                    ? `${doingTasks} task${doingTasks > 1 ? 's' : ''} in progress`
+                    : totalTasks === 0
+                      ? 'No tasks yet'
+                      : `${totalTasks} task${totalTasks > 1 ? 's' : ''} planned`}
             </span>
+            <span className={`ml-auto text-sm font-bold ${statusConfig?.textClass}`}>
+              {progressPercent}%
+            </span>
+          </div>
+
+          {/* Metadata row */}
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            {/* Priority */}
+            <span
+              className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded border ${priorityConfig?.bgClass ?? 'bg-[#ffb86c]/20'} ${priorityConfig?.textClass ?? 'text-[#ffb86c]'} border-current/30`}
+            >
+              {priority === 'critical' && <Zap width={12} height={12} className="animate-pulse" />}
+              {priorityConfig?.label ?? priority}
+            </span>
+
+            {/* Epic badge */}
+            <span className="text-xs px-2 py-0.5 rounded bg-[#ffb86c]/20 text-[#ffb86c] border border-[#ffb86c]/30 font-medium">
+              Epic
+            </span>
+
+            {/* Project */}
+            {parentProject && (
+              <button
+                type="button"
+                onClick={() => router.push(`/projects/${parentProject.id}`)}
+                className="text-xs px-2 py-0.5 rounded bg-sc-bg-elevated text-sc-fg-muted hover:text-sc-cyan hover:bg-sc-cyan/10 transition-colors flex items-center gap-1"
+              >
+                <Target width={12} height={12} />
+                {parentProject.name}
+              </button>
+            )}
           </div>
 
           {/* Title */}
@@ -191,30 +195,6 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
               )}
             </div>
           )}
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
-            {status === 'planning' && (
-              <button
-                type="button"
-                onClick={handleStartEpic}
-                disabled={epicManage.isPending}
-                className="px-3 py-1.5 bg-sc-purple hover:bg-sc-purple/80 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                Start Epic
-              </button>
-            )}
-            {status === 'in_progress' && progressPercent === 100 && (
-              <button
-                type="button"
-                onClick={handleCompleteEpic}
-                disabled={epicManage.isPending}
-                className="px-3 py-1.5 bg-sc-green hover:bg-sc-green/80 text-sc-bg-dark text-sm font-medium rounded-lg transition-colors disabled:opacity-50"
-              >
-                Complete Epic
-              </button>
-            )}
-          </div>
         </div>
       </div>
 

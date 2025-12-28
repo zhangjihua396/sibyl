@@ -844,7 +844,13 @@ export function useTaskManage() {
       entity_id,
       params,
     }: {
-      action: 'start_task' | 'block_task' | 'unblock_task' | 'submit_review' | 'complete_task' | 'archive';
+      action:
+        | 'start_task'
+        | 'block_task'
+        | 'unblock_task'
+        | 'submit_review'
+        | 'complete_task'
+        | 'archive';
       entity_id: string;
       params?: {
         assignee?: string;
@@ -859,17 +865,29 @@ export function useTaskManage() {
       // Route to RESTful endpoints based on action
       switch (action) {
         case 'start_task':
-          return api.tasks.start(entity_id, params?.assignee ? { assignee: params.assignee } : undefined);
+          return api.tasks.start(
+            entity_id,
+            params?.assignee ? { assignee: params.assignee } : undefined
+          );
         case 'block_task':
           return api.tasks.block(entity_id, params?.blocker || params?.reason || 'Blocked');
         case 'unblock_task':
           return api.tasks.unblock(entity_id);
         case 'submit_review':
-          return api.tasks.review(entity_id, { pr_url: params?.pr_url, commit_shas: params?.commit_shas });
+          return api.tasks.review(entity_id, {
+            pr_url: params?.pr_url,
+            commit_shas: params?.commit_shas,
+          });
         case 'complete_task':
-          return api.tasks.complete(entity_id, { actual_hours: params?.actual_hours, learnings: params?.learnings });
+          return api.tasks.complete(entity_id, {
+            actual_hours: params?.actual_hours,
+            learnings: params?.learnings,
+          });
         case 'archive':
-          return api.tasks.archive(entity_id, params?.reason ? { reason: params.reason } : undefined);
+          return api.tasks.archive(
+            entity_id,
+            params?.reason ? { reason: params.reason } : undefined
+          );
         default:
           throw new Error(`Unknown action: ${action}`);
       }
@@ -980,9 +998,15 @@ export function useEpicManage() {
         case 'start_epic':
           return api.epics.start(entity_id);
         case 'complete_epic':
-          return api.epics.complete(entity_id, params?.learnings ? { learnings: params.learnings } : undefined);
+          return api.epics.complete(
+            entity_id,
+            params?.learnings ? { learnings: params.learnings } : undefined
+          );
         case 'archive_epic':
-          return api.epics.archive(entity_id, params?.reason ? { reason: params.reason } : undefined);
+          return api.epics.archive(
+            entity_id,
+            params?.reason ? { reason: params.reason } : undefined
+          );
         case 'update_epic':
           return api.epics.update(entity_id, {
             status: params?.status,

@@ -66,14 +66,8 @@ export const EpicCard = memo(function EpicCard({
   onProjectClick,
 }: EpicCardProps) {
   const metadata = epic.metadata ?? {};
-  const status = (metadata.status ?? 'planning') as EpicStatus;
   const priority = (metadata.priority ?? 'medium') as TaskPriority;
-  const statusConfig = EPIC_STATUS_CONFIG[status as keyof typeof EPIC_STATUS_CONFIG];
   const projectId = metadata.project_id as string | undefined;
-
-  const isBlocked = status === 'blocked';
-  const isInProgress = status === 'in_progress';
-  const isCompleted = status === 'completed';
   const priorityStyle = PRIORITY_STYLES[priority] || PRIORITY_STYLES.medium;
 
   // Progress calculation from metadata
@@ -86,6 +80,20 @@ export const EpicCard = memo(function EpicCard({
     totalTasks > 0
       ? { total: totalTasks, done: doneTasks, doing: doingTasks, blocked: blockedTasks }
       : null;
+
+  // Derive status from task progress (epics auto-complete when all tasks done)
+  const derivedStatus: EpicStatus = (() => {
+    if (totalTasks === 0) return 'planning';
+    if (progressPercent === 100) return 'completed';
+    if (blockedTasks > 0) return 'blocked';
+    if (doingTasks > 0) return 'in_progress';
+    return 'planning';
+  })();
+
+  const statusConfig = EPIC_STATUS_CONFIG[derivedStatus as keyof typeof EPIC_STATUS_CONFIG];
+  const isBlocked = derivedStatus === 'blocked';
+  const isInProgress = derivedStatus === 'in_progress';
+  const isCompleted = derivedStatus === 'completed';
 
   // Override styles for special statuses
   const cardBg = isBlocked
