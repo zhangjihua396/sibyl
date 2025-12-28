@@ -165,10 +165,17 @@ async def _enrich_cluster_summaries(
             continue
 
         # Query type distribution for this cluster's members
+        # Use COALESCE to try entity_type first, then extract from labels array
         query = """
         MATCH (n)
         WHERE n.uuid IN $ids
-        RETURN n.entity_type AS type, count(*) AS cnt
+        WITH n,
+             CASE
+                 WHEN n.entity_type IS NOT NULL THEN n.entity_type
+                 WHEN n.labels IS NOT NULL AND size(n.labels) > 1 THEN n.labels[1]
+                 ELSE 'unknown'
+             END AS resolved_type
+        RETURN toLower(resolved_type) AS type, count(*) AS cnt
         """
 
         type_dist: dict[str, int] = {}
@@ -371,6 +378,47 @@ async def _get_graph_totals(
     return total_nodes, total_edges
 
 
+def _extract_entity_type(
+    entity_type: str | None, labels: list[str] | None, name: str | None = None
+) -> str:
+    """Extract entity type from entity_type property, labels array, or infer from name.
+
+    Graphiti stores entity types in two places:
+    - n.entity_type: Direct property (preferred)
+    - n.labels: Array like [Entity, pattern] where second element may be the type
+
+    If neither has type info, try to infer from the entity name.
+    """
+    if entity_type:
+        return entity_type
+
+    # Try to extract from labels array - skip known graph/system labels
+    if labels:
+        skip_labels = {
+            "Entity", "Episodic", "EntityNode", "EpisodicNode",
+            "Cluster", "Community", "Node",  # System labels
+        }
+        for label in labels:
+            if label and label not in skip_labels:
+                return label.lower()
+
+    # Infer type from name patterns
+    if name:
+        name_lower = name.lower()
+        # File paths
+        if any(name_lower.endswith(ext) for ext in (".py", ".ts", ".tsx", ".js", ".jsx", ".rs", ".go", ".md")):
+            return "file"
+        # URLs
+        if name_lower.startswith(("http://", "https://", "www.")):
+            return "source"
+        # Code-like names (functions, classes)
+        if "(" in name or name.endswith("()"):
+            return "function"
+
+    # Default to "topic" - most extracted entities without explicit types are topics
+    return "topic"
+
+
 async def _fetch_graph_nodes(
     client: GraphClient,
     organization_id: str,
@@ -381,7 +429,8 @@ async def _fetch_graph_nodes(
     query = """
     MATCH (n)
     WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
-    RETURN n.uuid AS id, n.name AS name, n.entity_type AS type, n.summary AS summary
+    RETURN n.uuid AS id, n.name AS name, n.entity_type AS type,
+           n.summary AS summary, n.labels AS labels
     LIMIT $limit
     """
     nodes: list[dict[str, Any]] = []
@@ -393,25 +442,26 @@ async def _fetch_graph_nodes(
         )
         for record in result:
             if isinstance(record, (list, tuple)):
-                node_id, name, entity_type, summary = (
-                    record[0] if len(record) > 0 else None,
-                    record[1] if len(record) > 1 else "",
-                    record[2] if len(record) > 2 else "unknown",
-                    record[3] if len(record) > 3 else "",
-                )
+                node_id = record[0] if len(record) > 0 else None
+                name = record[1] if len(record) > 1 else ""
+                entity_type = record[2] if len(record) > 2 else None
+                summary = record[3] if len(record) > 3 else ""
+                labels = record[4] if len(record) > 4 else None
             else:
                 node_id = record.get("id")
                 name = record.get("name", "")
-                entity_type = record.get("type", "unknown")
+                entity_type = record.get("type")
                 summary = record.get("summary", "")
+                labels = record.get("labels")
 
             if node_id:
+                resolved_type = _extract_entity_type(entity_type, labels, name)
                 node_ids.add(node_id)
                 nodes.append(
                     {
                         "id": node_id,
                         "name": name or node_id[:20],
-                        "type": entity_type or "unknown",
+                        "type": resolved_type,
                         "summary": summary or "",
                         "cluster_id": node_to_cluster.get(node_id, "unclustered"),
                     }
@@ -657,12 +707,20 @@ class DetectedCommunity:
         return len(self.member_ids)
 
 
-async def export_to_networkx(client: GraphClient, organization_id: str) -> Any:
-    """Export knowledge graph to NetworkX format.
+async def export_to_networkx(
+    client: GraphClient,
+    organization_id: str,
+    type_affinity_weight: float = 2.0,
+) -> Any:
+    """Export knowledge graph to NetworkX format with type affinity.
+
+    Edges between nodes of the same entity type get higher weight,
+    encouraging the Louvain algorithm to cluster same-type nodes together.
 
     Args:
         client: Graph client.
         organization_id: Organization UUID for filtering.
+        type_affinity_weight: Extra weight for same-type connections (default 2.0).
 
     Returns:
         NetworkX graph object.
@@ -677,16 +735,17 @@ async def export_to_networkx(client: GraphClient, organization_id: str) -> Any:
             "networkx is required for community detection. Install with: pip install networkx"
         ) from e
 
-    log.info("export_to_networkx_start", org_id=organization_id)
+    log.info("export_to_networkx_start", org_id=organization_id, type_affinity=type_affinity_weight)
 
     # Create undirected graph for community detection
     G = nx.Graph()  # noqa: N806
 
     # Fetch ALL nodes - both Episodic and Entity labels with group_id filter
+    # Also fetch labels array for type resolution
     node_query = """
     MATCH (n)
     WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
-    RETURN n.uuid AS id, n.name AS name, n.entity_type AS type
+    RETURN n.uuid AS id, n.name AS name, n.entity_type AS type, n.labels AS labels
     """
 
     try:
@@ -698,14 +757,18 @@ async def export_to_networkx(client: GraphClient, organization_id: str) -> Any:
             if isinstance(record, (list, tuple)):
                 node_id = record[0] if len(record) > 0 else None
                 name = record[1] if len(record) > 1 else ""
-                entity_type = record[2] if len(record) > 2 else ""
+                entity_type = record[2] if len(record) > 2 else None
+                labels = record[3] if len(record) > 3 else None
             else:
                 node_id = record.get("id")
                 name = record.get("name", "")
-                entity_type = record.get("type", "")
+                entity_type = record.get("type")
+                labels = record.get("labels")
 
             if node_id:
-                G.add_node(node_id, name=name, type=entity_type)
+                # Resolve entity type using helper
+                resolved_type = _extract_entity_type(entity_type, labels, name)
+                G.add_node(node_id, name=name, type=resolved_type)
 
     except Exception as e:
         log.warning("export_nodes_failed", error=str(e))
@@ -733,7 +796,20 @@ async def export_to_networkx(client: GraphClient, organization_id: str) -> Any:
                 rel_type = record.get("rel_type", "")
 
             if source and target and source in G and target in G:
-                G.add_edge(source, target, rel_type=rel_type)
+                # Calculate edge weight with type affinity boost
+                source_type = G.nodes[source].get("type", "")
+                target_type = G.nodes[target].get("type", "")
+
+                # Base weight + bonus if same type
+                weight = 1.0
+                if source_type and target_type and source_type == target_type:
+                    weight += type_affinity_weight
+
+                # Update or add edge (accumulate weight for multi-edges)
+                if G.has_edge(source, target):
+                    G[source][target]["weight"] += weight
+                else:
+                    G.add_edge(source, target, rel_type=rel_type, weight=weight)
 
     except Exception as e:
         log.warning("export_edges_failed", error=str(e))

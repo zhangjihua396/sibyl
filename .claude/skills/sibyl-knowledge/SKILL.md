@@ -109,14 +109,33 @@ sibyl task create --title "Fix bug" -p proj_web --assignee alice --tech python,r
 **IMPORTANT:** Use `--title` (not `-t`). The `-t` flag is for table output!
 
 ```bash
-# List tasks (ALWAYS filter by project or status)
+# List tasks (ALWAYS filter by project, status, or priority)
 sibyl task list --project proj_abc
 sibyl task list --status todo
 sibyl task list --status doing
+sibyl task list --priority high
 sibyl task list --assignee alice
 
 # Multiple statuses (comma-separated)
 sibyl task list --status todo,doing,blocked
+
+# Multiple priorities (comma-separated)
+sibyl task list --priority critical,high
+
+# Filter by complexity
+sibyl task list --complexity simple
+sibyl task list --complexity trivial,simple,medium  # Multiple
+
+# Filter by feature area
+sibyl task list --feature auth
+sibyl task list -f backend           # Short form
+
+# Filter by tags (matches if task has ANY of the tags)
+sibyl task list --tags bug
+sibyl task list --tags bug,urgent,critical
+
+# Combine multiple filters (all backend-filtered, respects pagination limits)
+sibyl task list --status todo --priority high --complexity simple --feature auth
 
 # Semantic search within tasks (use -q for query mode)
 sibyl task list -q "authentication"
@@ -409,8 +428,15 @@ sibyl task list --status todo 2>&1 | jq 'length'
 # List names
 sibyl task list --status todo 2>&1 | jq -r '.[].name'
 
-# Filter by priority
-sibyl task list --status todo 2>&1 | jq -r '.[] | select(.metadata.priority == "high") | .name'
+# Filter by priority/complexity/feature/tags (USE THE FLAGS, not jq!)
+sibyl task list --priority high              # Backend filters - efficient!
+sibyl task list --priority critical,high     # Multiple priorities
+sibyl task list --complexity simple          # Filter by complexity
+sibyl task list --feature auth               # Filter by feature area
+sibyl task list --tags bug,urgent            # Filter by tags (ANY match)
+
+# Combine filters (all backend-filtered, respects pagination limits)
+sibyl task list --status todo --priority high --feature backend
 
 # Export CSV
 sibyl task list --status todo --csv > tasks.csv
@@ -437,8 +463,6 @@ Based on analysis of 200MB of conversation history, these are the most common CL
 | ❌ Won't Work                    | Why                         | ✅ Alternative                |
 | -------------------------------- | --------------------------- | ----------------------------- |
 | `--json`                         | JSON is already the default | Just omit it                  |
-| `--complexity`                   | Not a CLI flag              | Not available                 |
-| `--tags`                         | Not a CLI flag              | Use `--tech` or `--feature`   |
 | `--description` on `task update` | Only at creation            | Set in `task create -d "..."` |
 | `--format json`                  | Not a flag                  | JSON is default, just omit    |
 | `--format csv`                   | Not a flag                  | Use `--csv` instead           |

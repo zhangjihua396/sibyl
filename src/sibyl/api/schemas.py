@@ -155,7 +155,18 @@ class ExploreRequest(BaseModel):
     language: str | None = None
     category: str | None = None
     project: str | None = Field(default=None, description="Filter by project ID (for tasks)")
+    epic: str | None = Field(default=None, description="Filter by epic ID (for tasks)")
     status: str | None = Field(default=None, description="Filter by status (for tasks)")
+    priority: str | None = Field(
+        default=None, description="Filter by priority (for tasks): critical, high, medium, low, someday"
+    )
+    complexity: str | None = Field(
+        default=None, description="Filter by complexity (for tasks): trivial, simple, medium, complex, epic"
+    )
+    feature: str | None = Field(default=None, description="Filter by feature area (for tasks)")
+    tags: str | None = Field(
+        default=None, description="Filter by tags (comma-separated, matches if task has ANY)"
+    )
     include_archived: bool = Field(
         default=False, description="Include archived projects in results"
     )

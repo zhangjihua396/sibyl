@@ -571,6 +571,10 @@ class SibylClient:
         project: str | None = None,
         epic: str | None = None,
         status: str | None = None,
+        priority: str | None = None,
+        complexity: str | None = None,
+        feature: str | None = None,
+        tags: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> dict[str, Any]:
@@ -592,6 +596,14 @@ class SibylClient:
             data["epic"] = epic
         if status:
             data["status"] = status
+        if priority:
+            data["priority"] = priority
+        if complexity:
+            data["complexity"] = complexity
+        if feature:
+            data["feature"] = feature
+        if tags:
+            data["tags"] = tags
 
         return await self._request("POST", "/search/explore", json=data)
 

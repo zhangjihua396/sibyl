@@ -42,7 +42,7 @@ backend:
     # -- Session affinity config (only used if sessionAffinity is set)
     sessionAffinityConfig:
       clientIP:
-        timeoutSeconds: 10800  # 3 hours
+        timeoutSeconds: 10800 # 3 hours
 
   # -- Autoscaling configuration
   autoscaling:

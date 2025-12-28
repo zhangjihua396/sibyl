@@ -107,6 +107,10 @@ async def _resolve_task_id(client: "SibylClient", task_id: str) -> str:
 def _apply_task_filters(
     entities: list[dict],
     status: str | None,
+    priority: str | None,
+    complexity: str | None,
+    feature: str | None,
+    tags: str | None,
     project: str | None,
     epic: str | None,
     assignee: str | None,
@@ -118,6 +122,43 @@ def _apply_task_filters(
         # Support comma-separated statuses (e.g., "todo,doing")
         status_list = [s.strip() for s in status.split(",")]
         result = [e for e in result if e.get("metadata", {}).get("status") in status_list]
+
+    if priority:
+        # Support comma-separated priorities (e.g., "critical,high")
+        priority_list = [p.strip().lower() for p in priority.split(",")]
+        result = [
+            e
+            for e in result
+            if e.get("metadata", {}).get("priority", "").lower() in priority_list
+        ]
+
+    if complexity:
+        # Support comma-separated complexities (e.g., "simple,medium")
+        complexity_list = [c.strip().lower() for c in complexity.split(",")]
+        result = [
+            e
+            for e in result
+            if e.get("metadata", {}).get("complexity", "").lower() in complexity_list
+        ]
+
+    if feature:
+        result = [
+            e
+            for e in result
+            if (e.get("metadata", {}).get("feature") or "").lower() == feature.lower()
+        ]
+
+    if tags:
+        # Match if ANY tag matches
+        tag_list = [t.strip().lower() for t in tags.split(",")]
+        result = [
+            e
+            for e in result
+            if any(
+                t.lower() in tag_list
+                for t in e.get("metadata", {}).get("tags", [])
+            )
+        ]
 
     if project:
         result = [e for e in result if e.get("metadata", {}).get("project_id") == project]
@@ -204,6 +245,26 @@ def list_tasks(
             "-s", "--status", help="Filter by status (comma-separated: todo,doing,blocked)"
         ),
     ] = None,
+    priority: Annotated[
+        str | None,
+        typer.Option(
+            "--priority", help="Filter by priority (comma-separated: critical,high,medium,low,someday)"
+        ),
+    ] = None,
+    complexity: Annotated[
+        str | None,
+        typer.Option(
+            "--complexity", help="Filter by complexity (comma-separated: trivial,simple,medium,complex,epic)"
+        ),
+    ] = None,
+    feature: Annotated[
+        str | None,
+        typer.Option("-f", "--feature", help="Filter by feature area"),
+    ] = None,
+    tags: Annotated[
+        str | None,
+        typer.Option("--tags", help="Filter by tags (comma-separated, matches ANY)"),
+    ] = None,
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
@@ -272,16 +333,28 @@ def list_tasks(
                 has_more = response.get("has_more", False)
                 total = response.get("total", len(entities))
             else:
-                # Only pass single status to API; multiple statuses filtered client-side
+                # Only pass single values to API; multiple values filtered client-side
                 api_status = None
                 if status and "," not in status:
                     api_status = status
+                api_priority = None
+                if priority and "," not in priority:
+                    api_priority = priority
+                api_complexity = None
+                if complexity and "," not in complexity:
+                    api_complexity = complexity
+                # Tags always goes to API (any-match is handled by backend)
+                api_tags = tags
 
                 if fmt in ("json", "csv"):
                     response = await client.explore(
                         mode="list",
                         types=["task"],
                         status=api_status,
+                        priority=api_priority,
+                        complexity=api_complexity,
+                        feature=feature,
+                        tags=api_tags,
                         project=effective_project,
                         epic=epic,
                         limit=effective_limit,
@@ -294,6 +367,10 @@ def list_tasks(
                             mode="list",
                             types=["task"],
                             status=api_status,
+                            priority=api_priority,
+                            complexity=api_complexity,
+                            feature=feature,
+                            tags=api_tags,
                             project=effective_project,
                             epic=epic,
                             limit=effective_limit,
@@ -304,7 +381,9 @@ def list_tasks(
                 total = response.get("actual_total") or response.get("total", len(entities))
 
             # Client-side filters (needed for search, or when API doesn't filter)
-            entities = _apply_task_filters(entities, status, effective_project, epic, assignee)
+            entities = _apply_task_filters(
+                entities, status, priority, complexity, feature, tags, effective_project, epic, assignee
+            )
 
             if fmt == "json":
                 print_json(entities)

@@ -1,6 +1,8 @@
 import {
   Book,
+  Circle,
   Code,
+  CodeBrackets,
   Combine,
   Cube,
   EditPencil,
@@ -14,6 +16,7 @@ import {
   Label,
   List,
   MultiplePages,
+  Page,
   Settings,
   Star,
   Terminal,
@@ -45,6 +48,9 @@ const ENTITY_ICON_MAP: Record<EntityType, IconComponent> = {
   milestone: Star,
   source: Globe,
   document: Journal,
+  concept: Circle,
+  file: Page,
+  function: CodeBrackets,
 };
 
 // Fallback icon for unknown types

@@ -973,6 +973,10 @@ async def explore(
     project: str | None = None,
     epic: str | None = None,
     status: str | None = None,
+    priority: str | None = None,
+    complexity: str | None = None,
+    feature: str | None = None,
+    tags: str | None = None,
     include_archived: bool = False,
     limit: int = 50,
     offset: int = 0,
@@ -1017,6 +1021,10 @@ async def explore(
         project: Optional project filter (recommended for task/epic listing).
         epic: Optional epic filter (for listing tasks within an epic).
         status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
+        priority: Filter tasks by priority (critical, high, medium, low, someday).
+        complexity: Filter tasks by complexity (trivial, simple, medium, complex, epic).
+        feature: Filter tasks by feature area.
+        tags: Filter tasks by tags (comma-separated, matches if task has ANY).
         limit: Maximum results (1-200, default 50).
         offset: Offset for pagination (default 0).
 
@@ -1064,6 +1072,14 @@ async def explore(
         filters["epic"] = epic
     if status:
         filters["status"] = status
+    if priority:
+        filters["priority"] = priority
+    if complexity:
+        filters["complexity"] = complexity
+    if feature:
+        filters["feature"] = feature
+    if tags:
+        filters["tags"] = tags
 
     if not organization_id:
         raise ValueError("organization_id is required - cannot access graph without org context")
@@ -1094,6 +1110,10 @@ async def explore(
             project=project,
             epic=epic,
             status=status,
+            priority=priority,
+            complexity=complexity,
+            feature=feature,
+            tags=tags,
             include_archived=include_archived,
             limit=limit,
             offset=offset,
@@ -1113,6 +1133,10 @@ async def _explore_list(
     project: str | None,
     epic: str | None,
     status: str | None,
+    priority: str | None,
+    complexity: str | None,
+    feature: str | None,
+    tags: str | None,
     include_archived: bool,
     limit: int,
     offset: int,
@@ -1175,6 +1199,38 @@ async def _explore_list(
                 continue
             status_val = _serialize_enum(entity_status)
             if status.lower() != str(status_val).lower():
+                continue
+
+        # Priority filter (for tasks)
+        if priority:
+            entity_priority = _get_field(entity, "priority")
+            if entity_priority is None:
+                continue
+            priority_val = _serialize_enum(entity_priority)
+            if priority.lower() != str(priority_val).lower():
+                continue
+
+        # Complexity filter (for tasks)
+        if complexity:
+            entity_complexity = _get_field(entity, "complexity")
+            if entity_complexity is None:
+                continue
+            complexity_val = _serialize_enum(entity_complexity)
+            if complexity.lower() != str(complexity_val).lower():
+                continue
+
+        # Feature filter (for tasks)
+        if feature:
+            entity_feature = _get_field(entity, "feature")
+            if entity_feature is None or entity_feature.lower() != feature.lower():
+                continue
+
+        # Tags filter (for tasks) - match if ANY tag matches
+        if tags:
+            tag_list = [t.strip().lower() for t in tags.split(",")]
+            entity_tags = _get_field(entity, "tags", [])
+            entity_tags_lower = [str(t).lower() for t in entity_tags]
+            if not any(t in entity_tags_lower for t in tag_list):
                 continue
 
         # Archive filter (for projects) - hide archived unless explicitly included

@@ -316,6 +316,10 @@ class RelationshipManager:
                     target_id = row[3]
                     weight = row[4] if len(row) > 4 else 1.0
 
+                # Skip invalid relationships with missing source/target
+                if not source_id or not target_id:
+                    continue
+
                 # Filter by type if specified
                 if type_values and rel_name not in type_values:
                     continue

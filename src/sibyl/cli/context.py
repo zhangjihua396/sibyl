@@ -37,8 +37,51 @@ from sibyl.cli.config_store import (
 app = typer.Typer(
     name="context",
     help="Manage CLI contexts (server/org/project bundles)",
-    no_args_is_help=True,
+    invoke_without_command=True,
 )
+
+
+@app.callback()
+def callback(
+    ctx: typer.Context,
+    table_out: Annotated[
+        bool, typer.Option("--table", "-t", help="Table output (human-readable)")
+    ] = False,
+) -> None:
+    """Show current context when invoked without subcommand."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No subcommand - show active context
+    active = get_active_context()
+    if not active:
+        error("No active context")
+        info("Set one with: sibyl context use <name>")
+        raise typer.Exit(1)
+
+    if not table_out:
+        result = _context_to_dict(active)
+        result["active"] = True
+        print_json(result)
+        return
+
+    # Table output
+    console.print()
+    console.print(
+        f"  [{ELECTRIC_PURPLE}]Context:[/{ELECTRIC_PURPLE}] [bold]{active.name}[/bold]"
+    )
+    console.print(f"  [{SUCCESS_GREEN}](active)[/{SUCCESS_GREEN}]")
+    console.print()
+    console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]   {active.server_url}")
+    console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]      {active.org_slug or '[dim]auto[/dim]'}")
+    console.print(
+        f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {active.default_project or '[dim]none[/dim]'}"
+    )
+    if active.insecure:
+        console.print(
+            f"  [{ELECTRIC_YELLOW}]Insecure:[/{ELECTRIC_YELLOW}] SSL verification disabled"
+        )
+    console.print()
 
 
 def _context_to_dict(ctx: Context) -> dict:

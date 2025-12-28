@@ -14,15 +14,17 @@ systems, and can verify task completion by examining the actual codebase.
 
 ## CLI Quick Reference (Avoid Common Mistakes)
 
-| ❌ Wrong                     | ✅ Correct                                               |
-| ---------------------------- | -------------------------------------------------------- |
-| `sibyl task add "..."`       | `sibyl task create --title "..."`                        |
-| `sibyl task list --todo`     | `sibyl task list --status todo`                          |
-| `sibyl task list --json`     | `sibyl task list` (JSON is default)                      |
-| `sibyl task create -t "..."` | `sibyl task create --title "..."` (`-t` = table output!) |
-| `jq '.[].title'`             | `jq '.[].name'` (field is `name`)                        |
-| `--complexity`               | Not available                                            |
-| `--tags`                     | Use `--tech` or `--feature`                              |
+| ❌ Wrong                      | ✅ Correct                                               |
+| ----------------------------- | -------------------------------------------------------- |
+| `sibyl task add "..."`        | `sibyl task create --title "..."`                        |
+| `sibyl task list --todo`      | `sibyl task list --status todo`                          |
+| `sibyl task list --json`      | `sibyl task list` (JSON is default)                      |
+| `sibyl task create -t "..."`  | `sibyl task create --title "..."` (`-t` = table output!) |
+| `jq '.[].title'`              | `jq '.[].name'` (field is `name`)                        |
+| `jq select(.priority == "X")` | `--priority X` (backend filters efficiently!)            |
+| `jq select(.complexity == X)` | `--complexity X` (backend filters efficiently!)          |
+| `jq select(.feature == X)`    | `--feature X` or `-f X`                                  |
+| `jq select(.tags contains X)` | `--tags X` (backend filters, matches ANY)                |
 
 ## Your Responsibilities
 
@@ -73,6 +75,25 @@ sibyl task list 2>&1
 # Filter by status (ALWAYS prefer filtered lists)
 sibyl task list --status todo 2>&1
 sibyl task list --status doing 2>&1
+
+# Filter by priority (backend filters - efficient!)
+sibyl task list --priority high 2>&1
+sibyl task list --priority critical,high 2>&1  # Multiple priorities
+
+# Filter by complexity (backend filters - efficient!)
+sibyl task list --complexity simple 2>&1
+sibyl task list --complexity trivial,simple,medium 2>&1  # Multiple
+
+# Filter by feature area
+sibyl task list --feature auth 2>&1
+sibyl task list -f backend 2>&1  # Short form
+
+# Filter by tags (matches if task has ANY of the tags)
+sibyl task list --tags bug 2>&1
+sibyl task list --tags bug,urgent,critical 2>&1
+
+# Combine filters (all backend-filtered, respects pagination limits)
+sibyl task list --status todo --priority high --feature backend 2>&1
 
 # ⚠️ WRONG: --todo, --doing, --json don't exist!
 # ❌ sibyl task list --todo       <- Wrong
@@ -272,7 +293,11 @@ sibyl task list --status todo 2>&1 | jq -r 'group_by(.metadata.priority) | .[] |
 ### High Priority Tasks
 
 ```bash
-sibyl task list --status todo 2>&1 | jq -r '.[] | select(.metadata.priority == "critical" or .metadata.priority == "high") | "[\(.metadata.priority)] \(.name)"'
+# USE THE FLAG - backend filters efficiently, respects pagination limits
+sibyl task list --status todo --priority critical,high 2>&1
+
+# Format output with jq if needed
+sibyl task list --status todo --priority critical,high 2>&1 | jq -r '.[] | "[\(.metadata.priority)] \(.name)"'
 ```
 
 ### Tasks by Feature Area

@@ -44,6 +44,7 @@ interface GraphNode extends HierarchicalNode {
   entityColor?: string; // Color based on entity type
   degree?: number; // Number of connections (for sizing)
   isProject?: boolean; // Projects are STARS in our galaxy!
+  zIndex?: number; // Render order (higher = on top, gets label priority)
   __highlightTime?: number; // For pulse animation
 }
 
@@ -83,17 +84,50 @@ function MobileEntitySheet({ entityId, onClose }: { entityId: string; onClose: (
   );
 }
 
+// Generate a descriptive label for a cluster from its top nodes
+function getClusterLabel(
+  cluster: HierarchicalCluster,
+  nodes: GraphNode[]
+): string {
+  // Find nodes belonging to this cluster, sorted by degree (most connected first)
+  const clusterNodes = nodes
+    .filter(n => n.cluster_id === cluster.id)
+    .sort((a, b) => (b.degree || 0) - (a.degree || 0));
+
+  if (clusterNodes.length === 0) {
+    return cluster.dominant_type?.replace(/_/g, ' ') || 'Mixed';
+  }
+
+  // Get top 2 node names as the cluster label
+  const topNames = clusterNodes
+    .slice(0, 2)
+    .map(n => {
+      const name = n.label || n.name || '';
+      // Truncate long names
+      return name.length > 15 ? `${name.slice(0, 12)}...` : name;
+    })
+    .filter(Boolean);
+
+  if (topNames.length === 0) {
+    return cluster.dominant_type?.replace(/_/g, ' ') || 'Mixed';
+  }
+
+  return topNames.join(', ');
+}
+
 // Cluster legend component
 function ClusterLegend({
   clusters,
   clusterColorMap,
   selectedCluster,
   onClusterClick,
+  nodes,
 }: {
   clusters: HierarchicalCluster[];
   clusterColorMap: Map<string, string>;
   selectedCluster: string | null;
   onClusterClick: (clusterId: string | null) => void;
+  nodes: GraphNode[];
 }) {
   const [expanded, setExpanded] = useState(true);
 
@@ -123,9 +157,10 @@ function ClusterLegend({
             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-sc-purple to-sc-cyan" />
             <span>All clusters</span>
           </button>
-          {clusters.map(cluster => {
+          {[...clusters].sort((a, b) => b.member_count - a.member_count).map(cluster => {
             const color = clusterColorMap.get(cluster.id) || '#8b85a0';
             const isSelected = selectedCluster === cluster.id;
+            const label = getClusterLabel(cluster, nodes);
             return (
               <button
                 key={cluster.id}
@@ -136,15 +171,14 @@ function ClusterLegend({
                     ? 'bg-sc-purple/20 text-sc-fg-primary'
                     : 'text-sc-fg-muted hover:text-sc-fg-primary'
                 }`}
+                title={label}
               >
                 <div
                   className="w-2 h-2 rounded-full flex-shrink-0"
                   style={{ backgroundColor: color }}
                 />
-                <span className="truncate capitalize">
-                  {cluster.dominant_type?.replace(/_/g, ' ') || 'Mixed'}
-                </span>
-                <span className="ml-auto text-sc-fg-subtle">{cluster.member_count}</span>
+                <span className="truncate">{label}</span>
+                <span className="ml-auto text-sc-fg-subtle flex-shrink-0">{cluster.member_count}</span>
               </button>
             );
           })}
@@ -349,6 +383,22 @@ function GraphPageContent() {
     return map;
   }, [data?.clusters]);
 
+  // Calculate degree for ALL nodes (used by legend, unaffected by cluster filter)
+  const allNodesWithDegree = useMemo(() => {
+    if (!data) return [];
+
+    const degreeMap = new Map<string, number>();
+    for (const edge of data.edges) {
+      degreeMap.set(edge.source, (degreeMap.get(edge.source) || 0) + 1);
+      degreeMap.set(edge.target, (degreeMap.get(edge.target) || 0) + 1);
+    }
+
+    return data.nodes.map(node => ({
+      ...node,
+      degree: degreeMap.get(node.id) || 0,
+    })) as GraphNode[];
+  }, [data]);
+
   // Transform data for force graph with entity coloring and degree-based sizing
   const graphData = useMemo(() => {
     if (!data) return { nodes: [], links: [], maxDegree: 1 };
@@ -379,14 +429,25 @@ function GraphPageContent() {
       const isProject = node.type === 'project';
       const entityType = node.type || 'unknown';
 
+      // Calculate z-index for rendering order (higher = rendered later = on top)
+      // Projects and high-degree nodes should be on top and get label priority
+      let zIndex = degree; // Base: more connections = higher priority
+      if (isProject) zIndex += 1000; // Projects always on top
+      if (entityType === 'task') zIndex += 50; // Tasks are important
+      if (entityType === 'pattern') zIndex += 30; // Patterns too
+
       return {
         ...node,
         clusterColor: clusterColorMap.get(node.cluster_id) || '#8b85a0',
         entityColor: getEntityColor(entityType),
         degree,
         isProject,
+        zIndex,
       };
     });
+
+    // Sort by zIndex so important nodes render last (on top) and get label priority
+    graphNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
     const graphLinks: GraphLink[] = filteredEdges.map(e => ({ ...e }));
 
@@ -417,8 +478,9 @@ function GraphPageContent() {
     }
   }, []);
 
-  // Track drawn labels to avoid overlap
+  // Track drawn labels to avoid overlap - capped for performance
   const drawnLabelsRef = useRef<{ x: number; y: number; width: number }[]>([]);
+  const maxLabelsToTrack = 50; // Limit overlap checks for performance
 
   // Clean node rendering - entity colors + degree-based sizing
   // Smart labels: always show for selected/hovered, projects, and high-connectivity hubs
@@ -478,27 +540,24 @@ function GraphPageContent() {
         ctx.stroke();
       }
 
-      // Smart label logic:
-      // - Always show for selected/hovered (priority 1)
-      // - Always show for projects (priority 2)
-      // - Show for hub nodes (top 15% by connectivity) when zoomed in (priority 3)
-      // - Show more labels as zoom increases
-      const isHubNode = degree > maxDegree * 0.15; // Top 15% connectivity
-      const _zoomThreshold = isProject ? 1.0 : isHubNode ? 1.5 : 3.0;
+      // Label visibility based on node importance
+      // Always show: selected, hovered, projects
+      // Show at default zoom: hub nodes (top 5% by degree)
+      // Show as zoom increases: progressively more nodes
+      const isHubNode = degree > Math.max(3, maxDegree * 0.05); // Top 5% or 4+ connections
 
-      let showLabel = isSelected || isHovered;
-      if (!showLabel && isProject && globalScale >= 1.0) {
+      let showLabel = isSelected || isHovered || isProject;
+
+      // Hub nodes always show labels
+      if (!showLabel && isHubNode) {
         showLabel = true;
       }
-      if (!showLabel && isHubNode && globalScale >= 1.5) {
+      // Nodes with 2+ connections show at slight zoom
+      if (!showLabel && degree >= 2 && globalScale >= 1.0) {
         showLabel = true;
       }
-      // Show more labels as we zoom in - for moderately connected nodes
-      if (!showLabel && degree >= 3 && globalScale >= 3.0) {
-        showLabel = true;
-      }
-      // At high zoom, show all labels with enough connections
-      if (!showLabel && degree >= 1 && globalScale >= 5.0) {
+      // Any connected node shows at moderate zoom
+      if (!showLabel && degree >= 1 && globalScale >= 1.5) {
         showLabel = true;
       }
 
@@ -510,23 +569,29 @@ function GraphPageContent() {
         ctx.font = `${fontSize}px "JetBrains Mono", monospace`;
         const textWidth = ctx.measureText(displayLabel).width;
 
-        // Simple overlap check - skip if too close to another label
         const labelX = x;
         const labelY = y + size + 3;
-        const minSpacing = 20 / globalScale; // Adjust spacing based on zoom
 
-        // Only check overlap for non-priority labels
-        const isPriority = isSelected || isHovered || isProject;
+        // Priority labels always draw (bypass overlap check)
+        const isPriority = isSelected || isHovered || isProject || isHubNode;
         let shouldDraw = isPriority;
 
         if (!isPriority) {
-          // Check if this label would overlap with already drawn labels
-          const overlaps = drawnLabelsRef.current.some(existing => {
-            const dx = Math.abs(labelX - existing.x);
-            const dy = Math.abs(labelY - existing.y);
-            return dx < (textWidth + existing.width) / 2 + minSpacing && dy < fontSize + 4;
-          });
-          shouldDraw = !overlaps;
+          // Performance: skip overlap check if we've hit max labels
+          // This prevents O(n²) checks during pan/zoom
+          if (drawnLabelsRef.current.length >= maxLabelsToTrack) {
+            shouldDraw = false;
+          } else {
+            // Fast overlap check - only check recent labels (last 20)
+            const recentLabels = drawnLabelsRef.current.slice(-20);
+            const minSpacing = 25 / globalScale;
+            const overlaps = recentLabels.some(existing => {
+              const dx = Math.abs(labelX - existing.x);
+              const dy = Math.abs(labelY - existing.y);
+              return dx < (textWidth + existing.width) / 2 + minSpacing && dy < fontSize + 4;
+            });
+            shouldDraw = !overlaps;
+          }
         }
 
         if (shouldDraw) {
@@ -540,8 +605,10 @@ function GraphPageContent() {
           ctx.fillStyle = isSelected ? '#ffffff' : isProject ? '#ffffffee' : '#ffffffcc';
           ctx.fillText(displayLabel, x, labelY);
 
-          // Track this label position
-          drawnLabelsRef.current.push({ x: labelX, y: labelY, width: textWidth });
+          // Track this label (only if under cap)
+          if (drawnLabelsRef.current.length < maxLabelsToTrack) {
+            drawnLabelsRef.current.push({ x: labelX, y: labelY, width: textWidth });
+          }
         }
       }
     },
@@ -756,6 +823,7 @@ function GraphPageContent() {
                 clusterColorMap={clusterColorMap}
                 selectedCluster={selectedCluster}
                 onClusterClick={setSelectedCluster}
+                nodes={allNodesWithDegree}
               />
             </div>
           )}

@@ -88,6 +88,9 @@ export const ENTITY_TYPES = [
   'milestone',
   'source',
   'document',
+  'concept', // Generic extracted entities
+  'file', // File paths
+  'function', // Functions/methods
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -114,6 +117,9 @@ export const ENTITY_COLORS: Record<EntityType, string> = {
   milestone: '#f1fa8c', // Electric Yellow
   source: '#ff9580', // Warm Orange
   document: '#6272a4', // Muted Blue
+  concept: '#a8a8a8', // Neutral Gray (generic entities)
+  file: '#61afef', // Sky Blue (files)
+  function: '#c678dd', // Purple (code)
 };
 
 // Default color for unknown entity types
@@ -140,6 +146,9 @@ export const ENTITY_ICONS: Record<EntityType, string> = {
   milestone: '◎',
   source: '⊕',
   document: '▤',
+  concept: '○', // Generic entity
+  file: '▢', // File
+  function: 'ƒ', // Function
 };
 
 // Enhanced styling system for entity cards
@@ -325,6 +334,33 @@ export const ENTITY_STYLES: Record<EntityType, EntityStyle> = {
     gradient: 'from-[#f1fa8c]/15 via-transparent to-transparent',
     border: 'border-[#f1fa8c]/30',
     glow: 'shadow-[#f1fa8c]/20',
+  },
+  concept: {
+    badge: 'bg-[#a8a8a8]/20 text-[#a8a8a8] border-[#a8a8a8]/30',
+    card: 'hover:border-[#a8a8a8]/50 hover:shadow-[#a8a8a8]/20',
+    dot: 'bg-[#a8a8a8]',
+    accent: 'bg-[#a8a8a8]',
+    gradient: 'from-[#a8a8a8]/15 via-transparent to-transparent',
+    border: 'border-[#a8a8a8]/30',
+    glow: 'shadow-[#a8a8a8]/20',
+  },
+  file: {
+    badge: 'bg-[#61afef]/20 text-[#61afef] border-[#61afef]/30',
+    card: 'hover:border-[#61afef]/50 hover:shadow-[#61afef]/20',
+    dot: 'bg-[#61afef]',
+    accent: 'bg-[#61afef]',
+    gradient: 'from-[#61afef]/15 via-transparent to-transparent',
+    border: 'border-[#61afef]/30',
+    glow: 'shadow-[#61afef]/20',
+  },
+  function: {
+    badge: 'bg-[#c678dd]/20 text-[#c678dd] border-[#c678dd]/30',
+    card: 'hover:border-[#c678dd]/50 hover:shadow-[#c678dd]/20',
+    dot: 'bg-[#c678dd]',
+    accent: 'bg-[#c678dd]',
+    gradient: 'from-[#c678dd]/15 via-transparent to-transparent',
+    border: 'border-[#c678dd]/30',
+    glow: 'shadow-[#c678dd]/20',
   },
 };
 
