@@ -466,14 +466,6 @@ export interface Project {
   updated_at: string | null;
 }
 
-export interface ManageResponse {
-  success: boolean;
-  action: string;
-  entity_id: string | null;
-  message: string;
-  data: Record<string, unknown>;
-}
-
 export interface TaskActionResponse {
   success: boolean;
   action: string;
@@ -1167,7 +1159,7 @@ export const api = {
     },
   },
 
-  // Tasks (via explore/manage endpoints)
+  // Tasks
   tasks: {
     list: (params?: { project?: string; status?: TaskStatus }) =>
       fetchApi<TaskListResponse>('/search/explore', {
