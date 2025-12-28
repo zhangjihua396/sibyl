@@ -9,6 +9,7 @@ from typing import Annotated
 
 import typer
 
+from sibyl.cli.client import clear_client_cache
 from sibyl.cli.common import (
     ELECTRIC_PURPLE,
     NEON_CYAN,
@@ -201,6 +202,7 @@ def use_cmd(
         raise typer.Exit(1)
 
     set_active_context(name)
+    clear_client_cache()  # Ensure new connections use the new context
 
     if not table_out:
         result = _context_to_dict(ctx)
@@ -299,5 +301,6 @@ def delete_cmd(
 def clear_cmd() -> None:
     """Clear the active context (use legacy mode)."""
     set_active_context(None)
+    clear_client_cache()  # Ensure new connections use legacy config
     success("Cleared active context")
     info("Using legacy server.url from config")

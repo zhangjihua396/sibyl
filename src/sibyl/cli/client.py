@@ -21,29 +21,46 @@ from sibyl.cli.auth_store import (
 from sibyl.config import settings
 
 
-def _get_default_api_url() -> str:
-    """Get API URL from config file, env var, or default.
+def _get_default_api_url(context_name: str | None = None) -> str:
+    """Get API URL from context, config file, env var, or default.
 
     Priority:
-    1. Config file (~/.sibyl/config.toml)
-    2. Environment variable (SIBYL_API_URL)
-    3. Default (http://localhost:3334/api)
+    1. Explicit context (if provided)
+    2. Active context's server_url
+    3. Environment variable (SIBYL_API_URL)
+    4. Legacy config file (server.url)
+    5. Default (http://localhost:3334/api)
+
+    Args:
+        context_name: Optional context name to use instead of active context.
     """
     # Lazy import to avoid circular dependency
     from sibyl.cli import config_store
 
-    # 1. Try config file
+    # 1. If explicit context provided, use that
+    if context_name:
+        ctx = config_store.get_context(context_name)
+        if ctx:
+            return f"{ctx.server_url}/api"
+        # Context not found - fall through to other options
+
+    # 2. Try active context
+    ctx = config_store.get_active_context()
+    if ctx:
+        return f"{ctx.server_url}/api"
+
+    # 3. Try env var
+    env_url = os.environ.get("SIBYL_API_URL", "").strip()
+    if env_url:
+        return env_url
+
+    # 4. Try legacy config file
     if config_store.config_exists():
         url = config_store.get_server_url()
         if url:
             return f"{url}/api"
 
-    # 2. Try env var
-    env_url = os.environ.get("SIBYL_API_URL", "").strip()
-    if env_url:
-        return env_url
-
-    # 3. Default
+    # 5. Default
     return f"http://localhost:{settings.server_port}/api"
 
 
@@ -115,15 +132,18 @@ class SibylClient:
         base_url: str | None = None,
         timeout: float = 30.0,
         auth_token: str | None = None,
+        context_name: str | None = None,
     ):
         """Initialize the client.
 
         Args:
-            base_url: API base URL. Defaults to config file, then env var, then localhost.
+            base_url: API base URL. Defaults to context, then env var, then localhost.
             timeout: Request timeout in seconds.
             auth_token: Optional bearer token or API key to send as Authorization header.
+            context_name: Optional context name to use for URL and auth resolution.
         """
-        self.base_url = normalize_api_url(base_url or _get_default_api_url())
+        self.context_name = context_name
+        self.base_url = normalize_api_url(base_url or _get_default_api_url(context_name))
         self.timeout = timeout
         self.auth_token = auth_token or _load_default_auth_token(self.base_url)
         self._client: httpx.AsyncClient | None = None
@@ -708,13 +728,34 @@ class SibylClient:
         return await self._request("GET", "/sources/link-graph/status")
 
 
-# Singleton client instance
-_client: SibylClient | None = None
+# Client cache by context name (None = default/active context)
+_clients: dict[str | None, SibylClient] = {}
 
 
-def get_client() -> SibylClient:
-    """Get the singleton client instance."""
-    global _client  # noqa: PLW0603
-    if _client is None:
-        _client = SibylClient()
-    return _client
+def get_client(context_name: str | None = None) -> SibylClient:
+    """Get a client instance for the given context.
+
+    Clients are cached by context name. Passing None uses the active context.
+
+    Args:
+        context_name: Optional context name. None = use active context.
+
+    Returns:
+        SibylClient configured for the specified context.
+    """
+    global _clients  # noqa: PLW0602
+
+    # For None (active context), we need to resolve the actual context name
+    # to ensure cache invalidation works when active context changes
+    cache_key = context_name
+
+    if cache_key not in _clients:
+        _clients[cache_key] = SibylClient(context_name=context_name)
+
+    return _clients[cache_key]
+
+
+def clear_client_cache() -> None:
+    """Clear the client cache. Useful when context settings change."""
+    global _clients  # noqa: PLW0602
+    _clients.clear()
