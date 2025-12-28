@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
 
-def create_combined_app(
+def create_combined_app(  # noqa: PLR0915
     host: str | None = None, port: int | None = None, *, embed_worker: bool = False
 ) -> Starlette:
     """Create a combined Starlette app with MCP and REST API.
@@ -56,7 +56,7 @@ def create_combined_app(
     mcp_app = mcp.streamable_http_app()
 
     @asynccontextmanager
-    async def lifespan(_app: Starlette) -> "AsyncGenerator[None]":
+    async def lifespan(_app: Starlette) -> "AsyncGenerator[None]":  # noqa: PLR0915
         """Combined lifespan that initializes MCP session manager."""
         import asyncio
         import contextlib
