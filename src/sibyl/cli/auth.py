@@ -532,11 +532,21 @@ def clear_token_cmd() -> None:
 
 @app.command("login")
 def login_cmd(
+    url: str = typer.Argument(
+        "",
+        help="Server URL (e.g. https://sibyl.example.com). If omitted, uses active context or default.",
+    ),
     server: str | None = typer.Option(
         None,
         "--server",
         "-s",
-        help="Server base URL (e.g. https://sibyl.example.com or http://localhost:3334)",
+        help="Server base URL (alias for positional URL)",
+    ),
+    context: str | None = typer.Option(
+        None,
+        "--context",
+        "-c",
+        help="Create/update a named context for this server",
     ),
     no_browser: bool = typer.Option(
         False, "--no-browser", help="Print URL instead of opening browser"
@@ -549,8 +559,18 @@ def login_cmd(
         None, "--password", "-p", help="Password for local login (method=local)"
     ),
 ) -> None:
-    """Login to a Sibyl server and save credentials."""
-    api_url = _compute_api_url(server)
+    """Login to a Sibyl server and save credentials.
+
+    Examples:
+        sibyl auth login                           # Login to active context or default
+        sibyl auth login https://sibyl.example.com # Login to specific server
+        sibyl auth login https://prod.com -c prod  # Login and create 'prod' context
+    """
+    # Positional URL takes precedence over --server option
+    effective_server = url.strip() if url.strip() else server
+    api_url = _compute_api_url(effective_server)
+
+    # Perform login
     _login_auto(
         api_url=api_url,
         no_browser=no_browser,
@@ -558,6 +578,30 @@ def login_cmd(
         email=email,
         password=password,
     )
+
+    # Create/update context if requested
+    if context:
+        from sibyl.cli.client import clear_client_cache
+        from sibyl.cli.config_store import (
+            create_context,
+            get_context,
+            update_context,
+        )
+
+        # Extract base server URL from api_url (remove /api suffix)
+        parts = urlsplit(api_url)
+        path = parts.path.rstrip("/").removesuffix("/api")
+        server_url = urlunsplit((parts.scheme, parts.netloc, path, "", ""))
+
+        existing = get_context(context)
+        if existing:
+            update_context(context, server_url=server_url)
+            info(f"Updated context '{context}' with server {server_url}")
+        else:
+            create_context(name=context, server_url=server_url, set_active=True)
+            success(f"Created context '{context}' and set as active")
+
+        clear_client_cache()
 
 
 @app.command("local-signup")
