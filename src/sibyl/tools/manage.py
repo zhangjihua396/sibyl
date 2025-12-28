@@ -2,6 +2,11 @@
 
 The fourth tool: manage() handles operations that modify state.
 Includes task workflow, source operations, analysis, and admin actions.
+
+DEPRECATION NOTICE:
+- Task workflow actions: Use RESTful /tasks/{id}/* endpoints instead
+- Epic workflow actions: Use RESTful /epics/{id}/* endpoints instead
+- Source/analysis actions: Still use this tool (no REST equivalent yet)
 """
 
 from dataclasses import dataclass, field
@@ -40,7 +45,7 @@ class ManageResponse:
 # Action Types
 # =============================================================================
 
-# Task workflow actions
+# Task workflow actions (DEPRECATED: Use /tasks/{id}/* endpoints instead)
 TASK_ACTIONS = {
     "start_task",  # Move task to doing status
     "block_task",  # Mark task as blocked with reason
@@ -51,7 +56,7 @@ TASK_ACTIONS = {
     "update_task",  # Update task fields
 }
 
-# Epic workflow actions
+# Epic workflow actions (DEPRECATED: Use /epics/{id}/* endpoints instead)
 EPIC_ACTIONS = {
     "start_epic",  # Move epic to in_progress status
     "complete_epic",  # Mark epic as completed with learnings

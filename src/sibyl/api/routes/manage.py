@@ -1,6 +1,11 @@
-"""Manage endpoint for task workflow and admin operations.
+"""Manage endpoint for workflow and operations.
 
-Exposes the canonical manage() tool via REST for the web UI.
+DEPRECATION NOTICE:
+- Task workflow: Use /tasks/{id}/* endpoints instead
+- Epic workflow: Use /epics/{id}/* endpoints instead
+- Source/analysis actions: Still supported here
+
+This endpoint remains for MCP tools and backwards compatibility.
 """
 
 from dataclasses import asdict
