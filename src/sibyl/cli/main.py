@@ -32,6 +32,7 @@ from sibyl.cli.common import (
 
 # Import subcommand apps
 from sibyl.cli.config_cmd import app as config_app
+from sibyl.cli.context import app as context_app
 from sibyl.cli.crawl import app as crawl_app
 from sibyl.cli.db import app as db_app
 from sibyl.cli.entity import app as entity_app
@@ -65,6 +66,7 @@ app.add_typer(generate_app, name="generate")
 app.add_typer(auth_app, name="auth")
 app.add_typer(org_app, name="org")
 app.add_typer(config_app, name="config")
+app.add_typer(context_app, name="context")
 
 # Register top-level commands from up_cmd
 app.command("up")(up)
