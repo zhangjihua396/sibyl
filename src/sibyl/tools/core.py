@@ -971,6 +971,7 @@ async def explore(
     language: str | None = None,
     category: str | None = None,
     project: str | None = None,
+    epic: str | None = None,
     status: str | None = None,
     include_archived: bool = False,
     limit: int = 50,
@@ -991,11 +992,14 @@ async def explore(
     TASK MANAGEMENT WORKFLOW:
     For task operations, always use project-first approach:
     1. First: explore(mode="list", types=["project"]) - Find relevant project
-    2. Then: explore(mode="list", types=["task"], project="<project_id>") - List tasks in project
-    Prefer listing tasks with a project filter to keep results focused.
+    2. Then: explore(mode="list", types=["epic"], project="<project_id>") - List epics in project
+    3. Then: explore(mode="list", types=["task"], epic="<epic_id>") - List tasks in epic
+    Prefer listing tasks with a project or epic filter to keep results focused.
 
     USE CASES:
     • List projects first: explore(mode="list", types=["project"])
+    • List epics in project: explore(mode="list", types=["epic"], project="proj_abc")
+    • List tasks in epic: explore(mode="list", types=["task"], epic="epic_abc")
     • List tasks for project: explore(mode="list", types=["task"], project="proj_abc", status="todo")
     • Find related knowledge: explore(mode="related", entity_id="pattern_oauth")
     • Task dependency chain: explore(mode="dependencies", entity_id="task_123")
@@ -1010,7 +1014,8 @@ async def explore(
         depth: Traversal depth for traverse mode (1-3, default 1).
         language: Filter by programming language.
         category: Filter by category/domain.
-        project: Optional project filter (recommended for task listing).
+        project: Optional project filter (recommended for task/epic listing).
+        epic: Optional epic filter (for listing tasks within an epic).
         status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
         limit: Maximum results (1-200, default 50).
         offset: Offset for pagination (default 0).
@@ -1055,6 +1060,8 @@ async def explore(
         filters["entity_id"] = entity_id
     if project:
         filters["project"] = project
+    if epic:
+        filters["epic"] = epic
     if status:
         filters["status"] = status
 
@@ -1085,6 +1092,7 @@ async def explore(
             language=language,
             category=category,
             project=project,
+            epic=epic,
             status=status,
             include_archived=include_archived,
             limit=limit,
@@ -1103,6 +1111,7 @@ async def _explore_list(
     language: str | None,
     category: str | None,
     project: str | None,
+    epic: str | None,
     status: str | None,
     include_archived: bool,
     limit: int,
@@ -1149,9 +1158,14 @@ async def _explore_list(
             if category.lower() not in entity_cat.lower():
                 continue
 
-        # Project filter (for tasks)
+        # Project filter (for tasks and epics)
         if project:
             if _get_field(entity, "project_id") != project:
+                continue
+
+        # Epic filter (for tasks)
+        if epic:
+            if _get_field(entity, "epic_id") != epic:
                 continue
 
         # Status filter (for tasks)
