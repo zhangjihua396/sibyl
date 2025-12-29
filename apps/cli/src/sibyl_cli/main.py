@@ -222,19 +222,14 @@ def add_knowledge(
         try:
             async with get_client() as client:
                 with spinner("Adding knowledge..."):
-                    payload: dict[str, Any] = {
-                        "title": title,
-                        "content": content,
-                        "entity_type": entity_type,
-                    }
-                    if category:
-                        payload["category"] = category
-                    if language:
-                        payload["languages"] = [language]
-                    if tags:
-                        payload["tags"] = [t.strip() for t in tags.split(",")]
-
-                    data = await client.post("/entities", json=payload)
+                    data = await client.create_entity(
+                        name=title,
+                        content=content,
+                        entity_type=entity_type,
+                        category=category,
+                        languages=[language] if language else None,
+                        tags=[t.strip() for t in tags.split(",")] if tags else None,
+                    )
 
                 if json_output:
                     print_json(data)
