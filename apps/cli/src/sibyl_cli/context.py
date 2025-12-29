@@ -30,6 +30,7 @@ from sibyl_cli.config_store import (
     get_active_context_name,
     get_context,
     list_contexts,
+    resolve_project_from_cwd,
     set_active_context,
     update_context,
 )
@@ -59,9 +60,14 @@ def callback(
         info("Set one with: sibyl context use <name>")
         raise typer.Exit(1)
 
+    # Resolve effective project (linked > default)
+    linked_project = resolve_project_from_cwd()
+
     if json_out:
         result = _context_to_dict(active)
         result["active"] = True
+        if linked_project:
+            result["linked_project"] = linked_project
         print_json(result)
         return
 
@@ -72,9 +78,14 @@ def callback(
     console.print()
     console.print(f"  [{NEON_CYAN}]Server:[/{NEON_CYAN}]   {active.server_url}")
     console.print(f"  [{NEON_CYAN}]Org:[/{NEON_CYAN}]      {active.org_slug or '[dim]auto[/dim]'}")
-    console.print(
-        f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {active.default_project or '[dim]none[/dim]'}"
-    )
+    if linked_project:
+        console.print(
+            f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {linked_project} [dim](linked)[/dim]"
+        )
+    else:
+        console.print(
+            f"  [{NEON_CYAN}]Project:[/{NEON_CYAN}]  {active.default_project or '[dim]none[/dim]'}"
+        )
     if active.insecure:
         console.print(
             f"  [{ELECTRIC_YELLOW}]Insecure:[/{ELECTRIC_YELLOW}] SSL verification disabled"

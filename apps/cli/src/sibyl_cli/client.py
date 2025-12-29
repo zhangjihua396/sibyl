@@ -558,6 +558,7 @@ class SibylClient:
         types: list[str] | None = None,
         language: str | None = None,
         category: str | None = None,
+        project: str | None = None,
         limit: int = 10,
         offset: int = 0,
         include_content: bool = True,
@@ -575,6 +576,8 @@ class SibylClient:
             data["language"] = language
         if category:
             data["category"] = category
+        if project:
+            data["project"] = project
 
         return await self._request("POST", "/search", json=data)
 

@@ -314,6 +314,7 @@ def list_tasks(
                     response = await client.search(
                         query=query,
                         types=["task"],
+                        project=effective_project,
                         limit=effective_limit,
                         offset=effective_offset,
                     )
@@ -323,6 +324,7 @@ def list_tasks(
                         response = await client.search(
                             query=query,
                             types=["task"],
+                            project=effective_project,
                             limit=effective_limit,
                             offset=effective_offset,
                         )

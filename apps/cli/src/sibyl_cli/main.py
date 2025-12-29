@@ -12,6 +12,7 @@ import typer
 
 from sibyl_cli.auth import app as auth_app
 from sibyl_cli.client import SibylClientError, get_client
+from sibyl_cli.config_store import resolve_project_from_cwd
 from sibyl_cli.common import (
     CORAL,
     NEON_CYAN,
@@ -161,9 +162,12 @@ def search(
     query: str = typer.Argument(..., help="Search query"),
     entity_type: str | None = typer.Option(None, "--type", "-t", help="Filter by entity type"),
     limit: int = typer.Option(10, "--limit", "-l", help="Maximum results"),
+    all_projects: bool = typer.Option(False, "--all", "-a", help="Search all projects"),
     json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
 ) -> None:
     """Search the knowledge graph."""
+    # Auto-resolve project from context unless --all
+    effective_project = None if all_projects else resolve_project_from_cwd()
 
     @run_async
     async def run_search() -> None:
@@ -171,7 +175,9 @@ def search(
             async with get_client() as client:
                 with spinner(f"Searching for '{query}'..."):
                     types = [entity_type] if entity_type else None
-                    data = await client.search(query, types=types, limit=limit)
+                    data = await client.search(
+                        query, types=types, limit=limit, project=effective_project
+                    )
 
                 if json_output:
                     print_json(data)
