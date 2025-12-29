@@ -13,19 +13,19 @@ WORKDIR /app
 
 # Copy workspace config for dependency resolution
 COPY pyproject.toml uv.lock ./
-COPY packages/python/sibyl-core/pyproject.toml packages/python/sibyl-core/
+COPY packages/python/sibyl-core/pyproject.toml packages/python/sibyl-core/README.md packages/python/sibyl-core/
 COPY packages/python/sibyl-core/src packages/python/sibyl-core/src
 
 # Copy API package
-COPY apps/api/pyproject.toml apps/api/
+COPY apps/api/pyproject.toml apps/api/README.md apps/api/
 COPY apps/api/src apps/api/src
 COPY apps/api/alembic apps/api/alembic
 COPY apps/api/alembic.ini apps/api/
 COPY README.md ./
 
-# Install from workspace
+# Install from workspace (--no-editable for proper wheel builds in Docker)
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --package sibyld
+    uv sync --frozen --no-dev --no-editable --package sibyld
 
 
 # Stage 2: Runtime

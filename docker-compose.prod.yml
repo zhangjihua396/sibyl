@@ -23,7 +23,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/api/Dockerfile
     container_name: sibyl-backend
     depends_on:
       postgres:
@@ -60,7 +60,7 @@ services:
   # ==========================================================================
   frontend:
     build:
-      context: ./web
+      context: ./apps/web
       dockerfile: Dockerfile
     container_name: sibyl-frontend
     depends_on:

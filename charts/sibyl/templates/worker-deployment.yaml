@@ -57,7 +57,7 @@ spec:
             {{- toYaml .Values.worker.securityContext | nindent 12 }}
           image: {{ include "sibyl.backend.image" . }}
           imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
-          command: ["sibyl", "worker"]
+          command: ["sibyld", "worker"]
           envFrom:
             - configMapRef:
                 name: {{ include "sibyl.fullname" . }}-config

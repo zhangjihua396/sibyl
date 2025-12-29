@@ -216,7 +216,7 @@ stringData:
 docker_build(
     'sibyl-backend',
     context='.',
-    dockerfile='Dockerfile',
+    dockerfile='apps/api/Dockerfile',
     only=[
         'pyproject.toml',
         'uv.lock',
