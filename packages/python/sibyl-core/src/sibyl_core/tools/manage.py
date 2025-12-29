@@ -759,8 +759,9 @@ async def _link_graph(
 
     if source_id:
         # Filter to specific source via document join
-        from sibyl.db import CrawlSource
         from uuid import UUID
+
+        from sibyl.db import CrawlSource
 
         # SQLAlchemy comparisons produce ColumnElement but pyright sees them as bool
         query = (
@@ -821,8 +822,7 @@ async def _link_graph_status() -> ManageResponse:
 
         # Chunks with entities
         linked_result = await session.execute(
-            select(func.count(DocumentChunk.id))  # type: ignore[arg-type]
-            .where(col(DocumentChunk.has_entities) == True)  # noqa: E712
+            select(func.count(DocumentChunk.id)).where(col(DocumentChunk.has_entities) == True)  # type: ignore[arg-type]  # noqa: E712
         )
         chunks_with_entities = linked_result.scalar() or 0
 
