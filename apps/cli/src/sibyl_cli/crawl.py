@@ -449,19 +449,11 @@ def health(
 @app.command("delete")
 def delete_source(
     source_id: Annotated[str, typer.Argument(help="Source ID to delete")],
-    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
 ) -> None:
     """Delete a crawl source and all its documents. Default: JSON output."""
-    if not yes:
-        confirm = typer.confirm(
-            f"Delete source {source_id[:8]}... and all documents? This cannot be undone."
-        )
-        if not confirm:
-            info("Cancelled")
-            return
 
     @run_async
     async def _delete() -> None:

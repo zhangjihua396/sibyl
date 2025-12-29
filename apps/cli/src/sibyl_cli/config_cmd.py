@@ -28,14 +28,17 @@ app = typer.Typer(
 
 
 @app.command("init")
-def config_init() -> None:
-    """Interactive setup wizard for first-time configuration."""
-    if config_store.config_exists() and not typer.confirm(
-        "Config already exists. Run setup again?",
-        default=False,
-    ):
-        info("Setup cancelled. Use 'sibyl config show' to view current config.")
-        return
+def config_init(
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Overwrite existing config"),
+    ] = False,
+) -> None:
+    """Setup wizard for first-time configuration."""
+    if config_store.config_exists() and not force:
+        error("Config already exists. Use --force to overwrite.")
+        info("Use 'sibyl config show' to view current config.")
+        raise typer.Exit(1)
 
     if run_onboarding():
         success("Configuration saved!")
@@ -110,17 +113,8 @@ def config_path() -> None:
 
 
 @app.command("reset")
-def config_reset(
-    force: Annotated[
-        bool,
-        typer.Option("--force", "-f", help="Skip confirmation"),
-    ] = False,
-) -> None:
+def config_reset() -> None:
     """Reset configuration to defaults."""
-    if not force and not typer.confirm("Reset config to defaults?", default=False):
-        info("Reset cancelled.")
-        return
-
     config_store.reset_config()
     success("Config reset to defaults.")
 

@@ -225,8 +225,8 @@ def show_entity(
 
 @app.command("create")
 def create_entity(
-    entity_type: Annotated[str, typer.Option("--type", "-T", help="Entity type", prompt=True)],
-    name: Annotated[str, typer.Option("--name", "-n", help="Entity name", prompt=True)],
+    entity_type: Annotated[str, typer.Option("--type", "-T", help="Entity type (required)")],
+    name: Annotated[str, typer.Option("--name", "-n", help="Entity name (required)")],
     content: Annotated[str | None, typer.Option("--content", "-c", help="Entity content")] = None,
     category: Annotated[str | None, typer.Option("--category", help="Category")] = None,
     languages: Annotated[
@@ -301,12 +301,7 @@ def delete_entity(
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
 ) -> None:
-    """Delete an entity (with confirmation). Default: JSON output."""
-    if not yes:
-        confirm = typer.confirm(f"Delete entity {entity_id[:8]}...? This cannot be undone.")
-        if not confirm:
-            info("Cancelled")
-            return
+    """Delete an entity. Default: JSON output."""
 
     @run_async
     async def _delete() -> None:

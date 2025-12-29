@@ -170,10 +170,8 @@ def search(
         try:
             async with get_client() as client:
                 with spinner(f"Searching for '{query}'..."):
-                    params: dict[str, Any] = {"q": query, "limit": limit}
-                    if entity_type:
-                        params["type"] = entity_type
-                    data = await client.get("/search", params=params)
+                    types = [entity_type] if entity_type else None
+                    data = await client.search(query, types=types, limit=limit)
 
                 if json_output:
                     print_json(data)
@@ -186,15 +184,20 @@ def search(
 
                 console.print(f"\n[bold]Found {len(results)} results:[/bold]\n")
                 for r in results:
-                    entity = r.get("entity", {})
-                    name = entity.get("name", "Unknown")
-                    etype = entity.get("entity_type", "unknown")
+                    name = r.get("name", "Unknown")
+                    etype = r.get("type", "unknown")
                     score = r.get("score", 0)
+                    source = r.get("source")
+                    url = r.get("url")
+
+                    type_info = f"{etype} • {source}" if source else etype
                     console.print(
                         f"  [{NEON_CYAN}]{name}[/{NEON_CYAN}] "
-                        f"[dim]({etype})[/dim] "
+                        f"[dim]({type_info})[/dim] "
                         f"[{CORAL}]{score:.2f}[/{CORAL}]"
                     )
+                    if url:
+                        console.print(f"    [dim]{url}[/dim]")
                 console.print()
         except SibylClientError as e:
             _handle_client_error(e)

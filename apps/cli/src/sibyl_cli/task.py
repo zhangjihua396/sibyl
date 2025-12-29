@@ -522,7 +522,7 @@ def start_task(
 @app.command("block")
 def block_task(
     task_id: Annotated[str, typer.Argument(help="Task ID to block (full or prefix)")],
-    reason: Annotated[str, typer.Option("--reason", "-r", help="Blocker reason", prompt=True)],
+    reason: Annotated[str, typer.Option("--reason", "-r", help="Blocker reason (required)")],
     table_out: Annotated[
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
@@ -725,17 +725,10 @@ def archive_task(
         error("Either task_id argument or --stdin is required")
         raise typer.Exit(1)
 
-    # Require --yes for bulk operations
+    # Require --yes for bulk operations (safety for multi-task archive)
     if len(task_ids) > 1 and not yes:
         error(f"Bulk archive requires --yes flag (found {len(task_ids)} tasks)")
         raise typer.Exit(1)
-
-    # Single task confirmation
-    if len(task_ids) == 1 and not yes:
-        confirm = typer.confirm(f"Archive task {task_ids[0][:12]}...? This cannot be undone.")
-        if not confirm:
-            info("Cancelled")
-            return
 
     @run_async
     async def _archive() -> None:
@@ -777,10 +770,11 @@ def archive_task(
 
 @app.command("create")
 def create_task(
-    title: Annotated[str, typer.Option("--title", help="Task title", prompt=True)],
+    title: Annotated[str, typer.Option("--title", help="Task title (required)")],
     project: Annotated[
-        str, typer.Option("--project", "-p", help="Project ID (required)", prompt=True)
-    ],
+        str | None,
+        typer.Option("--project", "-p", help="Project ID (auto-resolves from linked path)"),
+    ] = None,
     description: Annotated[
         str | None, typer.Option("--description", "-d", help="Task description")
     ] = None,
@@ -807,7 +801,19 @@ def create_task(
         bool, typer.Option("--table", "-t", help="Table output (human-readable)")
     ] = False,
 ) -> None:
-    """Create a new task in a project. Default: JSON output."""
+    """Create a new task in a project. Default: JSON output.
+
+    Project is auto-resolved from linked directory if not specified.
+    Use 'sibyl project link' to link a directory to a project.
+    """
+    # Auto-resolve project from linked path if not provided
+    effective_project = project
+    if not effective_project:
+        effective_project = resolve_project_from_cwd()
+    if not effective_project:
+        error("No project specified and no linked project for current directory")
+        info("Either use --project/-p or link this directory: sibyl project link <project_id>")
+        raise typer.Exit(1)
 
     @run_async
     async def _create() -> None:
@@ -820,7 +826,7 @@ def create_task(
 
             # Build metadata
             metadata: dict = {
-                "project_id": project,
+                "project_id": effective_project,
                 "priority": priority,
                 "complexity": complexity,
                 "status": "todo",

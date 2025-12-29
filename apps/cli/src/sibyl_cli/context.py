@@ -322,7 +322,6 @@ def update_cmd(
 @app.command("delete")
 def delete_cmd(
     name: Annotated[str, typer.Argument(help="Context name to delete")],
-    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
 ) -> None:
     """Delete a context."""
     ctx = get_context(name)
@@ -332,15 +331,6 @@ def delete_cmd(
 
     active_name = get_active_context_name()
     is_active = name == active_name
-
-    if not yes:
-        msg = f"Delete context '{name}'"
-        if is_active:
-            msg += " (currently active)"
-        msg += "?"
-        if not typer.confirm(msg):
-            info("Cancelled")
-            raise typer.Exit(0)
 
     deleted = delete_context(name)
     if deleted:

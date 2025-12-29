@@ -229,7 +229,7 @@ def show_project(
 
 @app.command("create")
 def create_project(
-    name: Annotated[str, typer.Option("--name", "-n", help="Project name", prompt=True)],
+    name: Annotated[str, typer.Option("--name", "-n", help="Project name (required)")],
     description: Annotated[
         str | None, typer.Option("--description", "-d", help="Project description")
     ] = None,
@@ -367,9 +367,7 @@ def project_progress(
 
 @app.command("link")
 def link_project(
-    project_id: Annotated[
-        str | None, typer.Argument(help="Project ID to link (interactive if omitted)")
-    ] = None,
+    project_id: Annotated[str, typer.Argument(help="Project ID to link (required)")],
     path: Annotated[
         str | None, typer.Option("--path", "-p", help="Directory path (defaults to cwd)")
     ] = None,
@@ -379,7 +377,6 @@ def link_project(
     Once linked, task commands in this directory will auto-scope to the project.
 
     Examples:
-        sibyl project link                    # Interactive - pick from list
         sibyl project link project_abc123     # Link cwd to specific project
         sibyl project link project_abc --path ~/dev/myproject
     """
@@ -387,47 +384,7 @@ def link_project(
 
     @run_async
     async def _link() -> None:
-        nonlocal project_id
-
         client = get_client()
-
-        # If no project ID, show interactive picker
-        if not project_id:
-            try:
-                with spinner("Loading projects...") as progress:
-                    progress.add_task("Loading projects...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["project"],
-                        limit=50,
-                    )
-
-                entities = response.get("entities", [])
-                if not entities:
-                    error("No projects found. Create one first with: sibyl project create")
-                    return
-
-                # Show projects and prompt for selection
-                console.print(f"\n[{ELECTRIC_PURPLE}]Available Projects:[/{ELECTRIC_PURPLE}]\n")
-                for i, e in enumerate(entities, 1):
-                    console.print(f"  [{NEON_CYAN}]{i}[/{NEON_CYAN}] {e.get('name', 'Unnamed')}")
-                    console.print(f"      [{CORAL}]{e.get('id', '')[:16]}...[/{CORAL}]")
-
-                console.print()
-                choice = typer.prompt("Select project number", type=int)
-
-                if choice < 1 or choice > len(entities):
-                    error(f"Invalid choice: {choice}")
-                    return
-
-                project_id = entities[choice - 1].get("id")
-                if not project_id:
-                    error("Selected project has no ID")
-                    return
-
-            except SibylClientError as e:
-                _handle_client_error(e)
-                return
 
         # Verify project exists
         try:
