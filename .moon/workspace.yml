@@ -5,6 +5,9 @@ projects:
   root: "."
   api: "apps/api"
   cli: "apps/cli"
+  e2e: "apps/e2e"
   web: "apps/web"
   # Shared packages
   core: "packages/python/sibyl-core"
+  # Tools
+  hooks: "hooks"

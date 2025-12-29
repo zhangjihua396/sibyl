@@ -1,0 +1,27 @@
+# https://moonrepo.dev/docs/config/project
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: python
+type: tool
+
+fileGroups:
+  sources:
+    - "*.py"
+
+tasks:
+  lint:
+    command: "uv run ruff check ."
+    inputs:
+      - "@group(sources)"
+
+  format:
+    command: "uv run ruff format ."
+    inputs:
+      - "@group(sources)"
+    local: true
+
+  fix:
+    command: "uv run ruff check --fix . && uv run ruff format ."
+    inputs:
+      - "@group(sources)"
+    local: true

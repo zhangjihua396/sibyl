@@ -31,7 +31,7 @@ sibyld = { workspace = true }
 
 [tool.ruff]
 line-length = 100
-src = ["apps/*/src", "packages/*/src"]
+src = ["apps/*/src", "packages/*/src", "hooks"]
 
 [tool.ruff.lint]
 select = [
@@ -43,6 +43,17 @@ ignore = [
     "S101",    # Assert (tests/contracts)
     "TRY003",  # Long exception messages
     "PLR0913", # Too many arguments
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Hooks need print for output, subprocess for CLI calls, silent failures
+"hooks/*.py" = [
+    "T20",     # print statements (needed for hook output)
+    "S603",    # subprocess call (calling our own CLI)
+    "S607",    # partial executable path (sibyl is in PATH)
+    "S110",    # try-except-pass (intentional silent failures)
+    "SIM105",  # contextlib.suppress (explicit try-except is clearer here)
+    "PLR2004", # magic numbers (thresholds are clear in context)
 ]
 
 [tool.ruff.lint.isort]
