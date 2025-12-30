@@ -8,12 +8,7 @@ from rich.console import Console
 from rich.text import Text
 
 from sibyl import __version__
-
-# SilkCircuit colors
-ELECTRIC_PURPLE = "#e135ff"
-NEON_CYAN = "#80ffea"
-CORAL = "#ff6ac1"
-DIM = "#555566"
+from sibyl_core.logging.colors import CORAL, DIM, ELECTRIC_PURPLE, NEON_CYAN
 
 
 def print_banner(*, component: str | None = None) -> None:

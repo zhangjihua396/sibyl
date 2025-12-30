@@ -763,8 +763,12 @@ class EntityManager:
                         description=record.get("description") or record.get("summary") or "",
                         content=record.get("content") or "",
                         metadata=metadata,
-                        **({"created_at": record["created_at"]} if record.get("created_at") else {}),
-                        **({"updated_at": record["updated_at"]} if record.get("updated_at") else {}),
+                        **(
+                            {"created_at": record["created_at"]} if record.get("created_at") else {}
+                        ),
+                        **(
+                            {"updated_at": record["updated_at"]} if record.get("updated_at") else {}
+                        ),
                     )
                     entities.append(entity)
 

@@ -273,6 +273,47 @@ async def enqueue_update_entity(
     return job.job_id
 
 
+async def enqueue_create_learning_episode(
+    task_data: dict[str, Any],
+    group_id: str,
+) -> str:
+    """Enqueue a learning episode creation job.
+
+    Creates a learning episode from a completed task asynchronously.
+    The episode captures learnings and links back to the task.
+
+    Args:
+        task_data: Serialized task dict (from task.model_dump())
+        group_id: Organization ID
+
+    Returns:
+        Job ID for tracking
+    """
+    pool = await get_pool()
+
+    task_id = task_data.get("id", "unknown")
+    job_id = f"learning_episode:{task_id}"
+
+    job = await pool.enqueue_job(
+        "create_learning_episode",
+        task_data,
+        group_id,
+        _job_id=job_id,
+    )
+
+    if job is None:
+        log.info("Learning episode job already exists", job_id=job_id, task_id=task_id)
+        return job_id
+
+    log.info(
+        "Enqueued learning episode job",
+        job_id=job.job_id,
+        task_id=task_id,
+    )
+
+    return job.job_id
+
+
 async def enqueue_update_task(
     task_id: str,
     updates: dict[str, Any],

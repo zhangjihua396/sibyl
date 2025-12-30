@@ -1,6 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
+import { log } from '@/lib/logger';
+
 const ACCESS_TOKEN_COOKIE = 'sibyl_access_token';
 const REFRESH_TOKEN_COOKIE = 'sibyl_refresh_token';
 
@@ -22,9 +24,11 @@ function hasAuthCookie(request: NextRequest): boolean {
 
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+  const start = Date.now();
 
   // Login page: always allow (cookies may exist but be invalid/expired)
   if (pathname === '/login') {
+    log.debug('proxy', { path: pathname, action: 'allow_login' });
     return NextResponse.next();
   }
 
@@ -33,9 +37,11 @@ export function proxy(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('next', `${pathname}${search}`);
+    log.info('proxy', { path: pathname, action: 'redirect_login', ms: Date.now() - start });
     return NextResponse.redirect(url);
   }
 
+  log.debug('proxy', { path: pathname, action: 'allow', ms: Date.now() - start });
   return NextResponse.next();
 }
 

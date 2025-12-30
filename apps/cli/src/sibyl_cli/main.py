@@ -12,7 +12,6 @@ import typer
 
 from sibyl_cli.auth import app as auth_app
 from sibyl_cli.client import SibylClientError, get_client
-from sibyl_cli.config_store import resolve_project_from_cwd
 from sibyl_cli.common import (
     CORAL,
     NEON_CYAN,
@@ -28,6 +27,7 @@ from sibyl_cli.common import (
 
 # Import subcommand apps
 from sibyl_cli.config_cmd import app as config_app
+from sibyl_cli.config_store import resolve_project_from_cwd
 from sibyl_cli.context import app as context_app
 from sibyl_cli.crawl import app as crawl_app
 from sibyl_cli.entity import app as entity_app

@@ -404,6 +404,8 @@ async def complete_task(
     org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Complete a task and optionally capture learnings."""
+    from sibyl.jobs.queue import enqueue_create_learning_episode
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
@@ -413,7 +415,18 @@ async def complete_task(
 
         actual_hours = request.actual_hours if request else None
         learnings = request.learnings if request else None
-        task = await workflow.complete_task(task_id, actual_hours, learnings)
+
+        # Skip sync episode creation - we'll enqueue it as a background job
+        task = await workflow.complete_task(
+            task_id, actual_hours, learnings or "", create_episode=False
+        )
+
+        # Enqueue learning episode creation as background job (fast response)
+        if learnings:
+            await enqueue_create_learning_episode(
+                task.model_dump(mode="json"),
+                group_id,
+            )
 
         await _broadcast_task_update(
             task_id,

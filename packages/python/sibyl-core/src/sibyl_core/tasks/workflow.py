@@ -241,7 +241,12 @@ class TaskWorkflowEngine:
         return updated_task
 
     async def complete_task(
-        self, task_id: str, actual_hours: float | None = None, learnings: str = ""
+        self,
+        task_id: str,
+        actual_hours: float | None = None,
+        learnings: str = "",
+        *,
+        create_episode: bool = True,
     ) -> Task:
         """Mark task as done and capture learnings.
 
@@ -249,6 +254,8 @@ class TaskWorkflowEngine:
             task_id: Task UUID
             actual_hours: Actual time spent on task
             learnings: What was learned completing this task
+            create_episode: Whether to create learning episode synchronously.
+                Set to False when using async job queue for episode creation.
 
         Returns:
             Updated task
@@ -280,7 +287,8 @@ class TaskWorkflowEngine:
         updated_task = self._entity_to_task(updated_entity)
 
         # Create episode from completed task if learnings provided
-        if learnings:
+        # Skip if create_episode=False (caller will handle async)
+        if learnings and create_episode:
             await self._create_learning_episode(updated_task)
 
         # Update project progress

@@ -128,11 +128,11 @@ async def list_entities(
         def get_sort_key(e: Any) -> Any:
             if sort_by == SortField.NAME:
                 return (getattr(e, "name", "") or "").lower()
-            elif sort_by == SortField.CREATED_AT:
+            if sort_by == SortField.CREATED_AT:
                 return getattr(e, "created_at", None) or datetime.min.replace(tzinfo=UTC)
-            elif sort_by == SortField.UPDATED_AT:
+            if sort_by == SortField.UPDATED_AT:
                 return getattr(e, "updated_at", None) or datetime.min.replace(tzinfo=UTC)
-            elif sort_by == SortField.ENTITY_TYPE:
+            if sort_by == SortField.ENTITY_TYPE:
                 return getattr(e, "entity_type", "") or ""
             return ""
 

@@ -1,6 +1,6 @@
 """Shared CLI utilities - colors, console, helpers.
 
-SilkCircuit Design Language for consistent terminal output.
+Sibyl Design Language for consistent terminal output.
 """
 
 from __future__ import annotations
@@ -18,16 +18,17 @@ from rich.table import Table
 from rich.text import Text
 from rich.tree import Tree
 
+from sibyl_core.logging.colors import (
+    CORAL,
+    ELECTRIC_PURPLE,
+    ELECTRIC_YELLOW,
+    ERROR_RED,
+    NEON_CYAN,
+    SUCCESS_GREEN,
+)
+
 if TYPE_CHECKING:
     from sibyl.cli.client import SibylClientError
-
-# SilkCircuit color palette
-ELECTRIC_PURPLE = "#e135ff"
-NEON_CYAN = "#80ffea"
-CORAL = "#ff6ac1"
-ELECTRIC_YELLOW = "#f1fa8c"
-SUCCESS_GREEN = "#50fa7b"
-ERROR_RED = "#ff6363"
 
 # Shared console instance (for styled output only, NOT for JSON)
 console = Console()

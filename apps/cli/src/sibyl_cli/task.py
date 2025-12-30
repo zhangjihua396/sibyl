@@ -269,7 +269,9 @@ def list_tasks(
     ] = None,
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
-    no_epic: Annotated[bool, typer.Option("--no-epic", help="Filter for tasks without an epic")] = False,
+    no_epic: Annotated[
+        bool, typer.Option("--no-epic", help="Filter for tasks without an epic")
+    ] = False,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
     limit: Annotated[int, typer.Option("-n", "--limit", help="Max results (max: 200)")] = 50,
     offset: Annotated[int, typer.Option("--offset", help="Skip first N results")] = 0,
