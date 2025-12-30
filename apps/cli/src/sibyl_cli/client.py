@@ -592,6 +592,7 @@ class SibylClient:
         category: str | None = None,
         project: str | None = None,
         epic: str | None = None,
+        no_epic: bool = False,
         status: str | None = None,
         priority: str | None = None,
         complexity: str | None = None,
@@ -616,6 +617,8 @@ class SibylClient:
             data["project"] = project
         if epic:
             data["epic"] = epic
+        if no_epic:
+            data["no_epic"] = True
         if status:
             data["status"] = status
         if priority:

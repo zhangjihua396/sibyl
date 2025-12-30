@@ -5,6 +5,7 @@ Transparently handles both graph entities (FalkorDB) and document chunks (Postgr
 """
 
 from datetime import UTC, datetime
+from enum import Enum
 from typing import Any
 from uuid import UUID
 
@@ -32,6 +33,24 @@ from sibyl_core.graph.entities import EntityManager
 from sibyl_core.models.entities import EntityType
 
 log = structlog.get_logger()
+
+
+class SortField(str, Enum):
+    """Fields available for sorting entities."""
+
+    NAME = "name"
+    CREATED_AT = "created_at"
+    UPDATED_AT = "updated_at"
+    ENTITY_TYPE = "entity_type"
+
+
+class SortOrder(str, Enum):
+    """Sort order direction."""
+
+    ASC = "asc"
+    DESC = "desc"
+
+
 _READ_ROLES = (
     OrganizationRole.OWNER,
     OrganizationRole.ADMIN,
@@ -62,8 +81,11 @@ async def list_entities(
     entity_type: EntityType | None = Query(default=None, description="Filter by entity type"),
     language: str | None = Query(default=None, description="Filter by programming language"),
     category: str | None = Query(default=None, description="Filter by category"),
+    search: str | None = Query(default=None, description="Search in name and description"),
     page: int = Query(default=1, ge=1, description="Page number"),
     page_size: int = Query(default=50, ge=1, le=200, description="Items per page"),
+    sort_by: SortField = Query(default=SortField.UPDATED_AT, description="Field to sort by"),
+    sort_order: SortOrder = Query(default=SortOrder.DESC, description="Sort direction"),
 ) -> EntityListResponse:
     """List entities with optional filters and pagination."""
     try:
@@ -71,15 +93,11 @@ async def list_entities(
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
 
-        # Get all entities of specified type(s)
+        # Get entities - single query for all types, or filtered by type
         if entity_type:
             all_entities = await entity_manager.list_by_type(entity_type, limit=1000)
         else:
-            # Fetch all types
-            all_entities = []
-            for et in EntityType:
-                entities = await entity_manager.list_by_type(et, limit=500)
-                all_entities.extend(entities)
+            all_entities = await entity_manager.list_all(limit=2000)
 
         # Apply filters
         filtered = []
@@ -96,7 +114,29 @@ async def list_entities(
                 if category.lower() not in entity_cat.lower():
                     continue
 
+            # Search filter (name and description)
+            if search:
+                search_lower = search.lower()
+                name = (getattr(entity, "name", "") or "").lower()
+                description = (getattr(entity, "description", "") or "").lower()
+                if search_lower not in name and search_lower not in description:
+                    continue
+
             filtered.append(entity)
+
+        # Sort entities
+        def get_sort_key(e: Any) -> Any:
+            if sort_by == SortField.NAME:
+                return (getattr(e, "name", "") or "").lower()
+            elif sort_by == SortField.CREATED_AT:
+                return getattr(e, "created_at", None) or datetime.min.replace(tzinfo=UTC)
+            elif sort_by == SortField.UPDATED_AT:
+                return getattr(e, "updated_at", None) or datetime.min.replace(tzinfo=UTC)
+            elif sort_by == SortField.ENTITY_TYPE:
+                return getattr(e, "entity_type", "") or ""
+            return ""
+
+        filtered.sort(key=get_sort_key, reverse=(sort_order == SortOrder.DESC))
 
         # Paginate
         total = len(filtered)

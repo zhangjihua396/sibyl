@@ -186,11 +186,28 @@ export function SourcesEmptyState({ onAddSource }: { onAddSource?: () => void })
 
 export function EntitiesEmptyState({
   entityType,
+  searchQuery,
   onClearFilter,
 }: {
   entityType?: string;
+  searchQuery?: string;
   onClearFilter?: () => void;
 }) {
+  // Search with no results
+  if (searchQuery) {
+    const filterContext = entityType ? ` in "${entityType}" entities` : '';
+    return (
+      <EnhancedEmptyState
+        icon={<Search width={40} height={40} className="text-sc-yellow" />}
+        title="No matches found"
+        description={`No entities matching "${searchQuery}"${filterContext}. Try a different search term.`}
+        variant="filtered"
+        actions={[...(onClearFilter ? [{ label: 'Clear filters', onClick: onClearFilter }] : [])]}
+      />
+    );
+  }
+
+  // Type filter with no results
   if (entityType) {
     return (
       <EnhancedEmptyState

@@ -54,6 +54,9 @@ export interface EntityListResponse {
   has_more: boolean;
 }
 
+export type EntitySortField = 'name' | 'created_at' | 'updated_at' | 'entity_type';
+export type SortOrder = 'asc' | 'desc';
+
 export interface SearchResult {
   id: string;
   type: string;
@@ -939,15 +942,21 @@ export const api = {
       entity_type?: string;
       language?: string;
       category?: string;
+      search?: string;
       page?: number;
       page_size?: number;
+      sort_by?: 'name' | 'created_at' | 'updated_at' | 'entity_type';
+      sort_order?: 'asc' | 'desc';
     }) => {
       const searchParams = new URLSearchParams();
       if (params?.entity_type) searchParams.set('entity_type', params.entity_type);
       if (params?.language) searchParams.set('language', params.language);
       if (params?.category) searchParams.set('category', params.category);
+      if (params?.search) searchParams.set('search', params.search);
       if (params?.page) searchParams.set('page', params.page.toString());
       if (params?.page_size) searchParams.set('page_size', params.page_size.toString());
+      if (params?.sort_by) searchParams.set('sort_by', params.sort_by);
+      if (params?.sort_order) searchParams.set('sort_order', params.sort_order);
       const query = searchParams.toString();
       return fetchApi<EntityListResponse>(`/entities${query ? `?${query}` : ''}`);
     },

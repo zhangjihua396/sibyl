@@ -518,6 +518,7 @@ class EntityManager:
         *,
         project_id: str | None = None,
         epic_id: str | None = None,
+        no_epic: bool = False,
         status: str | None = None,
         priority: str | None = None,
         complexity: str | None = None,
@@ -537,6 +538,7 @@ class EntityManager:
             offset: Pagination offset.
             project_id: Filter by project ID.
             epic_id: Filter by epic ID (uses BELONGS_TO relationship).
+            no_epic: Filter for entities without an epic (mutually exclusive with epic_id).
             status: Filter by status (for tasks, parsed from metadata).
             priority: Filter by priority (for tasks, parsed from metadata).
             complexity: Filter by complexity (for tasks, parsed from metadata).
@@ -656,6 +658,12 @@ class EntityManager:
                         if not any(t in entity_tags for t in tags):
                             continue
 
+                    # Filter for entities without an epic
+                    if no_epic:
+                        entity_epic = metadata.get("epic_id")
+                        if entity_epic:  # Has an epic, skip it
+                            continue
+
                     # Filter archived unless include_archived is True
                     if not include_archived:
                         entity_status = metadata.get("status")
@@ -685,6 +693,89 @@ class EntityManager:
 
         except Exception as e:
             log.exception("Failed to list entities", entity_type=entity_type, error=str(e))
+            return []
+
+    async def list_all(
+        self,
+        limit: int = 1000,
+        offset: int = 0,
+        *,
+        include_archived: bool = False,
+    ) -> list[Entity]:
+        """List all entities regardless of type using a single query.
+
+        Args:
+            limit: Maximum results to return.
+            offset: Pagination offset.
+            include_archived: Include archived entities.
+
+        Returns:
+            List of entities.
+        """
+        log.debug("Listing all entities", limit=limit, offset=offset)
+
+        try:
+            query = """
+                MATCH (n)
+                WHERE n.group_id = $group_id
+                  AND n.entity_type IS NOT NULL
+                RETURN n.uuid AS uuid,
+                       n.name AS name,
+                       n.entity_type AS entity_type,
+                       n.group_id AS group_id,
+                       n.content AS content,
+                       n.description AS description,
+                       n.summary AS summary,
+                       n.metadata AS metadata,
+                       n.created_at AS created_at,
+                       n.updated_at AS updated_at,
+                       labels(n) AS labels
+                ORDER BY n.updated_at DESC
+                SKIP $offset
+                LIMIT $limit
+            """
+
+            params: dict[str, Any] = {
+                "group_id": self._group_id,
+                "limit": limit,
+                "offset": offset,
+            }
+
+            result = await self._client.execute_read_org(query, self._group_id, **params)
+
+            entities: list[Entity] = []
+            for record in result:
+                try:
+                    metadata = record.get("metadata") or {}
+                    if isinstance(metadata, str):
+                        import json
+
+                        metadata = json.loads(metadata)
+
+                    # Skip archived unless requested
+                    if not include_archived and metadata.get("archived"):
+                        continue
+
+                    entity = Entity(
+                        id=record.get("uuid", ""),
+                        entity_type=record.get("entity_type", ""),
+                        name=record.get("name", ""),
+                        description=record.get("description") or record.get("summary") or "",
+                        content=record.get("content") or "",
+                        metadata=metadata,
+                        **({"created_at": record["created_at"]} if record.get("created_at") else {}),
+                        **({"updated_at": record["updated_at"]} if record.get("updated_at") else {}),
+                    )
+                    entities.append(entity)
+
+                except Exception as e:
+                    log.debug("Failed to convert record to entity", error=str(e))
+
+            log.debug("Listed all entities", returned=len(entities))
+            return entities
+
+        except Exception as e:
+            log.exception("Failed to list all entities", error=str(e))
             return []
 
     async def get_tasks_for_epic(

@@ -156,6 +156,7 @@ class ExploreRequest(BaseModel):
     category: str | None = None
     project: str | None = Field(default=None, description="Filter by project ID (for tasks)")
     epic: str | None = Field(default=None, description="Filter by epic ID (for tasks)")
+    no_epic: bool = Field(default=False, description="Filter for tasks without an epic")
     status: str | None = Field(default=None, description="Filter by status (for tasks)")
     priority: str | None = Field(
         default=None,

@@ -998,6 +998,7 @@ async def explore(
     category: str | None = None,
     project: str | None = None,
     epic: str | None = None,
+    no_epic: bool = False,
     status: str | None = None,
     priority: str | None = None,
     complexity: str | None = None,
@@ -1046,6 +1047,7 @@ async def explore(
         category: Filter by category/domain.
         project: Optional project filter (recommended for task/epic listing).
         epic: Optional epic filter (for listing tasks within an epic).
+        no_epic: Filter for tasks without an epic (mutually exclusive with epic).
         status: Filter tasks by workflow status (backlog, todo, doing, blocked, review, done).
         priority: Filter tasks by priority (critical, high, medium, low, someday).
         complexity: Filter tasks by complexity (trivial, simple, medium, complex, epic).
@@ -1096,6 +1098,8 @@ async def explore(
         filters["project"] = project
     if epic:
         filters["epic"] = epic
+    if no_epic:
+        filters["no_epic"] = True
     if status:
         filters["status"] = status
     if priority:
@@ -1135,6 +1139,7 @@ async def explore(
             category=category,
             project=project,
             epic=epic,
+            no_epic=no_epic,
             status=status,
             priority=priority,
             complexity=complexity,
@@ -1249,6 +1254,7 @@ async def _explore_list(
     category: str | None,
     project: str | None,
     epic: str | None,
+    no_epic: bool,
     status: str | None,
     priority: str | None,
     complexity: str | None,
@@ -1290,6 +1296,7 @@ async def _explore_list(
             limit=fetch_limit,
             project_id=project,
             epic_id=epic,
+            no_epic=no_epic,
             status=status,
             priority=priority,
             complexity=complexity,

@@ -112,6 +112,10 @@ sibyl task list --status todo,doing,blocked
 sibyl task list --priority critical,high
 sibyl task list --tags bug,urgent
 
+# Filter by epic
+sibyl task list --epic epic_abc          # Tasks in specific epic
+sibyl task list --no-epic                # Tasks without any epic (orphaned/unplanned)
+
 # Combine filters
 sibyl task list --status todo --priority high --feature backend
 

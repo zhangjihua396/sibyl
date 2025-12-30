@@ -114,6 +114,7 @@ def _apply_task_filters(
     tags: str | None,
     project: str | None,
     epic: str | None,
+    no_epic: bool,
     assignee: str | None,
 ) -> list[dict]:
     """Apply client-side filters to task entities."""
@@ -161,6 +162,9 @@ def _apply_task_filters(
 
     if epic:
         result = [e for e in result if e.get("metadata", {}).get("epic_id") == epic]
+
+    if no_epic:
+        result = [e for e in result if not e.get("metadata", {}).get("epic_id")]
 
     if assignee:
         result = [
@@ -265,6 +269,7 @@ def list_tasks(
     ] = None,
     project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to filter by")] = None,
+    no_epic: Annotated[bool, typer.Option("--no-epic", help="Filter for tasks without an epic")] = False,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
     limit: Annotated[int, typer.Option("-n", "--limit", help="Max results (max: 200)")] = 50,
     offset: Annotated[int, typer.Option("--offset", help="Skip first N results")] = 0,
@@ -350,6 +355,7 @@ def list_tasks(
                         tags=api_tags,
                         project=effective_project,
                         epic=epic,
+                        no_epic=no_epic,
                         limit=effective_limit,
                         offset=effective_offset,
                     )
@@ -366,6 +372,7 @@ def list_tasks(
                             tags=api_tags,
                             project=effective_project,
                             epic=epic,
+                            no_epic=no_epic,
                             limit=effective_limit,
                             offset=effective_offset,
                         )
@@ -383,6 +390,7 @@ def list_tasks(
                 tags,
                 effective_project,
                 epic,
+                no_epic,
                 assignee,
             )
 

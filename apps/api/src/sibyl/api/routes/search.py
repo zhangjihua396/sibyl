@@ -97,6 +97,7 @@ async def explore(
             category=request.category,
             project=request.project,
             epic=request.epic,
+            no_epic=request.no_epic,
             status=request.status,
             priority=request.priority,
             complexity=request.complexity,

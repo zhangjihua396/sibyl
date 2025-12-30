@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { EntityCard } from '@/components/entities/entity-card';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
@@ -10,34 +10,103 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Button } from '@/components/ui/button';
 import { EntitiesEmptyState } from '@/components/ui/empty-state';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { LoadingState } from '@/components/ui/spinner';
 import { EntityTypeChip, FilterChip } from '@/components/ui/toggle';
 import { ErrorState } from '@/components/ui/tooltip';
-import type { EntityListResponse, StatsResponse } from '@/lib/api';
+import type { EntityListResponse, EntitySortField, SortOrder, StatsResponse } from '@/lib/api';
 import { useDeleteEntity, useEntities, useStats } from '@/lib/hooks';
 
 interface EntitiesContentProps {
   initialEntities: EntityListResponse;
   initialStats: StatsResponse;
   typeFilter?: string;
+  search: string;
   page: number;
+  sortBy: EntitySortField;
+  sortOrder: SortOrder;
 }
+
+const SORT_OPTIONS: { value: string; label: string; field: EntitySortField; order: SortOrder }[] = [
+  { value: 'updated_at-desc', label: 'Recently Updated', field: 'updated_at', order: 'desc' },
+  { value: 'updated_at-asc', label: 'Oldest Updated', field: 'updated_at', order: 'asc' },
+  { value: 'created_at-desc', label: 'Newest First', field: 'created_at', order: 'desc' },
+  { value: 'created_at-asc', label: 'Oldest First', field: 'created_at', order: 'asc' },
+  { value: 'name-asc', label: 'Name A-Z', field: 'name', order: 'asc' },
+  { value: 'name-desc', label: 'Name Z-A', field: 'name', order: 'desc' },
+  { value: 'entity_type-asc', label: 'Type A-Z', field: 'entity_type', order: 'asc' },
+];
 
 export function EntitiesContent({
   initialEntities,
   initialStats,
   typeFilter,
+  search,
   page,
+  sortBy,
+  sortOrder,
 }: EntitiesContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const limit = 20;
 
-  const [searchQuery, setSearchQuery] = useState('');
+  // Local state for input (synced from URL, debounced to URL)
+  const [searchInput, setSearchInput] = useState(search);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Sync input when URL search changes (e.g., browser back/forward)
+  useEffect(() => {
+    setSearchInput(search);
+  }, [search]);
+
+  // Debounced search - update URL after 300ms of no typing
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setSearchInput(value);
+
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+
+      debounceRef.current = setTimeout(() => {
+        const params = new URLSearchParams(searchParams);
+        if (value.trim()) {
+          params.set('search', value.trim());
+        } else {
+          params.delete('search');
+        }
+        params.set('page', '1'); // Reset to first page on search
+        router.push(`/entities?${params.toString()}`);
+      }, 300);
+    },
+    [router, searchParams]
+  );
+
+  // Cleanup debounce on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   // Hydrate from server data, then use client cache
   const { data, isLoading, error } = useEntities(
-    { entity_type: typeFilter, page, page_size: limit },
+    {
+      entity_type: typeFilter,
+      search: search || undefined,
+      page,
+      page_size: limit,
+      sort_by: sortBy,
+      sort_order: sortOrder,
+    },
     initialEntities
   );
 
@@ -60,6 +129,15 @@ export function EntitiesContent({
     [router, searchParams]
   );
 
+  const handleClearFilters = useCallback(() => {
+    const params = new URLSearchParams(searchParams);
+    params.delete('type');
+    params.delete('search');
+    params.set('page', '1');
+    setSearchInput('');
+    router.push(`/entities?${params.toString()}`);
+  }, [router, searchParams]);
+
   const handlePageChange = useCallback(
     (newPage: number) => {
       const params = new URLSearchParams(searchParams);
@@ -68,6 +146,22 @@ export function EntitiesContent({
     },
     [router, searchParams]
   );
+
+  const handleSortChange = useCallback(
+    (value: string) => {
+      const option = SORT_OPTIONS.find(o => o.value === value);
+      if (!option) return;
+
+      const params = new URLSearchParams(searchParams);
+      params.set('sort_by', option.field);
+      params.set('sort_order', option.order);
+      params.set('page', '1'); // Reset to first page on sort change
+      router.push(`/entities?${params.toString()}`);
+    },
+    [router, searchParams]
+  );
+
+  const currentSortValue = `${sortBy}-${sortOrder}`;
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -83,16 +177,14 @@ export function EntitiesContent({
     [deleteEntity]
   );
 
-  // Deduplicate entities by ID (API may return duplicates) and filter by search
-  const filteredEntities = (() => {
+  // Deduplicate entities by ID (API may return duplicates)
+  const entities = (() => {
     if (!data?.entities) return [];
     const seen = new Set<string>();
     return data.entities.filter(e => {
       if (seen.has(e.id)) return false;
       seen.add(e.id);
-      if (!searchQuery) return true;
-      const query = searchQuery.toLowerCase();
-      return e.name.toLowerCase().includes(query) || e.description?.toLowerCase().includes(query);
+      return true;
     });
   })();
 
@@ -109,14 +201,31 @@ export function EntitiesContent({
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:gap-4">
-        <div className="flex-1 sm:max-w-md">
-          <Input
-            type="text"
-            placeholder="Filter entities..."
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            icon="⌕"
-          />
+        <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+          <div className="flex-1 sm:max-w-md">
+            <Input
+              type="text"
+              placeholder="Search entities..."
+              value={searchInput}
+              onChange={e => handleSearchChange(e.target.value)}
+              icon="⌕"
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-sc-fg-muted whitespace-nowrap">Sort by:</span>
+            <Select value={currentSortValue} onValueChange={handleSortChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* Type Filter - scrollable on mobile */}
@@ -141,17 +250,18 @@ export function EntitiesContent({
         <LoadingState />
       ) : error ? (
         <ErrorState title="Failed to load entities" message={error.message} />
-      ) : filteredEntities.length === 0 ? (
+      ) : entities.length === 0 ? (
         <EntitiesEmptyState
           entityType={typeFilter}
-          onClearFilter={typeFilter ? () => handleTypeFilter(null) : undefined}
+          searchQuery={search}
+          onClearFilter={typeFilter || search ? () => handleClearFilters() : undefined}
         />
       ) : (
         <>
           {/* Entity Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             <AnimatePresence mode="popLayout">
-              {filteredEntities.map((entity, index) => (
+              {entities.map((entity, index) => (
                 <motion.div
                   key={entity.id}
                   layout
