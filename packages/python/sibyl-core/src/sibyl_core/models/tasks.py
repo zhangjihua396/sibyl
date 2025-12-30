@@ -333,3 +333,36 @@ class TaskKnowledgeSuggestion(BaseModel):
     error_patterns: list[tuple[str, float]] = Field(
         default_factory=list, description="Relevant error patterns (id, score)"
     )
+
+
+class AuthorType(StrEnum):
+    """Author type for notes."""
+
+    AGENT = "agent"  # AI agent authored
+    USER = "user"  # Human authored
+
+
+class Note(Entity):
+    """A timestamped note on a task.
+
+    Notes provide a way for agents and users to add progress updates,
+    findings, and observations to tasks. They are stored as separate
+    entities with BELONGS_TO relationships to their parent task.
+    """
+
+    entity_type: EntityType = EntityType.NOTE
+
+    # Core fields
+    task_id: str = Field(..., description="Parent task UUID (required)")
+    author_type: AuthorType = Field(default=AuthorType.USER, description="Agent or user")
+    author_name: str = Field(default="", description="Author identifier (user email or agent name)")
+
+    @model_validator(mode="before")
+    @classmethod
+    def set_entity_fields(cls, data: dict[str, Any]) -> dict[str, Any]:
+        """Set name from content preview."""
+        if isinstance(data, dict) and "name" not in data and "content" in data:
+            content = data["content"]
+            # Use first 50 chars of content as name
+            data["name"] = content[:50] + ("..." if len(content) > 50 else "")
+        return data

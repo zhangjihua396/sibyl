@@ -545,6 +545,32 @@ export interface EpicProgress {
 }
 
 // =============================================================================
+// Task Notes Types
+// =============================================================================
+
+export type AuthorType = 'agent' | 'user';
+
+export interface Note {
+  id: string;
+  task_id: string;
+  content: string;
+  author_type: AuthorType;
+  author_name: string;
+  created_at: string;
+}
+
+export interface NotesListResponse {
+  notes: Note[];
+  count: number;
+}
+
+export interface CreateNoteRequest {
+  content: string;
+  author_type?: AuthorType;
+  author_name?: string;
+}
+
+// =============================================================================
 // Source Types (Documentation Crawling)
 // =============================================================================
 
@@ -1282,6 +1308,18 @@ export const api = {
         method: 'PATCH',
         body: JSON.stringify({ metadata: { status } }),
       }),
+
+    // Task Notes
+    notes: {
+      list: (taskId: string, limit = 50) =>
+        fetchApi<NotesListResponse>(`/tasks/${taskId}/notes?limit=${limit}`),
+
+      create: (taskId: string, data: CreateNoteRequest) =>
+        fetchApi<Note>(`/tasks/${taskId}/notes`, {
+          method: 'POST',
+          body: JSON.stringify(data),
+        }),
+    },
   },
 
   // Projects (via explore endpoint)

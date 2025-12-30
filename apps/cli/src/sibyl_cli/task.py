@@ -975,3 +975,124 @@ def update_task(
             _handle_client_error(e)
 
     _update()
+
+
+# =============================================================================
+# Task Notes Commands
+# =============================================================================
+
+
+@app.command("note")
+def add_note(
+    task_id: Annotated[str, typer.Argument(help="Task ID (full or prefix)")],
+    content: Annotated[str, typer.Argument(help="Note content")],
+    agent: Annotated[
+        bool, typer.Option("--agent", help="Mark as agent-authored (default: user)")
+    ] = False,
+    author: Annotated[
+        str | None, typer.Option("--author", "-a", help="Author name/identifier")
+    ] = None,
+    json_out: Annotated[
+        bool, typer.Option("--json", "-j", help="JSON output (for scripting)")
+    ] = False,
+) -> None:
+    """Add a note to a task.
+
+    Examples:
+        sibyl task note task_abc "Found the root cause"
+        sibyl task note task_abc "Implementing fix" --agent --author claude
+    """
+
+    @run_async
+    async def _note() -> None:
+        client = get_client()
+
+        try:
+            resolved_id = await _resolve_task_id(client, task_id)
+            author_type = "agent" if agent else "user"
+            author_name = author or ""
+
+            if not json_out:
+                with spinner("Adding note...") as progress:
+                    progress.add_task("Adding note...", total=None)
+                    response = await client.create_note(
+                        resolved_id, content, author_type, author_name
+                    )
+            else:
+                response = await client.create_note(resolved_id, content, author_type, author_name)
+
+            if json_out:
+                print_json(response)
+                return
+
+            if response.get("id"):
+                success(f"Note added: {response['id'][:12]}...")
+            else:
+                error("Failed to add note")
+
+        except SibylClientError as e:
+            _handle_client_error(e)
+
+    _note()
+
+
+@app.command("notes")
+def list_notes(
+    task_id: Annotated[str, typer.Argument(help="Task ID (full or prefix)")],
+    limit: Annotated[int, typer.Option("-n", "--limit", help="Max results")] = 20,
+    json_out: Annotated[
+        bool, typer.Option("--json", "-j", help="JSON output (for scripting)")
+    ] = False,
+) -> None:
+    """List notes for a task.
+
+    Example:
+        sibyl task notes task_abc
+    """
+
+    @run_async
+    async def _notes() -> None:
+        client = get_client()
+
+        try:
+            resolved_id = await _resolve_task_id(client, task_id)
+
+            if not json_out:
+                with spinner("Loading notes...") as progress:
+                    progress.add_task("Loading notes...", total=None)
+                    response = await client.list_notes(resolved_id, limit)
+            else:
+                response = await client.list_notes(resolved_id, limit)
+
+            notes = response.get("notes", [])
+
+            if json_out:
+                print_json(notes)
+                return
+
+            if not notes:
+                info("No notes for this task")
+                return
+
+            # Display notes in a readable format
+            for note in notes:
+                author_type = note.get("author_type", "user")
+                author_name = note.get("author_name", "")
+                created_at = note.get("created_at", "")[:19].replace("T", " ")
+
+                # Icon based on author type
+                icon = "🤖" if author_type == "agent" else "👤"
+                author_display = f"{icon} {author_name}" if author_name else icon
+
+                # Color based on author type
+                color = NEON_CYAN if author_type == "agent" else ELECTRIC_PURPLE
+
+                console.print(f"[{color}]{author_display}[/{color}] [dim]{created_at}[/dim]")
+                console.print(f"  {note.get('content', '')}\n")
+
+            console.print(f"[dim]{len(notes)} note(s)[/dim]")
+
+        except SibylClientError as e:
+            _handle_client_error(e)
+
+    _notes()

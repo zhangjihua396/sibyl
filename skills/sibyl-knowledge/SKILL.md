@@ -142,6 +142,14 @@ sibyl task archive task_xyz --reason "Completed: implemented feature"
 
 # Direct update
 sibyl task update task_xyz --status done --priority high
+
+# Add a note to a task
+sibyl task note task_xyz "Found the root cause of the bug"
+sibyl task note task_xyz "Implemented fix" --agent --author claude
+
+# List notes for a task
+sibyl task notes task_xyz
+sibyl task notes task_xyz -n 10  # Limit to 10 notes
 ```
 
 **Task States:** `backlog <-> todo <-> doing <-> blocked <-> review <-> done <-> archived`
@@ -300,6 +308,68 @@ sibyl task complete task_xyz --hours 4.5 --learnings "Key insight: The OAuth flo
    - `pattern` - Reusable coding patterns
    - `rule` - Hard constraints, must-follow rules
    - `task` - Work items with lifecycle
+
+---
+
+## Concurrency & Locking
+
+Sibyl uses distributed locks to prevent data corruption when multiple agents update the same entity
+concurrently. This is important because graph operations (especially via Graphiti) can take 20+
+seconds.
+
+### How It Works
+
+- **Entity updates and deletes acquire a lock** before modifying the graph
+- **Lock TTL is 30 seconds** - automatically released if the process dies
+- **Concurrent requests wait** up to 45 seconds for the lock to become available
+- **409 Conflict** is returned if the lock cannot be acquired
+
+### Handling Lock Conflicts
+
+If you get a 409 error, the entity is being modified by another process. Simply retry:
+
+```bash
+# If this fails with "locked by another process"
+sibyl task update task_xyz --status doing
+
+# Wait a moment and retry
+sleep 2
+sibyl task update task_xyz --status doing
+```
+
+### For Agents
+
+When making API calls programmatically:
+
+```python
+import httpx
+import asyncio
+
+async def update_with_retry(task_id: str, updates: dict, max_retries: int = 3):
+    for attempt in range(max_retries):
+        response = await client.patch(f"/api/tasks/{task_id}", json=updates)
+        if response.status_code == 409:  # Locked
+            await asyncio.sleep(2 ** attempt)  # Exponential backoff
+            continue
+        response.raise_for_status()
+        return response.json()
+    raise Exception(f"Failed to update {task_id} after {max_retries} retries")
+```
+
+### Valid Task Statuses
+
+When updating task status, use these exact values:
+
+- `backlog` - Future work, not committed
+- `todo` - Committed to sprint
+- `doing` - Active development (NOT `in_progress`)
+- `blocked` - Waiting on something
+- `review` - In code review
+- `done` - Completed
+- `archived` - Closed without completion
+
+**Common mistake:** Using `in_progress` instead of `doing`. The API will reject invalid status
+values with a 422 validation error.
 
 ---
 

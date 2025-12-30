@@ -482,76 +482,92 @@ async def update_entity(
     session: AsyncSession = Depends(get_session_dependency),
 ) -> EntityResponse:
     """Update an existing entity."""
+    from sibyl.locks import LockAcquisitionError, entity_lock
+
+    group_id = str(org.id)
+
     try:
-        group_id = str(org.id)
-        client = await get_graph_client()
-        entity_manager = EntityManager(client, group_id=group_id)
+        # Acquire distributed lock to prevent concurrent updates
+        async with entity_lock(group_id, entity_id, blocking=True) as lock_token:
+            if not lock_token:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Entity is being updated by another process. Please retry.",
+                )
 
-        # Get existing entity
-        existing = await entity_manager.get(entity_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
+            client = await get_graph_client()
+            entity_manager = EntityManager(client, group_id=group_id)
 
-        # Build update dict with only provided fields
-        update_data: dict[str, Any] = {}
-        if update.name is not None:
-            update_data["name"] = update.name
-        if update.description is not None:
-            update_data["description"] = update.description
-        if update.content is not None:
-            update_data["content"] = update.content
-        if update.category is not None:
-            update_data["category"] = update.category
-        if update.languages is not None:
-            update_data["languages"] = update.languages
-        if update.tags is not None:
-            update_data["tags"] = update.tags
-        if update.metadata is not None:
-            # Merge metadata
-            existing_meta = getattr(existing, "metadata", {}) or {}
-            update_data["metadata"] = {**existing_meta, **update.metadata}
+            # Get existing entity
+            existing = await entity_manager.get(entity_id)
+            if not existing:
+                raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
 
-        # Update timestamp
-        update_data["updated_at"] = datetime.now(UTC)
+            # Build update dict with only provided fields
+            update_data: dict[str, Any] = {}
+            if update.name is not None:
+                update_data["name"] = update.name
+            if update.description is not None:
+                update_data["description"] = update.description
+            if update.content is not None:
+                update_data["content"] = update.content
+            if update.category is not None:
+                update_data["category"] = update.category
+            if update.languages is not None:
+                update_data["languages"] = update.languages
+            if update.tags is not None:
+                update_data["tags"] = update.tags
+            if update.metadata is not None:
+                # Merge metadata
+                existing_meta = getattr(existing, "metadata", {}) or {}
+                update_data["metadata"] = {**existing_meta, **update.metadata}
 
-        # Perform update
-        updated = await entity_manager.update(entity_id, update_data)
-        if not updated:
-            raise HTTPException(status_code=500, detail="Update failed")
+            # Update timestamp
+            update_data["updated_at"] = datetime.now(UTC)
 
-        response = EntityResponse(
-            id=updated.id,
-            entity_type=updated.entity_type,
-            name=updated.name,
-            description=updated.description or "",
-            content=updated.content or "",
-            category=getattr(updated, "category", None) or updated.metadata.get("category"),
-            languages=getattr(updated, "languages", None)
-            or updated.metadata.get("languages", [])
-            or [],
-            tags=getattr(updated, "tags", None) or updated.metadata.get("tags", []) or [],
-            metadata=getattr(updated, "metadata", {}) or {},
-            source_file=getattr(updated, "source_file", None),
-            created_at=getattr(updated, "created_at", None),
-            updated_at=getattr(updated, "updated_at", None),
-        )
+            # Perform update
+            updated = await entity_manager.update(entity_id, update_data)
+            if not updated:
+                raise HTTPException(status_code=500, detail="Update failed")
 
-        # Broadcast update event (scoped to org)
-        await broadcast_event(
-            "entity_updated", response.model_dump(mode="json"), org_id=str(org.id)
-        )
-
-        if existing.entity_type == EntityType.PROJECT:
-            await AuditLogger(session).log(
-                action="project.update",
-                user_id=ctx.user.id,
-                organization_id=org.id,
-                request=request,
-                details={"project_id": existing.id, "name": response.name},
+            response = EntityResponse(
+                id=updated.id,
+                entity_type=updated.entity_type,
+                name=updated.name,
+                description=updated.description or "",
+                content=updated.content or "",
+                category=getattr(updated, "category", None) or updated.metadata.get("category"),
+                languages=getattr(updated, "languages", None)
+                or updated.metadata.get("languages", [])
+                or [],
+                tags=getattr(updated, "tags", None) or updated.metadata.get("tags", []) or [],
+                metadata=getattr(updated, "metadata", {}) or {},
+                source_file=getattr(updated, "source_file", None),
+                created_at=getattr(updated, "created_at", None),
+                updated_at=getattr(updated, "updated_at", None),
             )
 
-        return response
+            # Broadcast update event (scoped to org)
+            await broadcast_event(
+                "entity_updated", response.model_dump(mode="json"), org_id=str(org.id)
+            )
 
+            if existing.entity_type == EntityType.PROJECT:
+                await AuditLogger(session).log(
+                    action="project.update",
+                    user_id=ctx.user.id,
+                    organization_id=org.id,
+                    request=request,
+                    details={"project_id": existing.id, "name": response.name},
+                )
+
+            return response
+
+    except LockAcquisitionError as e:
+        raise HTTPException(
+            status_code=409,
+            detail="Entity is locked by another process. Please retry.",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
@@ -579,37 +595,53 @@ async def delete_entity(
     session: AsyncSession = Depends(get_session_dependency),
 ) -> None:
     """Delete an entity."""
+    from sibyl.locks import LockAcquisitionError, entity_lock
+
+    group_id = str(org.id)
+
     try:
-        group_id = str(org.id)
-        client = await get_graph_client()
-        entity_manager = EntityManager(client, group_id=group_id)
+        # Acquire distributed lock to prevent concurrent modifications
+        async with entity_lock(group_id, entity_id, blocking=True) as lock_token:
+            if not lock_token:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Entity is being modified by another process. Please retry.",
+                )
 
-        # Check existence
-        existing = await entity_manager.get(entity_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
+            client = await get_graph_client()
+            entity_manager = EntityManager(client, group_id=group_id)
 
-        if existing.entity_type == EntityType.PROJECT:
-            await AuditLogger(session).log(
-                action="project.delete",
-                user_id=ctx.user.id,
-                organization_id=org.id,
-                request=request,
-                details={"project_id": existing.id, "name": existing.name},
+            # Check existence
+            existing = await entity_manager.get(entity_id)
+            if not existing:
+                raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
+
+            if existing.entity_type == EntityType.PROJECT:
+                await AuditLogger(session).log(
+                    action="project.delete",
+                    user_id=ctx.user.id,
+                    organization_id=org.id,
+                    request=request,
+                    details={"project_id": existing.id, "name": existing.name},
+                )
+
+            # Delete
+            success = await entity_manager.delete(entity_id)
+            if not success:
+                raise HTTPException(status_code=500, detail="Delete failed")
+
+            # Broadcast deletion event (scoped to org)
+            await broadcast_event(
+                "entity_deleted",
+                {"id": entity_id, "type": existing.entity_type.value, "name": existing.name},
+                org_id=str(org.id),
             )
 
-        # Delete
-        success = await entity_manager.delete(entity_id)
-        if not success:
-            raise HTTPException(status_code=500, detail="Delete failed")
-
-        # Broadcast deletion event (scoped to org)
-        await broadcast_event(
-            "entity_deleted",
-            {"id": entity_id, "type": existing.entity_type.value, "name": existing.name},
-            org_id=str(org.id),
-        )
-
+    except LockAcquisitionError as e:
+        raise HTTPException(
+            status_code=409,
+            detail="Entity is locked by another process. Please retry.",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:

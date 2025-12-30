@@ -18,7 +18,7 @@ from sibyl_core.errors import EntityNotFoundError, SearchError
 from sibyl_core.graph.client import GraphClient
 from sibyl_core.models.entities import Entity, EntityType
 from sibyl_core.models.sources import Community, Document, Source
-from sibyl_core.models.tasks import Epic, ErrorPattern, Milestone, Project, Task, Team
+from sibyl_core.models.tasks import Epic, ErrorPattern, Milestone, Note, Project, Task, Team
 
 log = structlog.get_logger()
 
@@ -984,6 +984,65 @@ class EntityManager:
             log.exception("Failed to list epics for project", project_id=project_id, error=str(e))
             return []
 
+    async def get_notes_for_task(
+        self,
+        task_id: str,
+        limit: int = 50,
+    ) -> list[Entity]:
+        """Get all notes belonging to a task, ordered by creation time (newest first).
+
+        Args:
+            task_id: The task's unique identifier.
+            limit: Maximum results to return.
+
+        Returns:
+            List of Note entities belonging to the task.
+        """
+        log.debug("Fetching notes for task", task_id=task_id, limit=limit)
+
+        try:
+            # Use BELONGS_TO relationship to find notes
+            query = """
+                MATCH (n)-[:BELONGS_TO]->(t)
+                WHERE n.entity_type = 'note'
+                  AND n.group_id = $group_id
+                  AND t.uuid = $task_id
+                RETURN n.uuid AS uuid,
+                       n.name AS name,
+                       n.entity_type AS entity_type,
+                       n.group_id AS group_id,
+                       n.content AS content,
+                       n.description AS description,
+                       n.metadata AS metadata,
+                       n.created_at AS created_at
+                ORDER BY n.created_at DESC
+                LIMIT $limit
+            """
+
+            params: dict[str, Any] = {
+                "group_id": self._group_id,
+                "task_id": task_id,
+                "limit": limit,
+            }
+
+            result = await self._driver.execute_query(query, **params)
+
+            entities: list[Entity] = []
+            records = GraphClient.normalize_result(result)
+            for record in records:
+                try:
+                    entity = self._record_to_entity(record)
+                    entities.append(entity)
+                except Exception as e:
+                    log.debug("Failed to convert note record", error=str(e))
+
+            log.debug("Fetched notes for task", task_id=task_id, count=len(entities))
+            return entities
+
+        except Exception as e:
+            log.exception("Failed to get notes for task", task_id=task_id, error=str(e))
+            return []
+
     def _record_to_entity(self, node_data: dict[str, Any]) -> Entity:
         """Convert a raw database record to an Entity.
 
@@ -1158,8 +1217,6 @@ class EntityManager:
         This ensures model-specific fields (Task.status, Project.tech_stack, etc.)
         are persisted in the metadata JSON, not just the generic metadata dict.
         """
-        from sibyl_core.models.tasks import Project, Task
-
         # Start with explicit metadata
         metadata = dict(entity.metadata or {})
 
@@ -1206,6 +1263,12 @@ class EntityManager:
                 metadata["target_date"] = entity.target_date.isoformat()
             if entity.learnings:
                 metadata["learnings"] = entity.learnings
+
+        # Add Note-specific fields
+        elif isinstance(entity, Note):
+            metadata["task_id"] = entity.task_id
+            metadata["author_type"] = entity.author_type.value if entity.author_type else "user"
+            metadata["author_name"] = entity.author_name
 
         # Common fields (use getattr since not all entity types have these)
         if languages := getattr(entity, "languages", None):
@@ -1406,6 +1469,14 @@ class EntityManager:
         elif isinstance(entity, Milestone):
             if entity.total_tasks:
                 parts.append(f"Tasks: {entity.completed_tasks}/{entity.total_tasks}")
+
+        elif isinstance(entity, Note):
+            if entity.task_id:
+                parts.append(f"Task ID: {entity.task_id}")
+            if entity.author_type:
+                parts.append(f"Author Type: {entity.author_type}")
+            if entity.author_name:
+                parts.append(f"Author: {sanitize(entity.author_name)}")
 
         return parts
 

@@ -128,6 +128,20 @@ def create_combined_app(  # noqa: PLR0915
                 error=str(e),
             )
 
+        # Initialize distributed entity locks
+        locks_initialized = False
+        try:
+            from sibyl.locks import init_locks
+
+            await init_locks()
+            locks_initialized = True
+            log.info("Distributed entity locks enabled")
+        except Exception as e:
+            log.warning(
+                "Entity locks unavailable - concurrent updates may conflict",
+                error=str(e),
+            )
+
         # Optionally start embedded arq worker (dev mode only)
         worker_task = None
         if embed_worker:
@@ -149,6 +163,15 @@ def create_combined_app(  # noqa: PLR0915
                 await shutdown_pubsub()
             except Exception as e:
                 log.warning("Error shutting down pub/sub", error=str(e))
+
+        # Shutdown locks
+        if locks_initialized:
+            try:
+                from sibyl.locks import shutdown_locks
+
+                await shutdown_locks()
+            except Exception as e:
+                log.warning("Error shutting down locks", error=str(e))
 
         # Shutdown embedded worker if running
         if worker_task:

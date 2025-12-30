@@ -17,6 +17,7 @@ from sibyl_core.errors import EntityNotFoundError, InvalidTransitionError
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
 from sibyl_core.graph.relationships import RelationshipManager
+from sibyl_core.models.tasks import AuthorType, Note, TaskComplexity, TaskPriority, TaskStatus
 from sibyl_core.tasks.workflow import TaskWorkflowEngine
 
 log = structlog.get_logger()
@@ -83,9 +84,9 @@ class ArchiveTaskRequest(BaseModel):
 class UpdateTaskRequest(BaseModel):
     """Request to update task fields."""
 
-    status: str | None = None
-    priority: str | None = None
-    complexity: str | None = None
+    status: TaskStatus | None = None
+    priority: TaskPriority | None = None
+    complexity: TaskComplexity | None = None
     title: str | None = None
     description: str | None = None
     assignees: list[str] | None = None
@@ -101,9 +102,9 @@ class CreateTaskRequest(BaseModel):
     title: str
     description: str | None = None
     project_id: str
-    priority: str = "medium"
-    complexity: str = "medium"
-    status: str = "todo"
+    priority: TaskPriority = TaskPriority.MEDIUM
+    complexity: TaskComplexity = TaskComplexity.MEDIUM
+    status: TaskStatus = TaskStatus.TODO
     assignees: list[str] = []
     epic_id: str | None = None
     feature: str | None = None
@@ -504,66 +505,236 @@ async def update_task(
     org: Organization = Depends(get_current_organization),
 ) -> TaskActionResponse:
     """Update task fields directly."""
+    from sibyl.locks import LockAcquisitionError, entity_lock
+
+    group_id = str(org.id)
+
     try:
-        group_id = str(org.id)
-        client = await get_graph_client()
-        entity_manager = EntityManager(client, group_id=group_id)
+        # Acquire distributed lock to prevent concurrent updates
+        async with entity_lock(group_id, task_id, blocking=True) as lock_token:
+            if not lock_token:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Task is being updated by another process. Please retry.",
+                )
 
-        # Get existing task
-        existing = await entity_manager.get(task_id)
-        if not existing:
-            raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+            client = await get_graph_client()
+            entity_manager = EntityManager(client, group_id=group_id)
 
-        # Build update dict
-        update_data: dict[str, Any] = {}
-        if request.status is not None:
-            update_data["status"] = request.status
-        if request.priority is not None:
-            update_data["priority"] = request.priority
-        if request.title is not None:
-            update_data["name"] = request.title
-        if request.description is not None:
-            update_data["description"] = request.description
-        if request.assignees is not None:
-            update_data["assignees"] = request.assignees
-        if request.epic_id is not None:
-            update_data["epic_id"] = request.epic_id
-        if request.feature is not None:
-            update_data["feature"] = request.feature
-        if request.complexity is not None:
-            update_data["complexity"] = request.complexity
-        if request.tags is not None:
-            update_data["tags"] = request.tags
-        if request.technologies is not None:
-            update_data["technologies"] = request.technologies
+            # Get existing task
+            existing = await entity_manager.get(task_id)
+            if not existing:
+                raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
 
-        if not update_data:
-            raise HTTPException(status_code=400, detail="No fields to update")
+            # Build update dict
+            update_data: dict[str, Any] = {}
+            if request.status is not None:
+                update_data["status"] = request.status
+            if request.priority is not None:
+                update_data["priority"] = request.priority
+            if request.title is not None:
+                update_data["name"] = request.title
+            if request.description is not None:
+                update_data["description"] = request.description
+            if request.assignees is not None:
+                update_data["assignees"] = request.assignees
+            if request.epic_id is not None:
+                update_data["epic_id"] = request.epic_id
+            if request.feature is not None:
+                update_data["feature"] = request.feature
+            if request.complexity is not None:
+                update_data["complexity"] = request.complexity
+            if request.tags is not None:
+                update_data["tags"] = request.tags
+            if request.technologies is not None:
+                update_data["technologies"] = request.technologies
 
-        # Update in graph
-        updated = await entity_manager.update(task_id, update_data)
-        if not updated:
-            raise HTTPException(status_code=500, detail="Update failed")
+            if not update_data:
+                raise HTTPException(status_code=400, detail="No fields to update")
 
-        await _broadcast_task_update(
-            task_id,
-            "update_task",
-            {"name": updated.name, **update_data},
-            org_id=group_id,
-        )
+            # Update in graph
+            updated = await entity_manager.update(task_id, update_data)
+            if not updated:
+                raise HTTPException(status_code=500, detail="Update failed")
 
-        return TaskActionResponse(
-            success=True,
-            action="update_task",
-            task_id=task_id,
-            message=f"Task updated: {', '.join(update_data.keys())}",
-            data=update_data,
-        )
+            await _broadcast_task_update(
+                task_id,
+                "update_task",
+                {"name": updated.name, **update_data},
+                org_id=group_id,
+            )
 
+            return TaskActionResponse(
+                success=True,
+                action="update_task",
+                task_id=task_id,
+                message=f"Task updated: {', '.join(update_data.keys())}",
+                data=update_data,
+            )
+
+    except LockAcquisitionError as e:
+        raise HTTPException(
+            status_code=409,
+            detail="Task is locked by another process. Please retry.",
+        ) from e
     except HTTPException:
         raise
     except Exception as e:
         log.exception("update_task_failed", task_id=task_id, error=str(e))
         raise HTTPException(
             status_code=500, detail="Failed to update task. Please try again."
+        ) from e
+
+
+# =============================================================================
+# Task Notes
+# =============================================================================
+
+
+class CreateNoteRequest(BaseModel):
+    """Request to create a note on a task."""
+
+    content: str
+    author_type: AuthorType = AuthorType.USER
+    author_name: str = ""
+
+
+class NoteResponse(BaseModel):
+    """Response for a single note."""
+
+    id: str
+    task_id: str
+    content: str
+    author_type: str
+    author_name: str
+    created_at: str
+
+
+class NotesListResponse(BaseModel):
+    """Response for listing notes."""
+
+    notes: list[NoteResponse]
+    count: int
+
+
+@router.post("/{task_id}/notes", response_model=NoteResponse)
+async def create_note(
+    task_id: str,
+    request: CreateNoteRequest,
+    org: Organization = Depends(get_current_organization),
+) -> NoteResponse:
+    """Create a note on a task."""
+    from datetime import UTC, datetime
+
+    from sibyl_core.models.entities import Relationship, RelationshipType
+
+    try:
+        group_id = str(org.id)
+        client = await get_graph_client()
+        entity_manager = EntityManager(client, group_id=group_id)
+        relationship_manager = RelationshipManager(client, group_id=group_id)
+
+        # Verify task exists
+        task = await entity_manager.get(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+
+        # Create note entity
+        note_id = f"note_{uuid.uuid4()}"
+        created_at = datetime.now(UTC)
+
+        note = Note(  # type: ignore[call-arg]  # model_validator sets name from content
+            id=note_id,
+            task_id=task_id,
+            content=request.content,
+            author_type=request.author_type,
+            author_name=request.author_name,
+            created_at=created_at,
+        )
+
+        # Create in graph
+        await entity_manager.create_direct(note)
+
+        # Create BELONGS_TO relationship with task
+        belongs_to = Relationship(
+            id=f"rel_{note_id}_belongs_to_{task_id}",
+            source_id=note_id,
+            target_id=task_id,
+            relationship_type=RelationshipType.BELONGS_TO,
+        )
+        await relationship_manager.create(belongs_to)
+
+        log.info(
+            "create_note_success",
+            note_id=note_id,
+            task_id=task_id,
+            author_type=request.author_type,
+        )
+
+        await broadcast_event(
+            "note_created",
+            {"id": note_id, "task_id": task_id, "author_type": request.author_type.value},
+            org_id=group_id,
+        )
+
+        return NoteResponse(
+            id=note_id,
+            task_id=task_id,
+            content=request.content,
+            author_type=request.author_type.value,
+            author_name=request.author_name,
+            created_at=created_at.isoformat(),
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception("create_note_failed", task_id=task_id, error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to create note. Please try again."
+        ) from e
+
+
+@router.get("/{task_id}/notes", response_model=NotesListResponse)
+async def list_notes(
+    task_id: str,
+    limit: int = 50,
+    org: Organization = Depends(get_current_organization),
+) -> NotesListResponse:
+    """List all notes for a task."""
+    try:
+        group_id = str(org.id)
+        client = await get_graph_client()
+        entity_manager = EntityManager(client, group_id=group_id)
+
+        # Verify task exists
+        task = await entity_manager.get(task_id)
+        if not task:
+            raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+
+        # Get notes for task
+        notes_entities = await entity_manager.get_notes_for_task(task_id, limit=limit)
+
+        notes = []
+        for entity in notes_entities:
+            metadata = entity.metadata or {}
+            notes.append(
+                NoteResponse(
+                    id=entity.id,
+                    task_id=metadata.get("task_id", task_id),
+                    content=entity.content,
+                    author_type=metadata.get("author_type", "user"),
+                    author_name=metadata.get("author_name", ""),
+                    created_at=entity.created_at.isoformat() if entity.created_at else "",
+                )
+            )
+
+        return NotesListResponse(notes=notes, count=len(notes))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        log.exception("list_notes_failed", task_id=task_id, error=str(e))
+        raise HTTPException(
+            status_code=500, detail="Failed to list notes. Please try again."
         ) from e

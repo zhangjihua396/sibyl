@@ -549,6 +549,34 @@ class SibylClient:
         return await self._request("PATCH", f"/tasks/{task_id}", json=data)
 
     # =========================================================================
+    # Task Notes Operations
+    # =========================================================================
+
+    async def create_note(
+        self,
+        task_id: str,
+        content: str,
+        author_type: str = "user",
+        author_name: str = "",
+    ) -> dict[str, Any]:
+        """Create a note on a task."""
+        data = {
+            "content": content,
+            "author_type": author_type,
+            "author_name": author_name,
+        }
+        return await self._request("POST", f"/tasks/{task_id}/notes", json=data)
+
+    async def list_notes(
+        self,
+        task_id: str,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """List notes for a task."""
+        params = {"limit": limit}
+        return await self._request("GET", f"/tasks/{task_id}/notes", params=params)
+
+    # =========================================================================
     # Search Operations
     # =========================================================================
 

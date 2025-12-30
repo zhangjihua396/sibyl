@@ -9,6 +9,7 @@ import { Markdown } from '@/components/ui/markdown';
 import type { Entity } from '@/lib/api';
 import type { TaskStatusType } from '@/lib/constants';
 import type { RelatedKnowledgeItem } from './task-detail-types';
+import { TaskNotesSection } from './task-notes-section';
 
 interface TaskContentSectionsProps {
   task: Entity;
@@ -130,6 +131,9 @@ export function TaskContentSections({
           </p>
         )}
       </div>
+
+      {/* Notes */}
+      <TaskNotesSection taskId={task.id} />
 
       {/* Learnings - show when done or has content */}
       {(status === 'done' || learnings) && (

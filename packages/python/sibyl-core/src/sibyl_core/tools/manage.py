@@ -54,6 +54,7 @@ TASK_ACTIONS = {
     "complete_task",  # Mark task as done, capture learnings
     "archive_task",  # Archive without completing
     "update_task",  # Update task fields
+    "add_note",  # Add a note to a task
 }
 
 # Epic workflow actions (DEPRECATED: Use /epics/{id}/* endpoints instead)
@@ -108,6 +109,7 @@ async def manage(
         - complete_task: Mark done and capture learnings (data.learnings optional)
         - archive_task: Archive without completing
         - update_task: Update task fields (data contains field updates)
+        - add_note: Add a note to a task (data.content, data.author_type, data.author_name)
 
     Epic Workflow:
         - start_epic: Move epic to in_progress status
@@ -305,6 +307,9 @@ async def _handle_task_action(
                 entity_manager, entity_id, data, organization_id=organization_id
             )
 
+        if action == "add_note":
+            return await _add_note(entity_manager, relationship_manager, entity_id, data)
+
     except InvalidTransitionError as e:
         return ManageResponse(
             success=False,
@@ -412,6 +417,118 @@ async def _update_task(
         action="update_task",
         entity_id=entity_id,
         message="Failed to update task",
+    )
+
+
+async def _add_note(
+    entity_manager: EntityManager,
+    relationship_manager: RelationshipManager,
+    task_id: str | None,
+    data: dict[str, Any],
+) -> ManageResponse:
+    """Add a note to a task.
+
+    Args:
+        entity_manager: EntityManager instance
+        relationship_manager: RelationshipManager instance
+        task_id: Task ID to add note to
+        data: Dict containing note fields:
+            - content: Note content (required)
+            - author_type: "agent" or "user" (default: "user")
+            - author_name: Author identifier (optional)
+    """
+    import uuid
+
+    from sibyl_core.models.entities import Relationship, RelationshipType
+    from sibyl_core.models.tasks import AuthorType, Note
+
+    if not task_id:
+        return ManageResponse(
+            success=False,
+            action="add_note",
+            message="entity_id (task_id) required for add_note",
+        )
+
+    content = data.get("content")
+    if not content:
+        return ManageResponse(
+            success=False,
+            action="add_note",
+            entity_id=task_id,
+            message="data.content required for add_note",
+        )
+
+    # Verify task exists
+    try:
+        task = await entity_manager.get(task_id)
+        if not task:
+            return ManageResponse(
+                success=False,
+                action="add_note",
+                entity_id=task_id,
+                message=f"Task not found: {task_id}",
+            )
+    except Exception:
+        return ManageResponse(
+            success=False,
+            action="add_note",
+            entity_id=task_id,
+            message=f"Task not found: {task_id}",
+        )
+
+    # Parse author_type
+    author_type_str = data.get("author_type", "user")
+    try:
+        author_type = AuthorType(author_type_str)
+    except ValueError:
+        author_type = AuthorType.USER
+
+    author_name = data.get("author_name", "")
+
+    # Create note entity
+    note_id = f"note_{uuid.uuid4()}"
+    created_at = datetime.now(UTC)
+
+    note = Note(  # type: ignore[call-arg]  # model_validator sets name from content
+        id=note_id,
+        task_id=task_id,
+        content=content,
+        author_type=author_type,
+        author_name=author_name,
+        created_at=created_at,
+    )
+
+    # Create in graph
+    await entity_manager.create_direct(note)
+
+    # Create BELONGS_TO relationship with task
+    belongs_to = Relationship(
+        id=f"rel_{note_id}_belongs_to_{task_id}",
+        source_id=note_id,
+        target_id=task_id,
+        relationship_type=RelationshipType.BELONGS_TO,
+    )
+    await relationship_manager.create(belongs_to)
+
+    log.info(
+        "add_note_success",
+        note_id=note_id,
+        task_id=task_id,
+        author_type=author_type.value,
+    )
+
+    return ManageResponse(
+        success=True,
+        action="add_note",
+        entity_id=note_id,
+        message="Note added to task",
+        data={
+            "note_id": note_id,
+            "task_id": task_id,
+            "author_type": author_type.value,
+            "author_name": author_name,
+            "created_at": created_at.isoformat(),
+        },
     )
 
 

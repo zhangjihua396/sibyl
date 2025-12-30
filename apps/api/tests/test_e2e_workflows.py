@@ -444,3 +444,102 @@ class TestMultiStepWorkflowE2E:
                 types=["episode"],
             )
             assert learning_search is not None
+
+
+class TestTaskNotesE2E:
+    """End-to-end tests for task notes feature."""
+
+    @pytest.mark.asyncio
+    async def test_add_note_to_task(self) -> None:
+        """Test: add a note to a task via manage tool."""
+        ctx = ToolTestContext()
+
+        # Create a task first
+        task = create_test_entity(
+            entity_type=EntityType.TASK,
+            name="Task with notes",
+            description="Testing notes feature",
+            metadata={"status": TaskStatus.TODO.value, "project_id": "test-project"},
+        )
+        ctx.entity_manager.add_entity(task)
+
+        async with ctx.patch():
+            # Add a note
+            result = await manage(
+                action="add_note",
+                entity_id=task.id,
+                data={
+                    "content": "Found the root cause of the issue",
+                    "author_type": "agent",
+                    "author_name": "claude",
+                },
+                organization_id=TEST_ORG_ID,
+            )
+            assert result.action == "add_note"
+            assert result.success
+            assert result.data.get("task_id") == task.id
+            assert result.data.get("author_type") == "agent"
+            assert result.data.get("author_name") == "claude"
+
+    @pytest.mark.asyncio
+    async def test_add_note_requires_content(self) -> None:
+        """Test: add_note fails without content."""
+        ctx = ToolTestContext()
+
+        task = create_test_entity(
+            entity_type=EntityType.TASK,
+            name="Task for validation test",
+            metadata={"status": TaskStatus.TODO.value, "project_id": "test-project"},
+        )
+        ctx.entity_manager.add_entity(task)
+
+        async with ctx.patch():
+            # Try to add note without content
+            result = await manage(
+                action="add_note",
+                entity_id=task.id,
+                data={},  # No content
+                organization_id=TEST_ORG_ID,
+            )
+            assert result.success is False
+            assert "content" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_add_note_requires_task_id(self) -> None:
+        """Test: add_note fails without entity_id."""
+        ctx = ToolTestContext()
+
+        async with ctx.patch():
+            result = await manage(
+                action="add_note",
+                entity_id=None,
+                data={"content": "This should fail"},
+                organization_id=TEST_ORG_ID,
+            )
+            assert result.success is False
+            assert "entity_id" in result.message.lower() or "task_id" in result.message.lower()
+
+    @pytest.mark.asyncio
+    async def test_add_user_note(self) -> None:
+        """Test: add a user-authored note (default author_type)."""
+        ctx = ToolTestContext()
+
+        task = create_test_entity(
+            entity_type=EntityType.TASK,
+            name="Task for user note",
+            metadata={"status": TaskStatus.TODO.value, "project_id": "test-project"},
+        )
+        ctx.entity_manager.add_entity(task)
+
+        async with ctx.patch():
+            result = await manage(
+                action="add_note",
+                entity_id=task.id,
+                data={
+                    "content": "User observation about this task",
+                    # No author_type specified - should default to user
+                },
+                organization_id=TEST_ORG_ID,
+            )
+            assert result.success
+            assert result.data.get("author_type") == "user"

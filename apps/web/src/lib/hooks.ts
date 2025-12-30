@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import type {
   CodeExampleParams,
   CodeExampleResponse,
+  CreateNoteRequest,
   EntityCreate,
   EntityUpdate,
   EpicStatus,
@@ -89,6 +90,7 @@ export const queryKeys = {
       return ['tasks', 'list', normalized] as const;
     },
     detail: (id: string) => ['tasks', 'detail', id] as const,
+    notes: (id: string) => ['tasks', 'notes', id] as const,
   },
   projects: {
     all: ['projects'] as const,
@@ -957,6 +959,30 @@ export function useTaskUpdateStatus() {
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.entities.detail(id) });
+    },
+  });
+}
+
+// =============================================================================
+// Task Notes Hooks
+// =============================================================================
+
+export function useTaskNotes(taskId: string, options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.tasks.notes(taskId),
+    queryFn: () => api.tasks.notes.list(taskId),
+    enabled: (options?.enabled ?? true) && !!taskId,
+  });
+}
+
+export function useAddTaskNote() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ taskId, data }: { taskId: string; data: CreateNoteRequest }) =>
+      api.tasks.notes.create(taskId, data),
+    onSuccess: (_data, { taskId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.tasks.notes(taskId) });
     },
   });
 }

@@ -32,10 +32,12 @@ from sibyl_core.models.sources import (
     SourceType,
 )
 from sibyl_core.models.tasks import (
+    AuthorType,
     Epic,
     EpicStatus,
     ErrorPattern,
     Milestone,
+    Note,
     Project,
     ProjectStatus,
     Task,
@@ -60,6 +62,8 @@ from sibyl_core.models.tools import (
 __all__ = [
     # Tool inputs
     "AddLearningInput",
+    # Notes
+    "AuthorType",
     # Documentation crawling
     "Community",
     # Base entities
@@ -85,6 +89,7 @@ __all__ = [
     "ListResponse",
     "Milestone",
     "MutationResponse",
+    "Note",
     "Pattern",
     "Project",
     "ProjectStatus",

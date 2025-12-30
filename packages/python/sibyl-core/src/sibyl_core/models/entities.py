@@ -37,6 +37,9 @@ class EntityType(StrEnum):
     # Graph-RAG types
     COMMUNITY = "community"  # Entity cluster from community detection
 
+    # Collaboration types
+    NOTE = "note"  # Timestamped note on a task
+
 
 class RelationshipType(StrEnum):
     """Types of relationships between entities."""
