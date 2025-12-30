@@ -50,24 +50,6 @@ SIBYL_HOOKS = {
             ],
         }
     ],
-    "PostToolUse": [
-        {
-            "matcher": "Write|Edit|MultiEdit",
-            "hooks": [
-                {
-                    "type": "command",
-                    "command": f"python3 {HOOKS_DIR}/post-tool-use.py",
-                    "timeout": 5,
-                }
-            ],
-        }
-    ],
-    "Stop": [
-        {
-            "matcher": ".*",
-            "hooks": [{"type": "command", "command": f"python3 {HOOKS_DIR}/stop.py", "timeout": 5}],
-        }
-    ],
 }
 
 
