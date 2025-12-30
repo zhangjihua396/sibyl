@@ -142,6 +142,7 @@ sibyl task archive task_xyz --reason "Completed: implemented feature"
 
 # Direct update
 sibyl task update task_xyz --status done --priority high
+sibyl task update task_xyz --description "Updated task details..."
 
 # Add a note to a task
 sibyl task note task_xyz "Found the root cause of the bug"

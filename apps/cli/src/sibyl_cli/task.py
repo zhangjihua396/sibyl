@@ -898,6 +898,9 @@ def update_task(
         typer.Option("--complexity", help="Complexity: trivial|simple|medium|complex|epic"),
     ] = None,
     title: Annotated[str | None, typer.Option("--title", help="Task title")] = None,
+    description: Annotated[
+        str | None, typer.Option("-d", "--description", help="Task description/content")
+    ] = None,
     assignee: Annotated[str | None, typer.Option("-a", "--assignee", help="Assignee")] = None,
     epic: Annotated[str | None, typer.Option("-e", "--epic", help="Epic ID to group under")] = None,
     feature: Annotated[str | None, typer.Option("-f", "--feature", help="Feature area")] = None,
@@ -920,10 +923,21 @@ def update_task(
         try:
             # Check we have something to update
             if not any(
-                [status, priority, complexity, title, assignee, epic, feature, tags, technologies]
+                [
+                    status,
+                    priority,
+                    complexity,
+                    title,
+                    description,
+                    assignee,
+                    epic,
+                    feature,
+                    tags,
+                    technologies,
+                ]
             ):
                 error(
-                    "No fields to update. Use --status, --priority, --complexity, --title, --assignee, --epic, --feature, --tags, or --tech"
+                    "No fields to update. Use --status, --priority, --complexity, --title, --description, --assignee, --epic, --feature, --tags, or --tech"
                 )
                 return
 
@@ -941,6 +955,7 @@ def update_task(
                         priority=priority,
                         complexity=complexity,
                         title=title,
+                        description=description,
                         assignees=assignees,
                         epic_id=epic,
                         feature=feature,
@@ -954,6 +969,7 @@ def update_task(
                     priority=priority,
                     complexity=complexity,
                     title=title,
+                    description=description,
                     assignees=assignees,
                     epic_id=epic,
                     feature=feature,
