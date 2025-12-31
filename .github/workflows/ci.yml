@@ -170,8 +170,8 @@ jobs:
 
       - name: Run e2e tests
         run: |
-          cd apps/api
-          uv run pytest tests/e2e -v
+          cd apps/e2e
+          uv run pytest -v
 
       - name: Collect diagnostics on failure
         if: failure()
