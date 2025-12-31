@@ -111,8 +111,6 @@ tasks:
     inputs:
       - "@group(sources)"
       - "@group(configs)"
-    outputs:
-      - "dist"
 
   # Installation
   install:
