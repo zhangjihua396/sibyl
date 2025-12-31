@@ -131,6 +131,9 @@ jobs:
       # =========================================================================
       # E2E Tests
       # =========================================================================
+      - name: Install tools for E2E tests
+        run: moon run cli:install api:install
+
       - name: Start backend server
         run: |
           cd apps/api
