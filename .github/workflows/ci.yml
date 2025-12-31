@@ -191,12 +191,6 @@ jobs:
           files: apps/api/coverage.xml
           fail_ci_if_error: false
 
-      - name: Upload moon run report
-        uses: moonrepo/run-report-action@v1
-        if: success() || failure()
-        with:
-          access-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
         with:

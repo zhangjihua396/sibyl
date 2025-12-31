@@ -109,7 +109,7 @@ tasks:
       persistent: true
 
   build-storybook:
-    command: "pnpm storybook build"
+    command: "pnpm build-storybook"
     inputs:
       - "@group(sources)"
     outputs:
