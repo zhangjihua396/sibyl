@@ -109,7 +109,7 @@ jobs:
       # Build (all projects)
       # =========================================================================
       - name: Build
-        run: moon ci :build
+        run: moon run :build
 
       - name: Build Storybook
         run: moon run web:build-storybook
