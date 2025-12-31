@@ -1,0 +1,398 @@
+---
+title: Capturing Knowledge
+description: How to effectively capture learnings in Sibyl
+---
+
+# Capturing Knowledge
+
+The value of Sibyl grows with every piece of knowledge you capture. This guide explains what to capture, how to capture it, and patterns for high-quality knowledge entries.
+
+## The Philosophy
+
+### Search Before Implementing
+
+Before you write code, search the graph:
+
+```bash
+sibyl search "what you're building"
+sibyl search "error you hit" --type episode
+```
+
+### Capture What You Learn
+
+If it took time to figure out, save it:
+
+```bash
+sibyl add "Descriptive title" "What, why, how, caveats"
+```
+
+### Complete With Learnings
+
+Every task completion is an opportunity:
+
+```bash
+sibyl task complete task_xyz --learnings "Key insight: ..."
+```
+
+## What to Capture
+
+### Always Capture
+
+- **Non-obvious solutions** - If it took debugging, save the solution
+- **Configuration gotchas** - Unexpected settings or requirements
+- **Error patterns** - Recurring errors and their fixes
+- **Architectural decisions** - Why you chose approach X over Y
+- **Integration approaches** - How to connect system A to system B
+
+### Consider Capturing
+
+- **Useful patterns** - Code structures that work well
+- **Performance findings** - Optimization discoveries
+- **Tool tips** - Useful CLI flags or library features
+- **Workarounds** - Temporary fixes with context
+
+### Skip Capturing
+
+- **Trivial information** - Well-documented basics
+- **Temporary hacks** - Unless they might recur
+- **Personal notes** - Use task notes instead
+- **Standard practices** - Unless team-specific
+
+## The `add` Command
+
+### Basic Usage
+
+```bash
+sibyl add "Title" "Content"
+```
+
+The default type is `episode` - a temporal learning.
+
+### With Entity Type
+
+```bash
+# Create a pattern
+sibyl add "Error boundary pattern" "React error boundary for..." --type pattern
+
+# Create a rule
+sibyl add "Never commit .env" "Environment files must be gitignored" --type rule
+```
+
+### With Metadata
+
+```bash
+sibyl add "Redis pooling insight" \
+  "Connection pool size must be >= concurrent requests" \
+  --category database \
+  --languages python,redis
+```
+
+## Quality Guidelines
+
+### Good Knowledge Entry
+
+A good entry answers:
+
+1. **What** - The specific issue or discovery
+2. **Why** - Root cause or reasoning
+3. **How** - The solution or approach
+4. **When** - Context where it applies
+5. **Caveats** - Edge cases or limitations
+
+### Examples
+
+**Bad:**
+```bash
+sibyl add "Fixed the bug" "It works now"
+```
+
+**Good:**
+```bash
+sibyl add "JWT refresh fails on Redis TTL expiry" \
+  "Root cause: Token service doesn't handle WRONGTYPE error when Redis key
+expires during refresh. The expired token returns a different data type.
+
+Fix: Add try/except around token retrieval with regeneration fallback:
+\`\`\`python
+try:
+    token = await redis.get(key)
+except RedisError as e:
+    if 'WRONGTYPE' in str(e):
+        return await regenerate_token(user_id)
+    raise
+\`\`\`
+
+Affects: Authentication service, user session management
+Technologies: Redis, JWT, Python"
+```
+
+### Template
+
+Use this structure for consistent entries:
+
+```
+**Problem/Discovery:**
+[What you encountered]
+
+**Root Cause:**
+[Why it happened]
+
+**Solution:**
+[How to fix/implement]
+
+**Context:**
+[When this applies]
+
+**Caveats:**
+[Edge cases, limitations]
+```
+
+## Task Learnings
+
+### Capturing on Completion
+
+```bash
+sibyl task complete task_xyz --learnings "OAuth redirect URIs must match
+exactly - including trailing slashes. Google OAuth rejects mismatches
+silently, returning a generic error instead of indicating the redirect
+URI problem. Always test with the exact production URL."
+```
+
+### What to Include in Task Learnings
+
+- **Unexpected challenges** - What was harder than expected?
+- **Key insights** - The "aha" moment
+- **Future recommendations** - What would you do differently?
+- **Related resources** - Docs, articles that helped
+
+### Learning vs Episode
+
+| Task Learning | Episode |
+|--------------|---------|
+| Specific to task work | General discovery |
+| Linked to task entity | Standalone entity |
+| Part of completion | Created anytime |
+| Brief summary | Can be detailed |
+
+## Auto-Linking
+
+When you add knowledge, Sibyl automatically discovers and links related entities:
+
+```python
+# Internally, new entities are linked to:
+# - Patterns with similar content
+# - Rules that apply
+# - Topics mentioned
+# - Technologies referenced
+```
+
+You can also explicitly link:
+
+```bash
+# Via MCP
+add(
+    title="OAuth session management",
+    content="...",
+    related_to=["pattern_session", "topic_auth"]
+)
+```
+
+## Entity Type Selection
+
+| Scenario | Type | Example |
+|----------|------|---------|
+| Figured out why something broke | `episode` | "Redis WRONGTYPE on TTL expiry" |
+| Found a reusable approach | `pattern` | "Retry with exponential backoff" |
+| Discovered a constraint | `rule` | "Never store PII in logs" |
+| Common error with solution | `error_pattern` | "CORS preflight fails on POST" |
+| External docs to reference | `source` | "Next.js docs" |
+
+## Organizational Patterns
+
+### Category Usage
+
+Use consistent categories across your org:
+
+```bash
+# Domain categories
+--category authentication
+--category database
+--category api
+--category frontend
+--category devops
+--category testing
+
+# Type categories
+--category debugging
+--category performance
+--category security
+--category integration
+```
+
+### Tag Conventions
+
+Tags enable cross-cutting discovery:
+
+```bash
+--tags python,redis,performance
+--tags security,authentication,oauth
+--tags bug,production,hotfix
+```
+
+## Search-Friendly Content
+
+Write content that will be found later:
+
+### Include Synonyms
+
+```bash
+sibyl add "Connection pool exhaustion" \
+  "Also known as: pool starvation, connection leak.
+Pool exhaustion occurs when all connections are in use..."
+```
+
+### Include Error Messages
+
+```bash
+sibyl add "FalkorDB WRONGTYPE error" \
+  "Error: WRONGTYPE Operation against a key holding the wrong kind of value
+
+This occurs when Redis returns a different data type than expected..."
+```
+
+### Include Technology Names
+
+```bash
+sibyl add "Async task cancellation" \
+  "Python asyncio task cancellation pattern.
+
+When cancelling asyncio tasks, you must handle CancelledError..."
+```
+
+## Workflow Integration
+
+### Research Phase
+
+```bash
+# Before implementing
+sibyl search "what you're building"
+sibyl search "common issues with X"
+```
+
+### Implementation Phase
+
+```bash
+# While working
+sibyl task note task_xyz "Found issue with OAuth scopes"
+```
+
+### Completion Phase
+
+```bash
+# After completing
+sibyl task complete task_xyz --learnings "Detailed insight..."
+
+# If discovery was significant enough for standalone entry
+sibyl add "OAuth scope discovery" "Detailed content..."
+```
+
+## MCP Knowledge Capture
+
+### Using `add` Tool
+
+```python
+# Quick episode
+add(
+    title="Redis timeout solution",
+    content="Increase timeout to 30s for large operations...",
+    category="database",
+    languages=["python"]
+)
+
+# Structured pattern
+add(
+    title="Retry pattern with backoff",
+    content="Implementation of exponential backoff...",
+    entity_type="pattern",
+    category="resilience",
+    languages=["python", "typescript"]
+)
+```
+
+### From Task Completion
+
+```python
+manage(
+    action="complete_task",
+    entity_id="task_xyz",
+    data={
+        "learnings": "Key insight about OAuth implementation..."
+    }
+)
+```
+
+## Team Knowledge Building
+
+### Shared Patterns
+
+Create patterns that the whole team can use:
+
+```bash
+sibyl add "Team API response format" \
+  "All APIs must return: { data, error, meta }
+
+data: The response payload or null
+error: Error object with code/message or null
+meta: Pagination, version info, etc.
+
+Example:
+\`\`\`json
+{
+  \"data\": { \"user\": {...} },
+  \"error\": null,
+  \"meta\": { \"version\": \"1.0\" }
+}
+\`\`\`" \
+  --type pattern \
+  --category api
+```
+
+### Shared Rules
+
+Document team constraints:
+
+```bash
+sibyl add "No direct database access from handlers" \
+  "Route handlers must not directly query the database.
+Use service layer methods instead.
+
+WRONG: await db.query('SELECT * FROM users')
+RIGHT: await user_service.get_users()
+
+Reason: Keeps business logic testable and reusable." \
+  --type rule \
+  --category architecture
+```
+
+## Measuring Knowledge Quality
+
+### Good Indicators
+
+- Entries are found when searching
+- Team members reference captured knowledge
+- Debugging time decreases over time
+- Onboarding uses knowledge graph
+
+### Review Checklist
+
+- [ ] Title is descriptive and searchable
+- [ ] Content explains why, not just what
+- [ ] Appropriate entity type selected
+- [ ] Category and languages tagged
+- [ ] Related entities linked
+
+## Next Steps
+
+- [Entity Types](./entity-types.md) - Choose the right type
+- [Semantic Search](./semantic-search.md) - Find your knowledge
+- [Task Management](./task-management.md) - Capture in workflow

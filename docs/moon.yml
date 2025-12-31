@@ -1,0 +1,48 @@
+# https://moonrepo.dev/docs/config/project
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+language: typescript
+type: application
+platform: node
+
+fileGroups:
+  sources:
+    - "**/*.md"
+    - ".vitepress/**/*"
+  configs:
+    - "package.json"
+    - ".vitepress/config.mts"
+
+tasks:
+  # Development
+  dev:
+    command: "pnpm vitepress dev"
+    local: true
+    options:
+      persistent: true
+
+  # Build
+  build:
+    command: "pnpm vitepress build"
+    inputs:
+      - "@group(sources)"
+      - "@group(configs)"
+    outputs:
+      - ".vitepress/dist"
+
+  # Preview built site
+  preview:
+    command: "pnpm vitepress preview"
+    local: true
+    deps:
+      - "~:build"
+    options:
+      persistent: true
+
+  # Dependencies
+  install:
+    command: "pnpm install"
+    inputs:
+      - "package.json"
+      - "pnpm-lock.yaml"
+    local: true
