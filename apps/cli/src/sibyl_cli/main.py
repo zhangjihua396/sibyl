@@ -190,137 +190,41 @@ def search(
 
                 console.print(f"\n[bold]Found {len(results)} results:[/bold]\n")
                 for r in results:
-                    rid = r.get("id", "")[:8]  # Truncated ID
+                    entity_id = r.get("id", "")
                     name = r.get("name", "Unknown")
-                    etype = r.get("type", "unknown")
-                    score = r.get("score", 0)
                     source = r.get("source")
                     content = r.get("content", "")
                     metadata = r.get("metadata", {})
                     heading_path = metadata.get("heading_path", [])
 
-                    # Header line: ID • Name (type • source) score
-                    type_info = f"{etype} • {source}" if source else etype
-                    console.print(
-                        f"  [{CORAL}]{rid}[/{CORAL}] "
-                        f"[{NEON_CYAN}]{name}[/{NEON_CYAN}] "
-                        f"[dim]({type_info})[/dim] "
-                        f"[dim]{score:.2f}[/dim]"
-                    )
+                    # Header: Document name (source)
+                    source_info = f" [{source}]" if source else ""
+                    console.print(f"  [{NEON_CYAN}]{name}[/{NEON_CYAN}][dim]{source_info}[/dim]")
 
-                    # Heading path if available
+                    # Section path
                     if heading_path:
                         path_str = " > ".join(heading_path)
-                        console.print(f"       [dim italic]{path_str}[/dim italic]")
+                        console.print(f"    [dim]{path_str}[/dim]")
 
-                    # Content preview (first 120 chars, single line)
+                    # Content preview (first 100 chars)
                     if content:
-                        # Clean up content: collapse whitespace, remove markdown cruft
-                        preview = " ".join(content.split())[:120]
-                        if len(content) > 120:
+                        # Strip heading prefix if present
+                        preview = content
+                        if preview.startswith("[") and "] " in preview:
+                            preview = preview.split("] ", 1)[1]
+                        preview = " ".join(preview.split())[:100]
+                        if len(content) > 100:
                             preview += "…"
-                        console.print(f"       {preview}")
-                    console.print()
+                        console.print(f"    {preview}")
 
-                # Hint for getting full content
-                console.print(
-                    f'  [dim]Tip: Use[/dim] [{NEON_CYAN}]sibyl get "{query}"[/{NEON_CYAN}]'
-                    f"[dim] to see full content[/dim]\n"
-                )
+                    # Show truncated ID (prefix matching supported)
+                    short_id = entity_id[:8] if entity_id else ""
+                    console.print(f"    [{CORAL}]{short_id}[/{CORAL}]")
+                    console.print()
         except SibylClientError as e:
             _handle_client_error(e)
 
     run_search()
-
-
-@app.command("get")
-def get_content(
-    query: str = typer.Argument(..., help="Search query"),
-    limit: int = typer.Option(5, "--limit", "-l", help="Max chunks to aggregate"),
-    all_projects: bool = typer.Option(False, "--all", "-a", help="Search all projects"),
-    json_output: bool = typer.Option(False, "--json", "-j", help="Output as JSON"),
-) -> None:
-    """Search and display full content (aggregated from chunks).
-
-    Unlike 'search' which shows previews, 'get' shows the complete
-    content of matching chunks, grouped by document section.
-
-    Examples:
-        sibyl get "emoji conventions"
-        sibyl get "how to configure logging" --limit 3
-    """
-    effective_project = None if all_projects else resolve_project_from_cwd()
-
-    @run_async
-    async def run_get() -> None:
-        try:
-            async with get_client() as client:
-                with spinner(f"Searching for '{query}'..."):
-                    data = await client.search(
-                        query, types=None, limit=limit * 2, project=effective_project
-                    )
-
-                results = data.get("results", [])
-                if not results:
-                    info("No results found")
-                    return
-
-                # Group by heading_path (or document_id if no heading)
-                from collections import defaultdict
-
-                groups: dict[str, list[dict]] = defaultdict(list)
-                for r in results[:limit]:
-                    metadata = r.get("metadata", {})
-                    heading_path = metadata.get("heading_path", [])
-                    doc_id = metadata.get("document_id", r.get("id", "unknown"))
-                    # Group key: heading path or doc ID
-                    key = " > ".join(heading_path) if heading_path else doc_id
-                    groups[key].append(r)
-
-                if json_output:
-                    # Return grouped results
-                    grouped_data = {
-                        "query": query,
-                        "groups": [{"heading": k, "chunks": v} for k, v in groups.items()],
-                    }
-                    print_json(grouped_data)
-                    return
-
-                # Pretty print each group
-                console.print()
-                for heading, chunks in groups.items():
-                    # Get source info from first chunk
-                    first = chunks[0]
-                    source = first.get("source", "")
-                    metadata = first.get("metadata", {})
-                    doc_url = metadata.get("document_url", "")
-
-                    # Section header
-                    console.print(f"[bold {NEON_CYAN}]─── {heading} ───[/bold {NEON_CYAN}]")
-                    if source:
-                        console.print(f"[dim]Source: {source}[/dim]")
-                    if doc_url:
-                        console.print(f"[dim]{doc_url}[/dim]")
-                    console.print()
-
-                    # Aggregate content from all chunks in this group
-                    seen_content: set[str] = set()
-                    for chunk in chunks:
-                        content = chunk.get("content", "").strip()
-                        # Skip exact duplicate content
-                        if content and content not in seen_content:
-                            seen_content.add(content)
-                            # Strip the heading prefix if present (e.g., "[Heading > Path] ")
-                            if content.startswith("[") and "] " in content:
-                                content = content.split("] ", 1)[1]
-                            console.print(content)
-                            console.print()
-
-                console.print()
-        except SibylClientError as e:
-            _handle_client_error(e)
-
-    run_get()
 
 
 @app.command("add")

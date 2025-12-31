@@ -236,20 +236,40 @@ async def get_entity(
             log.debug("Entity not in graph, checking document chunks", entity_id=entity_id)
 
         # Fallback: check if it's a document chunk
-        try:
-            chunk_uuid = UUID(entity_id)
-        except ValueError:
-            raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}") from None
-
+        # Support both full UUIDs and prefix matching (e.g., "2cebcab8" matches "2cebcab8-...")
         async with get_session() as session:
-            result = await session.execute(
-                select(DocumentChunk, CrawledDocument, CrawlSource)
-                .join(CrawledDocument, DocumentChunk.document_id == CrawledDocument.id)
-                .join(CrawlSource, CrawledDocument.source_id == CrawlSource.id)
-                .where(col(DocumentChunk.id) == chunk_uuid)
-                .where(col(CrawlSource.organization_id) == org.id)
-            )
-            row = result.first()
+            # Try exact UUID match first
+            try:
+                chunk_uuid = UUID(entity_id)
+                result = await session.execute(
+                    select(DocumentChunk, CrawledDocument, CrawlSource)
+                    .join(CrawledDocument, DocumentChunk.document_id == CrawledDocument.id)
+                    .join(CrawlSource, CrawledDocument.source_id == CrawlSource.id)
+                    .where(col(DocumentChunk.id) == chunk_uuid)
+                    .where(col(CrawlSource.organization_id) == org.id)
+                )
+                row = result.first()
+            except ValueError:
+                row = None
+
+            # If no exact match and ID looks like a prefix (4-32 hex chars), try prefix match
+            if (
+                not row
+                and len(entity_id) >= 4
+                and all(c in "0123456789abcdef-" for c in entity_id.lower())
+            ):
+                from sqlalchemy import String, cast
+
+                prefix = entity_id.lower().replace("-", "")
+                result = await session.execute(
+                    select(DocumentChunk, CrawledDocument, CrawlSource)
+                    .join(CrawledDocument, DocumentChunk.document_id == CrawledDocument.id)
+                    .join(CrawlSource, CrawledDocument.source_id == CrawlSource.id)
+                    .where(cast(DocumentChunk.id, String).like(f"{prefix[:8]}%"))
+                    .where(col(CrawlSource.organization_id) == org.id)
+                    .limit(1)
+                )
+                row = result.first()
 
             if not row:
                 raise HTTPException(status_code=404, detail=f"Entity not found: {entity_id}")
