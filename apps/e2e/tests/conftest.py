@@ -102,14 +102,14 @@ class CLIRunner:
 
     def project_create(self, name: str, description: str | None = None) -> CLIResult:
         """Create a project."""
-        args = ["project", "create", "--name", name]
+        args = ["project", "create", "--name", name, "--json"]
         if description:
             args.extend(["--description", description])
         return self.run(*args)
 
     def project_list(self) -> CLIResult:
         """List projects."""
-        return self.run("project", "list")
+        return self.run("project", "list", "--json")
 
     def task_create(
         self,
@@ -134,6 +134,7 @@ class CLIRunner:
             project_id,
             "--priority",
             priority,
+            "--json",
         ]
         if feature:
             args.extend(["--feature", feature])
@@ -143,7 +144,7 @@ class CLIRunner:
 
     def task_list(self, status: str | None = None, project: str | None = None) -> CLIResult:
         """List tasks."""
-        args = ["task", "list"]
+        args = ["task", "list", "--json"]
         if status:
             args.extend(["--status", status])
         if project:
@@ -152,11 +153,11 @@ class CLIRunner:
 
     def task_start(self, task_id: str) -> CLIResult:
         """Start a task."""
-        return self.run("task", "start", task_id)
+        return self.run("task", "start", task_id, "--json")
 
     def task_complete(self, task_id: str, learnings: str | None = None) -> CLIResult:
         """Complete a task."""
-        args = ["task", "complete", task_id]
+        args = ["task", "complete", task_id, "--json"]
         if learnings:
             args.extend(["--learnings", learnings])
         return self.run(*args)
@@ -170,7 +171,7 @@ class CLIRunner:
         language: str | None = None,
     ) -> CLIResult:
         """Add knowledge to the graph."""
-        args = ["add", title, content, "--type", entity_type]
+        args = ["add", title, content, "--type", entity_type, "--json"]
         if category:
             args.extend(["-c", category])
         if language:
@@ -179,11 +180,11 @@ class CLIRunner:
 
     def search(self, query: str, limit: int = 5) -> CLIResult:
         """Search the knowledge graph."""
-        return self.run("search", query, "--limit", str(limit))
+        return self.run("search", query, "--limit", str(limit), "--json")
 
     def entity_list(self, entity_type: str | None = None) -> CLIResult:
         """List entities."""
-        args = ["entity", "list"]
+        args = ["entity", "list", "--json"]
         if entity_type:
             args.extend(["--type", entity_type])
         return self.run(*args)

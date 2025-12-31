@@ -50,7 +50,7 @@ class TestProjectCRUD:
         project_id = create_result.json().get("id")
 
         # Show - may not be implemented, so we verify via list instead
-        show_result = cli.run("project", "show", project_id)
+        show_result = cli.run("project", "show", project_id, "--json")
         if show_result.success:
             data = show_result.json()
             assert data.get("name") == test_project_name

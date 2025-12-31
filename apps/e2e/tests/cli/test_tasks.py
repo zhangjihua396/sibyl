@@ -83,7 +83,7 @@ class TestTaskWorkflow:
         task_id = create_result.json().get("id")
 
         # Verify task exists via show command
-        show_result = cli.run("task", "show", task_id)
+        show_result = cli.run("task", "show", task_id, "--json")
         assert show_result.success, f"Task show failed: {show_result.stdout}"
 
         # Start
@@ -91,7 +91,7 @@ class TestTaskWorkflow:
         assert start_result.success, f"Task start failed: {start_result.stdout}"
 
         # Verify status changed to doing
-        show_result = cli.run("task", "show", task_id)
+        show_result = cli.run("task", "show", task_id, "--json")
         assert show_result.is_json, f"Task show not JSON: {show_result.stdout}"
         task_data = show_result.json()
         status = task_data.get("metadata", {}).get("status") or task_data.get("status")
@@ -102,7 +102,7 @@ class TestTaskWorkflow:
         assert complete_result.success, f"Task complete failed: {complete_result.stdout}"
 
         # Verify status changed to done
-        show_result = cli.run("task", "show", task_id)
+        show_result = cli.run("task", "show", task_id, "--json")
         assert show_result.is_json, f"Task show not JSON: {show_result.stdout}"
         task_data = show_result.json()
         status = task_data.get("metadata", {}).get("status") or task_data.get("status")
