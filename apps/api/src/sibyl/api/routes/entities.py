@@ -201,7 +201,6 @@ async def get_entity(
         # Try graph entity first
         try:
             entity = await entity_manager.get(entity_id)
-
             # Enrich epics with progress stats
             metadata = getattr(entity, "metadata", {}) or {}
             if entity.entity_type == "epic":

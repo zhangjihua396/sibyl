@@ -49,11 +49,14 @@ sibyl task complete task_xyz --learnings "OAuth tokens expire..."
 ## The Agent Feedback Loop
 
 ```
-1. SEARCH FIRST     -> sibyl search "topic"
-2. CHECK TASKS      -> sibyl task list --status doing
-3. WORK & CAPTURE   -> sibyl entity create (for learnings)
-4. COMPLETE         -> sibyl task complete --learnings "..."
+1. SEARCH           -> sibyl search "topic"
+2. RETRIEVE         -> sibyl entity show <id>  (get full content by ID from search)
+3. CHECK TASKS      -> sibyl task list --status doing
+4. WORK & CAPTURE   -> sibyl add "Title" "Learning..."
+5. COMPLETE         -> sibyl task complete --learnings "..."
 ```
+
+**Key insight:** Search shows IDs. Use `sibyl entity show <id>` to fetch full content.
 
 ---
 
@@ -70,6 +73,25 @@ sibyl search "OAuth" --type pattern
 
 # Limit results
 sibyl search "debugging redis" --limit 5
+
+# Search across all projects (bypass context)
+sibyl search "python conventions" --all
+```
+
+**Output includes:**
+- Document name and source
+- Section path (heading hierarchy)
+- Content preview
+- **Full entity ID** for retrieval
+
+**Two-step retrieval pattern:**
+```bash
+# 1. Search to find relevant knowledge
+sibyl search "redis connection pooling"
+# Output shows IDs like: convention:abc123... or 8d1493d1-7a64-...
+
+# 2. Fetch full content by ID
+sibyl entity show "convention:abc123-full-uuid-here"
 ```
 
 **When to use:** Before implementing anything. Find existing patterns, past solutions, gotchas.
@@ -116,8 +138,8 @@ sibyl task list --no-epic                # Tasks without any epic (orphaned/unpl
 # Combine filters
 sibyl task list --status todo --priority high --feature backend
 
-# Semantic search within tasks
-sibyl task list -q "authentication"
+# Semantic search within tasks (powerful!)
+sibyl task list -q "authentication"   # Find tasks by meaning, not just text match
 
 # Show task details
 sibyl task show task_xyz

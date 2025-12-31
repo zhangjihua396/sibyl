@@ -71,6 +71,9 @@ sibyl search "problems with X" --type episode
 
 # Check for rules/constraints
 sibyl search "requirements for X" --type rule
+
+# Get full content for any result (use ID from search output)
+sibyl entity show "pattern:abc123-uuid-here"
 ```
 
 ### Phase 2: Planning
@@ -137,6 +140,9 @@ sibyl search "component name" --type pattern
 
 # Look for related gotchas
 sibyl search "common issues with X" --type episode
+
+# Read full details from any match (use ID from search output)
+sibyl entity show "episode:abc123-uuid-here"
 ```
 
 ### After Solving

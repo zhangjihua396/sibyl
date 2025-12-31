@@ -198,7 +198,9 @@ def search(
                     heading_path = metadata.get("heading_path", [])
 
                     # Header: Document name (source)
-                    source_info = f" [{source}]" if source else ""
+                    # Skip file paths - they're not useful. Show source name only.
+                    display_source = source if source and not source.startswith("/") else None
+                    source_info = f" ({display_source})" if display_source else ""
                     console.print(f"  [{NEON_CYAN}]{name}[/{NEON_CYAN}][dim]{source_info}[/dim]")
 
                     # Section path
@@ -217,9 +219,8 @@ def search(
                             preview += "…"
                         console.print(f"    {preview}")
 
-                    # Show truncated ID (prefix matching supported)
-                    short_id = entity_id[:8] if entity_id else ""
-                    console.print(f"    [{CORAL}]{short_id}[/{CORAL}]")
+                    # Show full ID for fetching
+                    console.print(f"    [{CORAL}]{entity_id}[/{CORAL}]")
                     console.print()
         except SibylClientError as e:
             _handle_client_error(e)

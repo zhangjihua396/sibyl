@@ -5,9 +5,9 @@ Concrete examples showing the CLI in action.
 > ⚠️ **Common Mistakes to Avoid:**
 >
 > - `sibyl task add` → Use `sibyl task create --title "..."`
-> - `--json` flag → JSON is default (no flag needed)
-> - `-t "Title"` → Use `--title "..."` (`-t` is for table output)
+> - `-t "Title"` → Use `--title "..."` for task creation
 > - `jq '.[].title'` → Use `jq '.[].name'` (field is `name`)
+> - Not fetching full content → Use `sibyl entity show <id>` after search
 
 ---
 
@@ -17,6 +17,18 @@ Concrete examples showing the CLI in action.
 
 ```bash
 sibyl search "authentication patterns"
+# Output shows: name, section path, preview, and entity ID
+```
+
+### Get Full Content After Search
+
+```bash
+# 1. Search finds relevant results with IDs
+sibyl search "redis connection"
+# Output includes ID like: episode:abc123-uuid-here
+
+# 2. Fetch full content by ID
+sibyl entity show "episode:abc123-uuid-here"
 ```
 
 ### Search with Type Filter
@@ -41,6 +53,9 @@ sibyl search "async await patterns" --type pattern
 
 # Find debugging episodes
 sibyl search "connection timeout" --type episode
+
+# Search across all projects
+sibyl search "python conventions" --all
 ```
 
 ---
@@ -61,8 +76,8 @@ sibyl task list --status blocked
 # Filter by assignee
 sibyl task list --assignee alice
 
-# JSON is the default output (no flag needed)
-sibyl task list --project proj_auth
+# Semantic search within tasks
+sibyl task list -q "authentication"
 ```
 
 ### Task Details
@@ -236,21 +251,22 @@ sibyl explore path pattern_auth task_login
 
 ## Output Formats
 
-### JSON Output (Default)
+### Table Output (Default)
 
 ```bash
-# JSON is the default - no flag needed
+# Table is the default - human-readable format
 sibyl task list
 sibyl entity list --type pattern
 sibyl project list
 ```
 
-### Table Output (Human-Readable)
+### JSON Output (For Scripting)
 
 ```bash
-# Use -t for table format
-sibyl task list -t
-sibyl entity list --type pattern -t
+# Use --json or -j for JSON output
+sibyl task list --json
+sibyl entity list --type pattern --json
+sibyl project list -j
 ```
 
 ### CSV Output
@@ -269,6 +285,9 @@ A full feature implementation from start to finish:
 ```bash
 # 1. Research phase
 sibyl search "user authentication" --type pattern
+# Found pattern:abc123... - get full content
+sibyl entity show "pattern:abc123-uuid"
+
 sibyl search "OAuth implementation" --type episode
 
 # 2. Check existing projects
