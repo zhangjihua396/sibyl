@@ -117,7 +117,7 @@ def list_projects(
             for e in entities:
                 meta = e.get("metadata", {})
                 table.add_row(
-                    e.get("id", "")[:8] + "...",
+                    e.get("id", ""),
                     truncate(e.get("name", ""), 30),
                     meta.get("status", "active"),
                     truncate(e.get("description") or "", 40),
