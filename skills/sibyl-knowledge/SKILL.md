@@ -16,8 +16,8 @@ learnings—all stored in a knowledge graph.
 
 ```bash
 # Link your directory to a project (one-time setup)
-sibyl project link              # Interactive picker
-sibyl project link project_abc  # Or specify ID directly
+sibyl project list                     # Find your project ID
+sibyl project link project_abc123      # Link cwd to that project
 
 # Check current context
 sibyl context
@@ -32,10 +32,10 @@ sibyl search "authentication patterns"
 sibyl add "Redis insight" "Connection pool must be >= concurrent requests"
 
 # Start a task
-sibyl task start task_xyz
+sibyl task start task_abc123
 
 # Complete with learnings
-sibyl task complete task_xyz --learnings "OAuth tokens expire..."
+sibyl task complete task_abc123 --learnings "OAuth tokens expire..."
 ```
 
 **Pro tips:**
@@ -88,10 +88,10 @@ sibyl search "python conventions" --all
 ```bash
 # 1. Search to find relevant knowledge
 sibyl search "redis connection pooling"
-# Output shows IDs like: convention:abc123... or 8d1493d1-7a64-...
+# Output shows full IDs like: convention:abe924cb-8cee-4cb5-...
 
-# 2. Fetch full content by ID
-sibyl entity show "convention:abc123-full-uuid-here"
+# 2. Fetch full content by ID (copy from search output)
+sibyl entity show "convention:abe924cb-8cee-4cb5-9dd1-818201c1c946"
 ```
 
 **When to use:** Before implementing anything. Find existing patterns, past solutions, gotchas.
@@ -118,12 +118,12 @@ sibyl add "Retry pattern" "Exponential backoff..." --type pattern
 ### Task Management - Full Lifecycle
 
 ```bash
-# CREATE a task (requires project)
-sibyl task create --title "Implement OAuth" --project proj_abc
-sibyl task create --title "Add rate limiting" -p proj_api --priority high
+# CREATE a task (project auto-resolves from linked directory)
+sibyl task create --title "Implement OAuth"
+sibyl task create --title "Add rate limiting" --priority high --epic epic_abc123
 ```
 
-**IMPORTANT:** Use `--title` (not `-t`). The `-t` flag was for table output (now default).
+**IMPORTANT:** Use `--title` for the task name. Project auto-resolves from linked directory.
 
 ```bash
 # List tasks (table output is default, comma-separated values supported)
@@ -132,7 +132,7 @@ sibyl task list --priority critical,high
 sibyl task list --tags bug,urgent
 
 # Filter by epic
-sibyl task list --epic epic_abc          # Tasks in specific epic
+sibyl task list --epic epic_abc123       # Tasks in specific epic
 sibyl task list --no-epic                # Tasks without any epic (orphaned/unplanned)
 
 # Combine filters
@@ -142,37 +142,35 @@ sibyl task list --status todo --priority high --feature backend
 sibyl task list -q "authentication"   # Find tasks by meaning, not just text match
 
 # Show task details
-sibyl task show task_xyz
+sibyl task show task_abc123
 
 # Start working (generates branch name)
-sibyl task start task_xyz --assignee alice
+sibyl task start task_abc123
 
 # Block with reason
-sibyl task block task_xyz --reason "Waiting on API keys"
+sibyl task block task_abc123 --reason "Waiting on API keys"
 
 # Resume blocked task
-sibyl task unblock task_xyz
+sibyl task unblock task_abc123
 
 # Submit for review
-sibyl task review task_xyz --pr "github.com/.../pull/42"
+sibyl task review task_abc123 --pr "github.com/.../pull/42"
 
 # Complete with learnings (IMPORTANT: capture what you learned!)
-sibyl task complete task_xyz --hours 4.5 --learnings "Token refresh needs..."
+sibyl task complete task_abc123 --hours 4.5 --learnings "Token refresh needs..."
 
 # Archive single task
-sibyl task archive task_xyz --reason "Completed: implemented feature"
+sibyl task archive task_abc123 --reason "Superseded by new approach"
 
 # Direct update
-sibyl task update task_xyz --status done --priority high
-sibyl task update task_xyz --description "Updated task details..."
+sibyl task update task_abc123 --status done --priority high
 
 # Add a note to a task
-sibyl task note task_xyz "Found the root cause of the bug"
-sibyl task note task_xyz "Implemented fix" --agent --author claude
+sibyl task note task_abc123 "Found the root cause"
+sibyl task note task_abc123 "Implemented fix" --agent
 
 # List notes for a task
-sibyl task notes task_xyz
-sibyl task notes task_xyz -n 10  # Limit to 10 notes
+sibyl task notes task_abc123
 ```
 
 **Task States:** `backlog <-> todo <-> doing <-> blocked <-> review <-> done <-> archived`
@@ -186,11 +184,46 @@ sibyl task notes task_xyz -n 10  # Limit to 10 notes
 sibyl project list
 
 # Show project details
-sibyl project show proj_abc
+sibyl project show project_abc123
 
 # Create a project
 sibyl project create --name "Auth System" --description "OAuth and JWT implementation"
 ```
+
+---
+
+### Epic Management (Feature Grouping)
+
+Epics group related tasks into larger features or initiatives.
+
+```bash
+# List epics in current project
+sibyl epic list
+
+# Create an epic
+sibyl epic create --title "User Authentication" --project project_abc123
+
+# Show epic with progress
+sibyl epic show epic_abc123
+
+# Start working on an epic
+sibyl epic start epic_abc123
+
+# List tasks in an epic
+sibyl epic tasks epic_abc123
+
+# Complete an epic
+sibyl epic complete epic_abc123
+
+# Update epic
+sibyl epic update epic_abc123 --priority high --description "..."
+```
+
+**Epic workflow:**
+1. Create epic for a feature initiative
+2. Create tasks under the epic (`sibyl task create --title "..." --epic epic_abc123`)
+3. Work through tasks, epic progress updates automatically
+4. Complete epic when all tasks done
 
 ---
 
@@ -199,9 +232,11 @@ sibyl project create --name "Auth System" --description "OAuth and JWT implement
 Link directories to projects for automatic task scoping.
 
 ```bash
+# First, find your project ID
+sibyl project list
+
 # Link current directory to a project
-sibyl project link                    # Interactive - pick from list
-sibyl project link project_abc123     # Link to specific project
+sibyl project link project_abc123     # Requires project ID
 
 # Check current context
 sibyl context
@@ -213,6 +248,9 @@ sibyl project links
 sibyl project unlink
 ```
 
+**One project per repo:** Each repository should link to exactly one Sibyl project.
+This enables automatic task scoping without needing `--project` flags.
+
 ---
 
 ### Entity Operations - Generic CRUD
@@ -222,17 +260,17 @@ sibyl project unlink
 sibyl entity list --type pattern
 sibyl entity list --type episode
 
-# Show entity details
-sibyl entity show entity_xyz
+# Show entity details (use ID from search)
+sibyl entity show episode_abc123
 
 # Create an entity (for capturing learnings)
 sibyl entity create --type episode --name "Redis insight" --content "Discovered that..."
 
 # Find related entities
-sibyl entity related entity_xyz
+sibyl entity related episode_abc123
 
 # Delete (with confirmation)
-sibyl entity delete entity_xyz
+sibyl entity delete episode_abc123
 ```
 
 **Entity Types:** pattern, rule, template, tool, topic, episode, task, project, source, document
@@ -243,16 +281,16 @@ sibyl entity delete entity_xyz
 
 ```bash
 # Find related entities (1-hop)
-sibyl explore related entity_xyz
+sibyl explore related pattern_abc123
 
 # Multi-hop traversal
-sibyl explore traverse entity_xyz --depth 2
+sibyl explore traverse pattern_abc123 --depth 2
 
 # Task dependency chain
-sibyl explore dependencies task_xyz
+sibyl explore dependencies task_abc123
 
 # Find path between entities
-sibyl explore path from_id to_id
+sibyl explore path pattern_abc123 task_def456
 ```
 
 ---
@@ -287,7 +325,7 @@ sibyl task list --status doing
 sibyl task list --status todo
 
 # 4. Start working
-sibyl task start task_xyz
+sibyl task start task_abc123
 ```
 
 ### Research Before Implementation
@@ -296,6 +334,9 @@ sibyl task start task_xyz
 sibyl search "what you're implementing" --type pattern
 sibyl search "related topic" --type episode
 sibyl search "common mistakes" --type episode
+
+# Get full content from any result (use ID from search output)
+sibyl entity show <id>
 ```
 
 ### Capture a Learning
@@ -307,7 +348,7 @@ sibyl add "Descriptive title" "What you learned and why it matters"
 ### Complete Task with Learnings
 
 ```bash
-sibyl task complete task_xyz --hours 4.5 --learnings "Key insight: The OAuth flow requires..."
+sibyl task complete task_abc123 --hours 4.5 --learnings "Key insight: The OAuth flow requires..."
 ```
 
 ---
@@ -353,11 +394,11 @@ If you get a 409 error, the entity is being modified by another process. Simply 
 
 ```bash
 # If this fails with "locked by another process"
-sibyl task update task_xyz --status doing
+sibyl task update task_abc123 --status doing
 
 # Wait a moment and retry
 sleep 2
-sibyl task update task_xyz --status doing
+sibyl task update task_abc123 --status doing
 ```
 
 ### For Agents
@@ -389,7 +430,7 @@ When updating task status, use these exact values:
 - `blocked` - Waiting on something
 - `review` - In code review
 - `done` - Completed
-- `archived` - Closed without completion
+- `archived` - Terminal state (no longer active)
 
 **Common mistake:** Using `in_progress` instead of `doing`. The API will reject invalid status
 values with a 422 validation error.
@@ -410,7 +451,8 @@ If unhealthy, verify the Sibyl server and FalkorDB are running.
 
 ```bash
 sibyl context                      # See which project you're linked to
-sibyl project link                 # Link to correct project
+sibyl project list                 # Find correct project ID
+sibyl project link project_xxx     # Link to correct project
 sibyl task list --all              # Bypass context to see all
 ```
 

@@ -66,10 +66,10 @@ sibyl search "python conventions" --all
 
 ```bash
 # All tasks in a project
-sibyl task list --project proj_auth
+sibyl task list --project project_abc123
 
 # Filter by status
-sibyl task list --project proj_auth --status todo
+sibyl task list --project project_abc123 --status todo
 sibyl task list --status doing
 sibyl task list --status blocked
 
@@ -150,7 +150,7 @@ sibyl project list
 ### Show Project
 
 ```bash
-sibyl project show proj_auth
+sibyl project show project_abc123
 ```
 
 ### Create Project
@@ -212,7 +212,7 @@ sibyl entity related pattern_abc123
 ### Delete Entity
 
 ```bash
-sibyl entity delete entity_xyz --yes
+sibyl entity delete episode_abc123 --yes
 ```
 
 ---
@@ -228,7 +228,7 @@ sibyl explore related pattern_oauth
 ### Multi-hop Traversal
 
 ```bash
-sibyl explore traverse proj_auth --depth 2
+sibyl explore traverse project_abc123 --depth 2
 ```
 
 ### Task Dependencies
@@ -238,7 +238,7 @@ sibyl explore traverse proj_auth --depth 2
 sibyl explore dependencies task_deploy
 
 # Project-wide
-sibyl explore dependencies --project proj_api
+sibyl explore dependencies --project project_def456
 ```
 
 ### Find Path
@@ -294,7 +294,7 @@ sibyl search "OAuth implementation" --type episode
 sibyl project list
 
 # 3. Project exists, list its tasks
-sibyl task list --project proj_auth --status todo
+sibyl task list --project project_abc123 --status todo
 
 # 4. Start the task
 sibyl task start task_oauth_google --assignee developer
@@ -317,7 +317,7 @@ sibyl task complete task_oauth_google \
   --learnings "Google OAuth2 requires specific scopes: openid, email, profile. Token refresh should happen 5 min before expiry."
 
 # 9. Check next task
-sibyl task list --project proj_auth --status todo
+sibyl task list --project project_abc123 --status todo
 ```
 
 ---
