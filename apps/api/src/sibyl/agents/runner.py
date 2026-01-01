@@ -16,11 +16,14 @@ from claude_agent_sdk import query
 from claude_agent_sdk.types import (
     AssistantMessage,
     ClaudeAgentOptions,
+    HookEvent,
+    HookMatcher,
     Message,
     ResultMessage,
     UserMessage,
 )
 
+from sibyl.agents.approvals import ApprovalService
 from sibyl.agents.worktree import WorktreeManager
 from sibyl_core.models import (
     AgentRecord,
@@ -175,6 +178,7 @@ Priority: {task.priority}
         spawn_source: AgentSpawnSource = AgentSpawnSource.USER,
         create_worktree: bool = True,
         custom_instructions: str | None = None,
+        enable_approvals: bool = True,
     ) -> "AgentInstance":
         """Spawn a new Claude agent instance.
 
@@ -185,6 +189,7 @@ Priority: {task.priority}
             spawn_source: How this agent was created
             create_worktree: Whether to create an isolated worktree
             custom_instructions: Additional system prompt instructions
+            enable_approvals: Enable human-in-the-loop approval hooks
 
         Returns:
             AgentInstance ready for execution
@@ -245,10 +250,25 @@ Priority: {task.priority}
             custom_instructions=custom_instructions,
         )
 
+        # Create approval service if enabled
+        approval_service: ApprovalService | None = None
+        hooks: dict[HookEvent, list[HookMatcher]] | None = None
+
+        if enable_approvals:
+            approval_service = ApprovalService(
+                entity_manager=self.entity_manager,
+                org_id=self.org_id,
+                project_id=self.project_id,
+                agent_id=record.id,
+                task_id=task.id if task else None,
+            )
+            hooks = approval_service.create_hook_matchers()  # type: ignore[assignment]
+
         # Create SDK options
         sdk_options = ClaudeAgentOptions(
             cwd=str(worktree_path) if worktree_path else None,
             system_prompt=system_prompt,
+            hooks=hooks,
         )
 
         # Create instance
@@ -259,6 +279,7 @@ Priority: {task.priority}
             initial_prompt=prompt,
             worktree_path=worktree_path,
             task=task,
+            approval_service=approval_service,
         )
 
         # Register as active
@@ -356,6 +377,7 @@ class AgentInstance:
         initial_prompt: str,
         worktree_path: Path | None = None,
         task: Task | None = None,
+        approval_service: ApprovalService | None = None,
     ):
         """Initialize agent instance.
 
@@ -366,6 +388,7 @@ class AgentInstance:
             initial_prompt: Prompt to execute
             worktree_path: Working directory
             task: Assigned task
+            approval_service: Optional approval service for human-in-the-loop
         """
         self.record = record
         self.sdk_options = sdk_options
@@ -373,6 +396,7 @@ class AgentInstance:
         self.initial_prompt = initial_prompt
         self.worktree_path = worktree_path
         self.task = task
+        self.approval_service = approval_service
 
         # Runtime state
         self._running = False
@@ -462,6 +486,10 @@ class AgentInstance:
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
 
+        # Cancel any pending approvals
+        if self.approval_service:
+            await self.approval_service.cancel_all(reason)
+
         await self._update_status(
             AgentStatus.TERMINATED,
             metadata={"stop_reason": reason},
@@ -476,6 +504,8 @@ class AgentInstance:
         self._running = False
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
+
+        # Note: We don't cancel approvals on pause - they remain pending
 
         await self._update_status(
             AgentStatus.PAUSED,
