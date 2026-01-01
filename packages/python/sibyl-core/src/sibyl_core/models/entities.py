@@ -40,6 +40,12 @@ class EntityType(StrEnum):
     # Collaboration types
     NOTE = "note"  # Timestamped note on a task
 
+    # Agent Harness types
+    AGENT = "agent"  # An AI agent instance
+    WORKTREE = "worktree"  # An isolated git worktree for an agent
+    APPROVAL = "approval"  # A human approval request
+    CHECKPOINT = "checkpoint"  # Agent session checkpoint for resume
+
 
 class RelationshipType(StrEnum):
     """Types of relationships between entities."""
@@ -74,6 +80,13 @@ class RelationshipType(StrEnum):
     CRAWLED_FROM = "CRAWLED_FROM"  # Document -> Source
     CHILD_OF = "CHILD_OF"  # Document -> Document (page hierarchy)
     MENTIONS = "MENTIONS"  # Document -> Entity (extracted reference)
+
+    # Agent Harness relationships
+    WORKS_ON = "WORKS_ON"  # Agent -> Task
+    USES_WORKTREE = "USES_WORKTREE"  # Agent -> Worktree
+    CHECKPOINTED_AS = "CHECKPOINTED_AS"  # Agent -> Checkpoint
+    REQUESTED_BY = "REQUESTED_BY"  # Approval -> Agent
+    HANDED_OFF_TO = "HANDED_OFF_TO"  # Agent -> Agent (task handoff)
 
 
 class Entity(BaseModel):
