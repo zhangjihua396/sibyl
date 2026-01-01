@@ -21,7 +21,6 @@ from sibyl_cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     success,
 )
 
@@ -132,8 +131,7 @@ def health(
     async def check_health() -> None:
         try:
             async with get_client() as client:
-                with spinner("Checking health..."):
-                    data = await client.get("/health")
+                data = await client.get("/health")
 
                 if json_output:
                     print_json(data)
@@ -173,11 +171,10 @@ def search(
     async def run_search() -> None:
         try:
             async with get_client() as client:
-                with spinner(f"Searching for '{query}'..."):
-                    types = [entity_type] if entity_type else None
-                    data = await client.search(
-                        query, types=types, limit=limit, project=effective_project
-                    )
+                types = [entity_type] if entity_type else None
+                data = await client.search(
+                    query, types=types, limit=limit, project=effective_project
+                )
 
                 if json_output:
                     print_json(data)
@@ -244,15 +241,14 @@ def add_knowledge(
     async def run_add() -> None:
         try:
             async with get_client() as client:
-                with spinner("Adding knowledge..."):
-                    data = await client.create_entity(
-                        name=title,
-                        content=content,
-                        entity_type=entity_type,
-                        category=category,
-                        languages=[language] if language else None,
-                        tags=[t.strip() for t in tags.split(",")] if tags else None,
-                    )
+                data = await client.create_entity(
+                    name=title,
+                    content=content,
+                    entity_type=entity_type,
+                    category=category,
+                    languages=[language] if language else None,
+                    tags=[t.strip() for t in tags.split(",")] if tags else None,
+                )
 
                 if json_output:
                     print_json(data)
@@ -277,8 +273,7 @@ def stats(
     async def get_stats() -> None:
         try:
             async with get_client() as client:
-                with spinner("Getting stats..."):
-                    data = await client.get("/admin/stats")
+                data = await client.get("/admin/stats")
 
                 if json_output:
                     print_json(data)

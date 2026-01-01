@@ -21,7 +21,6 @@ from sibyl.cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     success,
     truncate,
 )
@@ -64,16 +63,10 @@ def list_sources(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Loading sources...") as progress:
-                    progress.add_task("Loading sources...", total=None)
-                    response = await client.list_crawl_sources(status=status, limit=limit)
-            else:
-                response = await client.list_crawl_sources(status=status, limit=limit)
+            response = await client.list_crawl_sources(status=status, limit=limit)
 
             sources = response.get("sources", [])
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -137,26 +130,14 @@ def add_source(
         try:
             source_name = name or url.split("//")[-1].split("/")[0]
 
-            if table_out:
-                with spinner("Adding source...") as progress:
-                    progress.add_task("Adding source...", total=None)
-                    response = await client.create_crawl_source(
-                        name=source_name,
-                        url=url,
-                        source_type=source_type,
-                        crawl_depth=depth,
-                        include_patterns=pattern or [],
-                    )
-            else:
-                response = await client.create_crawl_source(
-                    name=source_name,
-                    url=url,
-                    source_type=source_type,
-                    crawl_depth=depth,
-                    include_patterns=pattern or [],
-                )
+            response = await client.create_crawl_source(
+                name=source_name,
+                url=url,
+                source_type=source_type,
+                crawl_depth=depth,
+                include_patterns=pattern or [],
+            )
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -198,24 +179,13 @@ def ingest(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Starting ingestion...") as progress:
-                    progress.add_task("Starting ingestion...", total=None)
-                    response = await client.start_crawl(
-                        source_id=source_id,
-                        max_pages=max_pages,
-                        max_depth=max_depth,
-                        generate_embeddings=not no_embed,
-                    )
-            else:
-                response = await client.start_crawl(
-                    source_id=source_id,
-                    max_pages=max_pages,
-                    max_depth=max_depth,
-                    generate_embeddings=not no_embed,
-                )
+            response = await client.start_crawl(
+                source_id=source_id,
+                max_pages=max_pages,
+                max_depth=max_depth,
+                generate_embeddings=not no_embed,
+            )
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -250,14 +220,8 @@ def crawl_status(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Checking status...") as progress:
-                    progress.add_task("Checking status...", total=None)
-                    response = await client.get_crawl_status(source_id)
-            else:
-                response = await client.get_crawl_status(source_id)
+            response = await client.get_crawl_status(source_id)
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -314,16 +278,10 @@ def list_documents(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Loading documents...") as progress:
-                    progress.add_task("Loading documents...", total=None)
-                    response = await client.list_crawl_documents(source_id=source_id, limit=limit)
-            else:
-                response = await client.list_crawl_documents(source_id=source_id, limit=limit)
+            response = await client.list_crawl_documents(source_id=source_id, limit=limit)
 
             documents = response.get("documents", [])
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -366,14 +324,8 @@ def stats(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Loading stats...") as progress:
-                    progress.add_task("Loading stats...", total=None)
-                    response = await client.crawler_stats()
-            else:
-                response = await client.crawler_stats()
+            response = await client.crawler_stats()
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -411,14 +363,8 @@ def health(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Checking health...") as progress:
-                    progress.add_task("Checking health...", total=None)
-                    response = await client.crawler_health()
-            else:
-                response = await client.crawler_health()
+            response = await client.crawler_health()
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return
@@ -468,14 +414,8 @@ def delete_source(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Deleting source...") as progress:
-                    progress.add_task("Deleting source...", total=None)
-                    response = await client.delete_crawl_source(source_id)
-            else:
-                response = await client.delete_crawl_source(source_id)
+            response = await client.delete_crawl_source(source_id)
 
-            # JSON output (default)
             if not table_out:
                 print_json(response)
                 return

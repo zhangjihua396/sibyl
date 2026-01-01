@@ -25,7 +25,6 @@ from sibyl.cli.common import (
     error,
     info,
     run_async,
-    spinner,
     success,
 )
 
@@ -123,14 +122,11 @@ def generate_realistic(  # noqa: PLR0915 - complex CLI command
         console.print(f"\n  Using: [{NEON_CYAN}]{gen_name}[/{NEON_CYAN}]")
 
         try:
-            with spinner("Generating entities...") as progress:
-                task = progress.add_task("Generating entities...", total=None)
-                result = await generator.generate()
+            result = await generator.generate()
 
-                # Weave relationships
-                progress.update(task, description="Weaving relationships...")
-                weaver = RelationshipWeaver(config)
-                result.relationships = weaver.weave(result.entities)
+            # Weave relationships
+            weaver = RelationshipWeaver(config)
+            result.relationships = weaver.weave(result.entities)
 
             console.print(
                 f"\n[{SUCCESS_GREEN}]Generated {result.entity_count} entities, {result.relationship_count} relationships[/{SUCCESS_GREEN}]"
@@ -146,22 +142,19 @@ def generate_realistic(  # noqa: PLR0915 - complex CLI command
             # Store in graph
             confirm = typer.confirm("\nStore generated data in the graph?")
             if confirm:
-                with spinner("Storing in graph...") as progress:
-                    progress.add_task("Storing in graph...", total=None)
+                from sibyl_core.graph.client import get_graph_client
 
-                    from sibyl_core.graph.client import get_graph_client
+                client = await get_graph_client()
+                entity_mgr = EntityManager(client, group_id=org_id)
+                rel_mgr = RelationshipManager(client, group_id=org_id)
 
-                    client = await get_graph_client()
-                    entity_mgr = EntityManager(client, group_id=org_id)
-                    rel_mgr = RelationshipManager(client, group_id=org_id)
-
-                    # Use bulk_create_direct for speed (bypasses Graphiti LLM)
-                    stored_entities, _ = await entity_mgr.bulk_create_direct(
-                        result.entities, batch_size=100
-                    )
-                    stored_rels, _ = await rel_mgr.bulk_create_direct(
-                        result.relationships, batch_size=100
-                    )
+                # Use bulk_create_direct for speed (bypasses Graphiti LLM)
+                stored_entities, _ = await entity_mgr.bulk_create_direct(
+                    result.entities, batch_size=100
+                )
+                stored_rels, _ = await rel_mgr.bulk_create_direct(
+                    result.relationships, batch_size=100
+                )
 
                 success(f"Stored {stored_entities} entities, {stored_rels} relationships")
             else:
@@ -243,10 +236,7 @@ def generate_stress(
         )
 
         try:
-            with spinner("Generating stress test data...") as progress:
-                task = progress.add_task("Generating...", total=None)
-                result = await generator.generate()
-                progress.update(task, description="Complete!")
+            result = await generator.generate()
 
             # Show results
             table = create_table("Stress Test Results", "Metric", "Value")
@@ -262,25 +252,19 @@ def generate_stress(
             # Store in graph
             confirm = typer.confirm("\nStore stress test data in the graph?")
             if confirm:
-                with spinner("Storing in graph (this may take a while)...") as progress:
-                    task = progress.add_task("Storing...", total=None)
+                from sibyl_core.graph.client import get_graph_client
 
-                    from sibyl_core.graph.client import get_graph_client
+                client = await get_graph_client()
+                entity_mgr = EntityManager(client, group_id=org_id)
+                rel_mgr = RelationshipManager(client, group_id=org_id)
 
-                    client = await get_graph_client()
-                    entity_mgr = EntityManager(client, group_id=org_id)
-                    rel_mgr = RelationshipManager(client, group_id=org_id)
-
-                    # Use bulk_create_direct for speed (bypasses Graphiti LLM)
-                    progress.update(task, description="Storing entities...")
-                    stored, _failed_ents = await entity_mgr.bulk_create_direct(
-                        result.entities, batch_size=500
-                    )
-
-                    progress.update(task, description="Storing relationships...")
-                    stored_rels, _failed_rels = await rel_mgr.bulk_create_direct(
-                        result.relationships, batch_size=500
-                    )
+                # Use bulk_create_direct for speed (bypasses Graphiti LLM)
+                stored, _failed_ents = await entity_mgr.bulk_create_direct(
+                    result.entities, batch_size=500
+                )
+                stored_rels, _failed_rels = await rel_mgr.bulk_create_direct(
+                    result.relationships, batch_size=500
+                )
 
                 success(f"Stored {stored:,} entities, {stored_rels:,} relationships")
             else:
@@ -388,13 +372,7 @@ def generate_scenario(  # noqa: PLR0915 - complex CLI command
         console.print(f"\n  {scenario.description}\n")
 
         try:
-            with spinner(f"Generating {name} scenario...") as progress:
-                task = progress.add_task("Generating...", total=None)
-
-                def progress_cb(step: str, _current: int, _total: int) -> None:
-                    progress.update(task, description=f"{step}...")
-
-                result = await runner.run(progress_callback=progress_cb)
+            result = await runner.run()
 
             # Show results
             table = create_table("Scenario Results", "Metric", "Value")
@@ -406,22 +384,19 @@ def generate_scenario(  # noqa: PLR0915 - complex CLI command
             # Store in graph
             confirm = typer.confirm("\nStore scenario data in the graph?")
             if confirm:
-                with spinner("Storing in graph...") as progress:
-                    progress.add_task("Storing...", total=None)
+                from sibyl_core.graph.client import get_graph_client
 
-                    from sibyl_core.graph.client import get_graph_client
+                client = await get_graph_client()
+                entity_mgr = EntityManager(client, group_id=org_id)
+                rel_mgr = RelationshipManager(client, group_id=org_id)
 
-                    client = await get_graph_client()
-                    entity_mgr = EntityManager(client, group_id=org_id)
-                    rel_mgr = RelationshipManager(client, group_id=org_id)
-
-                    # Use bulk_create_direct for speed (bypasses Graphiti LLM)
-                    stored_entities, _ = await entity_mgr.bulk_create_direct(
-                        result.entities, batch_size=100
-                    )
-                    stored_rels, _ = await rel_mgr.bulk_create_direct(
-                        result.relationships, batch_size=100
-                    )
+                # Use bulk_create_direct for speed (bypasses Graphiti LLM)
+                stored_entities, _ = await entity_mgr.bulk_create_direct(
+                    result.entities, batch_size=100
+                )
+                stored_rels, _ = await rel_mgr.bulk_create_direct(
+                    result.relationships, batch_size=100
+                )
 
                 success(f"Stored {stored_entities:,} entities, {stored_rels:,} relationships")
             else:
@@ -476,23 +451,20 @@ def clean_generated(
         from sibyl_core.graph.client import get_graph_client
 
         try:
-            with spinner("Cleaning generated data...") as progress:
-                progress.add_task("Cleaning...", total=None)
+            client = await get_graph_client()
 
-                client = await get_graph_client()
-
-                if preserve_real:
-                    # Delete only generated entities
-                    rows = await client.execute_write(
-                        "MATCH (n) WHERE n._generated = true DETACH DELETE n RETURN count(n) as deleted"
-                    )
-                    deleted = rows[0][0] if rows else 0
-                else:
-                    # Delete everything
-                    rows = await client.execute_write(
-                        "MATCH (n) DETACH DELETE n RETURN count(n) as deleted"
-                    )
-                    deleted = rows[0][0] if rows else 0
+            if preserve_real:
+                # Delete only generated entities
+                rows = await client.execute_write(
+                    "MATCH (n) WHERE n._generated = true DETACH DELETE n RETURN count(n) as deleted"
+                )
+                deleted = rows[0][0] if rows else 0
+            else:
+                # Delete everything
+                rows = await client.execute_write(
+                    "MATCH (n) DETACH DELETE n RETURN count(n) as deleted"
+                )
+                deleted = rows[0][0] if rows else 0
 
             success(f"Removed {deleted:,} entities")
 

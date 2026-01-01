@@ -19,7 +19,6 @@ from sibyl.cli.common import (
     info,
     print_db_hint,
     run_async,
-    spinner,
     success,
     warn,
 )
@@ -53,9 +52,7 @@ def backup_db(
         from sibyl_core.tools.admin import create_backup
 
         try:
-            with spinner("Creating backup...") as progress:
-                progress.add_task("Creating backup...", total=None)
-                result = await create_backup(organization_id=org_id)
+            result = await create_backup(organization_id=org_id)
 
             if not result.success or result.backup_data is None:
                 error(f"Backup failed: {result.message}")
@@ -130,13 +127,11 @@ def restore_db(
                 f"Restoring {backup_data.entity_count} entities and {backup_data.relationship_count} relationships..."
             )
 
-            with spinner("Restoring...") as progress:
-                progress.add_task("Restoring...", total=None)
-                result = await restore_backup(
-                    backup_data,
-                    organization_id=org_id,
-                    skip_existing=skip_existing,
-                )
+            result = await restore_backup(
+                backup_data,
+                organization_id=org_id,
+                skip_existing=skip_existing,
+            )
 
             if result.success:
                 success("Restore complete!")
@@ -190,12 +185,9 @@ def clear_db(
         from sibyl_core.graph.client import get_graph_client
 
         try:
-            with spinner("Clearing database...") as progress:
-                progress.add_task("Clearing database...", total=None)
-
-                client = await get_graph_client()
-                # Delete all nodes and relationships
-                await client.execute_write("MATCH (n) DETACH DELETE n")
+            client = await get_graph_client()
+            # Delete all nodes and relationships
+            await client.execute_write("MATCH (n) DETACH DELETE n")
 
             success("Database cleared")
             warn("All data has been deleted")
@@ -216,23 +208,20 @@ def db_stats() -> None:
         from sibyl_core.graph.client import get_graph_client
 
         try:
-            with spinner("Loading stats...") as progress:
-                progress.add_task("Loading stats...", total=None)
+            client = await get_graph_client()
 
-                client = await get_graph_client()
+            # Get node count
+            node_rows = await client.execute_read("MATCH (n) RETURN count(n) as count")
+            node_count = node_rows[0][0] if node_rows else 0
 
-                # Get node count
-                node_rows = await client.execute_read("MATCH (n) RETURN count(n) as count")
-                node_count = node_rows[0][0] if node_rows else 0
+            # Get relationship count
+            rel_rows = await client.execute_read("MATCH ()-[r]->() RETURN count(r) as count")
+            rel_count = rel_rows[0][0] if rel_rows else 0
 
-                # Get relationship count
-                rel_rows = await client.execute_read("MATCH ()-[r]->() RETURN count(r) as count")
-                rel_count = rel_rows[0][0] if rel_rows else 0
-
-                # Get node types
-                type_rows = await client.execute_read(
-                    "MATCH (n) RETURN n.entity_type as type, count(*) as count ORDER BY count DESC"
-                )
+            # Get node types
+            type_rows = await client.execute_read(
+                "MATCH (n) RETURN n.entity_type as type, count(*) as count ORDER BY count DESC"
+            )
 
             console.print(f"\n[{NEON_CYAN}]Database Statistics[/{NEON_CYAN}]\n")
             console.print(f"  Total Nodes: {node_count}")
@@ -286,13 +275,10 @@ def db_fix_embeddings(
         try:
             warn("Running embedding repair migration (this mutates graph data)")
 
-            with spinner("Fixing embeddings...") as progress:
-                task = progress.add_task("Casting name_embedding to Vectorf32...", total=None)
-                result = await migrate_fix_name_embedding_types(
-                    batch_size=batch_size,
-                    max_entities=max_entities,
-                )
-                progress.update(task, description="Embedding repair complete")
+            result = await migrate_fix_name_embedding_types(
+                batch_size=batch_size,
+                max_entities=max_entities,
+            )
 
             if result.success:
                 success(result.message)
@@ -337,12 +323,10 @@ def backfill_task_relationships(
             if dry_run:
                 warn("DRY RUN - no changes will be made")
 
-            with spinner("Backfilling task relationships...") as progress:
-                progress.add_task("Processing tasks...", total=None)
-                result = await backfill_task_project_relationships(
-                    organization_id=org_id,
-                    dry_run=dry_run,
-                )
+            result = await backfill_task_project_relationships(
+                organization_id=org_id,
+                dry_run=dry_run,
+            )
 
             if result.success:
                 if dry_run:
@@ -476,15 +460,13 @@ def pg_backup(
         elif schema_only:
             cmd.append("--schema-only")
 
-        with spinner("Running pg_dump...") as progress:
-            progress.add_task("Running pg_dump...", total=None)
-            result = subprocess.run(  # noqa: S603 - trusted command
-                cmd,
-                env=_get_pg_env(),
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+        result = subprocess.run(  # noqa: S603 - trusted command
+            cmd,
+            env=_get_pg_env(),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
         if result.returncode != 0:
             error(f"pg_dump failed: {result.stderr}")
@@ -575,16 +557,14 @@ DROP TABLE IF EXISTS alembic_version CASCADE;
             "ON_ERROR_STOP=1",
         ]
 
-        with spinner("Running psql restore...") as progress:
-            progress.add_task("Running psql restore...", total=None)
-            result = subprocess.run(  # noqa: S603 - trusted psql command
-                cmd,
-                env=_get_pg_env(),
-                input=sql_content,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+        result = subprocess.run(  # noqa: S603 - trusted psql command
+            cmd,
+            env=_get_pg_env(),
+            input=sql_content,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
         if result.returncode != 0:
             error(f"psql restore failed: {result.stderr}")
@@ -910,17 +890,14 @@ def init_schema(
             error(f"alembic.ini not found at {alembic_ini}")
             raise typer.Exit(code=1)
 
-        with spinner("Running migrations...") as progress:
-            progress.add_task("Running migrations...", total=None)
-
-            result = subprocess.run(
-                ["uv", "run", "alembic", "upgrade", "head"],  # noqa: S607
-                cwd=project_root,
-                capture_output=True,
-                text=True,
-                check=False,
-                env=os.environ,
-            )
+        result = subprocess.run(
+            ["uv", "run", "alembic", "upgrade", "head"],  # noqa: S607
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            check=False,
+            env=os.environ,
+        )
 
         if result.returncode != 0:
             error(f"Migration failed: {result.stderr}")

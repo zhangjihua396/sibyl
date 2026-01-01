@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from sibyl.cli.epic import _resolve_epic_id, app, format_epic_status
+from sibyl.cli.epic import _validate_epic_id, app, format_epic_status
 
 runner = CliRunner()
 
@@ -44,71 +44,30 @@ class TestFormatEpicStatus:
         assert "#888888" in result  # Default gray
 
 
-class TestResolveEpicId:
-    """Tests for _resolve_epic_id helper."""
+class TestValidateEpicId:
+    """Tests for _validate_epic_id helper."""
 
-    @pytest.mark.asyncio
-    async def test_full_id_returned_unchanged(self) -> None:
-        """Full epic IDs (17+ chars) should be returned as-is."""
-        mock_client = MagicMock()
+    def test_valid_full_id_returned_unchanged(self) -> None:
+        """Valid full epic IDs (17+ chars) should be returned as-is."""
         full_id = "epic_1234567890ab"  # 17 chars
-        result = await _resolve_epic_id(mock_client, full_id)
+        result = _validate_epic_id(full_id)
         assert result == full_id
-        # Should not call API
-        mock_client.list_entities.assert_not_called()
 
-    @pytest.mark.asyncio
-    async def test_short_prefix_resolves_single_match(self) -> None:
-        """Short prefix should resolve when single match found."""
-        mock_client = MagicMock()
-        mock_client.list_entities = AsyncMock(
-            return_value={
-                "entities": [
-                    {"id": "epic_abc123456789"},
-                    {"id": "epic_xyz987654321"},
-                ]
-            }
-        )
-
-        result = await _resolve_epic_id(mock_client, "epic_abc")
-        assert result == "epic_abc123456789"
-
-    @pytest.mark.asyncio
-    async def test_short_prefix_no_match_raises(self) -> None:
-        """Short prefix with no matches should raise error."""
+    def test_invalid_prefix_raises(self) -> None:
+        """IDs without epic_ prefix should raise error."""
         from sibyl.cli.client import SibylClientError
 
-        mock_client = MagicMock()
-        mock_client.list_entities = AsyncMock(
-            return_value={
-                "entities": [
-                    {"id": "epic_xyz987654321"},
-                ]
-            }
-        )
-
         with pytest.raises(SibylClientError) as exc_info:
-            await _resolve_epic_id(mock_client, "epic_abc")
-        assert "No epic found" in str(exc_info.value)
+            _validate_epic_id("task_1234567890ab")
+        assert "Invalid epic ID format" in str(exc_info.value)
 
-    @pytest.mark.asyncio
-    async def test_short_prefix_multiple_matches_raises(self) -> None:
-        """Short prefix with multiple matches should raise error."""
+    def test_short_id_raises(self) -> None:
+        """IDs shorter than 17 chars should raise error."""
         from sibyl.cli.client import SibylClientError
 
-        mock_client = MagicMock()
-        mock_client.list_entities = AsyncMock(
-            return_value={
-                "entities": [
-                    {"id": "epic_abc123456789"},
-                    {"id": "epic_abc987654321"},
-                ]
-            }
-        )
-
         with pytest.raises(SibylClientError) as exc_info:
-            await _resolve_epic_id(mock_client, "epic_abc")
-        assert "Multiple epics match" in str(exc_info.value)
+            _validate_epic_id("epic_abc")  # Too short
+        assert "too short" in str(exc_info.value).lower()
 
 
 class TestListEpicsCommand:

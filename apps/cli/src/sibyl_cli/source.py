@@ -18,7 +18,6 @@ from sibyl_cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     success,
     truncate,
 )
@@ -59,13 +58,7 @@ def list_sources(
         client = get_client()
 
         try:
-            if format_ == "json":
-                response = await client.list_crawl_sources(limit=limit)
-            else:
-                with spinner("Loading sources...") as progress:
-                    progress.add_task("Loading sources...", total=None)
-                    response = await client.list_crawl_sources(limit=limit)
-
+            response = await client.list_crawl_sources(limit=limit)
             sources = response.get("sources", [])
 
             if format_ == "json":
@@ -115,32 +108,17 @@ def add_source(
         try:
             source_name = name or url.split("//")[-1].split("/")[0]
 
-            if not json_out:
-                with spinner("Adding source...") as progress:
-                    progress.add_task("Adding source...", total=None)
-                    response = await client.create_entity(
-                        name=source_name,
-                        content=f"Documentation source: {url}",
-                        entity_type="source",
-                        metadata={
-                            "url": url,
-                            "source_type": source_type,
-                            "crawl_depth": depth,
-                            "crawl_status": "pending",
-                        },
-                    )
-            else:
-                response = await client.create_entity(
-                    name=source_name,
-                    content=f"Documentation source: {url}",
-                    entity_type="source",
-                    metadata={
-                        "url": url,
-                        "source_type": source_type,
-                        "crawl_depth": depth,
-                        "crawl_status": "pending",
-                    },
-                )
+            response = await client.create_entity(
+                name=source_name,
+                content=f"Documentation source: {url}",
+                entity_type="source",
+                metadata={
+                    "url": url,
+                    "source_type": source_type,
+                    "crawl_depth": depth,
+                    "crawl_status": "pending",
+                },
+            )
 
             # JSON output (default)
             if json_out:
@@ -174,12 +152,7 @@ def show_source(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading source...") as progress:
-                    progress.add_task("Loading source...", total=None)
-                    entity = await client.get_entity(source_id)
-            else:
-                entity = await client.get_entity(source_id)
+            entity = await client.get_entity(source_id)
 
             # JSON output (default)
             if json_out:
@@ -230,13 +203,7 @@ def source_status(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading status...") as progress:
-                    progress.add_task("Loading status...", total=None)
-                    entity = await client.get_entity(source_id)
-            else:
-                entity = await client.get_entity(source_id)
-
+            entity = await client.get_entity(source_id)
             meta = entity.get("metadata", {})
 
             # JSON output (default)
@@ -285,20 +252,11 @@ def list_documents(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading documents...") as progress:
-                    progress.add_task("Loading documents...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["document"],
-                        limit=limit * 5,  # Fetch more to filter
-                    )
-            else:
-                response = await client.explore(
-                    mode="list",
-                    types=["document"],
-                    limit=limit * 5,
-                )
+            response = await client.explore(
+                mode="list",
+                types=["document"],
+                limit=limit * 5,  # Fetch more to filter
+            )
 
             # Filter by source
             all_entities = response.get("entities", [])
@@ -352,12 +310,7 @@ def link_status(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Checking link status...") as progress:
-                    progress.add_task("Checking...", total=None)
-                    response = await client.link_graph_status()
-            else:
-                response = await client.link_graph_status()
+            response = await client.link_graph_status()
         except SibylClientError as e:
             _handle_client_error(e)
             return
@@ -419,20 +372,11 @@ def link_graph(
         sid = None if source_id == "all" else source_id
 
         try:
-            if json_out and not dry_run:
-                with spinner("Linking documents to graph...") as progress:
-                    progress.add_task("Processing...", total=None)
-                    response = await client.link_graph(
-                        source_id=sid,
-                        batch_size=batch_size,
-                        dry_run=dry_run,
-                    )
-            else:
-                response = await client.link_graph(
-                    source_id=sid,
-                    batch_size=batch_size,
-                    dry_run=dry_run,
-                )
+            response = await client.link_graph(
+                source_id=sid,
+                batch_size=batch_size,
+                dry_run=dry_run,
+            )
         except SibylClientError as e:
             _handle_client_error(e)
             return

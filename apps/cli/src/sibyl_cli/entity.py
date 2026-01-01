@@ -20,7 +20,6 @@ from sibyl_cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     success,
     truncate,
 )
@@ -98,25 +97,13 @@ def list_entities(
         client = get_client()
 
         try:
-            if format_ in ("json", "csv"):
-                response = await client.explore(
-                    mode="list",
-                    types=[entity_type],
-                    language=language,
-                    category=category,
-                    limit=limit,
-                )
-            else:
-                with spinner(f"Loading {entity_type}s...") as progress:
-                    progress.add_task(f"Loading {entity_type}s...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=[entity_type],
-                        language=language,
-                        category=category,
-                        limit=limit,
-                    )
-
+            response = await client.explore(
+                mode="list",
+                types=[entity_type],
+                language=language,
+                category=category,
+                limit=limit,
+            )
             entities = response.get("entities", [])
 
             if format_ == "json":
@@ -175,12 +162,7 @@ def show_entity(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading entity...") as progress:
-                    progress.add_task("Loading entity...", total=None)
-                    entity = await client.get_entity(entity_id)
-            else:
-                entity = await client.get_entity(entity_id)
+            entity = await client.get_entity(entity_id)
 
             # JSON output (default)
             if json_out:
@@ -251,30 +233,16 @@ def create_entity(
             lang_list = [lang.strip() for lang in languages.split(",")] if languages else None
             tag_list = [tag.strip() for tag in tags.split(",")] if tags else None
 
-            if not json_out:
-                with spinner("Creating entity...") as progress:
-                    progress.add_task("Creating entity...", total=None)
-                    response = await client.create_entity(
-                        name=name,
-                        content=content or f"{entity_type}: {name}",
-                        entity_type=entity_type
-                        if entity_type in ["episode", "pattern", "task", "project"]
-                        else "episode",
-                        category=category,
-                        languages=lang_list,
-                        tags=tag_list,
-                    )
-            else:
-                response = await client.create_entity(
-                    name=name,
-                    content=content or f"{entity_type}: {name}",
-                    entity_type=entity_type
-                    if entity_type in ["episode", "pattern", "task", "project"]
-                    else "episode",
-                    category=category,
-                    languages=lang_list,
-                    tags=tag_list,
-                )
+            response = await client.create_entity(
+                name=name,
+                content=content or f"{entity_type}: {name}",
+                entity_type=entity_type
+                if entity_type in ["episode", "pattern", "task", "project"]
+                else "episode",
+                category=category,
+                languages=lang_list,
+                tags=tag_list,
+            )
 
             # JSON output (default)
             if json_out:
@@ -308,12 +276,7 @@ def delete_entity(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Deleting entity...") as progress:
-                    progress.add_task("Deleting entity...", total=None)
-                    await client.delete_entity(entity_id)
-            else:
-                await client.delete_entity(entity_id)
+            await client.delete_entity(entity_id)
 
             # JSON output (default)
             if json_out:
@@ -345,21 +308,11 @@ def related_entities(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Finding related entities...") as progress:
-                    progress.add_task("Finding related entities...", total=None)
-                    response = await client.explore(
-                        mode="related",
-                        entity_id=entity_id,
-                        limit=limit,
-                    )
-            else:
-                response = await client.explore(
-                    mode="related",
-                    entity_id=entity_id,
-                    limit=limit,
-                )
-
+            response = await client.explore(
+                mode="related",
+                entity_id=entity_id,
+                limit=limit,
+            )
             entities = response.get("entities", [])
 
             # JSON output (default)

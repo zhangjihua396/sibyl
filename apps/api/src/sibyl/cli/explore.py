@@ -21,7 +21,6 @@ from sibyl.cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     truncate,
 )
 
@@ -68,26 +67,15 @@ def explore_related(
                 [r.strip() for r in relationship_types.split(",")] if relationship_types else None
             )
 
-            if table_out:
-                with spinner("Exploring relationships...") as progress:
-                    progress.add_task("Exploring relationships...", total=None)
-                    response = await client.explore(
-                        mode="related",
-                        entity_id=entity_id,
-                        relationship_types=rel_list,
-                        limit=limit,
-                    )
-            else:
-                response = await client.explore(
-                    mode="related",
-                    entity_id=entity_id,
-                    relationship_types=rel_list,
-                    limit=limit,
-                )
+            response = await client.explore(
+                mode="related",
+                entity_id=entity_id,
+                relationship_types=rel_list,
+                limit=limit,
+            )
 
             entities = response.get("entities", [])
 
-            # JSON output (default)
             if not table_out:
                 print_json(entities)
                 return
@@ -135,26 +123,15 @@ def explore_traverse(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner(f"Traversing {depth} hops...") as progress:
-                    progress.add_task(f"Traversing {depth} hops...", total=None)
-                    response = await client.explore(
-                        mode="traverse",
-                        entity_id=entity_id,
-                        depth=depth,
-                        limit=limit,
-                    )
-            else:
-                response = await client.explore(
-                    mode="traverse",
-                    entity_id=entity_id,
-                    depth=depth,
-                    limit=limit,
-                )
+            response = await client.explore(
+                mode="traverse",
+                entity_id=entity_id,
+                depth=depth,
+                limit=limit,
+            )
 
             entities = response.get("entities", [])
 
-            # JSON output (default)
             if not table_out:
                 print_json(entities)
                 return
@@ -216,25 +193,15 @@ def explore_dependencies(
         client = get_client()
 
         try:
-            if table_out:
-                with spinner("Analyzing dependencies...") as progress:
-                    progress.add_task("Analyzing dependencies...", total=None)
-                    response = await client.explore(
-                        mode="dependencies",
-                        entity_id=entity_id,
-                        project=project,
-                    )
-            else:
-                response = await client.explore(
-                    mode="dependencies",
-                    entity_id=entity_id,
-                    project=project,
-                )
+            response = await client.explore(
+                mode="dependencies",
+                entity_id=entity_id,
+                project=project,
+            )
 
             entities = response.get("entities", [])
             metadata = response.get("metadata", {})
 
-            # JSON output (default)
             if not table_out:
                 output = {
                     "entities": entities,
@@ -300,29 +267,15 @@ def explore_path(
         client = get_client()
 
         try:
-            # Use explore with path mode
-            if table_out:
-                with spinner("Finding path...") as progress:
-                    progress.add_task("Finding path...", total=None)
-                    response = await client.explore(
-                        mode="path",
-                        entity_id=from_id,
-                        depth=max_depth,
-                    )
-            else:
-                response = await client.explore(
-                    mode="path",
-                    entity_id=from_id,
-                    depth=max_depth,
-                )
+            response = await client.explore(
+                mode="path",
+                entity_id=from_id,
+                depth=max_depth,
+            )
 
-            # For path mode, we need special handling
-            # The explore endpoint may not have a dedicated path mode yet
-            # For now, provide a basic response
             path_length = response.get("metadata", {}).get("path_length", 0)
             entities = response.get("entities", [])
 
-            # JSON output (default)
             if not table_out:
                 output = {
                     "from_id": from_id,

@@ -26,7 +26,6 @@ from sibyl_cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     success,
     truncate,
 )
@@ -114,24 +113,13 @@ def list_epics(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading epics...") as progress:
-                    progress.add_task("Loading epics...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["epic"],
-                        status=status,
-                        project=effective_project,
-                        limit=limit,
-                    )
-            else:
-                response = await client.explore(
-                    mode="list",
-                    types=["epic"],
-                    status=status,
-                    project=effective_project,
-                    limit=limit,
-                )
+            response = await client.explore(
+                mode="list",
+                types=["epic"],
+                status=status,
+                project=effective_project,
+                limit=limit,
+            )
 
             entities = response.get("entities", [])
 
@@ -194,12 +182,7 @@ def show_epic(
             # Resolve short ID prefix to full ID
             resolved_id = _validate_epic_id(epic_id)
 
-            if not json_out:
-                with spinner("Loading epic...") as progress:
-                    progress.add_task("Loading epic...", total=None)
-                    entity = await client.get_entity(resolved_id)
-            else:
-                entity = await client.get_entity(resolved_id)
+            entity = await client.get_entity(resolved_id)
 
             # JSON output (default)
             if json_out:
@@ -307,24 +290,13 @@ def create_epic(
             if tag_list:
                 metadata["tags"] = tag_list
 
-            if not json_out:
-                with spinner("Creating epic...") as progress:
-                    progress.add_task("Creating epic...", total=None)
-                    response = await client.create_entity(
-                        name=title,
-                        content=description or title,
-                        entity_type="epic",
-                        metadata=metadata,
-                        sync=sync,
-                    )
-            else:
-                response = await client.create_entity(
-                    name=title,
-                    content=description or title,
-                    entity_type="epic",
-                    metadata=metadata,
-                    sync=sync,
-                )
+            response = await client.create_entity(
+                name=title,
+                content=description or title,
+                entity_type="epic",
+                metadata=metadata,
+                sync=sync,
+            )
 
             if json_out:
                 print_json(response)
@@ -365,12 +337,7 @@ def start_epic(
             if assignee:
                 updates["assignees"] = [assignee]
 
-            if not json_out:
-                with spinner("Starting epic...") as progress:
-                    progress.add_task("Starting epic...", total=None)
-                    response = await client.update_entity(resolved_id, **updates)
-            else:
-                response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, **updates)
 
             if json_out:
                 print_json(response)
@@ -411,12 +378,7 @@ def complete_epic(
             if learnings:
                 updates["learnings"] = learnings
 
-            if not json_out:
-                with spinner("Completing epic...") as progress:
-                    progress.add_task("Completing epic...", total=None)
-                    response = await client.update_entity(resolved_id, **updates)
-            else:
-                response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, **updates)
 
             if json_out:
                 print_json(response)
@@ -458,12 +420,7 @@ def archive_epic(
             if reason:
                 updates["learnings"] = f"Archived: {reason}"
 
-            if not json_out:
-                with spinner("Archiving epic...") as progress:
-                    progress.add_task("Archiving epic...", total=None)
-                    response = await client.update_entity(resolved_id, **updates)
-            else:
-                response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, **updates)
 
             if json_out:
                 print_json(response)
@@ -527,12 +484,7 @@ def update_epic(
             if tags:
                 updates["tags"] = [t.strip() for t in tags.split(",")]
 
-            if not json_out:
-                with spinner("Updating epic...") as progress:
-                    progress.add_task("Updating epic...", total=None)
-                    response = await client.update_entity(resolved_id, **updates)
-            else:
-                response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, **updates)
 
             if json_out:
                 print_json(response)
@@ -571,20 +523,11 @@ def list_epic_tasks(
             resolved_id = _validate_epic_id(epic_id)
 
             # Get all tasks and filter by epic_id
-            if not json_out:
-                with spinner("Loading tasks...") as progress:
-                    progress.add_task("Loading tasks...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["task"],
-                        limit=limit,
-                    )
-            else:
-                response = await client.explore(
-                    mode="list",
-                    types=["task"],
-                    limit=limit,
-                )
+            response = await client.explore(
+                mode="list",
+                types=["task"],
+                limit=limit,
+            )
 
             entities = response.get("entities", [])
 

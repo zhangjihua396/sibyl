@@ -14,7 +14,6 @@ from sibyl.cli.common import (
     info,
     print_db_hint,
     run_async,
-    spinner,
     success,
 )
 
@@ -47,38 +46,33 @@ def export_graph(
         from sibyl_core.graph.relationships import RelationshipManager
 
         try:
-            with spinner("Exporting graph...") as progress:
-                task = progress.add_task("Exporting graph...", total=None)
+            client = await get_graph_client()
+            entity_mgr = EntityManager(client, group_id=org_id)
+            rel_mgr = RelationshipManager(client, group_id=org_id)
 
-                client = await get_graph_client()
-                entity_mgr = EntityManager(client, group_id=org_id)
-                rel_mgr = RelationshipManager(client, group_id=org_id)
+            # Get all entities
+            entities = []
+            for entity_type in ["pattern", "rule", "template", "task", "project", "episode"]:
+                type_entities = await entity_mgr.list_by_type(entity_type, limit=1000)
+                entities.extend(type_entities)
 
-                # Get all entities
-                progress.update(task, description="Loading entities...")
-                entities = []
-                for entity_type in ["pattern", "rule", "template", "task", "project", "episode"]:
-                    type_entities = await entity_mgr.list_by_type(entity_type, limit=1000)
-                    entities.extend(type_entities)
+            # Get all relationships
+            relationships = await rel_mgr.list_all(limit=5000)
 
-                # Get all relationships
-                progress.update(task, description="Loading relationships...")
-                relationships = await rel_mgr.list_all(limit=5000)
-
-                # Build export data
-                export_data = {
-                    "metadata": {
-                        "exported_at": str(
-                            __import__("datetime").datetime.now(
-                                tz=__import__("datetime").timezone.utc
-                            )
-                        ),
-                        "entity_count": len(entities),
-                        "relationship_count": len(relationships),
-                    },
-                    "entities": [e.model_dump() for e in entities],
-                    "relationships": [r.model_dump() for r in relationships],
-                }
+            # Build export data
+            export_data = {
+                "metadata": {
+                    "exported_at": str(
+                        __import__("datetime").datetime.now(
+                            tz=__import__("datetime").timezone.utc
+                        )
+                    ),
+                    "entity_count": len(entities),
+                    "relationship_count": len(relationships),
+                },
+                "entities": [e.model_dump() for e in entities],
+                "relationships": [r.model_dump() for r in relationships],
+            }
 
             # Write to file (sync I/O after async work)
             with open(output, "w") as f:  # noqa: ASYNC230
@@ -114,15 +108,13 @@ def export_tasks(
         from sibyl_core.tools.core import explore
 
         try:
-            with spinner("Exporting tasks...") as progress:
-                progress.add_task("Exporting tasks...", total=None)
-                response = await explore(
-                    mode="list",
-                    types=["task"],
-                    project=project,
-                    status=status,
-                    limit=1000,
-                )
+            response = await explore(
+                mode="list",
+                types=["task"],
+                project=project,
+                status=status,
+                limit=1000,
+            )
 
             entities = response.entities or []
 
@@ -195,13 +187,11 @@ def export_entities(
         from sibyl_core.tools.core import explore
 
         try:
-            with spinner(f"Exporting {entity_type}s...") as progress:
-                progress.add_task(f"Exporting {entity_type}s...", total=None)
-                response = await explore(
-                    mode="list",
-                    types=[entity_type],
-                    limit=1000,
-                )
+            response = await explore(
+                mode="list",
+                types=[entity_type],
+                limit=1000,
+            )
 
             entities = response.entities or []
 

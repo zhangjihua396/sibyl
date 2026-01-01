@@ -27,7 +27,6 @@ from sibyl_cli.common import (
     pagination_hint,
     print_json,
     run_async,
-    spinner,
     success,
     truncate,
 )
@@ -296,24 +295,13 @@ def list_tasks(
         try:
             # Use semantic search if query provided, otherwise use explore
             if query:
-                if fmt in ("json", "csv"):
-                    response = await client.search(
-                        query=query,
-                        types=["task"],
-                        project=effective_project,
-                        limit=effective_limit,
-                        offset=effective_offset,
-                    )
-                else:
-                    with spinner(f"Searching tasks for '{query}'...") as progress:
-                        progress.add_task("Searching...", total=None)
-                        response = await client.search(
-                            query=query,
-                            types=["task"],
-                            project=effective_project,
-                            limit=effective_limit,
-                            offset=effective_offset,
-                        )
+                response = await client.search(
+                    query=query,
+                    types=["task"],
+                    project=effective_project,
+                    limit=effective_limit,
+                    offset=effective_offset,
+                )
                 # Search returns results directly
                 entities = response.get("results", [])
                 has_more = response.get("has_more", False)
@@ -325,38 +313,20 @@ def list_tasks(
                 api_complexity = complexity
                 api_tags = tags
 
-                if fmt in ("json", "csv"):
-                    response = await client.explore(
-                        mode="list",
-                        types=["task"],
-                        status=api_status,
-                        priority=api_priority,
-                        complexity=api_complexity,
-                        feature=feature,
-                        tags=api_tags,
-                        project=effective_project,
-                        epic=epic,
-                        no_epic=no_epic,
-                        limit=effective_limit,
-                        offset=effective_offset,
-                    )
-                else:
-                    with spinner("Loading tasks...") as progress:
-                        progress.add_task("Loading tasks...", total=None)
-                        response = await client.explore(
-                            mode="list",
-                            types=["task"],
-                            status=api_status,
-                            priority=api_priority,
-                            complexity=api_complexity,
-                            feature=feature,
-                            tags=api_tags,
-                            project=effective_project,
-                            epic=epic,
-                            no_epic=no_epic,
-                            limit=effective_limit,
-                            offset=effective_offset,
-                        )
+                response = await client.explore(
+                    mode="list",
+                    types=["task"],
+                    status=api_status,
+                    priority=api_priority,
+                    complexity=api_complexity,
+                    feature=feature,
+                    tags=api_tags,
+                    project=effective_project,
+                    epic=epic,
+                    no_epic=no_epic,
+                    limit=effective_limit,
+                    offset=effective_offset,
+                )
                 entities = response.get("entities", [])
                 has_more = response.get("has_more", False)
                 total = response.get("actual_total") or response.get("total", len(entities))
@@ -408,12 +378,7 @@ def show_task(
             # Validate full task ID (no prefix matching)
             resolved_id = _validate_task_id(task_id)
 
-            if not json_out:
-                with spinner("Loading task...") as progress:
-                    progress.add_task("Loading task...", total=None)
-                    entity = await client.get_entity(resolved_id)
-            else:
-                entity = await client.get_entity(resolved_id)
+            entity = await client.get_entity(resolved_id)
 
             # JSON output (default)
             if json_out:
@@ -479,12 +444,7 @@ def start_task(
             # Validate full task ID (no prefix matching)
             resolved_id = _validate_task_id(task_id)
 
-            if not json_out:
-                with spinner("Starting task...") as progress:
-                    progress.add_task("Starting task...", total=None)
-                    response = await client.start_task(resolved_id, assignee)
-            else:
-                response = await client.start_task(resolved_id, assignee)
+            response = await client.start_task(resolved_id, assignee)
 
             if json_out:
                 print_json(response)
@@ -521,12 +481,7 @@ def block_task(
             # Validate full task ID (no prefix matching)
             resolved_id = _validate_task_id(task_id)
 
-            if not json_out:
-                with spinner("Blocking task...") as progress:
-                    progress.add_task("Blocking task...", total=None)
-                    response = await client.block_task(resolved_id, reason)
-            else:
-                response = await client.block_task(resolved_id, reason)
+            response = await client.block_task(resolved_id, reason)
 
             if json_out:
                 print_json(response)
@@ -560,12 +515,7 @@ def unblock_task(
             # Validate full task ID (no prefix matching)
             resolved_id = _validate_task_id(task_id)
 
-            if not json_out:
-                with spinner("Unblocking task...") as progress:
-                    progress.add_task("Unblocking task...", total=None)
-                    response = await client.unblock_task(resolved_id)
-            else:
-                response = await client.unblock_task(resolved_id)
+            response = await client.unblock_task(resolved_id)
 
             if json_out:
                 print_json(response)
@@ -604,12 +554,7 @@ def submit_review(
             resolved_id = _validate_task_id(task_id)
             commit_list = [c.strip() for c in commits.split(",")] if commits else None
 
-            if not json_out:
-                with spinner("Submitting for review...") as progress:
-                    progress.add_task("Submitting for review...", total=None)
-                    response = await client.submit_review(resolved_id, pr_url, commit_list)
-            else:
-                response = await client.submit_review(resolved_id, pr_url, commit_list)
+            response = await client.submit_review(resolved_id, pr_url, commit_list)
 
             if json_out:
                 print_json(response)
@@ -647,12 +592,7 @@ def complete_task(
             # Validate full task ID (no prefix matching)
             resolved_id = _validate_task_id(task_id)
 
-            if not json_out:
-                with spinner("Completing task...") as progress:
-                    progress.add_task("Completing task...", total=None)
-                    response = await client.complete_task(resolved_id, hours, learnings)
-            else:
-                response = await client.complete_task(resolved_id, hours, learnings)
+            response = await client.complete_task(resolved_id, hours, learnings)
 
             if json_out:
                 print_json(response)
@@ -826,24 +766,13 @@ def create_task(
             if epic:
                 metadata["epic_id"] = epic
 
-            if not json_out:
-                with spinner("Creating task...") as progress:
-                    progress.add_task("Creating task...", total=None)
-                    response = await client.create_entity(
-                        name=title,
-                        content=description or title,
-                        entity_type="task",
-                        metadata=metadata,
-                        sync=sync,
-                    )
-            else:
-                response = await client.create_entity(
-                    name=title,
-                    content=description or title,
-                    entity_type="task",
-                    metadata=metadata,
-                    sync=sync,
-                )
+            response = await client.create_entity(
+                name=title,
+                content=description or title,
+                entity_type="task",
+                metadata=metadata,
+                sync=sync,
+            )
 
             if json_out:
                 print_json(response)
@@ -925,36 +854,19 @@ def update_task(
             tag_list = [t.strip() for t in tags.split(",")] if tags else None
             tech_list = [t.strip() for t in technologies.split(",")] if technologies else None
 
-            if not json_out:
-                with spinner("Updating task...") as progress:
-                    progress.add_task("Updating task...", total=None)
-                    response = await client.update_task(
-                        task_id=resolved_id,
-                        status=status,
-                        priority=priority,
-                        complexity=complexity,
-                        title=title,
-                        description=description,
-                        assignees=assignees,
-                        epic_id=epic,
-                        feature=feature,
-                        tags=tag_list,
-                        technologies=tech_list,
-                    )
-            else:
-                response = await client.update_task(
-                    task_id=resolved_id,
-                    status=status,
-                    priority=priority,
-                    complexity=complexity,
-                    title=title,
-                    description=description,
-                    assignees=assignees,
-                    epic_id=epic,
-                    feature=feature,
-                    tags=tag_list,
-                    technologies=tech_list,
-                )
+            response = await client.update_task(
+                task_id=resolved_id,
+                status=status,
+                priority=priority,
+                complexity=complexity,
+                title=title,
+                description=description,
+                assignees=assignees,
+                epic_id=epic,
+                feature=feature,
+                tags=tag_list,
+                technologies=tech_list,
+            )
 
             if json_out:
                 print_json(response)
@@ -1007,14 +919,7 @@ def add_note(
             author_type = "agent" if agent else "user"
             author_name = author or ""
 
-            if not json_out:
-                with spinner("Adding note...") as progress:
-                    progress.add_task("Adding note...", total=None)
-                    response = await client.create_note(
-                        resolved_id, content, author_type, author_name
-                    )
-            else:
-                response = await client.create_note(resolved_id, content, author_type, author_name)
+            response = await client.create_note(resolved_id, content, author_type, author_name)
 
             if json_out:
                 print_json(response)
@@ -1052,13 +957,7 @@ def list_notes(
         try:
             resolved_id = _validate_task_id(task_id)
 
-            if not json_out:
-                with spinner("Loading notes...") as progress:
-                    progress.add_task("Loading notes...", total=None)
-                    response = await client.list_notes(resolved_id, limit)
-            else:
-                response = await client.list_notes(resolved_id, limit)
-
+            response = await client.list_notes(resolved_id, limit)
             notes = response.get("notes", [])
 
             if json_out:

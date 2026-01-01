@@ -22,7 +22,6 @@ from sibyl_cli.common import (
     info,
     print_json,
     run_async,
-    spinner,
     success,
     truncate,
 )
@@ -70,21 +69,11 @@ def list_projects(
         client = get_client()
 
         try:
-            if format_ in ("json", "csv"):
-                response = await client.explore(
-                    mode="list",
-                    types=["project"],
-                    limit=limit,
-                )
-            else:
-                with spinner("Loading projects...") as progress:
-                    progress.add_task("Loading projects...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["project"],
-                        limit=limit,
-                    )
-
+            response = await client.explore(
+                mode="list",
+                types=["project"],
+                limit=limit,
+            )
             entities = response.get("entities", [])
 
             if format_ == "json":
@@ -146,24 +135,13 @@ def show_project(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading project...") as progress:
-                    progress.add_task("Loading project...", total=None)
-                    entity = await client.get_entity(project_id)
-                    tasks_response = await client.explore(
-                        mode="list",
-                        types=["task"],
-                        project=project_id,
-                        limit=500,
-                    )
-            else:
-                entity = await client.get_entity(project_id)
-                tasks_response = await client.explore(
-                    mode="list",
-                    types=["task"],
-                    project=project_id,
-                    limit=500,
-                )
+            entity = await client.get_entity(project_id)
+            tasks_response = await client.explore(
+                mode="list",
+                types=["task"],
+                project=project_id,
+                limit=500,
+            )
 
             # JSON output (default)
             if json_out:
@@ -249,22 +227,12 @@ def create_project(
             if repo:
                 metadata["repository_url"] = repo
 
-            if not json_out:
-                with spinner("Creating project...") as progress:
-                    progress.add_task("Creating project...", total=None)
-                    response = await client.create_entity(
-                        name=name,
-                        content=description or f"Project: {name}",
-                        entity_type="project",
-                        metadata=metadata if metadata else None,
-                    )
-            else:
-                response = await client.create_entity(
-                    name=name,
-                    content=description or f"Project: {name}",
-                    entity_type="project",
-                    metadata=metadata if metadata else None,
-                )
+            response = await client.create_entity(
+                name=name,
+                content=description or f"Project: {name}",
+                entity_type="project",
+                metadata=metadata if metadata else None,
+            )
 
             # JSON output (default)
             if json_out:
@@ -297,23 +265,12 @@ def project_progress(
         client = get_client()
 
         try:
-            if not json_out:
-                with spinner("Loading progress...") as progress:
-                    progress.add_task("Loading progress...", total=None)
-                    response = await client.explore(
-                        mode="list",
-                        types=["task"],
-                        project=project_id,
-                        limit=500,
-                    )
-            else:
-                response = await client.explore(
-                    mode="list",
-                    types=["task"],
-                    project=project_id,
-                    limit=500,
-                )
-
+            response = await client.explore(
+                mode="list",
+                types=["task"],
+                project=project_id,
+                limit=500,
+            )
             tasks = response.get("entities", [])
 
             status_counts: dict[str, int] = {}
