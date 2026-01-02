@@ -10,6 +10,14 @@ const API_BASE = '/api';
 // Types (generated from OpenAPI will replace these)
 // =============================================================================
 
+export interface RelatedEntitySummary {
+  id: string;
+  name: string;
+  entity_type: string;
+  relationship: string;
+  direction: 'outgoing' | 'incoming';
+}
+
 export interface Entity {
   id: string;
   entity_type: string;
@@ -23,6 +31,7 @@ export interface Entity {
   source_file: string | null;
   created_at: string | null;
   updated_at: string | null;
+  related?: RelatedEntitySummary[] | null;
 }
 
 export interface EntityCreate {
@@ -542,6 +551,77 @@ export interface EpicProgress {
   blocked_tasks: number;
   review_tasks: number;
   completion_pct: number;
+}
+
+// =============================================================================
+// Agent Types
+// =============================================================================
+
+export type AgentStatus =
+  | 'initializing'
+  | 'working'
+  | 'paused'
+  | 'waiting_approval'
+  | 'waiting_dependency'
+  | 'resuming'
+  | 'completed'
+  | 'failed'
+  | 'terminated';
+
+export type AgentType =
+  | 'general'
+  | 'planner'
+  | 'implementer'
+  | 'tester'
+  | 'reviewer'
+  | 'integrator'
+  | 'orchestrator';
+
+export type AgentSpawnSource = 'user' | 'orchestrator' | 'parent_agent' | 'task_assignment';
+
+export interface Agent {
+  id: string;
+  name: string;
+  agent_type: AgentType;
+  status: AgentStatus;
+  task_id: string | null;
+  project_id: string | null;
+  spawn_source: AgentSpawnSource | null;
+  started_at: string | null;
+  completed_at: string | null;
+  last_heartbeat: string | null;
+  tokens_used: number;
+  cost_usd: number;
+  worktree_path: string | null;
+  worktree_branch: string | null;
+  error_message: string | null;
+}
+
+export interface AgentListResponse {
+  agents: Agent[];
+  total: number;
+  by_status: Record<string, number>;
+  by_type: Record<string, number>;
+}
+
+export interface SpawnAgentRequest {
+  prompt: string;
+  agent_type?: AgentType;
+  project_id: string;
+  task_id?: string;
+}
+
+export interface SpawnAgentResponse {
+  success: boolean;
+  agent_id: string;
+  message: string;
+}
+
+export interface AgentActionResponse {
+  success: boolean;
+  agent_id: string;
+  action: string;
+  message: string;
 }
 
 // =============================================================================
@@ -1575,5 +1655,48 @@ export const api = {
     // Get project-level metrics
     project: (projectId: string) =>
       fetchApi<ProjectMetricsResponse>(`/metrics/projects/${projectId}`),
+  },
+
+  // Agents
+  agents: {
+    list: (params?: {
+      project?: string;
+      status?: AgentStatus;
+      agent_type?: AgentType;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.project) searchParams.set('project', params.project);
+      if (params?.status) searchParams.set('status', params.status);
+      if (params?.agent_type) searchParams.set('agent_type', params.agent_type);
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return fetchApi<AgentListResponse>(`/agents${query ? `?${query}` : ''}`);
+    },
+
+    get: (id: string) => fetchApi<Agent>(`/agents/${id}`),
+
+    spawn: (request: SpawnAgentRequest) =>
+      fetchApi<SpawnAgentResponse>('/agents', {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }),
+
+    pause: (id: string, reason?: string) =>
+      fetchApi<AgentActionResponse>(`/agents/${id}/pause`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
+
+    resume: (id: string) =>
+      fetchApi<AgentActionResponse>(`/agents/${id}/resume`, {
+        method: 'POST',
+      }),
+
+    terminate: (id: string, reason?: string) =>
+      fetchApi<AgentActionResponse>(`/agents/${id}/terminate`, {
+        method: 'POST',
+        body: JSON.stringify({ reason }),
+      }),
   },
 };

@@ -15,6 +15,7 @@ import {
   ListTodo,
   Network,
   Search,
+  Sparks,
 } from '@/components/ui/icons';
 
 /**
@@ -26,6 +27,7 @@ export const ROUTE_CONFIG: Record<string, { label: string; icon: IconComponent }
   projects: { label: 'Projects', icon: FolderKanban },
   epics: { label: 'Epics', icon: Layers },
   tasks: { label: 'Tasks', icon: ListTodo },
+  agents: { label: 'Agents', icon: Sparks },
   sources: { label: 'Sources', icon: BookOpen },
   documents: { label: 'Documents', icon: FileText },
   graph: { label: 'Graph', icon: Network },

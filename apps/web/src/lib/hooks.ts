@@ -8,6 +8,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import type {
+  AgentStatus,
+  AgentType,
   CodeExampleParams,
   CodeExampleResponse,
   CreateNoteRequest,
@@ -16,6 +18,7 @@ import type {
   EpicStatus,
   RAGSearchParams,
   RAGSearchResponse,
+  SpawnAgentRequest,
   TaskPriority,
   TaskStatus,
 } from './api';
@@ -124,6 +127,21 @@ export const queryKeys = {
   metrics: {
     org: ['metrics', 'org'] as const,
     project: (id: string) => ['metrics', 'project', id] as const,
+  },
+  agents: {
+    all: ['agents'] as const,
+    list: (params?: { project?: string; status?: AgentStatus; agent_type?: AgentType }) => {
+      const normalized =
+        params && (params.project || params.status || params.agent_type)
+          ? {
+              ...(params.project ? { project: params.project } : {}),
+              ...(params.status ? { status: params.status } : {}),
+              ...(params.agent_type ? { agent_type: params.agent_type } : {}),
+            }
+          : undefined;
+      return ['agents', 'list', normalized] as const;
+    },
+    detail: (id: string) => ['agents', 'detail', id] as const,
   },
 };
 
@@ -1323,5 +1341,105 @@ export function useProjectMetrics(
     initialData,
     enabled: Boolean(projectId),
     staleTime: TIMING.STALE_TIME,
+  });
+}
+
+// =============================================================================
+// Agent Hooks
+// =============================================================================
+
+/**
+ * Fetch agents with optional filtering.
+ */
+export function useAgents(params?: {
+  project?: string;
+  status?: AgentStatus;
+  agent_type?: AgentType;
+}) {
+  const normalized =
+    params && (params.project || params.status || params.agent_type)
+      ? {
+          ...(params.project ? { project: params.project } : {}),
+          ...(params.status ? { status: params.status } : {}),
+          ...(params.agent_type ? { agent_type: params.agent_type } : {}),
+        }
+      : undefined;
+
+  return useQuery({
+    queryKey: queryKeys.agents.list(normalized),
+    queryFn: () => api.agents.list(normalized),
+    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
+  });
+}
+
+/**
+ * Fetch a single agent by ID.
+ */
+export function useAgent(id: string) {
+  return useQuery({
+    queryKey: queryKeys.agents.detail(id),
+    queryFn: () => api.agents.get(id),
+    enabled: !!id,
+    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
+  });
+}
+
+/**
+ * Spawn a new agent.
+ */
+export function useSpawnAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (request: SpawnAgentRequest) => api.agents.spawn(request),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
+  });
+}
+
+/**
+ * Pause an agent.
+ */
+export function usePauseAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) => api.agents.pause(id, reason),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
+  });
+}
+
+/**
+ * Resume a paused agent.
+ */
+export function useResumeAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => api.agents.resume(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
+  });
+}
+
+/**
+ * Terminate an agent.
+ */
+export function useTerminateAgent() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string }) =>
+      api.agents.terminate(id, reason),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
   });
 }

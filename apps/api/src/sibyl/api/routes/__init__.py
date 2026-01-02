@@ -1,6 +1,7 @@
 """API route modules."""
 
 from sibyl.api.routes.admin import router as admin_router
+from sibyl.api.routes.agents import router as agents_router
 from sibyl.api.routes.auth import router as auth_router
 from sibyl.api.routes.crawler import router as crawler_router
 from sibyl.api.routes.entities import router as entities_router
@@ -18,6 +19,7 @@ from sibyl.api.routes.users import router as users_router
 
 __all__ = [
     "admin_router",
+    "agents_router",
     "auth_router",
     "crawler_router",
     "entities_router",

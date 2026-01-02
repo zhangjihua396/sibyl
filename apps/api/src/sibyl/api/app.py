@@ -20,6 +20,7 @@ from starlette.routing import WebSocketRoute
 from sibyl.api.rate_limit import limiter
 from sibyl.api.routes import (
     admin_router,
+    agents_router,
     auth_router,
     crawler_router,
     entities_router,
@@ -146,6 +147,7 @@ def create_api_app() -> FastAPI:
     app.add_middleware(AccessLogMiddleware)
 
     # Register routers
+    app.include_router(agents_router)
     app.include_router(entities_router)
     app.include_router(tasks_router)
     app.include_router(epics_router)
