@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Folder, X } from '@/components/ui/icons';
 import { useProjects } from '@/lib/hooks';
 import { useProjectContext } from '@/lib/project-context';
@@ -52,17 +52,14 @@ export function ProjectSelector() {
     }
   }, [isOpen]);
 
-  // Get display text
-  const getDisplayText = useCallback(() => {
+  // Get display text and count separately to prevent layout shift
+  const displayInfo = useMemo(() => {
     if (isAll || selectedProjects.length === 0) {
-      return 'All Projects';
+      return { name: 'All Projects', count: 0 };
     }
     const firstProject = projects.find(p => p.id === selectedProjects[0]);
     const firstName = firstProject?.name ?? 'Project';
-    if (selectedProjects.length === 1) {
-      return firstName;
-    }
-    return `${firstName} +${selectedProjects.length - 1}`;
+    return { name: firstName, count: selectedProjects.length - 1 };
   }, [isAll, selectedProjects, projects]);
 
   // Handle single click (quick switch to single project)
@@ -96,7 +93,7 @@ export function ProjectSelector() {
         onClick={() => setIsOpen(!isOpen)}
         className={`
           flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium
-          transition-all duration-200
+          transition-all duration-200 w-[180px]
           ${
             isOpen
               ? 'bg-sc-purple/20 text-sc-purple border-sc-purple/40'
@@ -107,12 +104,15 @@ export function ProjectSelector() {
           border
         `}
       >
-        <Folder width={14} height={14} />
-        <span className="max-w-[120px] truncate">{getDisplayText()}</span>
+        <Folder width={14} height={14} className="shrink-0" />
+        <span className="flex-1 truncate text-left">{displayInfo.name}</span>
+        {displayInfo.count > 0 && (
+          <span className="shrink-0 text-xs opacity-70">+{displayInfo.count}</span>
+        )}
         <ChevronDown
           width={14}
           height={14}
-          className={`transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          className={`shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
         />
       </button>
 

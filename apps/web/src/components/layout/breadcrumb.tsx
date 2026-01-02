@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Fragment, memo, useMemo } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { Fragment, memo, useCallback, useMemo } from 'react';
 import {
   BookOpen,
   Boxes,
@@ -50,6 +50,18 @@ interface BreadcrumbProps {
 
 function BreadcrumbInner({ items, className = '' }: BreadcrumbProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Preserve project context in breadcrumb links
+  const withContext = useCallback(
+    (href: string) => {
+      const projects = searchParams.get('projects');
+      if (!projects) return href;
+      const separator = href.includes('?') ? '&' : '?';
+      return `${href}${separator}projects=${projects}`;
+    },
+    [searchParams]
+  );
 
   const breadcrumbs = useMemo(() => {
     // Use custom items if provided
@@ -107,7 +119,7 @@ function BreadcrumbInner({ items, className = '' }: BreadcrumbProps) {
             )}
             {crumb.href && !isLast ? (
               <Link
-                href={crumb.href}
+                href={withContext(crumb.href)}
                 className="flex items-center gap-1.5 hover:text-sc-purple transition-colors shrink-0"
               >
                 {Icon && <Icon width={14} height={14} />}

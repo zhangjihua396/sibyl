@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
 import type { IconComponent } from '@/components/ui/icons';
 
 interface NavLinkProps {
@@ -13,11 +14,20 @@ interface NavLinkProps {
 
 export function NavLink({ href, icon: Icon, children, onClick }: NavLinkProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const isActive = pathname === href;
+
+  // Preserve project context across navigation
+  const hrefWithContext = useMemo(() => {
+    const projects = searchParams.get('projects');
+    if (!projects) return href;
+    const separator = href.includes('?') ? '&' : '?';
+    return `${href}${separator}projects=${projects}`;
+  }, [href, searchParams]);
 
   return (
     <Link
-      href={href}
+      href={hrefWithContext}
       onClick={onClick}
       className={`
         flex items-center gap-3 px-3 py-2.5 rounded-lg
