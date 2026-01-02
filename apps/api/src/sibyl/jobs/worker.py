@@ -1437,12 +1437,14 @@ async def resume_agent_execution(
         client = await get_graph_client()
         manager = EntityManager(client, group_id=org_id)
 
-        # Get agent record
+        # Get agent record (manager.get returns Entity, not typed model)
         agent = await manager.get(agent_id)
-        if not agent or not isinstance(agent, AgentRecord):
+        if not agent or agent.entity_type != EntityType.AGENT:
             raise ValueError(f"Agent not found: {agent_id}")
 
-        project_id = agent.project_id or ""
+        # Extract fields from metadata
+        agent_meta = agent.metadata or {}
+        project_id = agent_meta.get("project_id") or ""
 
         # Get latest checkpoint for this agent
         checkpoints = await manager.list_by_type(entity_type=EntityType.CHECKPOINT, limit=50)
