@@ -10,10 +10,7 @@ tasks:
   # Development
   # ==========================================================================
   dev:
-    command:
-      'docker compose up -d && sleep 1 && npx concurrently --raw --kill-others-on-fail "uv run
-      --directory apps/api sibyld serve --reload" "uv run --directory apps/api arq
-      sibyl.jobs.worker.WorkerSettings --watch src" "moon run web:dev"'
+    command: 'docker compose up -d && sleep 1 && npx concurrently --raw --kill-others-on-fail "uv run --directory apps/api sibyld serve --reload" "uv run --directory apps/api arq sibyl.jobs.worker.WorkerSettings --watch src" "moon run web:dev"'
     env:
       FORCE_COLOR: "1"
     local: true

@@ -12,6 +12,5 @@ node:
 
 python:
   version: "3.13"
-  packageManager: uv
-  # Only create venv at workspace root, not per-package
-  rootVenvOnly: true
+  # Only sync deps from workspace root, not per-package
+  rootRequirementsOnly: true

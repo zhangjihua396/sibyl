@@ -36,6 +36,36 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
+# Patterns to strip from crawled markdown content (navigation cruft)
+_NAV_CRUFT_PATTERNS = [
+    # Skip to content links (Docusaurus, etc.)
+    re.compile(r"^\[Skip to (?:main )?content\]\([^)]+\)\s*", re.MULTILINE | re.IGNORECASE),
+    # "On this page" sidebar headers
+    re.compile(r"^On this page\s*$", re.MULTILINE | re.IGNORECASE),
+    # Breadcrumb navigation like "Docs > Getting Started > Installation"
+    re.compile(r"^(?:Docs|Documentation)\s*[>›]\s*.+$", re.MULTILINE),
+    # Common nav links at top/bottom
+    re.compile(r"^\[(?:Previous|Next|Edit this page|Report an issue)\]\([^)]+\)\s*$", re.MULTILINE),
+    # Table of contents markers
+    re.compile(r"^(?:Table of [Cc]ontents|Contents)\s*$", re.MULTILINE),
+]
+
+
+def _clean_nav_cruft(content: str) -> str:
+    """Remove common navigation cruft from markdown content.
+
+    Strips:
+    - Skip to content links
+    - On this page sidebar text
+    - Previous/Next navigation links
+    - Edit this page links
+    """
+    for pattern in _NAV_CRUFT_PATTERNS:
+        content = pattern.sub("", content)
+    # Clean up multiple blank lines left behind
+    content = re.sub(r"\n{3,}", "\n\n", content)
+    return content.strip()
+
 
 class CrawlerService:
     """Service for crawling documentation sites and storing results.
@@ -343,8 +373,8 @@ class CrawlerService:
         Returns:
             CrawledDocument ready for storage
         """
-        # Extract content
-        content = result.markdown or ""
+        # Extract and clean content
+        content = _clean_nav_cruft(result.markdown or "")
         raw_content = result.html or ""
 
         # Compute content hash for deduplication
@@ -538,7 +568,7 @@ class CrawlerService:
         Returns:
             CrawledDocument ready for storage
         """
-        content = section.content
+        content = _clean_nav_cruft(section.content)
         content_hash = hashlib.sha256(content.encode()).hexdigest()[:64]
         headings = self._extract_headings(content)
         code_languages = self._detect_code_languages(content)
