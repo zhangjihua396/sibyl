@@ -9,6 +9,7 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 import { memo } from 'react';
 
 import { Section } from '@/components/ui/card';
@@ -97,7 +98,10 @@ const AgentHealthItem = memo(function AgentHealthItem({ agent }: AgentHealthItem
   const lastHeartbeat = agent.last_heartbeat ? new Date(agent.last_heartbeat) : null;
 
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-sc-fg-subtle/10 last:border-0">
+    <Link
+      href={`/agents/${agent.agent_id}`}
+      className="flex items-center gap-3 py-3 border-b border-sc-fg-subtle/10 last:border-0 hover:bg-sc-bg-highlight/50 rounded-lg px-2 -mx-2 transition-colors cursor-pointer"
+    >
       {/* Status Icon */}
       <div className={`p-2 rounded-lg ${config.bgClass}`}>
         <StatusIcon className={`h-4 w-4 ${config.colorClass}`} />
@@ -139,7 +143,7 @@ const AgentHealthItem = memo(function AgentHealthItem({ agent }: AgentHealthItem
         {agent.status === 'stale' && <Pause className="h-4 w-4 text-sc-yellow" />}
         {agent.status === 'unresponsive' && <WarningCircle className="h-4 w-4 text-sc-red" />}
       </div>
-    </div>
+    </Link>
   );
 });
 
