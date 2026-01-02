@@ -14,7 +14,11 @@ export type WebSocketEventType =
   | 'crawl_complete'
   | 'health_update'
   | 'heartbeat'
-  | 'connection_status';
+  | 'connection_status'
+  // Agent events
+  | 'agent_status'
+  | 'agent_message'
+  | 'agent_workspace';
 
 export interface WebSocketMessage {
   event: WebSocketEventType;

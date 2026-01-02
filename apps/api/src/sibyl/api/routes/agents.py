@@ -303,6 +303,7 @@ async def spawn_agent(
             _run_agent_execution,
             instance=instance,
             manager=manager,
+            org_id=str(org.id),
         )
 
         return SpawnAgentResponse(
@@ -318,13 +319,16 @@ async def spawn_agent(
 async def _run_agent_execution(
     instance: "AgentInstance",
     manager: EntityManager,
+    org_id: str,
 ) -> None:
     """Run agent execution in background and stream results to checkpoint.
 
     Args:
         instance: The spawned AgentInstance to execute
         manager: EntityManager for persisting messages
+        org_id: Organization ID for WebSocket broadcasts
     """
+    from sibyl.api.pubsub import publish_event
 
     agent_id = instance.id
     log.info("Starting agent execution", agent_id=agent_id)
@@ -392,6 +396,19 @@ async def _run_agent_execution(
                 },
             )
 
+            # Emit WebSocket event for real-time updates
+            await publish_event(
+                "agent_message",
+                {"agent_id": agent_id, "message": new_msg},
+                org_id=org_id,
+            )
+
+        # Emit status change on completion
+        await publish_event(
+            "agent_status",
+            {"agent_id": agent_id, "status": "completed"},
+            org_id=org_id,
+        )
         log.info("Agent execution completed", agent_id=agent_id)
 
     except Exception as e:
@@ -403,6 +420,12 @@ async def _run_agent_execution(
                 "status": AgentStatus.FAILED.value,
                 "error_message": str(e),
             },
+        )
+        # Emit failure via WebSocket
+        await publish_event(
+            "agent_status",
+            {"agent_id": agent_id, "status": "failed", "error": str(e)},
+            org_id=org_id,
         )
 
 

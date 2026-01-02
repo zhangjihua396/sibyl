@@ -12,6 +12,7 @@ import {
 } from '@/lib/constants';
 import {
   useAgentMessages,
+  useAgentSubscription,
   useAgentWorkspace,
   usePauseAgent,
   useResumeAgent,
@@ -307,7 +308,10 @@ export function AgentChatPanel({ agent }: { agent: Agent }) {
   const dividerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Fetch messages and workspace from API
+  // Subscribe to real-time updates via WebSocket
+  useAgentSubscription(agent.id);
+
+  // Fetch messages and workspace from API (WebSocket will invalidate these on updates)
   const { data: messagesData } = useAgentMessages(agent.id);
   const { data: workspaceData } = useAgentWorkspace(agent.id);
   const sendMessage = useSendAgentMessage();

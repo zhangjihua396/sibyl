@@ -14,10 +14,12 @@ export function ProjectSelector() {
     useProjectContext();
   const { data: projectsData } = useProjects();
 
-  // Sort projects by recency (updated_at from metadata, descending)
+  // Sort projects by recency (prefer last_activity_at, fall back to updated_at)
   const projects = [...(projectsData?.entities ?? [])].sort((a, b) => {
-    const aTime = a.metadata?.updated_at ? new Date(a.metadata.updated_at as string).getTime() : 0;
-    const bTime = b.metadata?.updated_at ? new Date(b.metadata.updated_at as string).getTime() : 0;
+    const aActivity = a.metadata?.last_activity_at || a.metadata?.updated_at;
+    const bActivity = b.metadata?.last_activity_at || b.metadata?.updated_at;
+    const aTime = aActivity ? new Date(aActivity as string).getTime() : 0;
+    const bTime = bActivity ? new Date(bActivity as string).getTime() : 0;
     return bTime - aTime;
   });
 

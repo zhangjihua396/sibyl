@@ -1370,19 +1370,20 @@ export function useAgents(params?: {
   return useQuery({
     queryKey: queryKeys.agents.list(normalized),
     queryFn: () => api.agents.list(normalized),
-    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
+    // Fallback polling (WebSocket handles most real-time updates)
+    refetchInterval: 30000,
   });
 }
 
 /**
  * Fetch a single agent by ID.
+ * Note: No polling - use useAgentSubscription for real-time WebSocket updates.
  */
 export function useAgent(id: string) {
   return useQuery({
     queryKey: queryKeys.agents.detail(id),
     queryFn: () => api.agents.get(id),
     enabled: !!id,
-    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
   });
 }
 
@@ -1448,13 +1449,13 @@ export function useTerminateAgent() {
 
 /**
  * Fetch messages for an agent.
+ * Note: No polling - use useAgentSubscription for real-time WebSocket updates.
  */
 export function useAgentMessages(id: string, limit?: number) {
   return useQuery({
     queryKey: queryKeys.agents.messages(id),
     queryFn: () => api.agents.getMessages(id, limit),
     enabled: !!id,
-    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
   });
 }
 
@@ -1475,12 +1476,60 @@ export function useSendAgentMessage() {
 
 /**
  * Fetch workspace state for an agent.
+ * Note: No polling - use useAgentSubscription for real-time WebSocket updates.
  */
 export function useAgentWorkspace(id: string) {
   return useQuery({
     queryKey: queryKeys.agents.workspace(id),
     queryFn: () => api.agents.getWorkspace(id),
     enabled: !!id,
-    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
   });
+}
+
+/**
+ * Subscribe to real-time agent updates via WebSocket.
+ * Automatically updates React Query cache when WebSocket events arrive.
+ */
+export function useAgentSubscription(agentId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!agentId) return;
+
+    let unsubStatus: (() => void) | undefined;
+    let unsubMessage: (() => void) | undefined;
+    let unsubWorkspace: (() => void) | undefined;
+
+    // Subscribe to WebSocket agent events
+    wsClient.connect();
+
+    unsubStatus = wsClient.on('agent_status', data => {
+      if (data.agent_id === agentId) {
+        // Invalidate agent query to refetch latest status
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(agentId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.list() });
+      }
+    });
+
+    unsubMessage = wsClient.on('agent_message', data => {
+      if (data.agent_id === agentId) {
+        // Invalidate messages query to refetch
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.messages(agentId) });
+      }
+    });
+
+    unsubWorkspace = wsClient.on('agent_workspace', data => {
+      if (data.agent_id === agentId) {
+        // Invalidate workspace query to refetch
+        queryClient.invalidateQueries({ queryKey: queryKeys.agents.workspace(agentId) });
+      }
+    });
+
+    // Cleanup subscriptions
+    return () => {
+      unsubStatus?.();
+      unsubMessage?.();
+      unsubWorkspace?.();
+    };
+  }, [agentId, queryClient]);
 }
