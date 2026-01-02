@@ -52,6 +52,7 @@ interface GraphNode extends HierarchicalNode {
   entityColor?: string; // Color based on entity type
   degree?: number; // Number of connections (for sizing)
   isProject?: boolean; // Projects are STARS in our galaxy!
+  isNeighbor?: boolean; // Context node from 1-hop expansion (render dimmed)
   zIndex?: number; // Render order (higher = on top, gets label priority)
   __highlightTime?: number; // For pulse animation
 }
@@ -414,26 +415,93 @@ function GraphPageContent() {
   }, [data]);
 
   // Transform data for force graph with entity coloring and degree-based sizing
-  // Optimized: single-pass operations where possible
+  // When a cluster is selected, include 1-hop neighbors for context
   const graphData = useMemo(() => {
     if (!data) return { nodes: [], links: [], maxDegree: 1 };
 
-    // Build node ID set in single pass (also filters by cluster if selected)
-    const nodeIds = new Set<string>();
-    const nodes = selectedCluster
-      ? data.nodes.filter(n => {
-          if (n.cluster_id === selectedCluster) {
-            nodeIds.add(n.id);
-            return true;
-          }
-          return false;
-        })
-      : data.nodes;
+    // Build node ID set (also filters by cluster if selected)
+    const clusterNodeIds = new Set<string>();
+    const nodeIdToNode = new Map<string, (typeof data.nodes)[0]>();
 
-    // If no cluster filter, populate nodeIds separately
-    if (!selectedCluster) {
-      for (const n of nodes) nodeIds.add(n.id);
+    // Index all nodes
+    for (const n of data.nodes) {
+      nodeIdToNode.set(n.id, n);
     }
+
+    if (selectedCluster) {
+      // Collect cluster nodes
+      for (const n of data.nodes) {
+        if (n.cluster_id === selectedCluster) {
+          clusterNodeIds.add(n.id);
+        }
+      }
+
+      // Find 1-hop neighbors (nodes connected to cluster)
+      const neighborIds = new Set<string>();
+      for (const edge of data.edges) {
+        const srcInCluster = clusterNodeIds.has(edge.source);
+        const tgtInCluster = clusterNodeIds.has(edge.target);
+        if (srcInCluster && !tgtInCluster && nodeIdToNode.has(edge.target)) {
+          neighborIds.add(edge.target);
+        } else if (tgtInCluster && !srcInCluster && nodeIdToNode.has(edge.source)) {
+          neighborIds.add(edge.source);
+        }
+      }
+
+      // Combine: cluster nodes + neighbors
+      const allVisibleIds = new Set([...clusterNodeIds, ...neighborIds]);
+
+      // Filter edges: include if at least one endpoint is in cluster
+      const filteredEdges: typeof data.edges = [];
+      const degreeMap = new Map<string, number>();
+      let maxDegree = 1;
+
+      for (const edge of data.edges) {
+        if (allVisibleIds.has(edge.source) && allVisibleIds.has(edge.target)) {
+          filteredEdges.push(edge);
+          const srcDeg = (degreeMap.get(edge.source) || 0) + 1;
+          const tgtDeg = (degreeMap.get(edge.target) || 0) + 1;
+          degreeMap.set(edge.source, srcDeg);
+          degreeMap.set(edge.target, tgtDeg);
+          if (srcDeg > maxDegree) maxDegree = srcDeg;
+          if (tgtDeg > maxDegree) maxDegree = tgtDeg;
+        }
+      }
+
+      // Build nodes array with neighbor flag
+      const graphNodes: GraphNode[] = [];
+      for (const id of allVisibleIds) {
+        const node = nodeIdToNode.get(id);
+        if (!node) continue;
+        const degree = degreeMap.get(node.id) || 0;
+        const isProject = node.type === 'project';
+        const entityType = node.type || 'unknown';
+        const isNeighbor = neighborIds.has(id);
+
+        let zIndex = degree;
+        if (isProject) zIndex += 1000;
+        else if (entityType === 'task') zIndex += 50;
+        else if (entityType === 'pattern') zIndex += 30;
+        if (isNeighbor) zIndex -= 500; // Neighbors render behind cluster nodes
+
+        graphNodes.push({
+          ...node,
+          clusterColor: clusterColorMap.get(node.cluster_id) || '#8b85a0',
+          entityColor: getEntityColor(entityType),
+          degree,
+          isProject,
+          zIndex,
+          isNeighbor, // Mark as neighbor for dimmed rendering
+        } as GraphNode);
+      }
+
+      graphNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      return { nodes: graphNodes, links: filteredEdges, maxDegree };
+    }
+
+    // No cluster filter - show all nodes
+    const nodeIds = new Set<string>();
+    for (const n of data.nodes) nodeIds.add(n.id);
 
     // Single pass: filter edges AND calculate degrees
     const degreeMap = new Map<string, number>();
@@ -453,9 +521,9 @@ function GraphPageContent() {
     }
 
     // Transform nodes with entity colors, degree, and z-index
-    const graphNodes: GraphNode[] = new Array(nodes.length);
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i];
+    const graphNodes: GraphNode[] = new Array(data.nodes.length);
+    for (let i = 0; i < data.nodes.length; i++) {
+      const node = data.nodes[i];
       const degree = degreeMap.get(node.id) || 0;
       const isProject = node.type === 'project';
       const entityType = node.type || 'unknown';
@@ -515,6 +583,7 @@ function GraphPageContent() {
       const isSelected = node.id === selectedNodeId;
       const isHovered = node.id === hoveredNode;
       const isProject = node.isProject;
+      const isNeighbor = node.isNeighbor;
       const degree = node.degree || 0;
       const maxDegree = graphData.maxDegree || 1;
 
@@ -523,18 +592,24 @@ function GraphPageContent() {
       const logDegree = degree > 0 ? Math.log2(degree + 1) / Math.log2(maxDegree + 1) : 0;
       const combinedScale = (degreeScale + logDegree) / 2;
 
+      // Minimum size of 5px ensures all nodes are visible
+      // Neighbors are slightly smaller to emphasize cluster nodes
       let size: number;
       if (isProject) {
-        size = 12 + combinedScale * 8;
+        size = 14 + combinedScale * 10;
       } else if (isSelected) {
-        size = Math.max(10, 5 + combinedScale * 8);
+        size = Math.max(12, 6 + combinedScale * 10);
       } else if (isHovered) {
-        size = Math.max(8, 4 + combinedScale * 7);
+        size = Math.max(10, 5 + combinedScale * 9);
+      } else if (isNeighbor) {
+        size = 4 + combinedScale * 8; // Smaller context nodes
       } else {
-        size = 3 + combinedScale * 11;
+        size = 5 + combinedScale * 12;
       }
 
-      const color = node.entityColor || '#8b85a0';
+      const baseColor = node.entityColor || '#8b85a0';
+      // Neighbors are rendered at 40% opacity to fade into background
+      const color = isNeighbor && !isSelected && !isHovered ? `${baseColor}66` : baseColor;
 
       // Glow for selected/hovered
       if (isSelected || isHovered) {
@@ -569,10 +644,14 @@ function GraphPageContent() {
       const isHubNode = degree > Math.max(3, maxDegree * 0.05);
 
       // Determine if label should show based on zoom + importance
+      // Neighbors only show labels when hovered/selected to keep focus on cluster
       let showLabel = false;
 
       if (isSelected || isHovered) {
         showLabel = true;
+      } else if (isNeighbor) {
+        // Neighbors only show label when zoomed in very close
+        showLabel = globalScale >= 4.0;
       } else if (isProject && globalScale >= 0.4) {
         showLabel = true;
       } else if (isHubNode && globalScale >= 0.7) {
