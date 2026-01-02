@@ -905,32 +905,45 @@ async def _store_agent_message(
     }
     msg_type = type_map.get(type_str, "text")
 
-    # Build content - always use preview/summary, never full output
+    # Build content - store full content, no truncation (DB column is TEXT/unlimited)
     if type_str == "tool_use":
         content = formatted.get("preview", formatted.get("tool_name", "Tool call"))
     elif type_str == "tool_result":
-        # Only store success/error and brief summary
-        is_error = formatted.get("is_error", False)
-        preview = formatted.get("preview", "")[:200]
-        content = f"{'Error' if is_error else 'Success'}: {preview}"
+        # Store full tool result content
+        content = formatted.get("content", "")
     elif type_str == "multi_result":
-        # Multiple results - just note the count
-        count = len(formatted.get("results", []))
-        content = f"{count} tool result(s)"
+        # Multiple results - store all content
+        results = formatted.get("results", [])
+        content = "\n---\n".join(r.get("content", "") for r in results)
     elif type_str == "multi_block":
-        # Multi-block message - use preview
-        content = formatted.get("preview", "Multiple content blocks")
+        blocks = formatted.get("blocks", [])
+        content = "\n".join(b.get("content", "") for b in blocks)
     else:
-        # Text content - truncate reasonably
-        content = (formatted.get("content") or formatted.get("preview", ""))[:1000]
+        content = formatted.get("content") or formatted.get("preview", "")
 
-    # Build metadata (without full content)
+    # Extract tool tracking fields (stored as proper columns, not in JSONB)
+    tool_id = formatted.get("tool_id")
+    parent_tool_use_id = formatted.get("parent_tool_use_id")
+
+    # Build metadata for remaining fields
     extra = {
         "icon": formatted.get("icon"),
         "tool_name": formatted.get("tool_name"),
-        "tool_id": formatted.get("tool_id"),  # For pairing calls with results
         "is_error": formatted.get("is_error"),
     }
+
+    # For tool calls, store full input for code viewing
+    if type_str == "tool_use":
+        tool_input = formatted.get("input", {})
+        if tool_input:
+            extra["input"] = tool_input
+
+    # For tool results, store full content in extra as well (for UI expansion)
+    if type_str == "tool_result":
+        full_content = formatted.get("content", "")
+        if full_content:
+            extra["full_content"] = full_content
+
     # Remove None values
     extra = {k: v for k, v in extra.items() if v is not None}
 
@@ -943,6 +956,8 @@ async def _store_agent_message(
                 role=role,
                 type=msg_type,
                 content=content,
+                tool_id=tool_id,
+                parent_tool_use_id=parent_tool_use_id,
                 extra=extra,
             )
             session.add(msg)
@@ -957,11 +972,20 @@ def _format_agent_message(message: Any) -> dict[str, Any]:
     content = getattr(message, "content", None)
     timestamp = datetime.now(UTC).isoformat()
 
+    # Extract parent_tool_use_id for subagent message grouping
+    parent_tool_use_id = getattr(message, "parent_tool_use_id", None)
+
     if msg_class == "AssistantMessage":
-        return _format_assistant_message(content, timestamp)
+        result = _format_assistant_message(content, timestamp)
+        if parent_tool_use_id:
+            result["parent_tool_use_id"] = parent_tool_use_id
+        return result
 
     if msg_class == "UserMessage":
-        return _format_user_message(content, timestamp)
+        result = _format_user_message(content, timestamp)
+        if parent_tool_use_id:
+            result["parent_tool_use_id"] = parent_tool_use_id
+        return result
 
     if msg_class == "ResultMessage":
         usage = getattr(message, "usage", None)
@@ -991,7 +1015,7 @@ def _format_agent_message(message: Any) -> dict[str, Any]:
     }
 
 
-async def run_agent_execution(
+async def run_agent_execution(  # noqa: PLR0915
     ctx: dict[str, Any],  # noqa: ARG001
     agent_id: str,
     org_id: str,
@@ -1087,6 +1111,22 @@ async def run_agent_execution(
         session_id = ""
         last_content = ""
         tool_calls: list[str] = []
+
+        # Store the initial user prompt as message #1
+        message_count += 1
+        initial_message = {
+            "role": "user",
+            "type": "text",
+            "content": prompt,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "preview": prompt[:100] + "..." if len(prompt) > 100 else prompt,
+        }
+        await _safe_broadcast(
+            "agent_message",
+            {"agent_id": agent_id, "message_num": message_count, **initial_message},
+            org_id=org_id,
+        )
+        await _store_agent_message(agent_id, org_id, message_count, initial_message)
 
         # Execute agent - stream messages to UI in real-time
         log.info("run_agent_execution_starting", agent_id=agent_id)

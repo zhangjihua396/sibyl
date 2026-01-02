@@ -894,7 +894,10 @@ class AgentMessage(SQLModel, table=True):
     """
 
     __tablename__ = "agent_messages"  # type: ignore[assignment]
-    __table_args__ = (Index("ix_agent_messages_agent_num", "agent_id", "message_num"),)
+    __table_args__ = (
+        Index("ix_agent_messages_agent_num", "agent_id", "message_num"),
+        Index("ix_agent_messages_parent", "agent_id", "parent_tool_use_id"),
+    )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     agent_id: str = Field(
@@ -912,6 +915,20 @@ class AgentMessage(SQLModel, table=True):
     role: AgentMessageRole = Field(description="Who sent the message")
     type: AgentMessageType = Field(default=AgentMessageType.text, description="Type of message content")
     content: str = Field(sa_type=Text, description="Message content (summary for tool results)")
+
+    # Tool call tracking for message pairing and subagent grouping
+    tool_id: str | None = Field(
+        default=None,
+        max_length=64,
+        index=True,
+        description="Tool use ID for this message (for pairing calls with results)",
+    )
+    parent_tool_use_id: str | None = Field(
+        default=None,
+        max_length=64,
+        index=True,
+        description="Parent Task tool ID when this message is from a subagent",
+    )
 
     extra: dict[str, Any] = Field(
         default_factory=dict,

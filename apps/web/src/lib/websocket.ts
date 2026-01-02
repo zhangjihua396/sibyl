@@ -304,7 +304,10 @@ class WebSocketClient {
     }
   }
 
-  private dispatch<T extends WebSocketEventType>(event: T, data: WebSocketEventPayloadMap[T]): void {
+  private dispatch<T extends WebSocketEventType>(
+    event: T,
+    data: WebSocketEventPayloadMap[T]
+  ): void {
     this.handlers.get(event)?.forEach(handler => {
       try {
         handler(data);

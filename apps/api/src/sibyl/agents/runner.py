@@ -47,6 +47,41 @@ def _generate_agent_id(org_id: str, project_id: str, timestamp: str) -> str:
     return f"agent_{hash_bytes}"
 
 
+def _derive_agent_name(prompt: str, agent_type: AgentType, agent_id: str) -> str:
+    """Derive a descriptive agent name from the prompt.
+
+    Extracts the first meaningful line/sentence from the prompt and truncates
+    at a word boundary for a clean title.
+    """
+    # Clean up the prompt - take first line or sentence
+    text = prompt.strip()
+    # Take first line
+    first_line = text.split("\n")[0].strip()
+    # Or first sentence if line is too long
+    if len(first_line) > 60:
+        # Try to find a sentence boundary
+        for sep in (".", "!", "?", ":", ";"):
+            if sep in first_line[:60]:
+                first_line = first_line[: first_line.index(sep) + 1]
+                break
+
+    # Truncate at word boundary around 50 chars
+    if len(first_line) > 50:
+        # Find last space before 50 chars
+        last_space = first_line[:50].rfind(" ")
+        if last_space > 20:  # Only truncate if we keep enough
+            first_line = first_line[:last_space] + "..."
+        else:
+            first_line = first_line[:47] + "..."
+
+    # If we got something meaningful, use it
+    if len(first_line) >= 10:
+        return first_line
+
+    # Fallback to generic name
+    return f"{agent_type.value}-{agent_id[-8:]}"
+
+
 class AgentRunnerError(Exception):
     """Base exception for agent runner operations."""
 
@@ -204,10 +239,10 @@ Priority: {task.priority}
             timestamp = datetime.now(UTC).isoformat()
             agent_id = _generate_agent_id(self.org_id, self.project_id, timestamp)
 
-        # Create agent record
+        # Create agent record with descriptive name from prompt
         record = AgentRecord(
             id=agent_id,
-            name=f"{agent_type}-{agent_id[-8:]}",
+            name=_derive_agent_name(prompt, agent_type, agent_id),
             organization_id=self.org_id,
             project_id=self.project_id,
             agent_type=agent_type,

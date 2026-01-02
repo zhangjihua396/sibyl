@@ -460,6 +460,13 @@ async def get_agent_messages(
             role = MessageRole(db_msg.role.value)
             msg_type = MessageType(db_msg.type.value)
 
+            # Build metadata from extra + indexed columns
+            metadata = dict(db_msg.extra) if db_msg.extra else {}
+            if db_msg.tool_id:
+                metadata["tool_id"] = db_msg.tool_id
+            if db_msg.parent_tool_use_id:
+                metadata["parent_tool_use_id"] = db_msg.parent_tool_use_id
+
             messages.append(
                 AgentMessage(
                     id=str(db_msg.id),
@@ -467,7 +474,7 @@ async def get_agent_messages(
                     content=db_msg.content,
                     timestamp=db_msg.created_at.isoformat() if db_msg.created_at else "",
                     type=msg_type,
-                    metadata=db_msg.extra if db_msg.extra else None,
+                    metadata=metadata if metadata else None,
                 )
             )
 
