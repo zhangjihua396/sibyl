@@ -34,14 +34,26 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
   const priority = (epic?.metadata?.priority ?? 'medium') as TaskPriority;
   const priorityConfig = TASK_PRIORITY_CONFIG[priority];
 
-  // Task progress - this drives epic status
-  const totalTasks = tasks.length;
-  const doneTasks = tasks.filter(t =>
-    ['done', 'archived'].includes(t.metadata?.status as string)
-  ).length;
-  const doingTasks = tasks.filter(t => t.metadata?.status === 'doing').length;
-  const blockedTasks = tasks.filter(t => t.metadata?.status === 'blocked').length;
-  const progressPercent = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  // Task progress - calculate in single pass
+  const { totalTasks, doneTasks, doingTasks, blockedTasks, progressPercent } = useMemo(() => {
+    let done = 0;
+    let doing = 0;
+    let blocked = 0;
+    for (const task of tasks) {
+      const status = task.metadata?.status as string;
+      if (status === 'done' || status === 'archived') done++;
+      else if (status === 'doing') doing++;
+      else if (status === 'blocked') blocked++;
+    }
+    const total = tasks.length;
+    return {
+      totalTasks: total,
+      doneTasks: done,
+      doingTasks: doing,
+      blockedTasks: blocked,
+      progressPercent: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
+  }, [tasks]);
 
   // Derive status from task states (epics auto-complete when all tasks done)
   const derivedStatus: EpicStatus = useMemo(() => {

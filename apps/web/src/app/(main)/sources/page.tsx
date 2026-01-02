@@ -134,17 +134,21 @@ export default function SourcesPage() {
     return result;
   }, [sources, searchQuery, filterStatus, filterType, sortBy]);
 
-  // Stats
+  // Stats - calculate in single pass
   const stats = useMemo(() => {
-    const completed = sources.filter(s => s.metadata.crawl_status === 'completed').length;
-    const pending = sources.filter(s => s.metadata.crawl_status === 'pending').length;
-    const inProgress = sources.filter(s => s.metadata.crawl_status === 'in_progress').length;
-    const failed = sources.filter(s => s.metadata.crawl_status === 'failed').length;
-    const totalDocs = sources.reduce(
-      (acc, s) => acc + ((s.metadata.document_count as number) || 0),
-      0
-    );
-
+    let completed = 0;
+    let pending = 0;
+    let inProgress = 0;
+    let failed = 0;
+    let totalDocs = 0;
+    for (const source of sources) {
+      const status = source.metadata.crawl_status;
+      if (status === 'completed') completed++;
+      else if (status === 'pending') pending++;
+      else if (status === 'in_progress') inProgress++;
+      else if (status === 'failed') failed++;
+      totalDocs += (source.metadata.document_count as number) || 0;
+    }
     return { completed, pending, inProgress, failed, totalDocs, total: sources.length };
   }, [sources]);
 

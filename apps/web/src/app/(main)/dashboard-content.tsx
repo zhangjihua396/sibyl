@@ -119,17 +119,15 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
     setMounted(true);
   }, []);
 
-  // Calculate task stats
+  // Calculate task stats in single pass
   const taskStats = useMemo(() => {
     const tasks = tasksData?.entities ?? [];
-    return {
-      total: tasks.length,
-      doing: tasks.filter(t => t.metadata.status === 'doing').length,
-      todo: tasks.filter(t => t.metadata.status === 'todo').length,
-      review: tasks.filter(t => t.metadata.status === 'review').length,
-      done: tasks.filter(t => t.metadata.status === 'done').length,
-      blocked: tasks.filter(t => t.metadata.status === 'blocked').length,
-    };
+    const stats = { total: tasks.length, doing: 0, todo: 0, review: 0, done: 0, blocked: 0 };
+    for (const task of tasks) {
+      const status = task.metadata.status as keyof typeof stats;
+      if (status in stats) stats[status]++;
+    }
+    return stats;
   }, [tasksData]);
 
   const projectCount = projectsData?.entities?.length ?? 0;
