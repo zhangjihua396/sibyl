@@ -1,0 +1,117 @@
+"""Health check and statistics functions for Sibyl MCP server."""
+
+import time
+from typing import Any
+
+from sibyl_core.graph.client import GraphClient, get_graph_client
+from sibyl_core.graph.entities import EntityManager
+from sibyl_core.models.entities import EntityType
+
+# Module-level state for uptime tracking
+_server_start_time: float | None = None
+
+
+async def get_health(*, organization_id: str | None = None) -> dict[str, Any]:
+    """Get server health status.
+
+    Args:
+        organization_id: Organization ID for graph operations. If None, only basic
+                        connectivity is checked.
+    """
+    from sibyl_core.config import settings
+
+    global _server_start_time
+    if _server_start_time is None:
+        _server_start_time = time.time()
+
+    health: dict[str, Any] = {
+        "status": "unknown",
+        "server_name": settings.server_name,
+        "uptime_seconds": int(time.time() - _server_start_time),
+        "graph_connected": False,
+        "entity_counts": {},
+        "errors": [],
+    }
+
+    try:
+        client = await get_graph_client()
+
+        # Test connectivity
+        health["graph_connected"] = True
+
+        # Entity counts require org context
+        if organization_id:
+            entity_manager = EntityManager(client, group_id=organization_id)
+
+            # Get entity counts
+            for entity_type in [EntityType.PATTERN, EntityType.RULE, EntityType.EPISODE]:
+                try:
+                    entities = await entity_manager.list_by_type(entity_type, limit=1000)
+                    health["entity_counts"][entity_type.value] = len(entities)
+                except Exception:
+                    health["entity_counts"][entity_type.value] = -1
+
+        health["status"] = "healthy"
+
+    except Exception as e:
+        health["status"] = "unhealthy"
+        health["errors"].append(str(e))
+
+    return health
+
+
+async def get_stats(organization_id: str | None = None) -> dict[str, Any]:
+    """Get knowledge graph statistics.
+
+    Uses a single aggregation query for performance instead of N separate queries.
+
+    Args:
+        organization_id: Organization ID to scope stats to (required).
+
+    Raises:
+        ValueError: If organization_id is not provided.
+    """
+    if not organization_id:
+        raise ValueError("organization_id is required - cannot get stats without org context")
+
+    try:
+        client = await get_graph_client()
+
+        # Clone driver for org-specific graph (multi-tenancy)
+        driver = client.client.driver.clone(organization_id)
+
+        # Single aggregation query - much faster than N separate list queries
+        result = await driver.execute_query(
+            """
+            MATCH (n)
+            WHERE n.entity_type IS NOT NULL
+            RETURN n.entity_type as type, count(*) as count
+            """
+        )
+
+        stats: dict[str, Any] = {
+            "entity_counts": {},
+            "total_entities": 0,
+        }
+
+        # Initialize all known types to 0
+        for entity_type in EntityType:
+            stats["entity_counts"][entity_type.value] = 0
+
+        # Fill in actual counts from query
+        data = GraphClient.normalize_result(result)
+        for row in data:
+            if isinstance(row, dict):
+                etype = row.get("type")
+                count = row.get("count", 0)
+            else:
+                etype, count = row[0], row[1]
+
+            if etype:
+                stats["entity_counts"][etype] = count
+                stats["total_entities"] += count
+
+        return stats
+
+    except Exception as e:
+        return {"error": str(e), "entity_counts": {}, "total_entities": 0}
