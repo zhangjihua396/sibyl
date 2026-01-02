@@ -1,6 +1,7 @@
 # Sibyl monorepo toolchain versions
 # Managed by proto - https://moonrepo.dev/proto
 
+moon = "1.31"
 python = "3.13"
 node = "24"
 pnpm = "10"
