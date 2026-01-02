@@ -3,6 +3,11 @@
 REST API for managing AI agents via the AgentOrchestrator.
 """
 
+from datetime import UTC, datetime
+from enum import StrEnum
+from typing import Literal
+from uuid import uuid4
+
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -12,6 +17,7 @@ from sibyl.db.models import Organization, OrganizationRole
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
 from sibyl_core.models import (
+    AgentCheckpoint,
     AgentRecord,
     AgentSpawnSource,
     AgentStatus,
@@ -97,6 +103,72 @@ class AgentActionResponse(BaseModel):
     agent_id: str
     action: str
     message: str
+
+
+class MessageRole(StrEnum):
+    """Message sender role."""
+
+    AGENT = "agent"
+    USER = "user"
+    SYSTEM = "system"
+
+
+class MessageType(StrEnum):
+    """Message content type."""
+
+    TEXT = "text"
+    TOOL_CALL = "tool_call"
+    TOOL_RESULT = "tool_result"
+    ERROR = "error"
+
+
+class AgentMessage(BaseModel):
+    """A single message in the agent conversation."""
+
+    id: str
+    role: MessageRole
+    content: str
+    timestamp: str
+    type: MessageType = MessageType.TEXT
+    metadata: dict | None = None
+
+
+class AgentMessagesResponse(BaseModel):
+    """Response containing agent conversation messages."""
+
+    agent_id: str
+    messages: list[AgentMessage]
+    total: int
+
+
+class SendMessageRequest(BaseModel):
+    """Request to send a message to an agent."""
+
+    content: str
+
+
+class SendMessageResponse(BaseModel):
+    """Response from sending a message."""
+
+    success: bool
+    message_id: str
+
+
+class FileChange(BaseModel):
+    """A file change in the agent workspace."""
+
+    path: str
+    status: Literal["added", "modified", "deleted"]
+    diff: str | None = None
+
+
+class AgentWorkspaceResponse(BaseModel):
+    """Agent workspace state."""
+
+    agent_id: str
+    files: list[FileChange]
+    current_step: str | None = None
+    completed_steps: list[str] = []
 
 
 # =============================================================================
@@ -338,6 +410,214 @@ async def terminate_agent(
         agent_id=agent_id,
         action="terminate",
         message=f"Agent {agent_id} terminated",
+    )
+
+
+@router.get("/{agent_id}/messages", response_model=AgentMessagesResponse)
+async def get_agent_messages(
+    agent_id: str,
+    limit: int = 100,
+    org: Organization = Depends(get_current_organization),
+) -> AgentMessagesResponse:
+    """Get conversation messages for an agent.
+
+    Messages are retrieved from the agent's latest checkpoint.
+    """
+    client = await get_graph_client()
+    manager = EntityManager(client, group_id=str(org.id))
+
+    # Verify agent exists
+    entity = await manager.get(agent_id)
+    if not entity or not isinstance(entity, AgentRecord):
+        raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
+
+    # Get latest checkpoint for this agent
+    checkpoints = await manager.list_by_type(
+        entity_type=EntityType.CHECKPOINT,
+        limit=10,
+    )
+
+    # Find checkpoints for this agent
+    agent_checkpoints = [
+        c for c in checkpoints if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+    ]
+
+    messages: list[AgentMessage] = []
+    if agent_checkpoints:
+        # Sort by created_at descending and get the latest
+        latest = max(
+            agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
+        )
+
+        # Convert conversation history to messages
+        for i, msg in enumerate(latest.conversation_history[-limit:]):
+            role_str = msg.get("role", "agent")
+            role = MessageRole.AGENT
+            if role_str == "user":
+                role = MessageRole.USER
+            elif role_str == "system":
+                role = MessageRole.SYSTEM
+
+            msg_type = MessageType.TEXT
+            if msg.get("type") == "tool_call":
+                msg_type = MessageType.TOOL_CALL
+            elif msg.get("type") == "tool_result":
+                msg_type = MessageType.TOOL_RESULT
+            elif msg.get("type") == "error":
+                msg_type = MessageType.ERROR
+
+            messages.append(
+                AgentMessage(
+                    id=f"msg-{agent_id[-8:]}-{i}",
+                    role=role,
+                    content=msg.get("content", ""),
+                    timestamp=msg.get("timestamp", datetime.now(UTC).isoformat()),
+                    type=msg_type,
+                    metadata=msg.get("metadata"),
+                )
+            )
+
+    return AgentMessagesResponse(
+        agent_id=agent_id,
+        messages=messages,
+        total=len(messages),
+    )
+
+
+@router.post("/{agent_id}/messages", response_model=SendMessageResponse)
+async def send_agent_message(
+    agent_id: str,
+    request: SendMessageRequest,
+    org: Organization = Depends(get_current_organization),
+) -> SendMessageResponse:
+    """Send a message to an agent.
+
+    The message will be added to the agent's message queue for processing.
+    Note: This requires the agent to be in a state that accepts messages.
+    """
+    client = await get_graph_client()
+    manager = EntityManager(client, group_id=str(org.id))
+
+    # Verify agent exists
+    entity = await manager.get(agent_id)
+    if not entity or not isinstance(entity, AgentRecord):
+        raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
+
+    # Check agent is in a state that can accept messages
+    terminal_states = (AgentStatus.COMPLETED, AgentStatus.FAILED, AgentStatus.TERMINATED)
+    if entity.status in terminal_states:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot send message to agent in {entity.status} status",
+        )
+
+    # Generate message ID
+    msg_id = f"user-{datetime.now(UTC).timestamp():.0f}"
+
+    # Get or create checkpoint to store the message
+    checkpoints = await manager.list_by_type(
+        entity_type=EntityType.CHECKPOINT,
+        limit=10,
+    )
+
+    agent_checkpoints = [
+        c for c in checkpoints if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+    ]
+
+    if agent_checkpoints:
+        latest = max(
+            agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
+        )
+        # Add user message to conversation history
+        new_msg = {
+            "role": "user",
+            "content": request.content,
+            "timestamp": datetime.now(UTC).isoformat(),
+            "type": "text",
+        }
+        updated_history = [*latest.conversation_history, new_msg]
+        await manager.update(latest.id, {"conversation_history": updated_history})
+    else:
+        # Create initial checkpoint with user message
+        checkpoint_id = f"chkpt_{uuid4().hex[:12]}"
+        checkpoint = AgentCheckpoint(
+            id=checkpoint_id,
+            name=f"checkpoint-{agent_id[-8:]}",
+            agent_id=agent_id,
+            session_id="user-initiated",
+            conversation_history=[
+                {
+                    "role": "user",
+                    "content": request.content,
+                    "timestamp": datetime.now(UTC).isoformat(),
+                    "type": "text",
+                }
+            ],
+        )
+        await manager.create(checkpoint)
+
+    log.info(
+        "User message sent to agent",
+        agent_id=agent_id,
+        message_id=msg_id,
+        content_length=len(request.content),
+    )
+
+    return SendMessageResponse(
+        success=True,
+        message_id=msg_id,
+    )
+
+
+@router.get("/{agent_id}/workspace", response_model=AgentWorkspaceResponse)
+async def get_agent_workspace(
+    agent_id: str,
+    org: Organization = Depends(get_current_organization),
+) -> AgentWorkspaceResponse:
+    """Get the workspace state for an agent.
+
+    Returns file changes and progress information from the latest checkpoint.
+    """
+    client = await get_graph_client()
+    manager = EntityManager(client, group_id=str(org.id))
+
+    # Verify agent exists
+    entity = await manager.get(agent_id)
+    if not entity or not isinstance(entity, AgentRecord):
+        raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
+
+    # Get latest checkpoint for this agent
+    checkpoints = await manager.list_by_type(
+        entity_type=EntityType.CHECKPOINT,
+        limit=10,
+    )
+
+    agent_checkpoints = [
+        c for c in checkpoints if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+    ]
+
+    files: list[FileChange] = []
+    current_step: str | None = None
+    completed_steps: list[str] = []
+
+    if agent_checkpoints:
+        latest = max(
+            agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
+        )
+        current_step = latest.current_step
+        completed_steps = latest.completed_steps
+
+        # Parse files_modified into FileChange objects
+        # Default to modified status; would need git status for accuracy
+        files = [
+            FileChange(path=path, status="modified", diff=None) for path in latest.files_modified
+        ]
+
+    return AgentWorkspaceResponse(
+        agent_id=agent_id,
+        files=files,
+        current_step=current_step,
+        completed_steps=completed_steps,
     )
 
 

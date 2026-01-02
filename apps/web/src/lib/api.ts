@@ -624,6 +624,48 @@ export interface AgentActionResponse {
   message: string;
 }
 
+export type MessageRole = 'agent' | 'user' | 'system';
+export type MessageType = 'text' | 'tool_call' | 'tool_result' | 'error';
+
+export interface AgentMessage {
+  id: string;
+  role: MessageRole;
+  content: string;
+  timestamp: string;
+  type: MessageType;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AgentMessagesResponse {
+  agent_id: string;
+  messages: AgentMessage[];
+  total: number;
+}
+
+export interface SendMessageRequest {
+  content: string;
+}
+
+export interface SendMessageResponse {
+  success: boolean;
+  message_id: string;
+}
+
+export type FileChangeStatus = 'added' | 'modified' | 'deleted';
+
+export interface FileChange {
+  path: string;
+  status: FileChangeStatus;
+  diff?: string;
+}
+
+export interface AgentWorkspaceResponse {
+  agent_id: string;
+  files: FileChange[];
+  current_step: string | null;
+  completed_steps: string[];
+}
+
 // =============================================================================
 // Task Notes Types
 // =============================================================================
@@ -1698,5 +1740,20 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ reason }),
       }),
+
+    getMessages: (id: string, limit?: number) => {
+      const searchParams = new URLSearchParams();
+      if (limit) searchParams.set('limit', limit.toString());
+      const query = searchParams.toString();
+      return fetchApi<AgentMessagesResponse>(`/agents/${id}/messages${query ? `?${query}` : ''}`);
+    },
+
+    sendMessage: (id: string, content: string) =>
+      fetchApi<SendMessageResponse>(`/agents/${id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content }),
+      }),
+
+    getWorkspace: (id: string) => fetchApi<AgentWorkspaceResponse>(`/agents/${id}/workspace`),
   },
 };

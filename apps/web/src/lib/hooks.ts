@@ -142,6 +142,8 @@ export const queryKeys = {
       return ['agents', 'list', normalized] as const;
     },
     detail: (id: string) => ['agents', 'detail', id] as const,
+    messages: (id: string) => ['agents', 'messages', id] as const,
+    workspace: (id: string) => ['agents', 'workspace', id] as const,
   },
 };
 
@@ -1441,5 +1443,44 @@ export function useTerminateAgent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.detail(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
     },
+  });
+}
+
+/**
+ * Fetch messages for an agent.
+ */
+export function useAgentMessages(id: string, limit?: number) {
+  return useQuery({
+    queryKey: queryKeys.agents.messages(id),
+    queryFn: () => api.agents.getMessages(id, limit),
+    enabled: !!id,
+    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
+  });
+}
+
+/**
+ * Send a message to an agent.
+ */
+export function useSendAgentMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, content }: { id: string; content: string }) =>
+      api.agents.sendMessage(id, content),
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.messages(id) });
+    },
+  });
+}
+
+/**
+ * Fetch workspace state for an agent.
+ */
+export function useAgentWorkspace(id: string) {
+  return useQuery({
+    queryKey: queryKeys.agents.workspace(id),
+    queryFn: () => api.agents.getWorkspace(id),
+    enabled: !!id,
+    refetchInterval: TIMING.AGENT_POLL_INTERVAL ?? 5000,
   });
 }

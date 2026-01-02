@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Code, FileText, Pause, Play, Send, Square } from '@/components/ui/icons';
-import type { Agent } from '@/lib/api';
+import type { Agent, AgentMessage as ApiMessage, FileChange } from '@/lib/api';
 import {
   AGENT_STATUS_CONFIG,
   AGENT_TYPE_CONFIG,
@@ -10,7 +10,14 @@ import {
   type AgentTypeValue,
   formatDistanceToNow,
 } from '@/lib/constants';
-import { usePauseAgent, useResumeAgent, useTerminateAgent } from '@/lib/hooks';
+import {
+  useAgentMessages,
+  useAgentWorkspace,
+  usePauseAgent,
+  useResumeAgent,
+  useSendAgentMessage,
+  useTerminateAgent,
+} from '@/lib/hooks';
 
 // =============================================================================
 // Types
@@ -24,56 +31,6 @@ interface ChatMessage {
   type?: 'text' | 'tool_call' | 'tool_result' | 'error';
   metadata?: Record<string, unknown>;
 }
-
-interface FileChange {
-  path: string;
-  status: 'added' | 'modified' | 'deleted';
-  diff?: string;
-}
-
-// =============================================================================
-// Mock Data (will be replaced with WebSocket/API data)
-// =============================================================================
-
-const MOCK_MESSAGES: ChatMessage[] = [
-  {
-    id: '1',
-    role: 'system',
-    content: 'Agent initialized. Ready to work on task.',
-    timestamp: new Date(Date.now() - 120000),
-    type: 'text',
-  },
-  {
-    id: '2',
-    role: 'agent',
-    content:
-      "I'll start by analyzing the codebase structure to understand the current implementation.",
-    timestamp: new Date(Date.now() - 100000),
-    type: 'text',
-  },
-  {
-    id: '3',
-    role: 'agent',
-    content: 'Reading file: src/lib/api.ts',
-    timestamp: new Date(Date.now() - 80000),
-    type: 'tool_call',
-    metadata: { tool: 'read_file', path: 'src/lib/api.ts' },
-  },
-  {
-    id: '4',
-    role: 'agent',
-    content:
-      "Found the API client. I can see the pattern used for other endpoints. I'll follow the same structure for the new endpoint.",
-    timestamp: new Date(Date.now() - 60000),
-    type: 'text',
-  },
-];
-
-const MOCK_FILES: FileChange[] = [
-  { path: 'src/lib/api.ts', status: 'modified' },
-  { path: 'src/lib/hooks.ts', status: 'modified' },
-  { path: 'src/app/(main)/agents/page.tsx', status: 'added' },
-];
 
 // =============================================================================
 // Sub-components
@@ -346,36 +303,39 @@ function WorkspacePanel({ files }: { files: FileChange[] }) {
 // =============================================================================
 
 export function AgentChatPanel({ agent }: { agent: Agent }) {
-  const [messages, setMessages] = useState<ChatMessage[]>(MOCK_MESSAGES);
   const [dividerPosition, setDividerPosition] = useState(50); // Percentage
   const dividerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const handleSendMessage = useCallback((content: string) => {
-    const newMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content,
-      timestamp: new Date(),
-      type: 'text',
-    };
-    setMessages(prev => [...prev, newMessage]);
+  // Fetch messages and workspace from API
+  const { data: messagesData } = useAgentMessages(agent.id);
+  const { data: workspaceData } = useAgentWorkspace(agent.id);
+  const sendMessage = useSendAgentMessage();
 
-    // TODO: Send to API/WebSocket
-    // For now, simulate agent response
-    setTimeout(() => {
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `agent-${Date.now()}`,
-          role: 'agent',
-          content: `Received your message: "${content}". I'll incorporate this into my work.`,
-          timestamp: new Date(),
-          type: 'text',
-        },
-      ]);
-    }, 1000);
-  }, []);
+  // Convert API messages to component format
+  const messages: ChatMessage[] = useMemo(() => {
+    if (!messagesData?.messages) return [];
+    return messagesData.messages.map((msg: ApiMessage) => ({
+      id: msg.id,
+      role: msg.role,
+      content: msg.content,
+      timestamp: new Date(msg.timestamp),
+      type: msg.type,
+      metadata: msg.metadata,
+    }));
+  }, [messagesData?.messages]);
+
+  // Get workspace files
+  const files: FileChange[] = useMemo(() => {
+    return workspaceData?.files ?? [];
+  }, [workspaceData?.files]);
+
+  const handleSendMessage = useCallback(
+    (content: string) => {
+      sendMessage.mutate({ id: agent.id, content });
+    },
+    [agent.id, sendMessage]
+  );
 
   // Handle divider drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -420,7 +380,7 @@ export function AgentChatPanel({ agent }: { agent: Agent }) {
 
         {/* Workspace Panel */}
         <div style={{ width: `${100 - dividerPosition}%` }} className="flex-shrink-0">
-          <WorkspacePanel files={MOCK_FILES} />
+          <WorkspacePanel files={files} />
         </div>
       </div>
     </div>
