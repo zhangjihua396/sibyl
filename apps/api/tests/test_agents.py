@@ -75,7 +75,7 @@ class MockWorktreeManager:
     ) -> "MockWorktree":
         """Create a mock worktree."""
         worktree = MockWorktree(
-            path=f"/tmp/worktrees/{agent_id}",
+            path=f"/mock/worktrees/{agent_id}",  # Mock path, not real
             branch=branch_name,
             task_id=task_id,
             agent_id=agent_id,
@@ -208,7 +208,7 @@ class TestFireAndForget:
             raise ValueError("Test error")
 
         with patch("sibyl.jobs.agents.log") as mock_log:
-            task = _fire_and_forget(failing_coro(), name="test_failure")
+            _fire_and_forget(failing_coro(), name="test_failure")
 
             # Wait for task to complete (it will fail)
             await asyncio.sleep(0.01)
@@ -259,8 +259,8 @@ class TestAgentRunner:
             MockLock.return_value = MockLockManager()
 
             runner = AgentRunner(
-                entity_manager=mock_entity_manager,  # type: ignore
-                worktree_manager=mock_worktree_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
+                worktree_manager=mock_worktree_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
             )
@@ -298,8 +298,8 @@ class TestAgentRunner:
             MockLock.return_value = mock_lock_manager
 
             runner = AgentRunner(
-                entity_manager=mock_entity_manager,  # type: ignore
-                worktree_manager=mock_worktree_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
+                worktree_manager=mock_worktree_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
             )
@@ -333,8 +333,8 @@ class TestAgentRunner:
             MockLock.return_value = mock_lock_manager
 
             runner = AgentRunner(
-                entity_manager=mock_entity_manager,  # type: ignore
-                worktree_manager=mock_worktree_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
+                worktree_manager=mock_worktree_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
             )
@@ -356,8 +356,8 @@ class TestAgentRunner:
             MockLock.return_value = MockLockManager()
 
             runner = AgentRunner(
-                entity_manager=mock_entity_manager,  # type: ignore
-                worktree_manager=mock_worktree_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
+                worktree_manager=mock_worktree_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
             )
@@ -390,8 +390,8 @@ class TestAgentRunner:
             MockLock.return_value = MockLockManager()
 
             runner = AgentRunner(
-                entity_manager=mock_entity_manager,  # type: ignore
-                worktree_manager=mock_worktree_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
+                worktree_manager=mock_worktree_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
             )
@@ -412,8 +412,8 @@ class TestAgentRunner:
             MockLock.return_value = MockLockManager()
 
             runner = AgentRunner(
-                entity_manager=mock_entity_manager,  # type: ignore
-                worktree_manager=mock_worktree_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
+                worktree_manager=mock_worktree_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
             )
@@ -454,7 +454,7 @@ class TestAgentInstance:
         instance = AgentInstance(
             record=mock_record,
             sdk_options=MagicMock(),
-            entity_manager=MockEntityManager(),  # type: ignore
+            entity_manager=MockEntityManager(),  # type: ignore[arg-type]
             initial_prompt="Test",
         )
 
@@ -491,7 +491,7 @@ class TestAgentInstance:
         instance = AgentInstance(
             record=mock_record,
             sdk_options=MagicMock(),
-            entity_manager=mock_entity_manager,  # type: ignore
+            entity_manager=mock_entity_manager,  # type: ignore[arg-type]
             initial_prompt="Test",
         )
 
@@ -526,7 +526,7 @@ class TestAgentInstance:
         instance = AgentInstance(
             record=mock_record,
             sdk_options=MagicMock(),
-            entity_manager=mock_entity_manager,  # type: ignore
+            entity_manager=mock_entity_manager,  # type: ignore[arg-type]
             initial_prompt="Test",
         )
 
@@ -567,16 +567,17 @@ class TestOrchestrator:
             MockWorktree.return_value = mock_worktree
 
             orchestrator = AgentOrchestrator(
-                entity_manager=mock_entity_manager,  # type: ignore
+                entity_manager=mock_entity_manager,  # type: ignore[arg-type]
                 org_id="org_123",
                 project_id="project_123",
-                repo_path="/tmp/test_repo",
+                repo_path="/mock/test_repo",  # Mock path for testing
             )
 
-            # Simulate a running health check
+            # Simulate a running health check using an Event for clean cancellation
+            stop_event = asyncio.Event()
+
             async def slow_health_check() -> None:
-                while True:
-                    await asyncio.sleep(1)
+                await stop_event.wait()
 
             orchestrator._running = True
             orchestrator._health_check_task = asyncio.create_task(slow_health_check())
