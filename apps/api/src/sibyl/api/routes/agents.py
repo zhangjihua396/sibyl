@@ -23,7 +23,6 @@ from sibyl.db.models import Organization, OrganizationRole, User
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
 from sibyl_core.models import (
-    AgentCheckpoint,
     AgentStatus,
     AgentType,
     EntityType,
@@ -513,28 +512,73 @@ async def send_agent_message(
 ) -> SendMessageResponse:
     """Send a message to an agent.
 
-    The message will be added to the agent's message queue for processing.
-    Note: This requires the agent to be in a state that accepts messages.
+    If the agent is in a terminal state (completed/failed/terminated),
+    this will resume it using Claude's session management.
     """
     client = await get_graph_client()
     manager = EntityManager(client, group_id=str(org.id))
 
-    # Verify agent exists
+    # Verify agent exists and has a session_id
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
-    # Check agent is in a state that can accept messages
-    agent_status = (entity.metadata or {}).get("status", "initializing")
+    agent_meta = entity.metadata or {}
+    agent_status = agent_meta.get("status", "initializing")
+    session_id = agent_meta.get("session_id")
+
+    # Check if agent can be resumed
     terminal_states = (
         AgentStatus.COMPLETED.value,
         AgentStatus.FAILED.value,
         AgentStatus.TERMINATED.value,
     )
-    # Track if we need to enqueue resume after storing message
     needs_resume = agent_status in terminal_states
 
-    # Update status first if resuming
+    if needs_resume and not session_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Agent has no session_id - cannot resume. Start a new agent instead.",
+        )
+
+    # Generate message ID
+    msg_id = f"user-{datetime.now(UTC).timestamp():.0f}"
+
+    # Store the user message for UI display (worker will also store agent responses)
+    from sibyl.db.models import AgentMessage, AgentMessageRole, AgentMessageType
+    from sibyl.db.session import get_db_session
+
+    async with get_db_session() as session:
+        # Get next message number
+        from sqlalchemy import func, select
+
+        result = await session.execute(
+            select(func.coalesce(func.max(AgentMessage.message_num), 0)).where(
+                AgentMessage.agent_id == agent_id
+            )
+        )
+        next_num = result.scalar() + 1
+
+        db_message = AgentMessage(
+            agent_id=agent_id,
+            organization_id=org.id,
+            message_num=next_num,
+            role=AgentMessageRole.USER,
+            type=AgentMessageType.TEXT,
+            content=request.content[:500],  # Summary only
+            extra={"full_content": request.content} if len(request.content) > 500 else None,
+        )
+        session.add(db_message)
+        await session.commit()
+
+    log.info(
+        "User message stored",
+        agent_id=agent_id,
+        message_id=msg_id,
+        content_length=len(request.content),
+    )
+
+    # Resume the agent with the user's message
     if needs_resume:
         await manager.update(
             agent_id,
@@ -544,72 +588,17 @@ async def send_agent_message(
                 "completed_at": None,
             },
         )
+
+        from sibyl.jobs.queue import enqueue_agent_resume
+
+        # Pass the message directly - Claude handles conversation history
+        await enqueue_agent_resume(agent_id, str(org.id), prompt=request.content)
+
         log.info(
-            "Auto-resumed terminal agent for user message",
+            "Agent resume enqueued",
             agent_id=agent_id,
             previous_status=agent_status,
         )
-
-    # Generate message ID
-    msg_id = f"user-{datetime.now(UTC).timestamp():.0f}"
-
-    # Get or create checkpoint to store the message
-    checkpoints = await manager.list_by_type(
-        entity_type=EntityType.CHECKPOINT,
-        limit=10,
-    )
-
-    agent_checkpoints = [
-        c
-        for c in checkpoints
-        if c.entity_type == EntityType.CHECKPOINT and (c.metadata or {}).get("agent_id") == agent_id
-    ]
-
-    if agent_checkpoints:
-        latest = max(
-            agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
-        )
-        # Add user message to conversation history (history is in metadata for Entity objects)
-        current_history = (latest.metadata or {}).get("conversation_history", [])
-        new_msg = {
-            "role": "user",
-            "content": request.content,
-            "timestamp": datetime.now(UTC).isoformat(),
-            "type": "text",
-        }
-        updated_history = [*current_history, new_msg]
-        await manager.update(latest.id, {"conversation_history": updated_history})
-    else:
-        # Create initial checkpoint with user message (use create_direct to skip LLM extraction)
-        checkpoint_id = f"chkpt_{uuid4().hex[:12]}"
-        checkpoint = AgentCheckpoint(
-            id=checkpoint_id,
-            name=f"checkpoint-{agent_id[-8:]}",
-            agent_id=agent_id,
-            session_id="user-initiated",
-            conversation_history=[
-                {
-                    "role": "user",
-                    "content": request.content,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "type": "text",
-                }
-            ],
-        )
-        await manager.create_direct(checkpoint)
-
-    log.info(
-        "User message sent to agent",
-        agent_id=agent_id,
-        message_id=msg_id,
-        content_length=len(request.content),
-    )
-
-    # Enqueue resume job AFTER message is stored in checkpoint
-    if needs_resume:
-        from sibyl.jobs.queue import enqueue_agent_resume
-
-        await enqueue_agent_resume(agent_id, str(org.id))
 
     return SendMessageResponse(
         success=True,

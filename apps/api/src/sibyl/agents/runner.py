@@ -426,60 +426,51 @@ Priority: {task.priority}
             await self.stop_agent(agent_id, reason)
         return len(agent_ids)
 
-    async def resume_from_checkpoint(
+    async def resume_agent(
         self,
-        checkpoint: AgentCheckpoint,
+        agent_id: str,
+        session_id: str,
         prompt: str = "Continue from where you left off.",
         enable_approvals: bool = True,
     ) -> "AgentInstance":
-        """Resume an agent from a checkpoint.
+        """Resume an agent using Claude's session management.
 
-        Uses the Claude SDK's session resume to restore conversation history
-        and continue execution from the checkpoint state.
+        Uses the Claude SDK's session resume to restore conversation history.
+        Claude handles all the conversation state - we just need the session_id.
 
         Args:
-            checkpoint: Checkpoint to resume from
-            prompt: Prompt for the resumed session (e.g., "continue working")
+            agent_id: Agent to resume
+            session_id: Claude session ID from previous execution
+            prompt: User message or continuation prompt
             enable_approvals: Enable human-in-the-loop approval hooks
 
         Returns:
             Resumed AgentInstance
 
         Raises:
-            AgentRunnerError: If checkpoint cannot be restored
+            AgentRunnerError: If agent cannot be resumed
         """
-        from sibyl.agents.checkpoints import (
-            CheckpointRestoreError,
-            restore_from_checkpoint,
-        )
+        logger.info(f"Resuming agent {agent_id} with session {session_id}")
 
-        logger.info(f"Resuming agent {checkpoint.agent_id} from checkpoint {checkpoint.id}")
-
-        # Validate checkpoint and get restoration data
-        try:
-            restore_result = await restore_from_checkpoint(self.entity_manager, checkpoint)
-        except CheckpointRestoreError as e:
-            raise AgentRunnerError(f"Cannot restore checkpoint: {e}") from e
-
-        # Get original agent record (manager.get returns Entity, use from_entity)
-        entity = await self.entity_manager.get(checkpoint.agent_id)
+        # Get agent record
+        entity = await self.entity_manager.get(agent_id)
         if not entity or entity.entity_type != EntityType.AGENT:
-            raise AgentRunnerError(f"Agent record not found: {checkpoint.agent_id}")
+            raise AgentRunnerError(f"Agent not found: {agent_id}")
 
         agent = AgentRecord.from_entity(entity, self.org_id)
+
+        # Validate session_id
+        if not session_id:
+            raise AgentRunnerError("No session_id available - cannot resume")
 
         # Update agent status
         await self.entity_manager.update(
             agent.id,
-            {
-                "status": AgentStatus.WORKING.value,
-                "resumed_from_checkpoint": checkpoint.id,
-            },
+            {"status": AgentStatus.WORKING.value},
         )
 
         # Recreate approval service if enabled
         approval_service: ApprovalService | None = None
-
         if enable_approvals:
             approval_service = ApprovalService(
                 entity_manager=self.entity_manager,
@@ -496,8 +487,16 @@ Priority: {task.priority}
             project_id=self.project_id,
         )
 
-        # Build hooks: load user's Claude Code hooks + merge with Sibyl hooks
-        cwd = str(restore_result.worktree_path) if restore_result.worktree_path else None
+        # Get worktree path from agent record if available
+        worktree_path: Path | None = None
+        if agent.worktree_path:
+            worktree_path = Path(agent.worktree_path)
+            if not worktree_path.exists():
+                logger.warning(f"Worktree no longer exists: {worktree_path}")
+                worktree_path = None
+
+        # Build hooks
+        cwd = str(worktree_path) if worktree_path else None
         user_hooks = load_user_hooks(cwd=cwd)
         sibyl_hooks = create_sibyl_hooks(
             approval_service=approval_service,
@@ -505,13 +504,13 @@ Priority: {task.priority}
         )
         merged_hooks = merge_hooks(sibyl_hooks, user_hooks)
 
-        # Build SDK options with resume session
+        # Build SDK options with session resume
         sdk_options = ClaudeAgentOptions(
             cwd=cwd,
             hooks=merged_hooks,  # type: ignore[arg-type]
             setting_sources=["user", "project"],
             permission_mode="acceptEdits",
-            resume=restore_result.session_id,  # Resume from checkpoint session
+            resume=session_id,  # Claude handles conversation history
         )
 
         # Get task if assigned
@@ -527,23 +526,16 @@ Priority: {task.priority}
             sdk_options=sdk_options,
             entity_manager=self.entity_manager,
             initial_prompt=prompt,
-            worktree_path=restore_result.worktree_path,
+            worktree_path=worktree_path,
             task=task,
             approval_service=approval_service,
             context_service=context_service,
         )
 
-        # Restore session ID
-        instance.set_session_id(restore_result.session_id)
-
-        # Register as active
+        instance.set_session_id(session_id)
         self._active_agents[agent.id] = instance
 
-        logger.info(
-            f"Agent {agent.id} resumed from checkpoint {checkpoint.id} "
-            f"(session: {restore_result.session_id})"
-        )
-
+        logger.info(f"Agent {agent.id} resumed (session: {session_id})")
         return instance
 
 

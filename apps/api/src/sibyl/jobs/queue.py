@@ -501,15 +501,17 @@ async def enqueue_agent_execution(
 async def enqueue_agent_resume(
     agent_id: str,
     org_id: str,
+    prompt: str = "Continue from where you left off.",
 ) -> str:
     """Enqueue an agent resume job.
 
     Clears any completed job result and enqueues a new execution.
-    The worker will pick up from the latest checkpoint.
+    Uses the agent's stored session_id for Claude session resumption.
 
     Args:
         agent_id: Agent ID to resume
         org_id: Organization ID
+        prompt: User message or continuation prompt
 
     Returns:
         Job ID for tracking
@@ -527,6 +529,7 @@ async def enqueue_agent_resume(
         "resume_agent_execution",
         agent_id,
         org_id,
+        prompt,
         _job_id=job_id,
     )
 

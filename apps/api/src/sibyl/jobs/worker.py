@@ -1360,12 +1360,13 @@ async def run_agent_execution(  # noqa: PLR0915
         )
         await manager.create_direct(checkpoint)
 
-        # Update agent status to completed
+        # Update agent status to completed with session_id for resumption
         await manager.update(
             agent_id,
             {
                 "status": AgentStatus.COMPLETED.value,
                 "conversation_turns": message_count,
+                "session_id": session_id,  # Store for future resume
             },
         )
 
@@ -1413,20 +1414,22 @@ async def run_agent_execution(  # noqa: PLR0915
         raise
 
 
-async def resume_agent_execution(  # noqa: PLR0915 - complex orchestration function
+async def resume_agent_execution(
     ctx: dict[str, Any],  # noqa: ARG001
     agent_id: str,
     org_id: str,
+    prompt: str = "Continue from where you left off.",
 ) -> dict[str, Any]:
-    """Resume an agent from its last checkpoint.
+    """Resume an agent using Claude's session management.
 
     Called when user sends a message to a terminal agent or clicks resume.
-    Loads the latest checkpoint and continues the conversation.
+    Uses the agent's stored session_id - Claude handles conversation history.
 
     Args:
         ctx: arq context
         agent_id: Agent ID to resume
         org_id: Organization ID
+        prompt: User message or continuation prompt
 
     Returns:
         Dict with execution results
@@ -1434,57 +1437,30 @@ async def resume_agent_execution(  # noqa: PLR0915 - complex orchestration funct
     from sibyl.agents import AgentRunner, WorktreeManager
     from sibyl_core.graph.client import get_graph_client
     from sibyl_core.graph.entities import EntityManager
-    from sibyl_core.models import AgentCheckpoint, AgentStatus, EntityType
+    from sibyl_core.models import AgentStatus, EntityType
 
-    log.info("resume_agent_execution_started", agent_id=agent_id)
+    log.info("resume_agent_execution_started", agent_id=agent_id, prompt_preview=prompt[:100])
 
     try:
         client = await get_graph_client()
         manager = EntityManager(client, group_id=org_id)
 
-        # Get agent record (manager.get returns Entity, not typed model)
+        # Get agent record
         agent = await manager.get(agent_id)
         if not agent or agent.entity_type != EntityType.AGENT:
             raise ValueError(f"Agent not found: {agent_id}")
 
-        # Extract fields from metadata
+        # Get session_id from agent metadata (stored from previous execution)
         agent_meta = agent.metadata or {}
+        session_id = agent_meta.get("session_id")
         project_id = agent_meta.get("project_id") or ""
 
-        # Get latest checkpoint for this agent (list_by_type returns Entity, not typed models)
-        checkpoints = await manager.list_by_type(entity_type=EntityType.CHECKPOINT, limit=50)
+        if not session_id:
+            raise ValueError(f"Agent {agent_id} has no session_id - cannot resume")
 
-        # Debug: log checkpoint agent_ids to find match issue
-        for c in checkpoints[:5]:
-            chk_agent_id = (c.metadata or {}).get("agent_id")
-            log.debug(
-                "checkpoint_scan",
-                checkpoint_id=c.id,
-                checkpoint_agent_id=chk_agent_id,
-                looking_for=agent_id,
-                match=chk_agent_id == agent_id,
-            )
+        log.info("resume_using_session", agent_id=agent_id, session_id=session_id)
 
-        agent_checkpoints = [
-            c for c in checkpoints if (c.metadata or {}).get("agent_id") == agent_id
-        ]
-
-        if not agent_checkpoints:
-            raise ValueError(f"No checkpoint found for agent {agent_id}")
-
-        latest_entity = max(
-            agent_checkpoints,
-            key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC),
-        )
-
-        latest_checkpoint = AgentCheckpoint.from_entity(latest_entity)
-
-        # Extract the latest user message as the prompt
-        history = latest_checkpoint.conversation_history or []
-        user_messages = [m for m in history if m.get("role") == "user"]
-        prompt = user_messages[-1].get("content", "Continue.") if user_messages else "Continue."
-
-        # Create worktree manager and agent runner
+        # Create runner and resume
         worktree_manager = WorktreeManager(
             entity_manager=manager,
             org_id=org_id,
@@ -1499,9 +1475,10 @@ async def resume_agent_execution(  # noqa: PLR0915 - complex orchestration funct
             project_id=project_id,
         )
 
-        # Resume from checkpoint
-        instance = await runner.resume_from_checkpoint(
-            checkpoint=latest_checkpoint,
+        # Resume using agent's session_id - Claude handles conversation history
+        instance = await runner.resume_agent(
+            agent_id=agent_id,
+            session_id=session_id,
             prompt=prompt,
             enable_approvals=True,
         )
@@ -1515,15 +1492,12 @@ async def resume_agent_execution(  # noqa: PLR0915 - complex orchestration funct
 
         # Track execution state
         message_count = 0
-        session_id = latest_checkpoint.session_id or ""
-        last_content = ""
+        new_session_id = session_id  # May get updated during execution
         tool_calls: list[str] = []
         context_broadcasted = False
 
         # Execute resumed agent - stream messages to UI
-        log.info(
-            "resume_agent_execution_starting", agent_id=agent_id, checkpoint=latest_checkpoint.id
-        )
+        log.info("resume_agent_execution_streaming", agent_id=agent_id)
         async for message in instance.execute():
             message_count += 1
             msg_class = type(message).__name__
@@ -1565,51 +1539,23 @@ async def resume_agent_execution(  # noqa: PLR0915 - complex orchestration funct
                     )
                     await _store_agent_message(agent_id, org_id, message_count, context_message)
 
-            # Track session ID
+            # Track session ID (may update if forked)
             if sid := getattr(message, "session_id", None):
-                session_id = sid
+                new_session_id = sid
 
             # Track tool calls
             if "ToolUse" in msg_class or formatted.get("type") == "tool_use":
                 tool_name = formatted.get("tool_name", "unknown")
                 tool_calls.append(tool_name)
 
-            # Keep last content
-            if formatted.get("content") and formatted.get("type") != "tool_result":
-                last_content = formatted.get("content", "")[:500]
-
-        # Create new checkpoint
-        from uuid import uuid4
-
-        checkpoint_id = f"chkpt_{uuid4().hex[:12]}"
-        summary = f"Resumed. {message_count} turns. Tools: {', '.join(tool_calls[-5:]) or 'none'}"
-        checkpoint = AgentCheckpoint(
-            id=checkpoint_id,
-            name=f"checkpoint-{agent_id[-8:]}",
-            agent_id=agent_id,
-            session_id=session_id,
-            conversation_history=[
-                {
-                    "role": "user",
-                    "content": prompt,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "type": "text",
-                },
-                {
-                    "role": "system",
-                    "content": summary,
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "type": "text",
-                },
-            ],
-            current_step=last_content[:200] if last_content else None,
-        )
-        await manager.create_direct(checkpoint)
-
-        # Update agent status
+        # Update agent with new session_id and completion status
         await manager.update(
             agent_id,
-            {"status": AgentStatus.COMPLETED.value, "conversation_turns": message_count},
+            {
+                "status": AgentStatus.COMPLETED.value,
+                "conversation_turns": message_count,
+                "session_id": new_session_id,  # Store for next resume
+            },
         )
 
         result = {
