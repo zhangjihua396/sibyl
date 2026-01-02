@@ -243,19 +243,25 @@ function StatsOverlay({
   const showingAll = displayedNodes >= totalNodes;
 
   return (
-    <div className="absolute top-4 right-4 z-10 bg-sc-bg-elevated/90 backdrop-blur-sm rounded-xl p-4 border border-sc-purple/20 min-w-[140px] hidden md:block">
-      <div className="text-sm text-sc-fg-muted">Total Nodes</div>
-      <div className="text-2xl font-bold text-sc-purple">{totalNodes.toLocaleString()}</div>
-      {!showingAll && (
-        <div className="text-xs text-sc-fg-subtle">showing {displayedNodes.toLocaleString()}</div>
-      )}
-      <div className="text-sm text-sc-fg-muted mt-2">Total Edges</div>
-      <div className="text-2xl font-bold text-sc-cyan">{totalEdges.toLocaleString()}</div>
-      {!showingAll && displayedEdges < totalEdges && (
-        <div className="text-xs text-sc-fg-subtle">showing {displayedEdges.toLocaleString()}</div>
-      )}
-      <div className="text-sm text-sc-fg-muted mt-2">Clusters</div>
-      <div className="text-2xl font-bold text-sc-coral">{clusterCount}</div>
+    <div className="absolute top-4 right-4 z-10 bg-sc-bg-elevated/90 backdrop-blur-sm rounded-lg px-3 py-2 border border-sc-fg-subtle/20 hidden md:flex items-center gap-4 text-xs">
+      <div className="flex items-center gap-1.5">
+        <span className="text-sc-purple font-bold">{totalNodes.toLocaleString()}</span>
+        <span className="text-sc-fg-subtle">nodes</span>
+        {!showingAll && (
+          <span className="text-sc-fg-subtle/60">({displayedNodes.toLocaleString()})</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-sc-cyan font-bold">{totalEdges.toLocaleString()}</span>
+        <span className="text-sc-fg-subtle">edges</span>
+        {!showingAll && displayedEdges < totalEdges && (
+          <span className="text-sc-fg-subtle/60">({displayedEdges.toLocaleString()})</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1.5">
+        <span className="text-sc-coral font-bold">{clusterCount}</span>
+        <span className="text-sc-fg-subtle">clusters</span>
+      </div>
     </div>
   );
 }
@@ -475,7 +481,7 @@ function GraphToolbar({
                     <div className="border-t border-sc-fg-subtle/10" />
                   </>
                 )}
-                <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                <div className="max-h-64 overflow-y-auto p-2 space-y-0.5">
                   {primaryTypes.map(type => {
                     const isSelected = selectedTypes.includes(type);
                     const color = getEntityColor(type);
@@ -491,11 +497,17 @@ function GraphToolbar({
                         }`}
                       >
                         <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected ? 'bg-sc-purple border-sc-purple' : 'border-sc-fg-subtle/40'
+                          }`}
+                        >
+                          {isSelected && <Check width={10} height={10} className="text-white" />}
+                        </div>
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: color }}
                         />
                         <span className="flex-1 text-left">{ENTITY_TYPE_LABELS[type] || type}</span>
-                        {isSelected && <Check width={14} height={14} className="text-sc-purple" />}
                       </button>
                     );
                   })}
@@ -515,11 +527,17 @@ function GraphToolbar({
                         }`}
                       >
                         <div
-                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                            isSelected ? 'bg-sc-purple border-sc-purple' : 'border-sc-fg-subtle/40'
+                          }`}
+                        >
+                          {isSelected && <Check width={10} height={10} className="text-white" />}
+                        </div>
+                        <div
+                          className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                           style={{ backgroundColor: color }}
                         />
                         <span className="flex-1 text-left">{ENTITY_TYPE_LABELS[type] || type}</span>
-                        {isSelected && <Check width={14} height={14} className="text-sc-purple" />}
                       </button>
                     );
                   })}
