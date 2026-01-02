@@ -8,6 +8,7 @@
  */
 
 import { formatDistanceToNow } from 'date-fns';
+import Link from 'next/link';
 
 import { Section } from '@/components/ui/card';
 import {
@@ -108,8 +109,8 @@ function ActivityEventItem({ event }: ActivityEventItemProps) {
   const EventIcon = config.icon;
   const timestamp = event.timestamp ? new Date(event.timestamp) : null;
 
-  return (
-    <div className="flex items-start gap-3 py-3 border-b border-sc-fg-subtle/10 last:border-0">
+  const content = (
+    <div className="flex items-start gap-3 py-3 border-b border-sc-fg-subtle/10 last:border-0 group-hover:bg-sc-bg-elevated/50 transition-colors">
       {/* Icon */}
       <div className={`p-2 rounded-lg ${config.bgClass}`}>
         <EventIcon className={`h-4 w-4 ${config.colorClass}`} />
@@ -134,6 +135,17 @@ function ActivityEventItem({ event }: ActivityEventItemProps) {
       )}
     </div>
   );
+
+  // Wrap in Link if we have an agent_id
+  if (event.agent_id) {
+    return (
+      <Link href={`/agents/${event.agent_id}`} className="block group">
+        {content}
+      </Link>
+    );
+  }
+
+  return content;
 }
 
 // =============================================================================

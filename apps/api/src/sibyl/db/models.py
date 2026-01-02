@@ -65,18 +65,20 @@ class ChunkType(StrEnum):
 class AgentMessageRole(StrEnum):
     """Role of an agent message sender."""
 
-    AGENT = "agent"
-    USER = "user"
-    SYSTEM = "system"
+    # Names must be lowercase to match Postgres enum values
+    agent = "agent"
+    user = "user"
+    system = "system"
 
 
 class AgentMessageType(StrEnum):
     """Type of agent message content."""
 
-    TEXT = "text"
-    TOOL_CALL = "tool_call"
-    TOOL_RESULT = "tool_result"
-    ERROR = "error"
+    # Names must be lowercase to match Postgres enum values
+    text = "text"
+    tool_call = "tool_call"
+    tool_result = "tool_result"
+    error = "error"
 
 
 # =============================================================================
@@ -908,10 +910,7 @@ class AgentMessage(SQLModel, table=True):
 
     message_num: int = Field(ge=0, description="Sequence number within agent session")
     role: AgentMessageRole = Field(description="Who sent the message")
-    type: AgentMessageType = Field(
-        default=AgentMessageType.TEXT,
-        description="Type of message content",
-    )
+    type: AgentMessageType = Field(default=AgentMessageType.text, description="Type of message content")
     content: str = Field(sa_type=Text, description="Message content (summary for tool results)")
 
     extra: dict[str, Any] = Field(

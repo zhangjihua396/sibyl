@@ -19,8 +19,6 @@ from sqlmodel import col
 from sibyl.config import settings
 from sibyl.db import (
     AgentMessage,
-    AgentMessageRole,
-    AgentMessageType,
     CrawledDocument,
     CrawlSource,
     CrawlStatus,
@@ -757,26 +755,43 @@ async def update_entity(
 def _get_tool_icon_and_preview(tool_name: str, tool_input: dict[str, Any]) -> tuple[str, str]:
     """Get icon name and preview text for a tool call."""
     if tool_name == "Read":
-        return "Page", f"Reading `{tool_input.get('file_path', 'file')}`"
+        path = tool_input.get("file_path", "file")
+        # Show just filename or last 2 path segments
+        short = "/".join(path.split("/")[-2:]) if "/" in path else path
+        return "Page", f"`{short}`"
     if tool_name == "Write":
-        return "Page", f"Writing to `{tool_input.get('file_path', 'file')}`"
+        path = tool_input.get("file_path", "file")
+        short = "/".join(path.split("/")[-2:]) if "/" in path else path
+        return "Page", f"Write `{short}`"
     if tool_name == "Edit":
-        return "EditPencil", f"Editing `{tool_input.get('file_path', 'file')}`"
+        path = tool_input.get("file_path", "file")
+        short = "/".join(path.split("/")[-2:]) if "/" in path else path
+        return "EditPencil", f"`{short}`"
     if tool_name == "Bash":
         cmd = tool_input.get("command", "")
-        return "Code", f"`{cmd[:80]}{'...' if len(cmd) > 80 else ''}`"
+        # Show the command directly, truncated
+        return "Code", f"`{cmd[:60]}{'...' if len(cmd) > 60 else ''}`"
     if tool_name == "Grep":
-        return "Search", f"Searching for `{tool_input.get('pattern', '')}`"
+        pattern = tool_input.get("pattern", "")
+        path = tool_input.get("path", "")
+        path_hint = f" in {path.split('/')[-1]}" if path else ""
+        return "Search", f"`{pattern[:50]}`{path_hint}"
     if tool_name == "Glob":
-        return "Folder", f"Finding `{tool_input.get('pattern', '')}`"
+        return "Folder", f"`{tool_input.get('pattern', '')}`"
     if tool_name == "WebSearch":
-        return "Globe", f"Searching: {tool_input.get('query', '')}"
+        return "Globe", f"{tool_input.get('query', '')[:50]}"
     if tool_name == "WebFetch":
-        return "Globe", f"Fetching: {tool_input.get('url', '')[:60]}"
+        url = tool_input.get("url", "")
+        # Extract domain
+        domain = url.split("//")[-1].split("/")[0] if "//" in url else url[:40]
+        return "Globe", f"{domain}"
     if tool_name == "Task":
-        return "User", f"Spawning agent: {tool_input.get('description', '')[:50]}"
+        return "User", f"{tool_input.get('description', '')[:50]}"
     if tool_name == "TodoWrite":
-        return "List", "Updating task list"
+        return "List", "Updating todos"
+    if tool_name == "LSP":
+        op = tool_input.get("operation", "")
+        return "Code", f"LSP {op}"
     return "Settings", tool_name
 
 
@@ -878,9 +893,9 @@ async def _store_agent_message(
     role_str = formatted.get("role", "agent")
     type_str = formatted.get("type", "text")
 
-    # Map to enum values
-    role_map = {"assistant": "agent", "tool": "system", "system": "system", "user": "user"}
-    role = AgentMessageRole(role_map.get(role_str, "agent"))
+    # Map to enum values (use lowercase strings that match Postgres enum)
+    role_map = {"assistant": "agent", "tool": "system", "system": "system", "user": "user", "unknown": "system"}
+    role = role_map.get(role_str, "agent")
 
     type_map = {
         "text": "text",
@@ -888,7 +903,7 @@ async def _store_agent_message(
         "tool_result": "tool_result",
         "result": "text",
     }
-    msg_type = AgentMessageType(type_map.get(type_str, "text"))
+    msg_type = type_map.get(type_str, "text")
 
     # Build content - always use preview/summary, never full output
     if type_str == "tool_use":
@@ -913,6 +928,7 @@ async def _store_agent_message(
     extra = {
         "icon": formatted.get("icon"),
         "tool_name": formatted.get("tool_name"),
+        "tool_id": formatted.get("tool_id"),  # For pairing calls with results
         "is_error": formatted.get("is_error"),
     }
     # Remove None values

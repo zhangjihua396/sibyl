@@ -148,7 +148,7 @@ export const Breadcrumb = memo(BreadcrumbInner);
  * Automatically uses correct icons from ROUTE_CONFIG.
  */
 interface EntityBreadcrumbProps {
-  entityType: 'project' | 'epic' | 'task' | 'entity' | 'source';
+  entityType: 'project' | 'epic' | 'task' | 'entity' | 'source' | 'agent';
   entityName: string;
   parentProject?: { id: string; name: string };
 }
@@ -174,6 +174,15 @@ export function EntityBreadcrumb({ entityType, entityName, parentProject }: Enti
       items.push({
         label: parentProject.name,
         href: `/epics?project=${parentProject.id}`,
+        icon: ROUTE_CONFIG.projects.icon,
+      });
+    }
+  } else if (entityType === 'agent') {
+    items.push({ label: 'Agents', href: '/agents', icon: ROUTE_CONFIG.agents.icon });
+    if (parentProject) {
+      items.push({
+        label: parentProject.name,
+        href: `/agents?project=${parentProject.id}`,
         icon: ROUTE_CONFIG.projects.icon,
       });
     }

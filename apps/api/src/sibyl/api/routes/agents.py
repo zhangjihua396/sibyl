@@ -426,7 +426,7 @@ async def terminate_agent(
 @router.get("/{agent_id}/messages", response_model=AgentMessagesResponse)
 async def get_agent_messages(
     agent_id: str,
-    limit: int = 100,
+    limit: int = 500,
     org: Organization = Depends(get_current_organization),
 ) -> AgentMessagesResponse:
     """Get conversation messages for an agent.
@@ -724,8 +724,9 @@ async def record_heartbeat(
 
 
 # Thresholds for health status (in seconds)
-HEARTBEAT_STALE_THRESHOLD = 60  # 1 minute without heartbeat = stale
-HEARTBEAT_UNRESPONSIVE_THRESHOLD = 300  # 5 minutes = unresponsive
+# Note: Claude API calls can take several minutes for complex tasks
+HEARTBEAT_STALE_THRESHOLD = 120  # 2 minutes without heartbeat = stale
+HEARTBEAT_UNRESPONSIVE_THRESHOLD = 600  # 10 minutes = unresponsive
 
 
 @router.get("/health/overview", response_model=HealthOverviewResponse)
@@ -736,9 +737,9 @@ async def get_health_overview(
     """Get health overview for all running agents.
 
     Returns health status based on heartbeat recency:
-    - healthy: heartbeat within last 60 seconds
-    - stale: heartbeat 60-300 seconds ago
-    - unresponsive: no heartbeat for 5+ minutes
+    - healthy: heartbeat within last 2 minutes
+    - stale: heartbeat 2-10 minutes ago
+    - unresponsive: no heartbeat for 10+ minutes
     """
     client = await get_graph_client()
     manager = EntityManager(client, group_id=str(org.id))

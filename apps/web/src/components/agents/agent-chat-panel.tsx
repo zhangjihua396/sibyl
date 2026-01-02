@@ -5,7 +5,6 @@ import type { IconComponent } from '@/components/ui/icons';
 import {
   Check,
   ChevronDown,
-  ChevronUp,
   Code,
   EditPencil,
   FileText,
@@ -22,6 +21,7 @@ import {
   User,
   Xmark,
 } from '@/components/ui/icons';
+import { Markdown } from '@/components/ui/markdown';
 import type { Agent, AgentMessage as ApiMessage, FileChange } from '@/lib/api';
 import {
   AGENT_STATUS_CONFIG,
@@ -148,106 +148,134 @@ function AgentHeader({ agent }: { agent: Agent }) {
   );
 }
 
-function ToolMessage({ message, isToolCall }: { message: ChatMessage; isToolCall: boolean }) {
+interface ToolMessageProps {
+  message: ChatMessage;
+  result?: ChatMessage; // Paired result for tool calls
+}
+
+function ToolMessage({ message, result }: ToolMessageProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const iconName = message.metadata?.icon as string | undefined;
   const toolName = message.metadata?.tool_name as string | undefined;
-  const isError = message.metadata?.is_error as boolean | undefined;
   const Icon = iconName ? TOOL_ICONS[iconName] : Code;
 
-  // Get first line as preview, rest as expandable content
-  const lines = message.content.split('\n');
-  const preview = lines[0]?.slice(0, 100) || '';
-  const hasMore = message.content.length > 100 || lines.length > 1;
+  // For results, check error status
+  const resultError = result?.metadata?.is_error as boolean | undefined;
+  const hasResult = !!result;
 
-  const borderClass = isToolCall
-    ? 'border-sc-fg-subtle/20'
-    : isError
-      ? 'border-sc-red/20'
-      : 'border-sc-green/20';
+  // Get result preview (short)
+  const getResultPreview = () => {
+    if (!result) return null;
+    const content = result.content;
+    const firstLine = content.split('\n')[0] || '';
+    // For file counts, errors, etc - show brief
+    if (firstLine.length < 60) return firstLine;
+    return `${firstLine.slice(0, 50)}...`;
+  };
 
-  const bgClass = isToolCall ? 'bg-sc-bg-elevated' : isError ? 'bg-sc-red/10' : 'bg-sc-green/10';
+  const resultPreview = getResultPreview();
+  const hasExpandableContent = message.content.length > 100 || (result?.content?.length ?? 0) > 100;
+
+  // Status indicator color
+  const statusClass = !hasResult
+    ? 'text-sc-purple' // Pending
+    : resultError
+      ? 'text-sc-red' // Error
+      : 'text-sc-green'; // Success
 
   return (
-    <div
-      className={`rounded-lg border ${borderClass} ${bgClass} font-mono text-xs overflow-hidden`}
-    >
-      {/* Clickable header - always visible */}
+    <div className="rounded-md bg-sc-bg-elevated/50 font-mono text-xs overflow-hidden">
+      {/* Header row with tool name and preview */}
       <button
         type="button"
-        onClick={() => hasMore && setIsExpanded(!isExpanded)}
-        className={`w-full flex items-center gap-2 p-2 text-left ${hasMore ? 'hover:bg-sc-fg-subtle/5 cursor-pointer' : ''}`}
+        onClick={() => hasExpandableContent && setIsExpanded(!isExpanded)}
+        className={`w-full flex items-center gap-1.5 px-2 py-1.5 text-left ${hasExpandableContent ? 'hover:bg-sc-fg-subtle/5 cursor-pointer' : ''}`}
       >
-        <Icon
-          width={14}
-          height={14}
-          className={isToolCall ? 'text-sc-purple' : isError ? 'text-sc-red' : 'text-sc-green'}
-        />
-        <span
-          className={
-            isToolCall ? 'text-sc-purple font-medium' : isError ? 'text-sc-red' : 'text-sc-green'
-          }
-        >
-          {isToolCall ? toolName || 'Tool' : isError ? 'Error' : 'Success'}
-        </span>
-        <span className="text-sc-fg-muted truncate flex-1">{preview}</span>
-        {hasMore && (
-          <span className="text-sc-fg-subtle shrink-0">
-            {isExpanded ? (
-              <ChevronUp width={14} height={14} />
-            ) : (
-              <ChevronDown width={14} height={14} />
-            )}
+        <Icon width={12} height={12} className={`${statusClass} shrink-0`} />
+        <span className={`${statusClass} font-medium shrink-0`}>{toolName || 'Tool'}</span>
+        <span className="text-sc-fg-muted truncate flex-1 min-w-0">{message.content}</span>
+        {/* Result indicator */}
+        {hasResult && (
+          <span className={`text-[10px] shrink-0 ${statusClass}`}>
+            {resultError ? '✗' : '✓'} {resultPreview?.slice(0, 20)}
+            {resultPreview && resultPreview.length > 20 ? '...' : ''}
           </span>
+        )}
+        <span className="text-[10px] text-sc-fg-subtle shrink-0 tabular-nums ml-1">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </span>
+        {hasExpandableContent && (
+          <ChevronDown
+            width={12}
+            height={12}
+            className={`text-sc-fg-subtle shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+          />
         )}
       </button>
 
-      {/* Expandable content */}
-      {isExpanded && (
-        <div className="border-t border-sc-fg-subtle/10 p-2 max-h-64 overflow-y-auto">
-          <pre className="text-sc-fg-primary whitespace-pre-wrap break-words">
-            {message.content}
+      {/* Expandable content - shows result */}
+      {isExpanded && result && (
+        <div
+          className={`border-t border-sc-fg-subtle/10 px-2 py-1.5 max-h-48 overflow-y-auto ${resultError ? 'bg-sc-red/5' : 'bg-sc-bg-base/50'}`}
+        >
+          <pre
+            className={`whitespace-pre-wrap break-words text-[11px] leading-relaxed ${resultError ? 'text-sc-red' : 'text-sc-fg-primary'}`}
+          >
+            {result.content}
           </pre>
         </div>
       )}
-
-      {/* Timestamp */}
-      <div className="px-2 pb-1.5 text-[10px] text-sc-fg-muted">
-        {message.timestamp.toLocaleTimeString()}
-      </div>
     </div>
   );
 }
 
-function ChatMessage({ message }: { message: ChatMessage }) {
+interface ChatMessageComponentProps {
+  message: ChatMessage;
+  pairedResult?: ChatMessage; // For tool_call messages, the matching result
+}
+
+function ChatMessageComponent({ message, pairedResult }: ChatMessageComponentProps) {
   const isAgent = message.role === 'agent';
   const isSystem = message.role === 'system';
   const isToolCall = message.type === 'tool_call';
-  const isToolResult = message.type === 'tool_result';
 
-  // Use collapsible component for tool messages
-  if (isToolCall || isToolResult) {
+  // Tool calls render with their paired result
+  if (isToolCall) {
+    return <ToolMessage message={message} result={pairedResult} />;
+  }
+
+  // System messages - compact
+  if (isSystem) {
     return (
-      <div className="max-w-[90%]">
-        <ToolMessage message={message} isToolCall={isToolCall} />
+      <div className="text-center py-1">
+        <span className="text-xs text-sc-fg-subtle">{message.content}</span>
       </div>
     );
   }
 
-  // Regular text messages
+  // Agent text messages - render as beautiful markdown
+  if (isAgent) {
+    return (
+      <div className="rounded-lg bg-gradient-to-br from-sc-purple/5 to-sc-cyan/5 border border-sc-purple/20 p-4 my-2">
+        <Markdown content={message.content} className="text-sm" />
+        <p className="text-[10px] text-sc-fg-subtle mt-3 tabular-nums border-t border-sc-fg-subtle/10 pt-2">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
+      </div>
+    );
+  }
+
+  // User text messages - simple bubble
   return (
-    <div className={`flex gap-3 ${isAgent ? '' : 'flex-row-reverse'}`}>
-      <div
-        className={`
-          max-w-[85%] rounded-lg p-3
-          ${isSystem ? 'bg-sc-bg-highlight text-sc-fg-muted text-center w-full' : ''}
-          ${isAgent ? 'bg-sc-purple/10 border border-sc-purple/20' : ''}
-          ${message.role === 'user' ? 'bg-sc-cyan/10 border border-sc-cyan/20' : ''}
-        `}
-      >
-        <p className="text-sm text-sc-fg-primary whitespace-pre-wrap">{message.content}</p>
-        <p className="text-xs text-sc-fg-muted mt-1.5">{message.timestamp.toLocaleTimeString()}</p>
+    <div className="flex gap-2 flex-row-reverse">
+      <div className="max-w-[85%] rounded-lg px-3 py-2 bg-sc-cyan/10 border border-sc-cyan/20">
+        <p className="text-sm text-sc-fg-primary whitespace-pre-wrap leading-relaxed">
+          {message.content}
+        </p>
+        <p className="text-[10px] text-sc-fg-muted mt-1 tabular-nums">
+          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
       </div>
     </div>
   );
@@ -261,12 +289,15 @@ function ChatPanel({
   onSendMessage: (content: string) => void;
 }) {
   const [inputValue, setInputValue] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive (scroll container, not page)
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger on message count change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTop = container.scrollHeight;
+    }
   }, [messages.length]);
 
   const handleSubmit = useCallback(
@@ -279,14 +310,38 @@ function ChatPanel({
     [inputValue, onSendMessage]
   );
 
+  // Build a map of tool_id -> result message for pairing
+  const resultsByToolId = useMemo(() => {
+    const map = new Map<string, ChatMessage>();
+    for (const msg of messages) {
+      if (msg.type === 'tool_result') {
+        const toolId = msg.metadata?.tool_id as string | undefined;
+        if (toolId) {
+          map.set(toolId, msg);
+        }
+      }
+    }
+    return map;
+  }, [messages]);
+
   return (
     <div className="flex flex-col h-full">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map(msg => (
-          <ChatMessage key={msg.id} message={msg} />
-        ))}
-        <div ref={messagesEndRef} />
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-3 space-y-1.5">
+        {messages.map(msg => {
+          // Skip all tool_results - they render nested inside tool_calls
+          if (msg.type === 'tool_result') {
+            return null;
+          }
+
+          // For tool_calls, find the paired result
+          const pairedResult =
+            msg.type === 'tool_call'
+              ? resultsByToolId.get(msg.metadata?.tool_id as string)
+              : undefined;
+
+          return <ChatMessageComponent key={msg.id} message={msg} pairedResult={pairedResult} />;
+        })}
       </div>
 
       {/* Input */}

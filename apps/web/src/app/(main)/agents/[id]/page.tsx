@@ -24,7 +24,7 @@ export default function AgentDetailPage({ params }: AgentDetailPageProps) {
   if (error) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="task" entityName="Error" />
+        <EntityBreadcrumb entityType="agent" entityName="Error" />
         <ErrorState
           title="Failed to load agent"
           message={error instanceof Error ? error.message : 'Unknown error'}
@@ -36,18 +36,18 @@ export default function AgentDetailPage({ params }: AgentDetailPageProps) {
   if (isLoading || !agent) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="task" entityName="Loading..." />
+        <EntityBreadcrumb entityType="agent" entityName="Loading..." />
         <LoadingState />
       </div>
     );
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col animate-fade-in">
-      {/* Breadcrumb */}
-      <div className="shrink-0 pb-4">
+    <div className="h-full flex flex-col animate-fade-in -m-3 sm:-m-4 md:-m-6">
+      {/* Breadcrumb - sticky at top */}
+      <div className="shrink-0 px-3 sm:px-4 md:px-6 pt-3 sm:pt-4 md:pt-6 pb-3 bg-sc-bg-dark">
         <EntityBreadcrumb
-          entityType="task"
+          entityType="agent"
           entityName={agent.name}
           parentProject={
             parentProject ? { id: parentProject.id, name: parentProject.name } : undefined
@@ -55,8 +55,10 @@ export default function AgentDetailPage({ params }: AgentDetailPageProps) {
         />
       </div>
 
-      {/* Split Panel - Chat + Workspace */}
-      <AgentChatPanel agent={agent} />
+      {/* Split Panel - Chat + Workspace - fills remaining space */}
+      <div className="flex-1 min-h-0 px-3 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
+        <AgentChatPanel agent={agent} />
+      </div>
     </div>
   );
 }

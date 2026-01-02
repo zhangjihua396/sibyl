@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from sibyl_core.errors import EntityNotFoundError, SearchError
 from sibyl_core.graph.client import GraphClient
+from sibyl_core.models.agents import AgentRecord, ApprovalRecord
 from sibyl_core.models.entities import Entity, EntityType
 from sibyl_core.models.sources import Community, Document, Source
 from sibyl_core.models.tasks import Epic, ErrorPattern, Milestone, Note, Project, Task, Team
@@ -1270,6 +1271,45 @@ class EntityManager:
             metadata["task_id"] = entity.task_id
             metadata["author_type"] = entity.author_type.value if entity.author_type else "user"
             metadata["author_name"] = entity.author_name
+
+        # Add AgentRecord-specific fields
+        elif isinstance(entity, AgentRecord):
+            metadata["agent_type"] = entity.agent_type.value if entity.agent_type else "general"
+            metadata["spawn_source"] = entity.spawn_source.value if entity.spawn_source else "user"
+            metadata["status"] = entity.status.value if entity.status else "initializing"
+            metadata["project_id"] = entity.project_id
+            metadata["task_id"] = entity.task_id
+            metadata["created_by"] = entity.created_by
+            metadata["worktree_path"] = entity.worktree_path
+            metadata["worktree_branch"] = entity.worktree_branch
+            if entity.started_at:
+                metadata["started_at"] = entity.started_at.isoformat()
+            if entity.last_heartbeat:
+                metadata["last_heartbeat"] = entity.last_heartbeat.isoformat()
+            if entity.completed_at:
+                metadata["completed_at"] = entity.completed_at.isoformat()
+            if entity.paused_reason:
+                metadata["paused_reason"] = entity.paused_reason
+
+        # Add ApprovalRecord-specific fields
+        elif isinstance(entity, ApprovalRecord):
+            metadata["project_id"] = entity.project_id
+            metadata["agent_id"] = entity.agent_id
+            metadata["task_id"] = entity.task_id
+            metadata["approval_type"] = entity.approval_type.value if entity.approval_type else "dangerous_operation"
+            metadata["status"] = entity.status.value if entity.status else "pending"
+            metadata["priority"] = entity.priority
+            metadata["title"] = entity.title
+            metadata["summary"] = entity.summary
+            metadata["actions"] = entity.actions
+            if entity.responded_by:
+                metadata["responded_by"] = entity.responded_by
+            if entity.responded_at:
+                metadata["responded_at"] = entity.responded_at.isoformat()
+            if entity.response_action:
+                metadata["response_action"] = entity.response_action
+            if entity.response_comment:
+                metadata["response_comment"] = entity.response_comment
 
         # Common fields (use getattr since not all entity types have these)
         if languages := getattr(entity, "languages", None):
