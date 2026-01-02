@@ -10,6 +10,7 @@ import { ApprovalRequestMessage } from './approval-request-message';
 import { ToolMessage } from './chat-tool-message';
 import type { ChatMessageComponentProps } from './chat-types';
 import { SibylContextMessage } from './sibyl-context-message';
+import { UserQuestionMessage, type Question } from './user-question-message';
 
 // =============================================================================
 // ChatMessageComponent
@@ -27,6 +28,7 @@ export function ChatMessageComponent({
   const isToolCall = message.type === 'tool_call';
   const isSibylContext = message.type === 'sibyl_context';
   const isApprovalRequest = message.metadata?.message_type === 'approval_request';
+  const isUserQuestion = message.metadata?.message_type === 'user_question';
 
   // Sibyl context injection - collapsible display
   if (isSibylContext) {
@@ -56,6 +58,28 @@ export function ChatMessageComponent({
           metadata={meta.metadata}
           expiresAt={meta.expires_at}
           status={meta.status}
+        />
+      </div>
+    );
+  }
+
+  // User questions get inline choice UI
+  if (isUserQuestion) {
+    const meta = message.metadata as {
+      question_id: string;
+      questions: Question[];
+      expires_at?: string;
+      status?: 'pending' | 'answered' | 'expired';
+      answers?: Record<string, string>;
+    };
+    return (
+      <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
+        <UserQuestionMessage
+          questionId={meta.question_id}
+          questions={meta.questions}
+          expiresAt={meta.expires_at}
+          status={meta.status}
+          answers={meta.answers}
         />
       </div>
     );

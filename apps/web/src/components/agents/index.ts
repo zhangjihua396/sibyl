@@ -21,6 +21,7 @@ export {
 export { buildResultsMap, groupMessages } from './chat-grouping';
 // Chat sub-components (for advanced customization)
 export { AgentHeader, type AgentHeaderProps } from './chat-header';
+export { type Attachment, ChatInput } from './chat-input';
 export { ChatMessageComponent } from './chat-messages';
 export { ChatPanel } from './chat-panel';
 export { EmptyChatState, type EmptyChatStateProps, ThinkingIndicator } from './chat-states';
@@ -47,3 +48,9 @@ export {
   ToolContentRenderer,
   WriteToolRenderer,
 } from './tool-renderers';
+export {
+  UserQuestionMessage,
+  type Question,
+  type QuestionOption,
+  type UserQuestionMessageProps,
+} from './user-question-message';

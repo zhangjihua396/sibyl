@@ -23,8 +23,9 @@ log = structlog.get_logger()
 # Use same Redis DB as websocket pubsub for consistency
 PUBSUB_DB = 2
 
-# Channel prefix for approval messages
+# Channel prefixes for IPC messages
 APPROVAL_CHANNEL_PREFIX = "sibyl:approval:"
+QUESTION_CHANNEL_PREFIX = "sibyl:question:"
 
 
 async def _get_redis() -> Redis:
@@ -119,6 +120,93 @@ async def publish_approval_response(
 
     except Exception as e:
         log.exception("Failed to publish approval response", approval_id=approval_id, error=str(e))
+        return False
+
+    finally:
+        await redis.close()
+
+
+async def wait_for_question_response(
+    question_id: str,
+    wait_timeout: float = 300.0,
+) -> dict[str, Any] | None:
+    """Subscribe to a question channel and wait for a user response.
+
+    This is a blocking call that waits for the API to publish a user's
+    answer to the question. Used by the AskUserQuestion hook in the worker.
+
+    Args:
+        question_id: The question record ID to wait for
+        wait_timeout: Maximum time to wait in seconds (default 5 minutes)
+
+    Returns:
+        The response dict with 'answers' if received, None if timeout
+    """
+    channel = f"{QUESTION_CHANNEL_PREFIX}{question_id}"
+    redis = await _get_redis()
+    pubsub = redis.pubsub()
+
+    try:
+        await pubsub.subscribe(channel)
+        log.debug("Subscribed to question channel", channel=channel)
+
+        # Wait for message with timeout
+        async with asyncio.timeout(wait_timeout):
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data = json.loads(message["data"])
+                    log.info(
+                        "Received question response",
+                        question_id=question_id,
+                        answers=data.get("answers"),
+                    )
+                    return data
+
+    except TimeoutError:
+        log.warning("Question request timed out", question_id=question_id)
+        return None
+
+    except Exception as e:
+        log.exception("Error waiting for question", question_id=question_id, error=str(e))
+        return None
+
+    finally:
+        await pubsub.unsubscribe(channel)
+        await pubsub.close()
+        await redis.close()
+
+    return None
+
+
+async def publish_question_response(
+    question_id: str,
+    response: dict[str, Any],
+) -> bool:
+    """Publish a question response to the worker channel.
+
+    Called by the API when a user answers a question.
+
+    Args:
+        question_id: The question record ID
+        response: Dict with 'answers', 'by' keys
+
+    Returns:
+        True if published successfully, False otherwise
+    """
+    channel = f"{QUESTION_CHANNEL_PREFIX}{question_id}"
+    redis = await _get_redis()
+
+    try:
+        await redis.publish(channel, json.dumps(response))
+        log.info(
+            "Published question response",
+            question_id=question_id,
+            answers=response.get("answers"),
+        )
+        return True
+
+    except Exception as e:
+        log.exception("Failed to publish question response", question_id=question_id, error=str(e))
         return False
 
     finally:

@@ -75,6 +75,9 @@ EXTERNAL_API_APPROVAL_DOMAINS = [
 # Default approval timeout
 DEFAULT_APPROVAL_TIMEOUT = timedelta(hours=24)
 
+# Default question timeout (shorter than approvals)
+DEFAULT_QUESTION_TIMEOUT = timedelta(minutes=30)
+
 
 def _generate_approval_id(agent_id: str, tool_name: str, timestamp: str) -> str:
     """Generate a unique approval ID."""
@@ -114,7 +117,7 @@ class ApprovalService:
         self.task_id = task_id
 
     def create_hook_matchers(self) -> dict[str, list[HookMatcher]]:
-        """Create hook matchers for dangerous operations.
+        """Create hook matchers for dangerous operations and user questions.
 
         Returns:
             Dict of HookEvent -> list[HookMatcher] for ClaudeAgentOptions.hooks
@@ -138,6 +141,12 @@ class ApprovalService:
                     matcher="WebFetch",
                     hooks=[self._check_external_api],
                     timeout=300.0,
+                ),
+                # AskUserQuestion - intercept and route through UI
+                HookMatcher(
+                    matcher="AskUserQuestion",
+                    hooks=[self._handle_user_question],
+                    timeout=1800.0,  # 30 minutes for user response
                 ),
             ],
         }
@@ -320,6 +329,158 @@ class ApprovalService:
         # Not an external API that needs approval - allow
         return SyncHookJSONOutput(continue_=True)
 
+    async def _handle_user_question(
+        self,
+        hook_input: HookInput,
+        tool_use_id: str | None,
+        context: HookContext,
+    ) -> HookJSONOutput:
+        """Hook callback for AskUserQuestion tool.
+
+        Intercepts the tool, broadcasts to UI, waits for user response,
+        and returns the answer to the agent.
+        """
+        if hook_input.get("hook_event_name") != "PreToolUse":
+            return SyncHookJSONOutput(continue_=True)
+
+        tool_input = hook_input.get("tool_input", {})
+        if not isinstance(tool_input, dict):
+            return SyncHookJSONOutput(continue_=True)
+
+        questions = tool_input.get("questions", [])
+        if not questions:
+            return SyncHookJSONOutput(continue_=True)
+
+        logger.info(f"AskUserQuestion intercepted: {len(questions)} question(s)")
+
+        # Create question record and broadcast
+        question_id = await self._create_question(questions)
+
+        # Wait for user response
+        response = await self._wait_for_question_response(question_id)
+
+        if response is None:
+            # Timeout - return error to agent
+            return SyncHookJSONOutput(
+                continue_=True,
+                hookSpecificOutput={
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": "Question timed out waiting for user response",
+                },
+            )
+
+        # Return the user's answers to the agent
+        # We use the permissionDecisionReason to carry the answer JSON
+        # The agent will parse this to get the user's choices
+        import json as json_mod
+
+        answers_json = json_mod.dumps(response.get("answers", {}))
+        return SyncHookJSONOutput(
+            continue_=True,
+            hookSpecificOutput={
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "permissionDecisionReason": f"User answered: {answers_json}",
+            },
+        )
+
+    async def _create_question(self, questions: list[dict[str, Any]]) -> str:
+        """Create and broadcast a user question request.
+
+        Args:
+            questions: List of question dicts from AskUserQuestion tool
+
+        Returns:
+            Question ID for tracking response
+        """
+        timestamp = datetime.now(UTC).isoformat()
+        expires_at = datetime.now(UTC) + DEFAULT_QUESTION_TIMEOUT
+        question_id = _generate_approval_id(
+            self.agent_id, "AskUserQuestion", timestamp
+        )
+
+        # Build message payload
+        message_payload = {
+            "agent_id": self.agent_id,
+            "message_type": "user_question",
+            "question_id": question_id,
+            "questions": questions,
+            "expires_at": expires_at.isoformat(),
+            "status": "pending",
+        }
+
+        # Store to database for persistence
+        try:
+            async with get_session() as session:
+                # Get next message_num for this agent
+                result = await session.execute(
+                    select(func.coalesce(func.max(AgentMessage.message_num), 0)).where(  # type: ignore[arg-type]
+                        AgentMessage.agent_id == self.agent_id
+                    )
+                )
+                message_num = (result.scalar() or 0) + 1
+
+                # Build content from questions
+                content_parts = ["🤔 **Question for you:**"]
+                for q in questions:
+                    content_parts.append(f"\n**{q.get('header', 'Question')}:** {q.get('question', '')}")
+
+                msg = AgentMessage(
+                    agent_id=self.agent_id,
+                    organization_id=UUID(self.org_id),
+                    message_num=message_num,
+                    role=AgentMessageRole.system,
+                    type=AgentMessageType.text,
+                    content="\n".join(content_parts),
+                    extra=message_payload,
+                )
+                session.add(msg)
+                await session.commit()
+                message_payload["message_num"] = message_num
+        except Exception as e:
+            logger.warning(f"Failed to store question message: {e}")
+
+        # Broadcast via WebSocket
+        try:
+            from sibyl.api.pubsub import publish_event
+
+            await publish_event("agent_message", message_payload, org_id=self.org_id)
+
+            # Also broadcast agent status change
+            await publish_event(
+                "agent_status",
+                {"agent_id": self.agent_id, "status": "waiting_input"},
+                org_id=self.org_id,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to broadcast question: {e}")
+
+        logger.info(f"Created user question {question_id}")
+        return question_id
+
+    async def _wait_for_question_response(
+        self, question_id: str, wait_timeout: float = 1800.0
+    ) -> dict[str, Any] | None:
+        """Wait for user response to a question via Redis.
+
+        Args:
+            question_id: Question ID
+            wait_timeout: Max wait time in seconds (default 30 minutes)
+
+        Returns:
+            Response dict with 'answers' key, or None if timeout
+        """
+        from sibyl.agents.redis_sub import wait_for_question_response
+
+        response = await wait_for_question_response(question_id, wait_timeout=wait_timeout)
+
+        if response is None:
+            logger.warning(f"Question {question_id} timed out after {wait_timeout}s")
+            return None
+
+        return response
+
     async def _create_approval(
         self,
         approval_type: ApprovalType,
@@ -403,7 +564,7 @@ class ApprovalService:
             async with get_session() as session:
                 # Get next message_num for this agent
                 result = await session.execute(
-                    select(func.coalesce(func.max(AgentMessage.message_num), 0)).where(
+                    select(func.coalesce(func.max(AgentMessage.message_num), 0)).where(  # type: ignore[arg-type]
                         AgentMessage.agent_id == self.agent_id
                     )
                 )

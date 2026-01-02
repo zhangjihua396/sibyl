@@ -842,6 +842,16 @@ export interface RespondToApprovalResponse {
   message: string;
 }
 
+export interface AnswerQuestionRequest {
+  answers: Record<string, string>;
+}
+
+export interface AnswerQuestionResponse {
+  success: boolean;
+  question_id: string;
+  message: string;
+}
+
 // =============================================================================
 // Activity Feed Types
 // =============================================================================
@@ -2043,6 +2053,12 @@ export const api = {
 
     respond: (id: string, request: RespondToApprovalRequest) =>
       fetchApi<RespondToApprovalResponse>(`/approvals/${id}/respond`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }),
+
+    answerQuestion: (id: string, request: AnswerQuestionRequest) =>
+      fetchApi<AnswerQuestionResponse>(`/approvals/questions/${id}/answer`, {
         method: 'POST',
         body: JSON.stringify(request),
       }),

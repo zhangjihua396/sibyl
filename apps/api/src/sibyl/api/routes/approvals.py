@@ -309,6 +309,95 @@ async def respond_to_approval(
 
 
 # =============================================================================
+# Question Endpoints (AskUserQuestion handling)
+# =============================================================================
+
+
+class QuestionAnswerRequest(BaseModel):
+    """Request to answer an agent's question."""
+
+    answers: dict[str, str]  # question_id -> selected answer or text
+
+
+class QuestionAnswerResponse(BaseModel):
+    """Response from answering a question."""
+
+    success: bool
+    question_id: str
+    message: str
+
+
+@router.post("/questions/{question_id}/answer", response_model=QuestionAnswerResponse)
+async def answer_question(
+    question_id: str,
+    request: QuestionAnswerRequest,
+    user: User = Depends(get_current_user),
+    org: Organization = Depends(get_current_organization),
+) -> QuestionAnswerResponse:
+    """Answer an agent's question.
+
+    Called when user responds to an AskUserQuestion prompt in the agent chat.
+    Publishes the answer via Redis to wake up the waiting agent hook.
+    """
+    # Update the stored AgentMessage's status
+    try:
+        async with get_session() as session:
+            stmt = (
+                update(AgentMessage)
+                .where(AgentMessage.extra["question_id"].astext == question_id)
+                .values(
+                    extra=AgentMessage.extra.op("||")(
+                        {
+                            "status": "answered",
+                            "answered_at": datetime.now(UTC).isoformat(),
+                            "answers": request.answers,
+                        }
+                    )
+                )
+            )
+            await session.execute(stmt)
+            await session.commit()
+    except Exception as e:
+        log.warning("Failed to update question message status", error=str(e))
+
+    # Publish to worker channel - this wakes up the waiting agent
+    from sibyl.agents.redis_sub import publish_question_response
+
+    await publish_question_response(
+        question_id,
+        {
+            "answers": request.answers,
+            "by": str(user.id),
+        },
+    )
+
+    # Broadcast event to UI
+    from sibyl.api.pubsub import publish_event
+
+    await publish_event(
+        "question_answered",
+        {
+            "question_id": question_id,
+            "answers": request.answers,
+            "answered_by": str(user.id),
+        },
+        org_id=str(org.id),
+    )
+
+    log.info(
+        "Question answered",
+        question_id=question_id,
+        user_id=str(user.id),
+    )
+
+    return QuestionAnswerResponse(
+        success=True,
+        question_id=question_id,
+        message="Question answered successfully",
+    )
+
+
+# =============================================================================
 # Helpers
 # =============================================================================
 

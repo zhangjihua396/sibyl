@@ -1686,6 +1686,22 @@ export function useRespondToApproval() {
 }
 
 /**
+ * Answer an agent's question (from AskUserQuestion tool).
+ */
+export function useAnswerQuestion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: { answers: Record<string, string> } }) =>
+      api.approvals.answerQuestion(id, request),
+    onSuccess: () => {
+      // Refresh agent data since answer may unblock agent
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
+  });
+}
+
+/**
  * Subscribe to real-time approval updates via WebSocket.
  * Automatically updates React Query cache when approval responses arrive.
  */
