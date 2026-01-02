@@ -10,6 +10,133 @@ const API_BASE = '/api';
 // Types (generated from OpenAPI will replace these)
 // =============================================================================
 
+// -----------------------------------------------------------------------------
+// Metadata Types - Strongly typed entity metadata by entity type
+// -----------------------------------------------------------------------------
+
+/** Base metadata fields common to all entities */
+export interface BaseMetadata {
+  created_at?: string;
+  updated_at?: string;
+}
+
+/** Task entity metadata */
+export interface TaskMetadata extends BaseMetadata {
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  project_id?: string;
+  epic_id?: string;
+  due_date?: string;
+  feature?: string;
+  tags?: string[];
+  assignees?: string[];
+  branch_name?: string;
+  pr_url?: string;
+  estimated_hours?: number;
+  actual_hours?: number;
+  technologies?: string[];
+  blocker_reason?: string;
+  learnings?: string;
+  task_order?: number;
+}
+
+/** Source (documentation) entity metadata */
+export interface SourceMetadata extends BaseMetadata {
+  crawl_status?: CrawlStatus;
+  source_type?: SourceType;
+  document_count?: number;
+  total_tokens?: number;
+  last_crawled?: string;
+  url?: string;
+  tags?: string[];
+  crawl_error?: string;
+  max_pages?: number;
+  max_depth?: number;
+}
+
+/** Project entity metadata */
+export interface ProjectMetadata extends BaseMetadata {
+  status?: 'active' | 'archived' | 'paused';
+  repository_url?: string;
+  technologies?: string[];
+  tech_stack?: string[]; // Alias for technologies
+  features?: string[];
+  last_activity_at?: string;
+  task_count?: number;
+}
+
+/** Epic entity metadata */
+export interface EpicMetadata extends BaseMetadata {
+  priority?: TaskPriority;
+  project_id?: string;
+  status?: 'planning' | 'in_progress' | 'blocked' | 'completed' | 'archived';
+  total_tasks?: number;
+  completed_tasks?: number;
+  doing_tasks?: number;
+  blocked_tasks?: number;
+}
+
+/** Agent message metadata (used in chat panels) */
+export interface AgentChatMessageMetadata {
+  icon?: string;
+  tool_name?: string;
+  tool_id?: string;
+  is_error?: boolean;
+  parent_tool_use_id?: string;
+  blocks?: unknown[];
+  usage?: { input_tokens: number; output_tokens: number };
+  cost_usd?: number;
+}
+
+/** Search result metadata */
+export interface SearchResultMetadata extends BaseMetadata {
+  document_id?: string;
+  source_id?: string;
+  chunk_index?: number;
+  section_path?: string;
+}
+
+/** Graph node metadata */
+export interface GraphNodeMetadata extends BaseMetadata {
+  entity_type?: string;
+  [key: string]: unknown; // Allow additional fields
+}
+
+/** Type for task status values */
+export type TaskStatus =
+  | 'backlog'
+  | 'todo'
+  | 'doing'
+  | 'blocked'
+  | 'review'
+  | 'done'
+  | 'archived';
+
+/** Type for task priority values */
+export type TaskPriority = 'critical' | 'high' | 'medium' | 'low' | 'someday';
+
+/** Type for source crawl status */
+export type CrawlStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'partial';
+
+/** Type for source types */
+export type SourceType = 'website' | 'github' | 'local' | 'api_docs';
+
+/** Maps entity types to their metadata types */
+export type EntityMetadataMap = {
+  task: TaskMetadata;
+  source: SourceMetadata;
+  project: ProjectMetadata;
+  epic: EpicMetadata;
+  // Generic entities use base metadata
+  pattern: BaseMetadata;
+  episode: BaseMetadata;
+  rule: BaseMetadata;
+  template: BaseMetadata;
+  tool: BaseMetadata;
+  topic: BaseMetadata;
+  document: BaseMetadata;
+};
+
 export interface RelatedEntitySummary {
   id: string;
   name: string;
@@ -420,9 +547,6 @@ export interface PreferencesResponse {
 // Task Types
 // =============================================================================
 
-export type TaskStatus = 'backlog' | 'todo' | 'doing' | 'blocked' | 'review' | 'done' | 'archived';
-export type TaskPriority = 'critical' | 'high' | 'medium' | 'low' | 'someday';
-
 export interface Task {
   id: string;
   title: string;
@@ -809,9 +933,6 @@ export interface CreateNoteRequest {
 // =============================================================================
 // Source Types (Documentation Crawling)
 // =============================================================================
-
-export type SourceType = 'website' | 'github' | 'local' | 'api_docs';
-export type CrawlStatus = 'pending' | 'in_progress' | 'completed' | 'failed' | 'partial';
 
 export interface LocalSourceData {
   path: string;
