@@ -66,7 +66,7 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
-    """Pre-warm graph client on startup for fast first requests."""
+    """Pre-warm graph client and start Redis pub/sub on startup."""
     log.info("Pre-warming graph client connection...")
     try:
         from sibyl_core.graph.client import get_graph_client
@@ -75,7 +75,31 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         log.info("Graph client ready")
     except Exception as e:
         log.warning("Failed to pre-warm graph client", error=str(e))
+
+    # Initialize Redis pub/sub for cross-process WebSocket broadcasts
+    # (worker process publishes events, API process receives and broadcasts to clients)
+    log.info("Initializing Redis pub/sub for WebSocket broadcasts...")
+    try:
+        from sibyl.api.pubsub import init_pubsub, shutdown_pubsub
+        from sibyl.api.websocket import enable_pubsub, local_broadcast
+
+        await init_pubsub(local_broadcast)
+        enable_pubsub()
+        log.info("Redis pub/sub ready")
+    except Exception as e:
+        log.warning("Failed to initialize Redis pub/sub (worker broadcasts may not work)", error=str(e))
+
     yield
+
+    # Cleanup on shutdown
+    try:
+        from sibyl.api.pubsub import shutdown_pubsub
+        from sibyl.api.websocket import disable_pubsub
+
+        disable_pubsub()
+        await shutdown_pubsub()
+    except Exception as e:
+        log.debug("Pub/sub shutdown error (expected during fast restarts)", error=str(e))
 
 
 def create_api_app() -> FastAPI:

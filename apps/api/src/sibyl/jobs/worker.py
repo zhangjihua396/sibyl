@@ -30,13 +30,17 @@ log = structlog.get_logger()
 
 
 async def _safe_broadcast(event: str, data: dict[str, Any], *, org_id: str | None) -> None:
-    """Broadcast event, silently ignoring failures (WebSocket may not be available)."""
-    try:
-        from sibyl.api.websocket import broadcast_event
+    """Broadcast event via Redis pub/sub (worker runs in separate process).
 
-        await broadcast_event(event, data, org_id=org_id)
+    The worker process doesn't have WebSocket connections, so we must
+    publish to Redis pub/sub which the API process subscribes to.
+    """
+    try:
+        from sibyl.api.pubsub import publish_event
+
+        await publish_event(event, data, org_id=org_id)
     except Exception:
-        log.debug("Broadcast failed (WebSocket unavailable)", event=event)
+        log.debug("Broadcast failed (Redis unavailable)", event=event)
 
 
 def get_redis_settings() -> RedisSettings:

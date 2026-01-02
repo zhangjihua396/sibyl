@@ -1,7 +1,25 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Code, FileText, Pause, Play, Send, Square } from '@/components/ui/icons';
+import type { IconComponent } from '@/components/ui/icons';
+import {
+  Check,
+  Code,
+  EditPencil,
+  FileText,
+  Folder,
+  Globe,
+  List,
+  Page,
+  Pause,
+  Play,
+  Search,
+  Send,
+  Settings,
+  Square,
+  User,
+  Xmark,
+} from '@/components/ui/icons';
 import type { Agent, AgentMessage as ApiMessage, FileChange } from '@/lib/api';
 import {
   AGENT_STATUS_CONFIG,
@@ -21,8 +39,23 @@ import {
 } from '@/lib/hooks';
 
 // =============================================================================
-// Types
+// Types & Constants
 // =============================================================================
+
+// Map icon names from backend to components
+const TOOL_ICONS: Record<string, IconComponent> = {
+  Page,
+  Code,
+  EditPencil,
+  Search,
+  Folder,
+  Globe,
+  User,
+  List,
+  Settings,
+  Check,
+  Xmark,
+};
 
 interface ChatMessage {
   id: string;
@@ -119,22 +152,37 @@ function ChatMessage({ message }: { message: ChatMessage }) {
   const isToolCall = message.type === 'tool_call';
   const isToolResult = message.type === 'tool_result';
 
+  // Get icon component from metadata
+  const iconName = message.metadata?.icon as string | undefined;
+  const toolName = message.metadata?.tool_name as string | undefined;
+  const isError = message.metadata?.is_error as boolean | undefined;
+  const Icon = iconName ? TOOL_ICONS[iconName] : Code;
+
   return (
     <div className={`flex gap-3 ${isAgent ? '' : 'flex-row-reverse'}`}>
       <div
         className={`
           max-w-[85%] rounded-lg p-3
           ${isSystem ? 'bg-sc-bg-highlight text-sc-fg-muted text-center w-full' : ''}
-          ${isAgent && !isToolCall ? 'bg-sc-purple/10 border border-sc-purple/20' : ''}
+          ${isAgent && !isToolCall && !isToolResult ? 'bg-sc-purple/10 border border-sc-purple/20' : ''}
           ${isToolCall ? 'bg-sc-bg-elevated border border-sc-fg-subtle/20 font-mono text-xs' : ''}
-          ${isToolResult ? 'bg-sc-green/10 border border-sc-green/20 font-mono text-xs' : ''}
+          ${isToolResult && !isError ? 'bg-sc-green/10 border border-sc-green/20 font-mono text-xs' : ''}
+          ${isToolResult && isError ? 'bg-sc-red/10 border border-sc-red/20 font-mono text-xs' : ''}
           ${message.role === 'user' ? 'bg-sc-cyan/10 border border-sc-cyan/20' : ''}
         `}
       >
         {isToolCall && (
           <div className="flex items-center gap-1.5 text-sc-fg-muted mb-1">
-            <Code width={12} height={12} />
-            <span>Tool: {(message.metadata?.tool as string) || 'unknown'}</span>
+            <Icon width={12} height={12} />
+            <span className="text-sc-purple">{toolName || 'Tool'}</span>
+          </div>
+        )}
+        {isToolResult && (
+          <div className="flex items-center gap-1.5 text-sc-fg-muted mb-1">
+            <Icon width={12} height={12} className={isError ? 'text-sc-red' : 'text-sc-green'} />
+            <span className={isError ? 'text-sc-red' : 'text-sc-green'}>
+              {isError ? 'Error' : 'Result'}
+            </span>
           </div>
         )}
         <p className="text-sm text-sc-fg-primary whitespace-pre-wrap">{message.content}</p>
