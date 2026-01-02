@@ -1,5 +1,6 @@
 """Task management system for Sibyl knowledge graph."""
 
+from sibyl_core.models.tasks import SimilarTaskInfo, TaskEstimate
 from sibyl_core.tasks.dependencies import (
     CycleResult,
     DependencyResult,
@@ -10,8 +11,7 @@ from sibyl_core.tasks.dependencies import (
     suggest_task_order,
 )
 from sibyl_core.tasks.estimation import (
-    SimilarTask,
-    TaskEstimate,
+    SimilarTask,  # Backwards compat alias for SimilarTaskInfo
     batch_estimate,
     calculate_project_estimate,
     estimate_task_effort,
@@ -26,7 +26,8 @@ from sibyl_core.tasks.workflow import (
 __all__ = [
     "CycleResult",
     "DependencyResult",
-    "SimilarTask",
+    "SimilarTask",  # Deprecated alias for SimilarTaskInfo
+    "SimilarTaskInfo",
     "TaskEstimate",
     # Workflow
     "TaskManager",

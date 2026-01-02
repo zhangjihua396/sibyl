@@ -1,38 +1,19 @@
 """Task effort estimation from historical data."""
 
-from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 import structlog
 
 from sibyl_core.models.entities import EntityType
-from sibyl_core.models.tasks import TaskStatus
+from sibyl_core.models.tasks import SimilarTaskInfo, TaskEstimate, TaskStatus
 
 if TYPE_CHECKING:
     from sibyl_core.graph.entities import EntityManager
 
 log = structlog.get_logger()
 
-
-@dataclass
-class SimilarTask:
-    """A similar completed task used for estimation."""
-
-    task_id: str
-    title: str
-    similarity_score: float
-    actual_hours: float
-
-
-@dataclass
-class TaskEstimate:
-    """Result of effort estimation."""
-
-    estimated_hours: float
-    confidence: float  # 0-1 scale
-    similar_tasks: list[SimilarTask] = field(default_factory=list)
-    sample_count: int = 0
-    message: str = ""
+# Backwards compatibility alias
+SimilarTask = SimilarTaskInfo
 
 
 async def estimate_task_effort(
@@ -72,7 +53,7 @@ async def estimate_task_effort(
             return TaskEstimate(
                 estimated_hours=0,
                 confidence=0,
-                message=f"Could not fetch task: {e}",
+                reason=f"Could not fetch task: {e}",
             )
     elif title:
         query = f"{title} {description or ''}"
@@ -80,14 +61,14 @@ async def estimate_task_effort(
         return TaskEstimate(
             estimated_hours=0,
             confidence=0,
-            message="Either task_id or title is required",
+            reason="Either task_id or title is required",
         )
 
     if not query.strip():
         return TaskEstimate(
             estimated_hours=0,
             confidence=0,
-            message="No content to search for similar tasks",
+            reason="No content to search for similar tasks",
         )
 
     try:
@@ -99,7 +80,7 @@ async def estimate_task_effort(
         )
 
         # Filter to completed tasks with actual_hours
-        similar_tasks: list[SimilarTask] = []
+        similar_tasks: list[SimilarTaskInfo] = []
         for entity, score in results:
             # Skip the task itself
             if task_id and entity.id == task_id:
@@ -124,7 +105,7 @@ async def estimate_task_effort(
                 continue
 
             similar_tasks.append(
-                SimilarTask(
+                SimilarTaskInfo(
                     task_id=entity.id,
                     title=entity.name,
                     similarity_score=score,
@@ -139,8 +120,8 @@ async def estimate_task_effort(
             return TaskEstimate(
                 estimated_hours=0,
                 confidence=0,
-                sample_count=0,
-                message="No similar completed tasks with time data found",
+                based_on_tasks=0,
+                reason="No similar completed tasks with time data found",
             )
 
         # Calculate weighted average
@@ -161,15 +142,15 @@ async def estimate_task_effort(
             "estimation_complete",
             estimated_hours=estimated_hours,
             confidence=confidence,
-            sample_count=len(similar_tasks),
+            based_on_tasks=len(similar_tasks),
         )
 
         return TaskEstimate(
             estimated_hours=estimated_hours,
             confidence=confidence,
             similar_tasks=similar_tasks,
-            sample_count=len(similar_tasks),
-            message=f"Estimated from {len(similar_tasks)} similar task(s)",
+            based_on_tasks=len(similar_tasks),
+            reason=f"Estimated from {len(similar_tasks)} similar task(s)",
         )
 
     except Exception as e:
@@ -177,7 +158,7 @@ async def estimate_task_effort(
         return TaskEstimate(
             estimated_hours=0,
             confidence=0,
-            message=f"Estimation failed: {e}",
+            reason=f"Estimation failed: {e}",
         )
 
 
@@ -222,17 +203,17 @@ def calculate_project_estimate(estimates: list[TaskEstimate]) -> TaskEstimate:
         return TaskEstimate(
             estimated_hours=0,
             confidence=0,
-            message="No task estimates provided",
+            reason="No task estimates provided",
         )
 
     # Sum hours, use weighted average for confidence
-    total_hours = sum(e.estimated_hours for e in estimates)
-    total_confidence = sum(e.confidence * e.estimated_hours for e in estimates)
+    total_hours = sum(e.estimated_hours or 0 for e in estimates)
+    total_confidence = sum(e.confidence * (e.estimated_hours or 0) for e in estimates)
     avg_confidence = total_confidence / total_hours if total_hours > 0 else 0
 
     return TaskEstimate(
         estimated_hours=round(total_hours, 1),
         confidence=round(avg_confidence, 2),
-        sample_count=sum(e.sample_count for e in estimates),
-        message=f"Aggregated from {len(estimates)} task estimate(s)",
+        based_on_tasks=sum(e.based_on_tasks for e in estimates),
+        reason=f"Aggregated from {len(estimates)} task estimate(s)",
     )

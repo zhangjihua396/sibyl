@@ -333,13 +333,22 @@ class TimeEntry(BaseModel):
     tags: list[str] = Field(default_factory=list, description="Entry tags")
 
 
+class SimilarTaskInfo(BaseModel):
+    """A similar completed task used for effort estimation."""
+
+    task_id: str = Field(..., description="Task UUID")
+    title: str = Field(..., description="Task title")
+    similarity_score: float = Field(..., ge=0.0, le=1.0, description="Similarity score")
+    actual_hours: float = Field(..., ge=0.0, description="Actual hours spent")
+
+
 class TaskEstimate(BaseModel):
     """Effort estimation result for a task."""
 
     estimated_hours: float | None = Field(default=None, description="Estimated hours")
     confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="Confidence in estimate")
     based_on_tasks: int = Field(default=0, description="Number of similar tasks used")
-    similar_tasks: list[dict[str, Any]] = Field(
+    similar_tasks: list[SimilarTaskInfo] = Field(
         default_factory=list, description="Similar tasks used for estimation"
     )
     reason: str = Field(default="", description="Explanation of estimate")
