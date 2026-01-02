@@ -82,19 +82,32 @@ async def _search_documents(
                     | (col(DocumentChunk.chunk_type) != ChunkType.CODE)
                 )
 
-            # Order by similarity and limit
+            # Order by similarity - fetch more to allow document-level deduplication
+            # We want `limit` unique documents, so fetch more chunks
             doc_query = (
                 doc_query.where(similarity_expr >= 0.5)  # Minimum threshold
                 .order_by(similarity_expr.desc())
-                .limit(limit)
+                .limit(limit * 5)  # Fetch extra for dedup headroom
             )
 
             result = await session.execute(doc_query)
             rows = result.all()
 
+            # Document-level deduplication: keep only best chunk per document
+            # This prevents 10 chunks from the same doc appearing as 10 results
+            seen_docs: dict[str, tuple] = {}  # doc_id -> best row
+            for row in rows:
+                chunk, doc, src_name, src_id, similarity = row
+                doc_id = str(doc.id)
+                if doc_id not in seen_docs or similarity > seen_docs[doc_id][4]:
+                    seen_docs[doc_id] = row
+
+            # Sort deduplicated results by score and limit
+            deduped_rows = sorted(seen_docs.values(), key=lambda r: r[4], reverse=True)[:limit]
+
             # Convert to SearchResult
             results = []
-            for chunk, doc, src_name, src_id, similarity in rows:
+            for chunk, doc, src_name, src_id, similarity in deduped_rows:
                 # Control content length based on include_content flag
                 if include_content:
                     content = chunk.content[:500] if chunk.content else ""
