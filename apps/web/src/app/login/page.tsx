@@ -1,6 +1,13 @@
+import type { Metadata } from 'next';
+
 import { GradientButton } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Github, Sparkles } from '@/components/ui/icons';
+
+export const metadata: Metadata = {
+  title: 'Sign In',
+  description: 'Sign in to your Sibyl account',
+};
 
 /**
  * Validate redirect URL to prevent open redirect attacks.

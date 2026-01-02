@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -10,6 +11,22 @@ import { EntityDetailContent } from './entity-detail-content';
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params;
+  try {
+    const entity = await fetchEntity(id);
+    return {
+      title: entity.name,
+      description: entity.description || `${entity.entity_type} entity in Sibyl`,
+    };
+  } catch {
+    return {
+      title: 'Entity',
+      description: 'View entity details',
+    };
+  }
 }
 
 export default async function EntityDetailPage({ params }: PageProps) {

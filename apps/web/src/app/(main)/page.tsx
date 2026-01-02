@@ -1,8 +1,14 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 import { DashboardSkeleton } from '@/components/suspense-boundary';
 import { fetchStats } from '@/lib/api-server';
 import { DashboardContent } from './dashboard-content';
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  description: 'Knowledge graph overview and stats',
+};
 
 export default async function DashboardPage() {
   // Server-side fetch for initial stats - fallback on auth failure

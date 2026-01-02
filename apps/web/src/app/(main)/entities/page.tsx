@@ -1,9 +1,15 @@
+import type { Metadata } from 'next';
 import { Suspense } from 'react';
 
 import { EntitiesSkeleton } from '@/components/suspense-boundary';
 import type { EntitySortField, SortOrder } from '@/lib/api';
 import { fetchEntities, fetchStats } from '@/lib/api-server';
 import { EntitiesContent } from './entities-content';
+
+export const metadata: Metadata = {
+  title: 'Entities',
+  description: 'Browse and search knowledge graph entities',
+};
 
 interface PageProps {
   searchParams: Promise<{
