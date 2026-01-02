@@ -218,14 +218,28 @@ def search(
                             preview += "…"
                         console.print(f"    {preview}")
 
-                    # Show full ID for fetching
-                    console.print(f"    [{CORAL}]{entity_id}[/{CORAL}]")
+                    # Show IDs for fetching
+                    document_id = metadata.get("document_id")
+                    if document_id:
+                        # Crawled doc: show document_id for full doc retrieval
+                        console.print(f"    [dim]doc:[/dim] [{CORAL}]{document_id}[/{CORAL}]")
+                    else:
+                        # Graph entity: show entity ID
+                        console.print(f"    [{CORAL}]{entity_id}[/{CORAL}]")
                     console.print()
 
-                # Hint for retrieval
-                console.print(
-                    f"[dim]Use [/dim][{NEON_CYAN}]sibyl entity show <id>[/{NEON_CYAN}][dim] for full content[/dim]"
-                )
+                # Hint for retrieval - check if any results are from crawled docs
+                has_docs = any(r.get("metadata", {}).get("document_id") for r in results)
+                has_entities = any(not r.get("metadata", {}).get("document_id") for r in results)
+
+                hints = []
+                if has_entities:
+                    hints.append(f"[{NEON_CYAN}]sibyl entity show <id>[/{NEON_CYAN}]")
+                if has_docs:
+                    hints.append(f"[{NEON_CYAN}]sibyl document show <doc>[/{NEON_CYAN}]")
+
+                if hints:
+                    console.print(f"[dim]Full content:[/dim] {' [dim]or[/dim] '.join(hints)}")
         except SibylClientError as e:
             _handle_client_error(e)
 
