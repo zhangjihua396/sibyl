@@ -71,73 +71,58 @@ export function ProjectContextProvider({ children }: { children: ReactNode }) {
 
   const isAll = selectedProjects.length === 0;
 
-  // Sync to localStorage when selection changes
+  // Sync to localStorage and URL when selection changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedProjects));
     }
-  }, [selectedProjects]);
 
-  // Update URL when selection changes (for shareable links)
-  const updateUrl = useCallback(
-    (projects: string[]) => {
-      const params = new URLSearchParams(searchParams);
+    // Update URL for shareable links
+    const params = new URLSearchParams(searchParams);
+    params.delete('project'); // Remove legacy single 'project' param
 
-      // Remove legacy single 'project' param
-      params.delete('project');
+    if (selectedProjects.length > 0) {
+      params.set('projects', selectedProjects.join(','));
+    } else {
+      params.delete('projects');
+    }
 
-      if (projects.length > 0) {
-        params.set('projects', projects.join(','));
-      } else {
-        params.delete('projects');
-      }
+    const newUrl = params.toString() ? `${pathname}?${params}` : pathname;
+    router.replace(newUrl, { scroll: false });
+  }, [selectedProjects, pathname, router, searchParams]);
 
-      const newUrl = params.toString() ? `${pathname}?${params}` : pathname;
-      router.replace(newUrl, { scroll: false });
-    },
-    [pathname, router, searchParams]
-  );
+  const setProjects = useCallback((projectIds: string[]) => {
+    setSelectedProjectsState(projectIds);
+  }, []);
 
-  const setProjects = useCallback(
-    (projectIds: string[]) => {
-      setSelectedProjectsState(projectIds);
-      updateUrl(projectIds);
-    },
-    [updateUrl]
-  );
+  const selectProject = useCallback((projectId: string) => {
+    setSelectedProjectsState([projectId]);
+  }, []);
 
-  const selectProject = useCallback(
-    (projectId: string) => {
-      setProjects([projectId]);
-    },
-    [setProjects]
-  );
-
-  const toggleProject = useCallback(
-    (projectId: string) => {
-      setSelectedProjectsState(prev => {
-        const newProjects = prev.includes(projectId)
-          ? prev.filter(id => id !== projectId)
-          : [...prev, projectId];
-        updateUrl(newProjects);
-        return newProjects;
-      });
-    },
-    [updateUrl]
-  );
+  const toggleProject = useCallback((projectId: string) => {
+    setSelectedProjectsState(prev => {
+      return prev.includes(projectId) ? prev.filter(id => id !== projectId) : [...prev, projectId];
+    });
+  }, []);
 
   const clearProjects = useCallback(() => {
-    setProjects([]);
-  }, [setProjects]);
+    setSelectedProjectsState([]);
+  }, []);
 
   // Sync from URL on navigation (when URL changes externally)
   useEffect(() => {
     const urlProjects = searchParams.get('projects');
     if (urlProjects) {
       const projects = urlProjects.split(',').filter(Boolean);
-      setSelectedProjectsState(projects);
+      // Only update if different from current state (prevents loop)
+      if (JSON.stringify(projects) !== JSON.stringify(selectedProjects)) {
+        setSelectedProjectsState(projects);
+      }
+    } else if (selectedProjects.length > 0 && !searchParams.has('projects')) {
+      // URL was cleared externally (e.g., back button) - sync state
+      setSelectedProjectsState([]);
     }
-  }, [searchParams]);
+  }, [searchParams, selectedProjects]);
 
   const value = useMemo(
     () => ({
