@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useMemo } from 'react';
+import { SpawnAgentDialog } from '@/components/agents/spawn-agent-dialog';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { Plus } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
 import { FilterChip } from '@/components/ui/toggle';
 import { ErrorState } from '@/components/ui/tooltip';
@@ -390,7 +392,23 @@ function AgentsPageContent() {
 
   return (
     <div className="space-y-4 animate-fade-in">
-      <Breadcrumb />
+      <div className="flex items-center justify-between">
+        <Breadcrumb />
+        <SpawnAgentDialog
+          trigger={
+            <button
+              type="button"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg transition-colors"
+            >
+              <Plus width={16} height={16} />
+              Start Agent
+            </button>
+          }
+          onSpawned={id => {
+            router.push(`/agents/${id}`);
+          }}
+        />
+      </div>
 
       {/* Summary Bar */}
       {agents.length > 0 && <SummaryBar agents={agents} />}
