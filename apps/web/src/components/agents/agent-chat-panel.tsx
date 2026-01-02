@@ -24,6 +24,7 @@ import {
   useSendAgentMessage,
   useStatusHints,
 } from '@/lib/hooks';
+import { ChatErrorBoundary } from './chat-error-boundary';
 import { AgentHeader } from './chat-header';
 import { ChatPanel } from './chat-panel';
 import { createPendingMessage, type PendingMessage, transformApiMessages } from './chat-types';
@@ -132,17 +133,19 @@ export function AgentChatPanel({ agent }: AgentChatPanelProps) {
   return (
     <div className="h-full flex flex-col bg-sc-bg-base rounded-lg border border-sc-fg-subtle/20 overflow-hidden shadow-xl shadow-sc-purple/5">
       <AgentHeader agent={agent} />
-      <ChatPanel
-        messages={messages}
-        pendingMessages={pendingMessages}
-        onSendMessage={handleSendMessage}
-        onCancelPending={handleCancelPending}
-        onEditPending={handleEditPending}
-        isAgentWorking={isAgentWorking}
-        agentName={agent.name}
-        agentStatus={agent.status}
-        statusHints={statusHints}
-      />
+      <ChatErrorBoundary scope="chat">
+        <ChatPanel
+          messages={messages}
+          pendingMessages={pendingMessages}
+          onSendMessage={handleSendMessage}
+          onCancelPending={handleCancelPending}
+          onEditPending={handleEditPending}
+          isAgentWorking={isAgentWorking}
+          agentName={agent.name}
+          agentStatus={agent.status}
+          statusHints={statusHints}
+        />
+      </ChatErrorBoundary>
     </div>
   );
 }

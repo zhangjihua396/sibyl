@@ -8,6 +8,7 @@
 
 import { Markdown } from '@/components/ui/markdown';
 import { ApprovalRequestMessage } from './approval-request-message';
+import { MessageErrorBoundary } from './chat-error-boundary';
 import { ToolMessage } from './chat-tool-message';
 import type {
   ChatMessage,
@@ -42,50 +43,58 @@ export function ChatMessageComponent({
   switch (message.kind) {
     case 'sibyl_context':
       return (
-        <SibylContextMessage
-          content={message.content}
-          timestamp={message.timestamp}
-          isNew={isNew}
-        />
+        <MessageErrorBoundary messageId={`sibyl-${message.timestamp.getTime()}`}>
+          <SibylContextMessage
+            content={message.content}
+            timestamp={message.timestamp}
+            isNew={isNew}
+          />
+        </MessageErrorBoundary>
       );
 
     case 'approval_request':
       return (
-        <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
-          <ApprovalRequestMessage
-            approvalId={message.approval.id}
-            approvalType={message.approval.type}
-            title={message.approval.title}
-            summary={message.approval.summary}
-            metadata={message.approval.metadata}
-            expiresAt={message.approval.expiresAt}
-            status={message.approval.status}
-          />
-        </div>
+        <MessageErrorBoundary messageId={message.approval.id}>
+          <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
+            <ApprovalRequestMessage
+              approvalId={message.approval.id}
+              approvalType={message.approval.type}
+              title={message.approval.title}
+              summary={message.approval.summary}
+              metadata={message.approval.metadata}
+              expiresAt={message.approval.expiresAt}
+              status={message.approval.status}
+            />
+          </div>
+        </MessageErrorBoundary>
       );
 
     case 'user_question':
       return (
-        <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
-          <UserQuestionMessage
-            questionId={message.question.id}
-            questions={message.question.questions}
-            expiresAt={message.question.expiresAt}
-            status={message.question.status}
-            answers={message.question.answers}
-          />
-        </div>
+        <MessageErrorBoundary messageId={message.question.id}>
+          <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
+            <UserQuestionMessage
+              questionId={message.question.id}
+              questions={message.question.questions}
+              expiresAt={message.question.expiresAt}
+              status={message.question.status}
+              answers={message.question.answers}
+            />
+          </div>
+        </MessageErrorBoundary>
       );
 
     case 'tool_call': {
       const tier3Hint = statusHints?.get(message.tool.id);
       return (
-        <ToolMessage
-          message={message as ToolCallMessage}
-          result={pairedResult as ToolResultMessage | undefined}
-          isNew={isNew}
-          tier3Hint={tier3Hint}
-        />
+        <MessageErrorBoundary messageId={message.tool.id}>
+          <ToolMessage
+            message={message as ToolCallMessage}
+            result={pairedResult as ToolResultMessage | undefined}
+            isNew={isNew}
+            tier3Hint={tier3Hint}
+          />
+        </MessageErrorBoundary>
       );
     }
 
@@ -127,14 +136,16 @@ export function ChatMessageComponent({
 
       if (message.role === 'agent') {
         return (
-          <div
-            className={`rounded-lg bg-gradient-to-br from-sc-purple/5 via-sc-bg-elevated to-sc-cyan/5 border border-sc-purple/20 p-4 my-2 shadow-lg shadow-sc-purple/5 ${isNew ? 'animate-slide-up' : ''}`}
-          >
-            <Markdown content={message.content} className="text-sm" />
-            <p className="text-[10px] text-sc-fg-subtle mt-3 tabular-nums border-t border-sc-fg-subtle/10 pt-2">
-              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </p>
-          </div>
+          <MessageErrorBoundary messageId={`agent-${message.timestamp.getTime()}`}>
+            <div
+              className={`rounded-lg bg-gradient-to-br from-sc-purple/5 via-sc-bg-elevated to-sc-cyan/5 border border-sc-purple/20 p-4 my-2 shadow-lg shadow-sc-purple/5 ${isNew ? 'animate-slide-up' : ''}`}
+            >
+              <Markdown content={message.content} className="text-sm" />
+              <p className="text-[10px] text-sc-fg-subtle mt-3 tabular-nums border-t border-sc-fg-subtle/10 pt-2">
+                {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            </div>
+          </MessageErrorBoundary>
         );
       }
 
