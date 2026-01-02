@@ -831,6 +831,13 @@ async def run_agent_execution(
         if created_by:
             await manager.update(agent_id, {"created_by": created_by})
 
+        # Broadcast that agent is now working
+        await _safe_broadcast(
+            "agent_status",
+            {"agent_id": agent_id, "status": "working"},
+            org_id=org_id,
+        )
+
         # Track execution state (in memory only until completion)
         message_count = 0
         session_id = ""
@@ -838,10 +845,19 @@ async def run_agent_execution(
         tool_calls: list[str] = []
 
         # Execute agent - process messages without storing each one
+        log.info("run_agent_execution_starting", agent_id=agent_id)
         async for message in instance.execute():
             message_count += 1
             msg_content = str(getattr(message, "content", ""))
             msg_class = type(message).__name__
+
+            log.debug(
+                "run_agent_message",
+                agent_id=agent_id,
+                message_num=message_count,
+                message_type=msg_class,
+                content_preview=msg_content[:100] if msg_content else None,
+            )
 
             # Track session ID
             if sid := getattr(message, "session_id", None):
