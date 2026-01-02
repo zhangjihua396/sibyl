@@ -225,20 +225,51 @@ async def respond_to_approval(
 
     await manager.update(approval_id, updates)
 
-    # Broadcast approval response event
+    # Get agent info for status updates
+    agent_id = (entity.metadata or {}).get("agent_id")
+
+    # Publish to worker channel - this wakes up the waiting agent
+    from sibyl.agents.redis_sub import publish_approval_response
+
+    await publish_approval_response(
+        approval_id,
+        {
+            "approved": request.action == "approve",
+            "action": request.action,
+            "by": str(user.id),
+            "message": request.message or "",
+            "edited_content": request.edited_content,
+        },
+    )
+
+    # Update agent status back to working
+    if agent_id:
+        from sibyl_core.models import AgentStatus
+
+        await manager.update(agent_id, {"status": AgentStatus.WORKING.value})
+
+    # Broadcast approval response event to UI
     from sibyl.api.pubsub import publish_event
 
     await publish_event(
         "approval_response",
         {
             "approval_id": approval_id,
-            "agent_id": (entity.metadata or {}).get("agent_id"),
+            "agent_id": agent_id,
             "action": request.action,
             "status": new_status,
             "response_by": str(user.id),
         },
         org_id=str(org.id),
     )
+
+    # Also broadcast agent status change to UI
+    if agent_id:
+        await publish_event(
+            "agent_status",
+            {"agent_id": agent_id, "status": "working"},
+            org_id=str(org.id),
+        )
 
     log.info(
         "Approval responded",

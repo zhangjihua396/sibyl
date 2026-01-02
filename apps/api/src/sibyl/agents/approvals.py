@@ -4,7 +4,6 @@ Implements Claude Agent SDK hooks that intercept dangerous operations
 and create approval requests for human review.
 """
 
-import asyncio
 import hashlib
 import logging
 import re
@@ -109,11 +108,6 @@ class ApprovalService:
         self.project_id = project_id
         self.agent_id = agent_id
         self.task_id = task_id
-
-        # Pending approval waiters (approval_id -> Event)
-        self._waiters: dict[str, asyncio.Event] = {}
-        # Approval responses (approval_id -> response)
-        self._responses: dict[str, dict[str, Any]] = {}
 
     def create_hook_matchers(self) -> dict[str, list[HookMatcher]]:
         """Create hook matchers for dangerous operations.
@@ -331,6 +325,8 @@ class ApprovalService:
     ) -> ApprovalRecord:
         """Create and persist an approval request.
 
+        Also updates agent status and broadcasts to UI for real-time display.
+
         Args:
             approval_type: Type of approval needed
             title: Short description
@@ -341,6 +337,7 @@ class ApprovalService:
             Created ApprovalRecord
         """
         timestamp = datetime.now(UTC).isoformat()
+        expires_at = datetime.now(UTC) + DEFAULT_APPROVAL_TIMEOUT
         approval_id = _generate_approval_id(
             self.agent_id, metadata.get("tool_name", "unknown"), timestamp
         )
@@ -357,19 +354,68 @@ class ApprovalService:
             summary=summary,
             metadata=metadata,
             status=ApprovalStatus.PENDING,
-            expires_at=datetime.now(UTC) + DEFAULT_APPROVAL_TIMEOUT,
+            expires_at=expires_at,
         )
 
         # Persist to graph
         await self.entity_manager.create(record)
 
+        # Update agent status to waiting_approval
+        from sibyl_core.models import AgentStatus
+
+        await self.entity_manager.update(
+            self.agent_id,
+            {"status": AgentStatus.WAITING_APPROVAL.value},
+        )
+
+        # Broadcast approval request to UI via WebSocket
+        await self._broadcast_approval_request(record, expires_at)
+
         logger.info(f"Created approval request {approval_id}: {title}")
         return record
+
+    async def _broadcast_approval_request(
+        self,
+        record: ApprovalRecord,
+        expires_at: datetime,
+    ) -> None:
+        """Broadcast approval request to UI for real-time display."""
+        try:
+            from sibyl.api.pubsub import publish_event
+
+            await publish_event(
+                "agent_message",
+                {
+                    "agent_id": self.agent_id,
+                    "message_type": "approval_request",
+                    "approval_id": record.id,
+                    "approval_type": record.approval_type.value,
+                    "title": record.title,
+                    "summary": record.summary,
+                    "metadata": record.metadata,
+                    "actions": ["approve", "deny"],
+                    "expires_at": expires_at.isoformat(),
+                    "status": "pending",
+                },
+                org_id=self.org_id,
+            )
+
+            # Also broadcast agent status change
+            await publish_event(
+                "agent_status",
+                {"agent_id": self.agent_id, "status": "waiting_approval"},
+                org_id=self.org_id,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to broadcast approval request: {e}")
 
     async def _wait_for_approval(
         self, approval_id: str, wait_timeout: float = 300.0
     ) -> dict[str, Any]:
-        """Wait for human response to an approval request.
+        """Wait for human response to an approval request via Redis.
+
+        Uses Redis pubsub for cross-process communication since worker
+        and API run in separate processes and can't share memory.
 
         Args:
             approval_id: Approval record ID
@@ -378,21 +424,18 @@ class ApprovalService:
         Returns:
             Response dict with 'approved', 'by', 'message' keys
         """
-        # Create event for this approval
-        event = asyncio.Event()
-        self._waiters[approval_id] = event
+        from sibyl.agents.redis_sub import wait_for_approval_response
 
-        try:
-            # Wait for response or timeout
-            await asyncio.wait_for(event.wait(), timeout=wait_timeout)
-            return self._responses.pop(approval_id, {"approved": False, "message": "No response"})
-        except TimeoutError:
+        # Wait for response via Redis pubsub
+        response = await wait_for_approval_response(approval_id, wait_timeout=wait_timeout)
+
+        if response is None:
+            # Timeout
             logger.warning(f"Approval {approval_id} timed out after {wait_timeout}s")
-            # Update status to expired
             await self.entity_manager.update(approval_id, {"status": ApprovalStatus.EXPIRED.value})
             return {"approved": False, "message": "Approval request timed out"}
-        finally:
-            self._waiters.pop(approval_id, None)
+
+        return response
 
     async def respond(
         self,
@@ -403,7 +446,8 @@ class ApprovalService:
     ) -> bool:
         """Respond to a pending approval request.
 
-        Called by external API/UI when human makes a decision.
+        DEPRECATED: This method only updates the graph record.
+        Use the API route which also publishes to Redis for the worker.
 
         Args:
             approval_id: Approval record ID
@@ -426,21 +470,8 @@ class ApprovalService:
             },
         )
 
-        # Store response for waiter
-        self._responses[approval_id] = {
-            "approved": approved,
-            "by": responded_by,
-            "message": message,
-        }
-
-        # Wake up waiter if present
-        event = self._waiters.get(approval_id)
-        if event:
-            event.set()
-            logger.info(f"Approval {approval_id} responded: {'approved' if approved else 'denied'}")
-            return True
-        logger.warning(f"No waiter found for approval {approval_id}")
-        return False
+        logger.info(f"Approval {approval_id} responded: {'approved' if approved else 'denied'}")
+        return True
 
     async def list_pending(self) -> list[ApprovalRecord]:
         """List all pending approval requests for this agent.
@@ -463,7 +494,8 @@ class ApprovalService:
     async def cancel_all(self, reason: str = "agent_stopped") -> int:
         """Cancel all pending approvals for this agent.
 
-        Called when agent is stopped/terminated.
+        Called when agent is stopped/terminated. Publishes denial
+        via Redis so any waiting _wait_for_approval calls receive it.
 
         Args:
             reason: Why approvals are being cancelled
@@ -471,6 +503,8 @@ class ApprovalService:
         Returns:
             Number of approvals cancelled
         """
+        from sibyl.agents.redis_sub import publish_approval_response
+
         pending = await self.list_pending()
         for approval in pending:
             await self.entity_manager.update(
@@ -480,13 +514,14 @@ class ApprovalService:
                     "response_message": f"Cancelled: {reason}",
                 },
             )
-            # Wake up waiter with denial
-            self._responses[approval.id] = {
-                "approved": False,
-                "message": f"Cancelled: {reason}",
-            }
-            event = self._waiters.get(approval.id)
-            if event:
-                event.set()
+            # Publish denial via Redis so worker receives it
+            await publish_approval_response(
+                approval.id,
+                {
+                    "approved": False,
+                    "message": f"Cancelled: {reason}",
+                    "by": "system",
+                },
+            )
 
         return len(pending)

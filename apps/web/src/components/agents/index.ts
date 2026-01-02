@@ -5,6 +5,10 @@ export { ActivityFeed } from './activity-feed';
 export { AgentChatPanel, type AgentChatPanelProps } from './agent-chat-panel';
 export { ApprovalQueue } from './approval-queue';
 export {
+  ApprovalRequestMessage,
+  type ApprovalRequestMessageProps,
+} from './approval-request-message';
+export {
   formatDuration,
   getToolIcon,
   getToolStatus,

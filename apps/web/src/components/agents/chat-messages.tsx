@@ -5,6 +5,8 @@
  */
 
 import { Markdown } from '@/components/ui/markdown';
+import type { ApprovalType } from '@/lib/api';
+import { ApprovalRequestMessage } from './approval-request-message';
 import { ToolMessage } from './chat-tool-message';
 import type { ChatMessageComponentProps } from './chat-types';
 
@@ -22,6 +24,33 @@ export function ChatMessageComponent({
   const isAgent = message.role === 'agent';
   const isSystem = message.role === 'system';
   const isToolCall = message.type === 'tool_call';
+  const isApprovalRequest = message.metadata?.message_type === 'approval_request';
+
+  // Approval requests get special inline UI
+  if (isApprovalRequest) {
+    const meta = message.metadata as {
+      approval_id: string;
+      approval_type: ApprovalType;
+      title: string;
+      summary: string;
+      metadata?: { command?: string; file_path?: string; url?: string };
+      expires_at?: string;
+      status?: 'pending' | 'approved' | 'denied' | 'expired';
+    };
+    return (
+      <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
+        <ApprovalRequestMessage
+          approvalId={meta.approval_id}
+          approvalType={meta.approval_type}
+          title={meta.title}
+          summary={meta.summary}
+          metadata={meta.metadata}
+          expiresAt={meta.expires_at}
+          status={meta.status}
+        />
+      </div>
+    );
+  }
 
   // Tool calls render with their paired result
   if (isToolCall) {
