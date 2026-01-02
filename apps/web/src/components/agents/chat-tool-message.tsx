@@ -19,10 +19,8 @@ export function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolM
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const iconName = message.metadata?.icon as string | undefined;
-  const toolName = message.metadata?.tool_name as string | undefined;
+  const { name: toolName, icon: iconName, input } = message.tool;
   const Icon = getToolIcon(iconName);
-  const input = message.metadata?.input as Record<string, unknown> | undefined;
 
   // Memoize Tier 2 playful status so it doesn't change on re-render
   const playfulStatus = useMemo(
@@ -34,7 +32,7 @@ export function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolM
   const displayHint = tier3Hint || playfulStatus;
 
   // For results, check error status
-  const resultError = result?.metadata?.is_error as boolean | undefined;
+  const resultError = result?.isError;
   const hasResult = !!result;
 
   // Get result preview (short, strip ANSI codes)
@@ -124,8 +122,8 @@ export function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolM
           {toolName && ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob'].includes(toolName) ? (
             <ToolContentRenderer
               toolName={toolName}
-              input={message.metadata?.input as Record<string, unknown> | undefined}
-              result={(result?.metadata?.full_content as string | undefined) || result?.content}
+              input={input}
+              result={result?.fullContent || result?.content}
               isError={resultError}
             />
           ) : result ? (
@@ -134,7 +132,7 @@ export function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolM
                 resultError ? 'bg-sc-red/5 text-sc-red' : 'bg-sc-bg-dark text-sc-fg-primary'
               }`}
             >
-              {(result.metadata?.full_content as string | undefined) || result.content}
+              {result.fullContent || result.content}
             </pre>
           ) : (
             <pre className="whitespace-pre-wrap break-words text-[11px] leading-relaxed p-2 rounded bg-sc-bg-dark text-sc-fg-primary">

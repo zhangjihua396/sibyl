@@ -30,10 +30,23 @@ export { ToolMessage } from './chat-tool-message';
 // Chat types (for consumers that need to work with chat messages)
 export type {
   ChatMessage,
-  ChatMessageMetadata,
   ChatPanelProps,
   MessageGroup,
+  PendingMessage,
   SubagentData,
+  TextMessage,
+  ToolCallMessage,
+  ToolResultMessage,
+} from './chat-types';
+// Type guards and transformers
+export {
+  createPendingMessage,
+  isTaskToolCall,
+  isTextMessage,
+  isToolCallMessage,
+  isToolResultMessage,
+  transformApiMessage,
+  transformApiMessages,
 } from './chat-types';
 export { HealthMonitor } from './health-monitor';
 export { SibylContextMessage } from './sibyl-context-message';

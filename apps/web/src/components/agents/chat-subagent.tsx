@@ -4,12 +4,17 @@
  * Subagent execution display components.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Code, Xmark } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDuration, getToolIcon } from './chat-constants';
 import { ToolMessage } from './chat-tool-message';
-import type { ChatMessage, ParallelAgentsBlockProps, SubagentBlockProps } from './chat-types';
+import type {
+  ParallelAgentsBlockProps,
+  SubagentBlockProps,
+  ToolCallMessage,
+  ToolResultMessage,
+} from './chat-types';
 
 // =============================================================================
 // SubagentBlock
@@ -31,19 +36,15 @@ export function SubagentBlock({
   // Extract metadata from task call
   const description = taskCall.content || 'Subagent task';
   const shortDescription = description.length > 50 ? `${description.slice(0, 47)}...` : description;
-  const agentType = taskCall.metadata?.subagent_type as string | undefined;
-  const isBackground = taskCall.metadata?.run_in_background as boolean | undefined;
+  const agentType = taskCall.subagent?.type;
+  const isBackground = taskCall.subagent?.runInBackground;
 
   // Get latest poll status for background agents
   const latestPollResult =
     pollingCalls.length > 0
-      ? resultsByToolId.get(pollingCalls[pollingCalls.length - 1].metadata?.tool_id as string)
+      ? resultsByToolId.get(pollingCalls[pollingCalls.length - 1].tool.id)
       : undefined;
-  const pollStatus = latestPollResult?.metadata?.status as
-    | 'running'
-    | 'completed'
-    | 'failed'
-    | undefined;
+  const pollStatus = latestPollResult?.status;
   const pollCount = pollingCalls.length;
 
   // Count tool calls
@@ -53,11 +54,10 @@ export function SubagentBlock({
   const hasResult = !!taskResult;
   const isInterrupted = !hasResult && isAgentTerminal;
   const isWorking = !hasResult && !isAgentTerminal;
-  const isError = isInterrupted || (taskResult?.metadata?.is_error as boolean | undefined);
+  const isError = isInterrupted || taskResult?.isError;
 
   // Extract result metadata (duration, etc.)
-  const resultMeta = taskResult?.metadata as { duration_ms?: number } | undefined;
-  const durationMs = resultMeta?.duration_ms;
+  const durationMs = taskResult?.durationMs;
 
   // Get 2 most recent tool calls for live preview (only when working)
   const recentCalls = isWorking ? nestedCalls.slice(-2) : [];
@@ -167,7 +167,7 @@ export function SubagentBlock({
           {/* Show all nested tool calls */}
           {nestedCalls.length > 0 ? (
             nestedCalls.map(call => {
-              const pairedResult = resultsByToolId.get(call.metadata?.tool_id as string);
+              const pairedResult = resultsByToolId.get(call.tool.id);
               return <ToolMessage key={call.id} message={call} result={pairedResult} />;
             })
           ) : (
@@ -345,11 +345,9 @@ function StatusLabel({
 }
 
 interface LivePreviewProps {
-  calls: ChatMessage[];
-  resultsByToolId: Map<string, ChatMessage>;
+  calls: ToolCallMessage[];
+  resultsByToolId: Map<string, ToolResultMessage>;
 }
-
-import { forwardRef } from 'react';
 
 const LivePreview = forwardRef<HTMLDivElement, LivePreviewProps>(
   ({ calls, resultsByToolId }, ref) => (
@@ -358,12 +356,10 @@ const LivePreview = forwardRef<HTMLDivElement, LivePreviewProps>(
       className="px-3 pb-2 space-y-0.5 border-t border-sc-purple/10 max-h-20 overflow-y-auto"
     >
       {calls.map(call => {
-        const pairedResult = resultsByToolId.get(call.metadata?.tool_id as string);
-        const iconName = call.metadata?.icon as string | undefined;
-        const toolName = call.metadata?.tool_name as string | undefined;
-        const Icon = getToolIcon(iconName);
+        const pairedResult = resultsByToolId.get(call.tool.id);
+        const Icon = getToolIcon(call.tool.icon);
         const hasCallResult = !!pairedResult;
-        const callError = pairedResult?.metadata?.is_error as boolean | undefined;
+        const callError = pairedResult?.isError;
         const statusClass = !hasCallResult
           ? 'text-sc-purple'
           : callError
@@ -380,7 +376,7 @@ const LivePreview = forwardRef<HTMLDivElement, LivePreviewProps>(
             ) : (
               <Icon width={10} height={10} className={statusClass} />
             )}
-            <span className={statusClass}>{toolName}</span>
+            <span className={statusClass}>{call.tool.name}</span>
             <span className="text-sc-fg-subtle truncate">{call.content.slice(0, 40)}</span>
           </div>
         );
@@ -391,7 +387,7 @@ const LivePreview = forwardRef<HTMLDivElement, LivePreviewProps>(
 LivePreview.displayName = 'LivePreview';
 
 interface ResultSummaryProps {
-  taskResult: ChatMessage;
+  taskResult: ToolResultMessage;
   isError?: boolean;
   durationMs?: number;
 }

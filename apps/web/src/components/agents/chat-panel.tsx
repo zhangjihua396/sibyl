@@ -11,6 +11,7 @@ import { ChatMessageComponent } from './chat-messages';
 import { EmptyChatState, ThinkingIndicator } from './chat-states';
 import { ParallelAgentsBlock, SubagentBlock } from './chat-subagent';
 import type { ChatPanelProps } from './chat-types';
+import { isToolCallMessage } from './chat-types';
 
 // =============================================================================
 // ChatPanel
@@ -51,24 +52,53 @@ export function ChatPanel({
   }
   prevMessageCount.current = messages.length;
 
-  // Track scroll position to determine if user is at bottom
+  // Track if user has manually scrolled up (indicating they want to read history)
+  const userScrolledUp = useRef(false);
+  const lastScrollTop = useRef(0);
+
+  // Track scroll position to determine if user scrolled up intentionally
   const handleScroll = useCallback(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    // Consider "at bottom" if within 50px of the bottom (accounts for rounding)
-    const threshold = 50;
-    const distanceFromBottom =
-      container.scrollHeight - container.scrollTop - container.clientHeight;
-    isAtBottomRef.current = distanceFromBottom <= threshold;
+    const currentScrollTop = container.scrollTop;
+    const distanceFromBottom = container.scrollHeight - currentScrollTop - container.clientHeight;
+
+    // User is at bottom (within 100px threshold - more generous)
+    const atBottom = distanceFromBottom <= 100;
+
+    // Detect intentional scroll up (user scrolled up by > 50px)
+    if (currentScrollTop < lastScrollTop.current - 50 && !atBottom) {
+      userScrolledUp.current = true;
+    }
+
+    // Reset if user scrolls back to bottom
+    if (atBottom) {
+      userScrolledUp.current = false;
+    }
+
+    lastScrollTop.current = currentScrollTop;
+    isAtBottomRef.current = atBottom;
   }, []);
 
-  // Auto-scroll to bottom ONLY if user was already at bottom
+  // Auto-scroll to bottom unless user has scrolled up to read history
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional trigger on message count change
   useEffect(() => {
     const container = messagesContainerRef.current;
-    if (container && isAtBottomRef.current) {
-      container.scrollTop = container.scrollHeight;
+    if (!container) return;
+
+    // Always scroll if user hasn't scrolled up, or if they're near the bottom
+    if (!userScrolledUp.current || isAtBottomRef.current) {
+      // Use smooth scroll for better UX, but fall back to instant if too far
+      const distanceFromBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight;
+
+      if (distanceFromBottom < 500) {
+        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+      } else {
+        container.scrollTop = container.scrollHeight;
+      }
+      userScrolledUp.current = false;
     }
   }, [messages.length, pendingMessages.length]);
 
@@ -92,13 +122,13 @@ export function ChatPanel({
   // Determine if we should show the thinking indicator
   // Show when agent is working and there's no visible activity (pending tool calls have spinners)
   const hasPendingToolCalls = messages.some(
-    msg => msg.type === 'tool_call' && !resultsByToolId.has(msg.metadata?.tool_id as string)
+    msg => isToolCallMessage(msg) && !resultsByToolId.has(msg.tool.id)
   );
   const lastMessage = messages[messages.length - 1];
   const lastMessageAge = lastMessage ? Date.now() - lastMessage.timestamp.getTime() : Infinity;
   // Don't show thinking immediately after agent sends a text response
   const recentAgentText =
-    lastMessage?.role === 'agent' && lastMessage?.type === 'text' && lastMessageAge < 1000;
+    lastMessage?.role === 'agent' && lastMessage?.kind === 'text' && lastMessageAge < 1000;
   // Show thinking when: agent is working, no tools have spinners, and not just responded
   const showThinking = isAgentWorking && !hasPendingToolCalls && !recentAgentText;
 

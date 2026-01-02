@@ -102,7 +102,7 @@ const DropdownMenuItem = forwardRef<
       ${
         destructive
           ? 'text-sc-red hover:bg-sc-red/10 focus:bg-sc-red/10'
-          : 'text-sc-fg-primary hover:bg-sc-bg-highlight hover:text-sc-cyan focus:bg-sc-bg-highlight focus:text-sc-cyan'
+          : 'text-sc-fg-primary hover:bg-sc-purple/10 hover:text-sc-cyan focus:bg-sc-purple/10 focus:text-sc-cyan'
       }
       data-[disabled]:pointer-events-none data-[disabled]:opacity-50
       ${inset ? 'pl-8' : ''}

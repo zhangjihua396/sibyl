@@ -2,132 +2,158 @@
 
 /**
  * Chat message rendering component.
+ *
+ * Uses exhaustive switch matching on message kind for type-safe dispatch.
  */
 
 import { Markdown } from '@/components/ui/markdown';
-import type { ApprovalType } from '@/lib/api';
 import { ApprovalRequestMessage } from './approval-request-message';
 import { ToolMessage } from './chat-tool-message';
-import type { ChatMessageComponentProps } from './chat-types';
+import type {
+  ChatMessage,
+  ChatMessageComponentProps,
+  ToolCallMessage,
+  ToolResultMessage,
+} from './chat-types';
 import { SibylContextMessage } from './sibyl-context-message';
-import { type Question, UserQuestionMessage } from './user-question-message';
+import { UserQuestionMessage } from './user-question-message';
+
+// =============================================================================
+// Exhaustive Check Helper
+// =============================================================================
+
+/** Ensures all cases are handled in switch statements */
+function assertNever(x: never): never {
+  throw new Error(`Unhandled message kind: ${(x as ChatMessage).kind}`);
+}
 
 // =============================================================================
 // ChatMessageComponent
 // =============================================================================
 
-/** Renders individual chat messages based on role and type */
+/** Renders individual chat messages based on discriminated union kind */
 export function ChatMessageComponent({
   message,
   pairedResult,
   isNew = false,
   statusHints,
 }: ChatMessageComponentProps) {
-  const isAgent = message.role === 'agent';
-  const isSystem = message.role === 'system';
-  const isToolCall = message.type === 'tool_call';
-  const isSibylContext = message.type === 'sibyl_context';
-  const isApprovalRequest = message.metadata?.message_type === 'approval_request';
-  const isUserQuestion = message.metadata?.message_type === 'user_question';
-
-  // Sibyl context injection - collapsible display
-  if (isSibylContext) {
-    return (
-      <SibylContextMessage content={message.content} timestamp={message.timestamp} isNew={isNew} />
-    );
-  }
-
-  // Approval requests get special inline UI
-  if (isApprovalRequest) {
-    const meta = message.metadata as {
-      approval_id: string;
-      approval_type: ApprovalType;
-      title: string;
-      summary: string;
-      metadata?: { command?: string; file_path?: string; url?: string };
-      expires_at?: string;
-      status?: 'pending' | 'approved' | 'denied' | 'expired';
-    };
-    return (
-      <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
-        <ApprovalRequestMessage
-          approvalId={meta.approval_id}
-          approvalType={meta.approval_type}
-          title={meta.title}
-          summary={meta.summary}
-          metadata={meta.metadata}
-          expiresAt={meta.expires_at}
-          status={meta.status}
+  // Use exhaustive switch for type-safe dispatch
+  switch (message.kind) {
+    case 'sibyl_context':
+      return (
+        <SibylContextMessage
+          content={message.content}
+          timestamp={message.timestamp}
+          isNew={isNew}
         />
-      </div>
-    );
-  }
+      );
 
-  // User questions get inline choice UI
-  if (isUserQuestion) {
-    const meta = message.metadata as {
-      question_id: string;
-      questions: Question[];
-      expires_at?: string;
-      status?: 'pending' | 'answered' | 'expired';
-      answers?: Record<string, string>;
-    };
-    return (
-      <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
-        <UserQuestionMessage
-          questionId={meta.question_id}
-          questions={meta.questions}
-          expiresAt={meta.expires_at}
-          status={meta.status}
-          answers={meta.answers}
+    case 'approval_request':
+      return (
+        <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
+          <ApprovalRequestMessage
+            approvalId={message.approval.id}
+            approvalType={message.approval.type}
+            title={message.approval.title}
+            summary={message.approval.summary}
+            metadata={message.approval.metadata}
+            expiresAt={message.approval.expiresAt}
+            status={message.approval.status}
+          />
+        </div>
+      );
+
+    case 'user_question':
+      return (
+        <div className={`my-2 ${isNew ? 'animate-slide-up' : ''}`}>
+          <UserQuestionMessage
+            questionId={message.question.id}
+            questions={message.question.questions}
+            expiresAt={message.question.expiresAt}
+            status={message.question.status}
+            answers={message.question.answers}
+          />
+        </div>
+      );
+
+    case 'tool_call': {
+      const tier3Hint = statusHints?.get(message.tool.id);
+      return (
+        <ToolMessage
+          message={message as ToolCallMessage}
+          result={pairedResult as ToolResultMessage | undefined}
+          isNew={isNew}
+          tier3Hint={tier3Hint}
         />
-      </div>
-    );
-  }
+      );
+    }
 
-  // Tool calls render with their paired result
-  if (isToolCall) {
-    const toolId = message.metadata?.tool_id as string | undefined;
-    const tier3Hint = toolId ? statusHints?.get(toolId) : undefined;
-    return (
-      <ToolMessage message={message} result={pairedResult} isNew={isNew} tier3Hint={tier3Hint} />
-    );
-  }
+    case 'tool_result':
+      // Tool results are rendered paired with their tool calls, not standalone
+      return null;
 
-  // System messages - compact with subtle animation
-  if (isSystem) {
-    return (
-      <div className={`text-center py-1 ${isNew ? 'animate-fade-in' : ''}`}>
-        <span className="text-xs text-sc-fg-subtle">{message.content}</span>
-      </div>
-    );
-  }
+    case 'error':
+      return (
+        <div className={`text-center py-2 ${isNew ? 'animate-fade-in' : ''}`}>
+          <span className="text-xs text-sc-red bg-sc-red/10 px-2 py-1 rounded">
+            {message.content}
+          </span>
+        </div>
+      );
 
-  // Agent text messages - render as beautiful markdown with entrance animation
-  if (isAgent) {
-    return (
-      <div
-        className={`rounded-lg bg-gradient-to-br from-sc-purple/5 via-sc-bg-elevated to-sc-cyan/5 border border-sc-purple/20 p-4 my-2 shadow-lg shadow-sc-purple/5 ${isNew ? 'animate-slide-up' : ''}`}
-      >
-        <Markdown content={message.content} className="text-sm" />
-        <p className="text-[10px] text-sc-fg-subtle mt-3 tabular-nums border-t border-sc-fg-subtle/10 pt-2">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
-      </div>
-    );
-  }
+    case 'pending':
+      // Pending messages rendered in ChatPanel with special styling
+      return (
+        <div className={`flex gap-2 flex-row-reverse ${isNew ? 'animate-slide-up' : ''}`}>
+          <div className="max-w-[85%] rounded-lg px-3 py-2 bg-gradient-to-br from-sc-yellow/15 to-sc-yellow/5 border border-sc-yellow/30 shadow-lg shadow-sc-yellow/10">
+            <p className="text-sm text-sc-fg-primary whitespace-pre-wrap leading-relaxed">
+              {message.content}
+            </p>
+            <p className="text-[10px] text-sc-fg-muted mt-1 tabular-nums">Queued...</p>
+          </div>
+        </div>
+      );
 
-  // User text messages - simple bubble with personality
-  return (
-    <div className={`flex gap-2 flex-row-reverse ${isNew ? 'animate-slide-up' : ''}`}>
-      <div className="max-w-[85%] rounded-lg px-3 py-2 bg-gradient-to-br from-sc-cyan/15 to-sc-cyan/5 border border-sc-cyan/30 shadow-lg shadow-sc-cyan/10">
-        <p className="text-sm text-sc-fg-primary whitespace-pre-wrap leading-relaxed">
-          {message.content}
-        </p>
-        <p className="text-[10px] text-sc-fg-muted mt-1 tabular-nums">
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </p>
-      </div>
-    </div>
-  );
+    case 'text':
+      // Dispatch based on role for text messages
+      if (message.role === 'system') {
+        return (
+          <div className={`text-center py-1 ${isNew ? 'animate-fade-in' : ''}`}>
+            <span className="text-xs text-sc-fg-subtle">{message.content}</span>
+          </div>
+        );
+      }
+
+      if (message.role === 'agent') {
+        return (
+          <div
+            className={`rounded-lg bg-gradient-to-br from-sc-purple/5 via-sc-bg-elevated to-sc-cyan/5 border border-sc-purple/20 p-4 my-2 shadow-lg shadow-sc-purple/5 ${isNew ? 'animate-slide-up' : ''}`}
+          >
+            <Markdown content={message.content} className="text-sm" />
+            <p className="text-[10px] text-sc-fg-subtle mt-3 tabular-nums border-t border-sc-fg-subtle/10 pt-2">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        );
+      }
+
+      // User text message
+      return (
+        <div className={`flex gap-2 flex-row-reverse ${isNew ? 'animate-slide-up' : ''}`}>
+          <div className="max-w-[85%] rounded-lg px-3 py-2 bg-gradient-to-br from-sc-cyan/15 to-sc-cyan/5 border border-sc-cyan/30 shadow-lg shadow-sc-cyan/10">
+            <p className="text-sm text-sc-fg-primary whitespace-pre-wrap leading-relaxed">
+              {message.content}
+            </p>
+            <p className="text-[10px] text-sc-fg-muted mt-1 tabular-nums">
+              {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </p>
+          </div>
+        </div>
+      );
+
+    default:
+      // Exhaustive check - TypeScript will error if a case is missing
+      return assertNever(message);
+  }
 }

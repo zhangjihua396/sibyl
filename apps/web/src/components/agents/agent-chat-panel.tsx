@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { Agent, AgentMessage as ApiMessage } from '@/lib/api';
+import type { Agent } from '@/lib/api';
 import {
   useAgentMessages,
   useAgentSubscription,
@@ -26,14 +26,7 @@ import {
 } from '@/lib/hooks';
 import { AgentHeader } from './chat-header';
 import { ChatPanel } from './chat-panel';
-import type { ChatMessage } from './chat-types';
-
-/** Pending user message waiting to be processed by the agent */
-interface PendingMessage {
-  id: string;
-  content: string;
-  timestamp: Date;
-}
+import { createPendingMessage, type PendingMessage, transformApiMessages } from './chat-types';
 
 // Heartbeat threshold (matching backend)
 const STALE_THRESHOLD_SECONDS = 120;
@@ -44,9 +37,9 @@ function isAgentZombie(agent: {
   last_heartbeat: string | null;
   started_at: string | null;
 }): boolean {
-  const isSupposedlyActive = ['initializing', 'working', 'resuming', 'waiting_approval'].includes(
-    agent.status
-  );
+  // waiting_approval is expected to not heartbeat - worker is blocked on Redis
+  // Only check for zombies on actively running states
+  const isSupposedlyActive = ['initializing', 'working', 'resuming'].includes(agent.status);
   if (!isSupposedlyActive) return false;
 
   // Grace period for new agents that haven't heartbeated yet
@@ -95,17 +88,10 @@ export function AgentChatPanel({ agent }: AgentChatPanelProps) {
   const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
   const lastMessageCount = useRef(0);
 
-  // Convert API messages to component format
-  const messages: ChatMessage[] = useMemo(() => {
+  // Transform API messages to discriminated union types
+  const messages = useMemo(() => {
     if (!messagesData?.messages) return [];
-    return messagesData.messages.map((msg: ApiMessage) => ({
-      id: msg.id,
-      role: msg.role as ChatMessage['role'],
-      content: msg.content,
-      timestamp: new Date(msg.timestamp),
-      type: msg.type as ChatMessage['type'],
-      metadata: msg.metadata,
-    }));
+    return transformApiMessages(messagesData.messages);
   }, [messagesData?.messages]);
 
   // Remove pending messages when they appear in server response
@@ -124,29 +110,10 @@ export function AgentChatPanel({ agent }: AgentChatPanelProps) {
     lastMessageCount.current = messages.length;
   }, [messages]);
 
-  // Convert pending messages to ChatMessage format
-  const pendingChatMessages: ChatMessage[] = useMemo(
-    () =>
-      pendingMessages.map(p => ({
-        id: p.id,
-        role: 'user' as const,
-        content: p.content,
-        timestamp: p.timestamp,
-        type: 'text' as const,
-        metadata: { isPending: true },
-      })),
-    [pendingMessages]
-  );
-
   const handleSendMessage = useCallback(
     (content: string) => {
       // Add to pending queue immediately for instant feedback
-      const pendingMsg: PendingMessage = {
-        id: `pending-${Date.now()}`,
-        content,
-        timestamp: new Date(),
-      };
-      setPendingMessages(prev => [...prev, pendingMsg]);
+      setPendingMessages(prev => [...prev, createPendingMessage(content)]);
 
       // Send to server
       sendMessage.mutate({ id: agent.id, content });
@@ -167,7 +134,7 @@ export function AgentChatPanel({ agent }: AgentChatPanelProps) {
       <AgentHeader agent={agent} />
       <ChatPanel
         messages={messages}
-        pendingMessages={pendingChatMessages}
+        pendingMessages={pendingMessages}
         onSendMessage={handleSendMessage}
         onCancelPending={handleCancelPending}
         onEditPending={handleEditPending}

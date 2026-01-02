@@ -3,21 +3,25 @@
  * No React dependencies - fully testable logic.
  */
 
-import type { ChatMessage, MessageGroup, SubagentData } from './chat-types';
+import type {
+  ChatMessage,
+  MessageGroup,
+  SubagentData,
+  ToolCallMessage,
+  ToolResultMessage,
+} from './chat-types';
+import { isTaskToolCall, isToolCallMessage, isToolResultMessage } from './chat-types';
 
 // =============================================================================
 // Results Map Builder
 // =============================================================================
 
 /** Build a map of tool_id -> result message for pairing tool calls with results */
-export function buildResultsMap(messages: ChatMessage[]): Map<string, ChatMessage> {
-  const map = new Map<string, ChatMessage>();
+export function buildResultsMap(messages: ChatMessage[]): Map<string, ToolResultMessage> {
+  const map = new Map<string, ToolResultMessage>();
   for (const msg of messages) {
-    if (msg.type === 'tool_result') {
-      const toolId = msg.metadata?.tool_id as string | undefined;
-      if (toolId) {
-        map.set(toolId, msg);
-      }
+    if (isToolResultMessage(msg)) {
+      map.set(msg.toolId, msg);
     }
   }
   return map;
@@ -31,7 +35,7 @@ export function buildResultsMap(messages: ChatMessage[]): Map<string, ChatMessag
 const PARALLEL_THRESHOLD_MS = 2000;
 
 /**
- * Group messages to collapse subagent work using parent_tool_use_id.
+ * Group messages to collapse subagent work using parentToolUseId.
  *
  * This function:
  * 1. Identifies Task tool calls and their nested messages
@@ -40,35 +44,33 @@ const PARALLEL_THRESHOLD_MS = 2000;
  */
 export function groupMessages(
   messages: ChatMessage[],
-  resultsByToolId: Map<string, ChatMessage>
+  resultsByToolId: Map<string, ToolResultMessage>
 ): MessageGroup[] {
   // First pass: identify all Task tool calls and collect their nested messages
   const taskToolIds = new Set<string>();
-  const nestedByParent = new Map<string, ChatMessage[]>();
-  const taskCalls: ChatMessage[] = [];
+  const nestedByParent = new Map<string, ToolCallMessage[]>();
+  const taskCalls: ToolCallMessage[] = [];
   const backgroundTaskIds = new Set<string>(); // Tasks with run_in_background: true
-  const pollingByTaskId = new Map<string, ChatMessage[]>(); // TaskOutput calls per task
+  const pollingByTaskId = new Map<string, ToolCallMessage[]>(); // TaskOutput calls per task
 
   for (const msg of messages) {
     // Track Task tool calls
-    if (msg.type === 'tool_call' && msg.metadata?.tool_name === 'Task') {
-      const toolId = msg.metadata?.tool_id as string;
-      if (toolId) {
-        taskToolIds.add(toolId);
-        nestedByParent.set(toolId, []);
-        taskCalls.push(msg);
+    if (isTaskToolCall(msg)) {
+      const toolId = msg.tool.id;
+      taskToolIds.add(toolId);
+      nestedByParent.set(toolId, []);
+      taskCalls.push(msg);
 
-        // Track background tasks
-        if (msg.metadata?.run_in_background) {
-          backgroundTaskIds.add(toolId);
-          pollingByTaskId.set(toolId, []);
-        }
+      // Track background tasks
+      if (msg.subagent.runInBackground) {
+        backgroundTaskIds.add(toolId);
+        pollingByTaskId.set(toolId, []);
       }
     }
 
     // Track TaskOutput calls (polling for background agents)
-    if (msg.type === 'tool_call' && msg.metadata?.tool_name === 'TaskOutput') {
-      const taskId = msg.metadata?.task_id as string | undefined;
+    if (isToolCallMessage(msg) && msg.tool.name === 'TaskOutput') {
+      const taskId = msg.subagent?.taskId;
       if (taskId && backgroundTaskIds.has(taskId)) {
         const polling = pollingByTaskId.get(taskId);
         if (polling) {
@@ -77,12 +79,14 @@ export function groupMessages(
       }
     }
 
-    // Group messages by parent_tool_use_id
-    const parentId = msg.metadata?.parent_tool_use_id as string | undefined;
-    if (parentId && taskToolIds.has(parentId)) {
-      const nested = nestedByParent.get(parentId);
-      if (nested && msg.type !== 'tool_result') {
-        nested.push(msg);
+    // Group messages by parentToolUseId
+    if (isToolCallMessage(msg) && msg.parentToolUseId) {
+      const parentId = msg.parentToolUseId;
+      if (taskToolIds.has(parentId)) {
+        const nested = nestedByParent.get(parentId);
+        if (nested) {
+          nested.push(msg);
+        }
       }
     }
   }
@@ -91,35 +95,33 @@ export function groupMessages(
   const parallelGroups = detectParallelGroups(taskCalls);
 
   // Build map of task ID to its parallel group
-  const taskToParallelGroup = new Map<string, ChatMessage[]>();
+  const taskToParallelGroup = new Map<string, ToolCallMessage[]>();
   for (const group of parallelGroups) {
     for (const task of group) {
-      taskToParallelGroup.set(task.metadata?.tool_id as string, group);
+      taskToParallelGroup.set(task.tool.id, group);
     }
   }
 
   // Track which parallel groups we've already rendered
-  const renderedParallelGroups = new Set<ChatMessage[]>();
+  const renderedParallelGroups = new Set<ToolCallMessage[]>();
 
   // Second pass: build groups, skipping messages that belong to subagents
   const groups: MessageGroup[] = [];
 
   for (const msg of messages) {
     // Skip tool_results (they're paired with their calls)
-    if (msg.type === 'tool_result') {
+    if (isToolResultMessage(msg)) {
       continue;
     }
 
     // Skip messages that belong to a subagent (they're rendered inside SubagentBlock)
-    const parentId = msg.metadata?.parent_tool_use_id as string | undefined;
-    if (parentId && taskToolIds.has(parentId)) {
+    if (isToolCallMessage(msg) && msg.parentToolUseId && taskToolIds.has(msg.parentToolUseId)) {
       continue;
     }
 
     // Check if this is a Task tool call (subagent spawn)
-    if (msg.type === 'tool_call' && msg.metadata?.tool_name === 'Task') {
-      const taskToolId = msg.metadata?.tool_id as string | undefined;
-      if (!taskToolId) continue;
+    if (isTaskToolCall(msg)) {
+      const taskToolId = msg.tool.id;
 
       const parallelGroup = taskToParallelGroup.get(taskToolId);
 
@@ -130,17 +132,13 @@ export function groupMessages(
         renderedParallelGroups.add(parallelGroup);
 
         const subagents: SubagentData[] = parallelGroup.map(task => {
-          const id = task.metadata?.tool_id as string;
+          const id = task.tool.id;
           const polling = pollingByTaskId.get(id) ?? [];
           const lastPollResult =
             polling.length > 0
-              ? resultsByToolId.get(polling[polling.length - 1].metadata?.tool_id as string)
+              ? resultsByToolId.get(polling[polling.length - 1].tool.id)
               : undefined;
-          const lastPollStatus = lastPollResult?.metadata?.status as
-            | 'running'
-            | 'completed'
-            | 'failed'
-            | undefined;
+          const lastPollStatus = lastPollResult?.status;
           return {
             taskCall: task,
             taskResult: resultsByToolId.get(id),
@@ -172,8 +170,7 @@ export function groupMessages(
       }
     } else {
       // Regular message
-      const pairedResult =
-        msg.type === 'tool_call' ? resultsByToolId.get(msg.metadata?.tool_id as string) : undefined;
+      const pairedResult = isToolCallMessage(msg) ? resultsByToolId.get(msg.tool.id) : undefined;
       groups.push({ kind: 'message', message: msg, pairedResult });
     }
   }
@@ -185,22 +182,22 @@ export function groupMessages(
  * Detect parallel agent spawns (Task calls within threshold of each other).
  * Returns array of parallel groups, where each group has 1+ tasks.
  */
-function detectParallelGroups(taskCalls: ChatMessage[]): ChatMessage[][] {
-  const parallelGroups: ChatMessage[][] = [];
+function detectParallelGroups(taskCalls: ToolCallMessage[]): ToolCallMessage[][] {
+  const parallelGroups: ToolCallMessage[][] = [];
   const processedTaskIds = new Set<string>();
 
   for (let i = 0; i < taskCalls.length; i++) {
     const task = taskCalls[i];
-    const taskId = task.metadata?.tool_id as string;
+    const taskId = task.tool.id;
     if (processedTaskIds.has(taskId)) continue;
 
     // Find all tasks within the time window
-    const parallelTasks = [task];
+    const parallelTasks: ToolCallMessage[] = [task];
     processedTaskIds.add(taskId);
 
     for (let j = i + 1; j < taskCalls.length; j++) {
       const otherTask = taskCalls[j];
-      const otherId = otherTask.metadata?.tool_id as string;
+      const otherId = otherTask.tool.id;
       if (processedTaskIds.has(otherId)) continue;
 
       const timeDiff = Math.abs(task.timestamp.getTime() - otherTask.timestamp.getTime());
