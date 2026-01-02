@@ -394,13 +394,15 @@ Priority: {task.priority}
 
         # Create SDK options
         # - setting_sources: Load Claude Code config from user (~/.claude) and project (.claude)
-        # - permission_mode: Auto-accept edits for autonomous agent operation
+        # - can_use_tool: Integrate with SDK's permission system via our approval UI
         sdk_options = ClaudeAgentOptions(
             cwd=cwd,
             system_prompt=system_prompt,
             hooks=merged_hooks,  # type: ignore[arg-type]
             setting_sources=["user", "project"],
-            permission_mode="acceptEdits",
+            can_use_tool=approval_service.create_can_use_tool_callback()
+            if approval_service
+            else None,
         )
 
         # Create instance
@@ -456,20 +458,14 @@ Priority: {task.priority}
 
         try:
             # Acquire lock to prevent concurrent spawns for the same task
-            lock_token = await self._lock_manager.acquire(
-                self.org_id, lock_key, blocking=False
-            )
+            lock_token = await self._lock_manager.acquire(self.org_id, lock_key, blocking=False)
             if lock_token is None:
-                raise LockAcquisitionError(
-                    task.id, self.org_id, "concurrent spawn in progress"
-                )
+                raise LockAcquisitionError(task.id, self.org_id, "concurrent spawn in progress")
 
             # Check if an agent is already running for this task
             for agent in self._active_agents.values():
                 if agent.task and agent.task.id == task.id:
-                    raise ValueError(
-                        f"Agent {agent.id} is already running for task {task.id}"
-                    )
+                    raise ValueError(f"Agent {agent.id} is already running for task {task.id}")
 
             prompt = f"Please work on this task:\n\n{task.title}\n\n{task.description}"
             return await self.spawn(
@@ -602,7 +598,9 @@ Priority: {task.priority}
             cwd=cwd,
             hooks=merged_hooks,  # type: ignore[arg-type]
             setting_sources=["user", "project"],
-            permission_mode="acceptEdits",
+            can_use_tool=approval_service.create_can_use_tool_callback()
+            if approval_service
+            else None,
             resume=session_id,  # Claude handles conversation history
         )
 
@@ -781,7 +779,7 @@ class AgentInstance:
                 system_prompt=self.sdk_options.system_prompt,
                 hooks=self.sdk_options.hooks,
                 setting_sources=["user", "project"],
-                permission_mode="acceptEdits",
+                can_use_tool=self.sdk_options.can_use_tool,  # Preserve permission callback
                 resume=self._session_id,
             )
 

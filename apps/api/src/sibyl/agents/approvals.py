@@ -1,7 +1,7 @@
 """ApprovalService for human-in-the-loop approvals.
 
-Implements Claude Agent SDK hooks that intercept dangerous operations
-and create approval requests for human review.
+Integrates with Claude Agent SDK's permission system via can_use_tool callback.
+Routes permission requests through our UI for human approval.
 """
 
 import hashlib
@@ -16,7 +16,10 @@ from claude_agent_sdk.types import (
     HookInput,
     HookJSONOutput,
     HookMatcher,
+    PermissionResultAllow,
+    PermissionResultDeny,
     SyncHookJSONOutput,
+    ToolPermissionContext,
 )
 from sqlalchemy import func, select
 
@@ -116,32 +119,127 @@ class ApprovalService:
         self.agent_id = agent_id
         self.task_id = task_id
 
+    def create_can_use_tool_callback(
+        self,
+    ):
+        """Create the can_use_tool callback for SDK permission integration.
+
+        This is the proper way to integrate with the SDK's permission system.
+        All permission requests go through this callback, which routes them
+        to our approval UI.
+
+        Returns:
+            Async callback function for ClaudeAgentOptions.can_use_tool
+        """
+
+        async def can_use_tool(
+            tool_name: str,
+            tool_input: dict[str, Any],
+            context: ToolPermissionContext,
+        ) -> PermissionResultAllow | PermissionResultDeny:
+            """Handle SDK permission requests via our approval UI."""
+
+            # Determine approval type and priority based on tool/input
+            approval_type, title, summary, is_dangerous = self._classify_permission_request(
+                tool_name, tool_input
+            )
+
+            # If not dangerous, auto-approve
+            if not is_dangerous:
+                log.debug(f"Auto-approving safe operation: {tool_name}")
+                return PermissionResultAllow()
+
+            log.info(f"Permission request requires approval: {tool_name}")
+
+            # Create approval request and wait for human response
+            approval = await self._create_approval(
+                approval_type=approval_type,
+                title=title,
+                summary=summary,
+                metadata={
+                    "tool_name": tool_name,
+                    "tool_input": tool_input,
+                },
+            )
+
+            response = await self._wait_for_approval(approval.id)
+
+            if response.get("approved"):
+                log.info(f"Permission approved by {response.get('by', 'human')}")
+                return PermissionResultAllow()
+
+            log.info(f"Permission denied: {response.get('message', 'No reason')}")
+            return PermissionResultDeny()
+
+        return can_use_tool
+
+    def _classify_permission_request(
+        self,
+        tool_name: str,
+        tool_input: dict[str, Any],
+    ) -> tuple[ApprovalType, str, str, bool]:
+        """Classify a permission request to determine approval handling.
+
+        Returns:
+            Tuple of (approval_type, title, summary, is_dangerous)
+        """
+        # Check for destructive bash commands
+        if tool_name == "Bash":
+            command = tool_input.get("command", "")
+            for pattern in DESTRUCTIVE_BASH_PATTERNS:
+                if re.search(pattern, command, re.IGNORECASE):
+                    return (
+                        ApprovalType.DESTRUCTIVE_COMMAND,
+                        f"⚠️ Destructive command: {command[:50]}",
+                        f"Agent wants to execute:\n\n```bash\n{command}\n```",
+                        True,
+                    )
+
+        # Check for sensitive file operations
+        if tool_name in ("Write", "Edit", "MultiEdit"):
+            file_path = tool_input.get("file_path", "") or tool_input.get("path", "")
+            for pattern in SENSITIVE_FILE_PATTERNS:
+                if re.search(pattern, file_path, re.IGNORECASE):
+                    return (
+                        ApprovalType.SENSITIVE_FILE,
+                        f"⚠️ Sensitive file: {file_path}",
+                        f"Agent wants to modify:\n\n**File:** `{file_path}`",
+                        True,
+                    )
+            # Regular file write - still show approval but not flagged as dangerous
+            return (
+                ApprovalType.FILE_WRITE,
+                f"File write: {file_path}",
+                f"Agent wants to write to:\n\n**File:** `{file_path}`",
+                True,  # Still require approval for writes
+            )
+
+        # Check for external API calls
+        if tool_name == "WebFetch":
+            url = tool_input.get("url", "")
+            for pattern in EXTERNAL_API_APPROVAL_DOMAINS:
+                if re.search(pattern, url, re.IGNORECASE):
+                    return (
+                        ApprovalType.EXTERNAL_API,
+                        f"External API: {url[:50]}",
+                        f"Agent wants to call:\n\n**URL:** `{url}`",
+                        True,
+                    )
+
+        # Default: not dangerous, auto-approve
+        return (ApprovalType.FILE_WRITE, "", "", False)
+
     def create_hook_matchers(self) -> dict[str, list[HookMatcher]]:
-        """Create hook matchers for dangerous operations and user questions.
+        """Create hook matchers for AskUserQuestion (questions still use hooks).
+
+        Note: Permission requests now use can_use_tool callback instead of hooks.
+        Only AskUserQuestion still needs a hook to intercept the tool.
 
         Returns:
             Dict of HookEvent -> list[HookMatcher] for ClaudeAgentOptions.hooks
         """
         return {
             "PreToolUse": [
-                # Bash commands - check for destructive patterns
-                HookMatcher(
-                    matcher="Bash",
-                    hooks=[self._check_bash_command],
-                    timeout=300.0,  # 5 minutes for human response
-                ),
-                # File operations - check for sensitive paths
-                HookMatcher(
-                    matcher="Write|Edit|MultiEdit",
-                    hooks=[self._check_file_operation],
-                    timeout=300.0,
-                ),
-                # Web requests - check for external APIs
-                HookMatcher(
-                    matcher="WebFetch",
-                    hooks=[self._check_external_api],
-                    timeout=300.0,
-                ),
                 # AskUserQuestion - intercept and route through UI
                 HookMatcher(
                     matcher="AskUserQuestion",
@@ -236,8 +334,7 @@ class ApprovalService:
 
         # Check if this is a sensitive file (higher priority)
         is_sensitive = any(
-            re.search(pattern, file_path, re.IGNORECASE)
-            for pattern in SENSITIVE_FILE_PATTERNS
+            re.search(pattern, file_path, re.IGNORECASE) for pattern in SENSITIVE_FILE_PATTERNS
         )
 
         if is_sensitive:
@@ -410,9 +507,7 @@ class ApprovalService:
         """
         timestamp = datetime.now(UTC).isoformat()
         expires_at = datetime.now(UTC) + DEFAULT_QUESTION_TIMEOUT
-        question_id = _generate_approval_id(
-            self.agent_id, "AskUserQuestion", timestamp
-        )
+        question_id = _generate_approval_id(self.agent_id, "AskUserQuestion", timestamp)
 
         # Build message payload
         message_payload = {
