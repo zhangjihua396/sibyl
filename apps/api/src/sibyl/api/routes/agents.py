@@ -15,8 +15,8 @@ import structlog
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
-from sibyl.auth.dependencies import get_current_organization, require_org_role
-from sibyl.db.models import Organization, OrganizationRole
+from sibyl.auth.dependencies import get_current_organization, get_current_user, require_org_role
+from sibyl.db.models import Organization, OrganizationRole, User
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
 from sibyl_core.models import (
@@ -56,6 +56,7 @@ class AgentResponse(BaseModel):
     status: str
     task_id: str | None = None
     project_id: str | None = None
+    created_by: str | None = None
     spawn_source: str | None = None
     started_at: str | None = None
     completed_at: str | None = None
@@ -184,7 +185,9 @@ async def list_agents(
     project: str | None = None,
     status: AgentStatus | None = None,
     agent_type: AgentType | None = None,
+    all_users: bool = False,
     limit: int = 50,
+    user: User = Depends(get_current_user),
     org: Organization = Depends(get_current_organization),
 ) -> AgentListResponse:
     """List agents for the organization.
@@ -193,7 +196,9 @@ async def list_agents(
         project: Filter by project ID
         status: Filter by agent status
         agent_type: Filter by agent type
+        all_users: If True, show all agents in the org (default: only user's agents)
         limit: Maximum results
+        user: Current user
         org: Current organization
     """
     client = await get_graph_client()
@@ -206,6 +211,10 @@ async def list_agents(
     )
 
     agents = [r for r in results if isinstance(r, AgentRecord)]
+
+    # Filter by user (default behavior - show only user's agents)
+    if not all_users:
+        agents = [a for a in agents if a.created_by == str(user.id)]
 
     # Apply filters
     if project:
@@ -252,6 +261,7 @@ async def get_agent(
 async def spawn_agent(
     request: SpawnAgentRequest,
     background_tasks: BackgroundTasks,
+    user: User = Depends(get_current_user),
     org: Organization = Depends(get_current_organization),
 ) -> SpawnAgentResponse:
     """Spawn a new agent and start execution.
@@ -263,6 +273,7 @@ async def spawn_agent(
 
     client = await get_graph_client()
     manager = EntityManager(client, group_id=str(org.id))
+    user_id = str(user.id)
 
     # Get task if specified
     task = None
@@ -297,6 +308,9 @@ async def spawn_agent(
             create_worktree=False,  # Don't create worktree via API
             enable_approvals=True,
         )
+
+        # Associate agent with current user
+        await manager.update(instance.id, {"created_by": user_id})
 
         # Start agent execution in background
         background_tasks.add_task(
@@ -759,6 +773,7 @@ def _agent_to_response(agent: AgentRecord) -> AgentResponse:
         status=agent.status.value,
         task_id=agent.task_id,
         project_id=agent.project_id,
+        created_by=agent.created_by,
         spawn_source=agent.spawn_source.value if agent.spawn_source else None,
         started_at=agent.started_at.isoformat() if agent.started_at else None,
         completed_at=agent.completed_at.isoformat() if agent.completed_at else None,

@@ -66,6 +66,7 @@ class AgentRecord(Entity):
     # Organization context
     organization_id: str = Field(..., description="Organization UUID")
     project_id: str = Field(..., description="Project UUID")
+    created_by: str | None = Field(default=None, description="User ID who spawned this agent")
 
     # Assignment
     task_id: str | None = Field(default=None, description="Assigned task UUID")

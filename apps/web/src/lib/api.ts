@@ -586,6 +586,7 @@ export interface Agent {
   status: AgentStatus;
   task_id: string | null;
   project_id: string | null;
+  created_by: string | null;
   spawn_source: AgentSpawnSource | null;
   started_at: string | null;
   completed_at: string | null;
