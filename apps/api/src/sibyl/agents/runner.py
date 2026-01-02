@@ -5,6 +5,7 @@ enabling agent spawning, lifecycle management, and tool integration.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import logging
 from collections.abc import AsyncIterator
@@ -663,8 +664,7 @@ class AgentInstance:
         finally:
             self._running = False
             self._client = None
-            if self._heartbeat_task:
-                self._heartbeat_task.cancel()
+            await self._cancel_heartbeat()
 
         # Mark completed
         await self._update_status(AgentStatus.COMPLETED)
@@ -712,8 +712,7 @@ class AgentInstance:
             reason: Why the agent is being stopped
         """
         self._running = False
-        if self._heartbeat_task:
-            self._heartbeat_task.cancel()
+        await self._cancel_heartbeat()
 
         # Cancel any pending approvals
         if self.approval_service:
@@ -731,8 +730,7 @@ class AgentInstance:
             reason: Why the agent is being paused
         """
         self._running = False
-        if self._heartbeat_task:
-            self._heartbeat_task.cancel()
+        await self._cancel_heartbeat()
 
         # Note: We don't cancel approvals on pause - they remain pending
 
@@ -740,6 +738,14 @@ class AgentInstance:
             AgentStatus.PAUSED,
             metadata={"paused_reason": reason},
         )
+
+    async def _cancel_heartbeat(self) -> None:
+        """Cancel and await the heartbeat task to prevent dangling coroutines."""
+        if self._heartbeat_task:
+            self._heartbeat_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._heartbeat_task
+            self._heartbeat_task = None
 
     async def _heartbeat_loop(self):
         """Background task to update heartbeat."""
