@@ -40,11 +40,23 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
         """Prevent insecure settings in production."""
-        if self.environment == "production" and self.disable_auth:
-            raise ValueError(
-                "CRITICAL: disable_auth=True is forbidden in production environment. "
-                "Set SIBYL_ENVIRONMENT=development to use disable_auth for testing."
-            )
+        if self.environment == "production":
+            if self.disable_auth:
+                raise ValueError(
+                    "CRITICAL: disable_auth=True is forbidden in production environment. "
+                    "Set SIBYL_ENVIRONMENT=development to use disable_auth for testing."
+                )
+            # Check for default passwords that should never be used in production
+            if self.falkordb_password == "conventions":  # noqa: S105
+                raise ValueError(
+                    "CRITICAL: Default FalkorDB password 'conventions' is forbidden in production. "
+                    "Set SIBYL_FALKORDB_PASSWORD to a secure value."
+                )
+            if self.postgres_password.get_secret_value() == "sibyl_dev":
+                raise ValueError(
+                    "CRITICAL: Default PostgreSQL password 'sibyl_dev' is forbidden in production. "
+                    "Set SIBYL_POSTGRES_PASSWORD to a secure value."
+                )
         return self
 
     jwt_secret: SecretStr = Field(
