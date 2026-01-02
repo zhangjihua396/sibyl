@@ -7,6 +7,8 @@ All commands communicate with the REST API to ensure proper event broadcasting.
 from typing import Annotated
 
 import typer
+from rich import box
+from rich.table import Table
 
 from sibyl_cli.client import SibylClientError, get_client
 from sibyl_cli.common import (
@@ -69,12 +71,23 @@ def list_sources(
                 info("No sources found")
                 return
 
-            table = create_table("Documentation Sources", "ID", "Name", "URL", "Docs", "Status")
+            # Custom table with column ratios to prioritize URL visibility
+            table = Table(
+                title="Documentation Sources",
+                box=box.SIMPLE_HEAD,
+                header_style=f"bold {NEON_CYAN}",
+            )
+            table.add_column("ID", style=ELECTRIC_PURPLE, no_wrap=True)
+            table.add_column("Name", ratio=1, overflow="fold")
+            table.add_column("URL", ratio=2, overflow="fold")
+            table.add_column("Docs", justify="right")
+            table.add_column("Status")
+
             for s in sources:
                 table.add_row(
                     s.get("id", ""),
-                    truncate(s.get("name", ""), 25),
-                    truncate(s.get("url", "-"), 30),
+                    s.get("name", ""),
+                    s.get("url", "-"),
                     str(s.get("document_count", 0)),
                     s.get("crawl_status", "pending"),
                 )

@@ -41,7 +41,7 @@ def _clean_heading(text: str) -> str:
 
     Removes:
     - Markdown links: [text](url) -> text
-    - Anchor links: Text[​](url "Direct link") -> Text
+    - Anchor links: Text[\u200b](url "Direct link") -> Text
     - Version badges: Locationsv0.41.0 -> Locations
     - Zero-width spaces and extra whitespace
     """

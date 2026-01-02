@@ -104,7 +104,9 @@ def show_document(
                 if len(content) > 5000:
                     lines.append(content[:5000])
                     lines.append("")
-                    lines.append(f"[dim]... truncated ({len(content)} chars total, use --raw for full)[/dim]")
+                    lines.append(
+                        f"[dim]... truncated ({len(content)} chars total, use --raw for full)[/dim]"
+                    )
                 else:
                     lines.append(content)
             else:

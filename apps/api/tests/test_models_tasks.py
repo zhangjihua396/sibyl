@@ -364,7 +364,12 @@ class TestTaskEstimate:
             confidence=0.85,
             based_on_tasks=8,
             similar_tasks=[
-                {"task_id": "t1", "title": "Similar task", "similarity_score": 0.9, "actual_hours": 6.0}
+                {
+                    "task_id": "t1",
+                    "title": "Similar task",
+                    "similarity_score": 0.9,
+                    "actual_hours": 6.0,
+                }
             ],
             reason="Based on 8 similar auth tasks",
         )
