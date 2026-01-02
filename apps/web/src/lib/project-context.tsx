@@ -14,6 +14,9 @@ import {
 
 const STORAGE_KEY = 'sibyl-project-context';
 
+// Special ID for filtering entities without a project
+export const UNASSIGNED_PROJECT_ID = '__unassigned__';
+
 // Pages that should always show all projects (no filtering)
 const CROSS_PROJECT_PATHS = ['/projects', '/sources', '/settings'];
 

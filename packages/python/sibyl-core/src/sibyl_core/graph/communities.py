@@ -381,14 +381,30 @@ async def _get_graph_totals(
 
     # Build node filter
     node_filters = ["(n:Episodic OR n:Entity)", "n.group_id = $group_id"]
-    if project_ids:
+
+    # Handle special __unassigned__ filter for entities without a project
+    UNASSIGNED_ID = "__unassigned__"
+    has_unassigned = project_ids and UNASSIGNED_ID in project_ids
+    real_project_ids = [pid for pid in (project_ids or []) if pid != UNASSIGNED_ID]
+
+    if has_unassigned and real_project_ids:
+        # Both unassigned AND specific projects: OR condition
+        node_filters.append(
+            "(n.project_id IS NULL OR n.uuid IN $project_ids OR n.project_id IN $project_ids)"
+        )
+    elif has_unassigned:
+        # Only unassigned: nodes without project_id
+        node_filters.append("n.project_id IS NULL")
+    elif real_project_ids:
+        # Only specific projects
         node_filters.append("(n.uuid IN $project_ids OR n.project_id IN $project_ids)")
+
     node_where = " AND ".join(node_filters)
 
     try:
         params: dict[str, str | list[str]] = {"group_id": organization_id}
-        if project_ids:
-            params["project_ids"] = project_ids
+        if real_project_ids:
+            params["project_ids"] = real_project_ids
 
         result = await client.execute_read_org(
             f"MATCH (n) WHERE {node_where} RETURN count(n) AS cnt",
@@ -402,12 +418,20 @@ async def _get_graph_totals(
         log.warning("count_nodes_failed", error=str(e))
 
     # Build edge filter - count edges where both endpoints match the node filter
-    if project_ids:
+    if project_ids:  # Any filter (including __unassigned__)
         # For project filter, count edges between matching nodes
+        # Replace both n: (labels) and n. (properties) with a/b variants
+        a_where = node_where.replace("n:", "a:").replace("n.", "a.")
+        b_where = (
+            node_where.replace("n:", "b:")
+            .replace("n.", "b.")
+            .replace("$group_id", "$group_id2")
+            .replace("$project_ids", "$project_ids2")
+        )
         edge_query = f"""
         MATCH (a)-[r]->(b)
-        WHERE {node_where.replace('n.', 'a.')}
-          AND {node_where.replace('n.', 'b.').replace('$group_id', '$group_id2').replace('$project_ids', '$project_ids2')}
+        WHERE {a_where}
+          AND {b_where}
           AND r.group_id = $group_id
         RETURN count(r) AS cnt
         """
@@ -415,9 +439,9 @@ async def _get_graph_totals(
             "group_id": organization_id,
             "group_id2": organization_id,
         }
-        if project_ids:
-            edge_params["project_ids"] = project_ids
-            edge_params["project_ids2"] = project_ids
+        if real_project_ids:
+            edge_params["project_ids"] = real_project_ids
+            edge_params["project_ids2"] = real_project_ids
     else:
         edge_query = "MATCH ()-[r]->() WHERE r.group_id = $group_id RETURN count(r) AS cnt"
         edge_params = {"group_id": organization_id}
@@ -494,9 +518,21 @@ async def _fetch_graph_nodes(
     # Build dynamic WHERE clauses
     filters = ["(n:Episodic OR n:Entity)", "n.group_id = $group_id"]
 
-    if project_ids:
-        # Filter to nodes belonging to specified projects
-        # This matches: project nodes themselves, or tasks with project_id in metadata
+    # Handle special __unassigned__ filter for entities without a project
+    UNASSIGNED_ID = "__unassigned__"
+    has_unassigned = project_ids and UNASSIGNED_ID in project_ids
+    real_project_ids = [pid for pid in (project_ids or []) if pid != UNASSIGNED_ID]
+
+    if has_unassigned and real_project_ids:
+        # Both unassigned AND specific projects
+        filters.append(
+            "(n.project_id IS NULL OR n.uuid IN $project_ids OR n.project_id IN $project_ids)"
+        )
+    elif has_unassigned:
+        # Only unassigned
+        filters.append("n.project_id IS NULL")
+    elif real_project_ids:
+        # Only specific projects
         filters.append("(n.uuid IN $project_ids OR n.project_id IN $project_ids)")
 
     if entity_types:
@@ -516,8 +552,8 @@ async def _fetch_graph_nodes(
 
     try:
         params: dict[str, Any] = {"group_id": organization_id, "limit": max_nodes}
-        if project_ids:
-            params["project_ids"] = project_ids
+        if real_project_ids:
+            params["project_ids"] = real_project_ids
 
         result = await client.execute_read_org(query, organization_id, **params)
         for record in result:
