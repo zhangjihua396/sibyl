@@ -374,13 +374,15 @@ class EntityDeduplicator:
             Number of relationships redirected.
         """
         # Redirect outgoing relationships
+        # Note: FalkorDB/Cypher doesn't support dynamic relationship types in MERGE,
+        # so we preserve the original type as relationship_type property
         outgoing_query = """
         MATCH (source:Entity {uuid: $from_id})-[r]->(target)
         WHERE target.uuid <> $to_id
         WITH source, r, target, type(r) AS rel_type, properties(r) AS props
         MERGE (keep:Entity {uuid: $to_id})
         MERGE (keep)-[new_r:RELATIONSHIP]->(target)
-        SET new_r = props
+        SET new_r = props, new_r.relationship_type = rel_type
         DELETE r
         RETURN count(r) AS redirected
         """
@@ -392,7 +394,7 @@ class EntityDeduplicator:
         WITH source, r, target, type(r) AS rel_type, properties(r) AS props
         MERGE (keep:Entity {uuid: $to_id})
         MERGE (source)-[new_r:RELATIONSHIP]->(keep)
-        SET new_r = props
+        SET new_r = props, new_r.relationship_type = rel_type
         DELETE r
         RETURN count(r) AS redirected
         """
