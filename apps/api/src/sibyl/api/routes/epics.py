@@ -106,6 +106,23 @@ async def _broadcast_epic_update(
     )
 
 
+async def _update_project_activity(entity_manager: EntityManager, epic: Any) -> None:
+    """Update parent project's last_activity_at when epic changes."""
+    project_id = epic.metadata.get("project_id") if hasattr(epic, "metadata") else None
+    if not project_id:
+        return
+
+    try:
+        await entity_manager.update(
+            project_id,
+            {"last_activity_at": datetime.now(UTC).isoformat()},
+        )
+        log.debug("Project activity updated from epic", project_id=project_id, epic_id=epic.id)
+    except Exception as e:
+        # Don't fail the epic operation if project update fails
+        log.warning("Failed to update project activity", project_id=project_id, error=str(e))
+
+
 # =============================================================================
 # Workflow Endpoints
 # =============================================================================
@@ -124,6 +141,7 @@ async def start_epic(
 
         epic = await _get_epic(entity_manager, epic_id)
         await entity_manager.update(epic_id, {"status": "in_progress"})
+        await _update_project_activity(entity_manager, epic)
 
         await _broadcast_epic_update(
             epic_id,
@@ -172,6 +190,7 @@ async def complete_epic(
             updates["learnings"] = learnings
 
         await entity_manager.update(epic_id, updates)
+        await _update_project_activity(entity_manager, epic)
 
         await _broadcast_epic_update(
             epic_id,
@@ -213,6 +232,7 @@ async def archive_epic(
 
         reason = request.reason if request else None
         await entity_manager.update(epic_id, {"status": "archived"})
+        await _update_project_activity(entity_manager, epic)
 
         await _broadcast_epic_update(
             epic_id,
@@ -272,6 +292,7 @@ async def update_epic(
             raise HTTPException(status_code=400, detail="No fields to update")
 
         await entity_manager.update(epic_id, updates)
+        await _update_project_activity(entity_manager, epic)
 
         await _broadcast_epic_update(
             epic_id,

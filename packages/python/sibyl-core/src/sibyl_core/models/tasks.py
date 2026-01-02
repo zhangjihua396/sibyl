@@ -158,6 +158,11 @@ class Project(Entity):
     completed_tasks: int = Field(default=0, description="Tasks completed")
     in_progress_tasks: int = Field(default=0, description="Tasks in progress")
 
+    # Activity tracking
+    last_activity_at: datetime | None = Field(
+        default=None, description="Last activity (task/epic change) timestamp"
+    )
+
     # Knowledge domain
     knowledge_domains: list[str] = Field(
         default_factory=list, description="Knowledge domains this project touches"

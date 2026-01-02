@@ -199,6 +199,10 @@ class TaskWorkflowEngine:
         updated_entity = await self._entity_manager.update(task_id, updates)
         updated_task = self._entity_to_task(updated_entity)
 
+        # Update project activity timestamp
+        if task.project_id:
+            await self.update_project_activity(task.project_id)
+
         log.info("Task started successfully", task_id=task_id, branch=updated_task.branch_name)
         return updated_task
 
@@ -236,6 +240,10 @@ class TaskWorkflowEngine:
 
         updated_entity = await self._entity_manager.update(task_id, updates)
         updated_task = self._entity_to_task(updated_entity)
+
+        # Update project activity timestamp
+        if task.project_id:
+            await self.update_project_activity(task.project_id)
 
         log.info("Task submitted for review", task_id=task_id, commits=len(commit_shas))
         return updated_task
@@ -334,6 +342,10 @@ class TaskWorkflowEngine:
         updated_entity = await self._entity_manager.update(task_id, updates)
         updated_task = self._entity_to_task(updated_entity)
 
+        # Update project activity timestamp
+        if task.project_id:
+            await self.update_project_activity(task.project_id)
+
         log.info("Task blocked", task_id=task_id, blocker=blocker_description)
         return updated_task
 
@@ -362,6 +374,10 @@ class TaskWorkflowEngine:
 
         updated_entity = await self._entity_manager.update(task_id, updates)
         updated_task = self._entity_to_task(updated_entity)
+
+        # Update project activity timestamp
+        if task.project_id:
+            await self.update_project_activity(task.project_id)
 
         log.info("Task unblocked", task_id=task_id)
         return updated_task
@@ -529,6 +545,23 @@ class TaskWorkflowEngine:
         log.info("Learning episode created", episode_id=episode_id, task_id=task.id)
         return episode_id
 
+    async def update_project_activity(self, project_id: str) -> None:
+        """Update project's last_activity_at timestamp.
+
+        Called when any child entity (task/epic) changes.
+
+        Args:
+            project_id: Project UUID
+        """
+        now = datetime.now(UTC)
+        await self._entity_manager.update(
+            project_id,
+            {"last_activity_at": now.isoformat()},
+        )
+        log.debug(
+            "Project activity updated", project_id=project_id, last_activity_at=now.isoformat()
+        )
+
     async def _update_project_progress(self, project_id: str) -> None:
         """Update project progress statistics.
 
@@ -556,13 +589,15 @@ class TaskWorkflowEngine:
             done = record.get("done", 0)
             doing = record.get("doing", 0)
 
-            # Update project entity
+            # Update project entity with progress and activity timestamp
+            now = datetime.now(UTC)
             await self._entity_manager.update(
                 project_id,
                 {
                     "total_tasks": total,
                     "completed_tasks": done,
                     "in_progress_tasks": doing,
+                    "last_activity_at": now.isoformat(),
                 },
             )
 
@@ -572,6 +607,7 @@ class TaskWorkflowEngine:
                 total=total,
                 done=done,
                 doing=doing,
+                last_activity_at=now.isoformat(),
             )
 
     async def _maybe_complete_epic(self, task: Task) -> bool:
