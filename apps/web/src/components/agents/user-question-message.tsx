@@ -53,12 +53,12 @@ export const UserQuestionMessage = memo(function UserQuestionMessage({
   const isResolved = !isPending || isExpiredTime;
 
   const handleOptionSelect = (questionIndex: number, optionLabel: string) => {
-    setSelectedAnswers((prev) => ({
+    setSelectedAnswers(prev => ({
       ...prev,
       [questionIndex]: optionLabel,
     }));
     // Clear custom input when selecting an option
-    setCustomInputs((prev) => {
+    setCustomInputs(prev => {
       const next = { ...prev };
       delete next[questionIndex];
       return next;
@@ -66,12 +66,12 @@ export const UserQuestionMessage = memo(function UserQuestionMessage({
   };
 
   const handleCustomInput = (questionIndex: number, value: string) => {
-    setCustomInputs((prev) => ({
+    setCustomInputs(prev => ({
       ...prev,
       [questionIndex]: value,
     }));
     // Clear selected option when typing custom
-    setSelectedAnswers((prev) => {
+    setSelectedAnswers(prev => {
       const next = { ...prev };
       delete next[questionIndex];
       return next;
@@ -178,7 +178,7 @@ export const UserQuestionMessage = memo(function UserQuestionMessage({
                     type="text"
                     placeholder="Or type a custom answer..."
                     value={customInputs[qIndex] || ''}
-                    onChange={(e) => handleCustomInput(qIndex, e.target.value)}
+                    onChange={e => handleCustomInput(qIndex, e.target.value)}
                     className="w-full px-3 py-2 text-sm rounded-md border border-sc-fg-subtle/20 bg-sc-bg-dark text-sc-fg-primary placeholder:text-sc-fg-subtle focus:border-sc-purple focus:outline-none"
                   />
                 </div>

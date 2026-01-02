@@ -135,7 +135,7 @@ class ApprovalService:
         async def can_use_tool(
             tool_name: str,
             tool_input: dict[str, Any],
-            context: ToolPermissionContext,
+            _context: ToolPermissionContext,
         ) -> PermissionResultAllow | PermissionResultDeny:
             """Handle SDK permission requests via our approval UI."""
 

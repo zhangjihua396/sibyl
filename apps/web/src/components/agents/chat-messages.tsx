@@ -10,7 +10,7 @@ import { ApprovalRequestMessage } from './approval-request-message';
 import { ToolMessage } from './chat-tool-message';
 import type { ChatMessageComponentProps } from './chat-types';
 import { SibylContextMessage } from './sibyl-context-message';
-import { UserQuestionMessage, type Question } from './user-question-message';
+import { type Question, UserQuestionMessage } from './user-question-message';
 
 // =============================================================================
 // ChatMessageComponent
