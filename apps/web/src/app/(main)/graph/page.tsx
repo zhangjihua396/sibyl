@@ -410,43 +410,59 @@ function GraphPageContent() {
   }, [data]);
 
   // Transform data for force graph with entity coloring and degree-based sizing
+  // Optimized: single-pass operations where possible
   const graphData = useMemo(() => {
     if (!data) return { nodes: [], links: [], maxDegree: 1 };
 
-    // Filter by selected cluster if any
-    let nodes = data.nodes;
-    if (selectedCluster) {
-      nodes = nodes.filter(n => n.cluster_id === selectedCluster);
+    // Build node ID set in single pass (also filters by cluster if selected)
+    const nodeIds = new Set<string>();
+    const nodes = selectedCluster
+      ? data.nodes.filter(n => {
+          if (n.cluster_id === selectedCluster) {
+            nodeIds.add(n.id);
+            return true;
+          }
+          return false;
+        })
+      : data.nodes;
+
+    // If no cluster filter, populate nodeIds separately
+    if (!selectedCluster) {
+      for (const n of nodes) nodeIds.add(n.id);
     }
 
-    const nodeIds = new Set(nodes.map(n => n.id));
-
-    // Filter edges to only include those between visible nodes
-    const filteredEdges = data.edges.filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
-
-    // Calculate degree (connection count) for each node
+    // Single pass: filter edges AND calculate degrees
     const degreeMap = new Map<string, number>();
-    for (const edge of filteredEdges) {
-      degreeMap.set(edge.source, (degreeMap.get(edge.source) || 0) + 1);
-      degreeMap.set(edge.target, (degreeMap.get(edge.target) || 0) + 1);
+    const filteredEdges: typeof data.edges = [];
+    let maxDegree = 1;
+
+    for (const edge of data.edges) {
+      if (nodeIds.has(edge.source) && nodeIds.has(edge.target)) {
+        filteredEdges.push(edge);
+        const srcDeg = (degreeMap.get(edge.source) || 0) + 1;
+        const tgtDeg = (degreeMap.get(edge.target) || 0) + 1;
+        degreeMap.set(edge.source, srcDeg);
+        degreeMap.set(edge.target, tgtDeg);
+        if (srcDeg > maxDegree) maxDegree = srcDeg;
+        if (tgtDeg > maxDegree) maxDegree = tgtDeg;
+      }
     }
 
-    const maxDegree = Math.max(1, ...Array.from(degreeMap.values()));
-
-    // Transform nodes with entity colors and degree
-    const graphNodes: GraphNode[] = nodes.map(node => {
+    // Transform nodes with entity colors, degree, and z-index
+    const graphNodes: GraphNode[] = new Array(nodes.length);
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
       const degree = degreeMap.get(node.id) || 0;
       const isProject = node.type === 'project';
       const entityType = node.type || 'unknown';
 
-      // Calculate z-index for rendering order (higher = rendered later = on top)
-      // Projects and high-degree nodes should be on top and get label priority
-      let zIndex = degree; // Base: more connections = higher priority
-      if (isProject) zIndex += 1000; // Projects always on top
-      if (entityType === 'task') zIndex += 50; // Tasks are important
-      if (entityType === 'pattern') zIndex += 30; // Patterns too
+      // z-index for rendering order (higher = on top)
+      let zIndex = degree;
+      if (isProject) zIndex += 1000;
+      else if (entityType === 'task') zIndex += 50;
+      else if (entityType === 'pattern') zIndex += 30;
 
-      return {
+      graphNodes[i] = {
         ...node,
         clusterColor: clusterColorMap.get(node.cluster_id) || '#8b85a0',
         entityColor: getEntityColor(entityType),
@@ -454,14 +470,12 @@ function GraphPageContent() {
         isProject,
         zIndex,
       };
-    });
+    }
 
-    // Sort by zIndex so important nodes render last (on top) and get label priority
+    // Sort by zIndex so important nodes render last (on top)
     graphNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
-    const graphLinks: GraphLink[] = filteredEdges.map(e => ({ ...e }));
-
-    return { nodes: graphNodes, links: graphLinks, maxDegree };
+    return { nodes: graphNodes, links: filteredEdges, maxDegree };
   }, [data, selectedCluster, clusterColorMap]);
 
   // Configure d3 forces
