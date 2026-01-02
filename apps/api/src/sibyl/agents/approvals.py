@@ -217,7 +217,8 @@ class ApprovalService:
     ) -> HookJSONOutput:
         """Hook callback for file operations.
 
-        Checks if the file path matches sensitive patterns.
+        ALL file writes go through our approval UI. Sensitive files get
+        flagged as higher priority.
         """
         # Check if this is a PreToolUse event (TypedDict can't use isinstance)
         if hook_input.get("hook_event_name") != "PreToolUse":
@@ -227,49 +228,62 @@ class ApprovalService:
         if not isinstance(tool_input, dict):
             return SyncHookJSONOutput(continue_=True)
 
+        tool_name = hook_input.get("tool_name", "unknown")
         file_path = tool_input.get("file_path", "") or tool_input.get("path", "")
 
-        # Check against sensitive file patterns
-        for pattern in SENSITIVE_FILE_PATTERNS:
-            if re.search(pattern, file_path, re.IGNORECASE):
-                log.warning(f"Sensitive file operation detected: {file_path}")
+        if not file_path:
+            return SyncHookJSONOutput(continue_=True)
 
-                # Create approval request
-                approval = await self._create_approval(
-                    approval_type=ApprovalType.SENSITIVE_FILE,
-                    title=f"Sensitive file: {file_path}",
-                    summary=f"Agent wants to modify a sensitive file:\n\n**File:** `{file_path}`",
-                    metadata={
-                        "tool_name": hook_input.get("tool_name", "unknown"),
-                        "file_path": file_path,
-                        "pattern_matched": pattern,
-                        "content_preview": str(tool_input)[:500],
-                    },
-                )
+        # Check if this is a sensitive file (higher priority)
+        is_sensitive = any(
+            re.search(pattern, file_path, re.IGNORECASE)
+            for pattern in SENSITIVE_FILE_PATTERNS
+        )
 
-                # Wait for human response
-                response = await self._wait_for_approval(approval.id)
+        if is_sensitive:
+            log.warning(f"Sensitive file operation detected: {file_path}")
+            approval_type = ApprovalType.SENSITIVE_FILE
+            title = f"⚠️ Sensitive file: {file_path}"
+            summary = f"Agent wants to modify a **sensitive** file:\n\n**File:** `{file_path}`"
+        else:
+            log.info(f"File operation requires approval: {file_path}")
+            approval_type = ApprovalType.FILE_WRITE
+            title = f"File write: {file_path}"
+            summary = f"Agent wants to write to:\n\n**File:** `{file_path}`"
 
-                if response.get("approved"):
-                    return SyncHookJSONOutput(
-                        continue_=True,
-                        hookSpecificOutput={
-                            "hookEventName": "PreToolUse",
-                            "permissionDecision": "allow",
-                            "permissionDecisionReason": f"Approved by {response.get('by', 'human')}",
-                        },
-                    )
-                return SyncHookJSONOutput(
-                    continue_=True,
-                    hookSpecificOutput={
-                        "hookEventName": "PreToolUse",
-                        "permissionDecision": "deny",
-                        "permissionDecisionReason": response.get("message", "Denied by human"),
-                    },
-                )
+        # Create approval request for ALL file operations
+        approval = await self._create_approval(
+            approval_type=approval_type,
+            title=title,
+            summary=summary,
+            metadata={
+                "tool_name": tool_name,
+                "file_path": file_path,
+                "is_sensitive": is_sensitive,
+                "content_preview": str(tool_input.get("content", ""))[:500],
+            },
+        )
 
-        # Not a sensitive file - allow
-        return SyncHookJSONOutput(continue_=True)
+        # Wait for human response
+        response = await self._wait_for_approval(approval.id)
+
+        if response.get("approved"):
+            return SyncHookJSONOutput(
+                continue_=True,
+                hookSpecificOutput={
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "allow",
+                    "permissionDecisionReason": f"Approved by {response.get('by', 'human')}",
+                },
+            )
+        return SyncHookJSONOutput(
+            continue_=True,
+            hookSpecificOutput={
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": response.get("message", "Denied by human"),
+            },
+        )
 
     async def _check_external_api(
         self,

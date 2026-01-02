@@ -204,6 +204,7 @@ class ApprovalType(StrEnum):
     # Risk-based triggers
     DESTRUCTIVE_COMMAND = "destructive_command"  # rm -rf, force push, etc.
     SENSITIVE_FILE = "sensitive_file"  # .env, secrets, credentials
+    FILE_WRITE = "file_write"  # Any file write operation
     EXTERNAL_API = "external_api"  # Calling external services
     COST_THRESHOLD = "cost_threshold"  # Approaching budget limit
 
