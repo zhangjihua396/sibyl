@@ -219,6 +219,11 @@ def search(
                     # Show full ID for fetching
                     console.print(f"    [{CORAL}]{entity_id}[/{CORAL}]")
                     console.print()
+
+                # Hint for retrieval
+                console.print(
+                    f"[dim]Use [/dim][{NEON_CYAN}]sibyl entity show <id>[/{NEON_CYAN}][dim] for full content[/dim]"
+                )
         except SibylClientError as e:
             _handle_client_error(e)
 
