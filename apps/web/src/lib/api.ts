@@ -668,6 +668,119 @@ export interface AgentWorkspaceResponse {
 }
 
 // =============================================================================
+// Approval Types (Human-in-the-Loop)
+// =============================================================================
+
+export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'edited' | 'expired';
+export type ApprovalType =
+  | 'destructive_command'
+  | 'sensitive_file'
+  | 'external_api'
+  | 'cost_threshold'
+  | 'review_phase'
+  | 'question'
+  | 'scope_change'
+  | 'merge_conflict'
+  | 'test_failure';
+
+export type ApprovalPriority = 'low' | 'medium' | 'high' | 'critical';
+
+export interface Approval {
+  id: string;
+  agent_id: string;
+  agent_name: string | null;
+  task_id: string | null;
+  project_id: string;
+  approval_type: ApprovalType;
+  priority: ApprovalPriority;
+  title: string;
+  summary: string;
+  status: ApprovalStatus;
+  actions: string[];
+  metadata: Record<string, unknown> | null;
+  created_at: string | null;
+  expires_at: string | null;
+  responded_at: string | null;
+  response_by: string | null;
+  response_message: string | null;
+}
+
+export interface ApprovalListResponse {
+  approvals: Approval[];
+  total: number;
+  by_status: Record<string, number>;
+  by_type: Record<string, number>;
+}
+
+export interface RespondToApprovalRequest {
+  action: 'approve' | 'deny' | 'edit';
+  message?: string;
+  edited_content?: Record<string, unknown>;
+}
+
+export interface RespondToApprovalResponse {
+  success: boolean;
+  approval_id: string;
+  action: string;
+  message: string;
+}
+
+// =============================================================================
+// Activity Feed Types
+// =============================================================================
+
+export type ActivityEventType =
+  | 'agent_spawned'
+  | 'agent_started'
+  | 'agent_completed'
+  | 'agent_failed'
+  | 'agent_paused'
+  | 'agent_terminated'
+  | 'agent_message'
+  | 'approval_requested'
+  | 'approval_responded';
+
+export interface ActivityEvent {
+  id: string;
+  event_type: ActivityEventType;
+  agent_id: string;
+  agent_name: string | null;
+  project_id: string | null;
+  summary: string;
+  timestamp: string;
+  metadata: Record<string, unknown> | null;
+}
+
+export interface ActivityFeedResponse {
+  events: ActivityEvent[];
+  total: number;
+}
+
+// =============================================================================
+// Agent Health Types
+// =============================================================================
+
+export type AgentHealthStatus = 'healthy' | 'stale' | 'unresponsive';
+
+export interface AgentHealth {
+  agent_id: string;
+  agent_name: string;
+  status: AgentHealthStatus;
+  agent_status: string;
+  last_heartbeat: string | null;
+  seconds_since_heartbeat: number | null;
+  project_id: string | null;
+}
+
+export interface HealthOverviewResponse {
+  agents: AgentHealth[];
+  total: number;
+  healthy: number;
+  stale: number;
+  unresponsive: number;
+}
+
+// =============================================================================
 // Task Notes Types
 // =============================================================================
 
@@ -1756,5 +1869,56 @@ export const api = {
       }),
 
     getWorkspace: (id: string) => fetchApi<AgentWorkspaceResponse>(`/agents/${id}/workspace`),
+
+    getActivityFeed: (params?: { project_id?: string; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.project_id) searchParams.set('project_id', params.project_id);
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return fetchApi<ActivityFeedResponse>(`/agents/activity/feed${query ? `?${query}` : ''}`);
+    },
+
+    getHealthOverview: (params?: { project_id?: string }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.project_id) searchParams.set('project_id', params.project_id);
+      const query = searchParams.toString();
+      return fetchApi<HealthOverviewResponse>(`/agents/health/overview${query ? `?${query}` : ''}`);
+    },
+  },
+
+  // Approvals (Human-in-the-Loop)
+  approvals: {
+    list: (params?: {
+      status?: ApprovalStatus;
+      approval_type?: ApprovalType;
+      agent_id?: string;
+      project_id?: string;
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.status) searchParams.set('status', params.status);
+      if (params?.approval_type) searchParams.set('approval_type', params.approval_type);
+      if (params?.agent_id) searchParams.set('agent_id', params.agent_id);
+      if (params?.project_id) searchParams.set('project_id', params.project_id);
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return fetchApi<ApprovalListResponse>(`/approvals${query ? `?${query}` : ''}`);
+    },
+
+    pending: (params?: { project_id?: string; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params?.project_id) searchParams.set('project_id', params.project_id);
+      if (params?.limit) searchParams.set('limit', params.limit.toString());
+      const query = searchParams.toString();
+      return fetchApi<ApprovalListResponse>(`/approvals/pending${query ? `?${query}` : ''}`);
+    },
+
+    get: (id: string) => fetchApi<Approval>(`/approvals/${id}`),
+
+    respond: (id: string, request: RespondToApprovalRequest) =>
+      fetchApi<RespondToApprovalResponse>(`/approvals/${id}/respond`, {
+        method: 'POST',
+        body: JSON.stringify(request),
+      }),
   },
 };

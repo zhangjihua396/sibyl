@@ -12,6 +12,8 @@ import type {
   AgentMessagesResponse,
   AgentStatus,
   AgentType,
+  ApprovalStatus,
+  ApprovalType,
   CodeExampleParams,
   CodeExampleResponse,
   CreateNoteRequest,
@@ -22,6 +24,7 @@ import type {
   MessageType,
   RAGSearchParams,
   RAGSearchResponse,
+  RespondToApprovalRequest,
   SpawnAgentRequest,
   TaskPriority,
   TaskStatus,
@@ -148,6 +151,33 @@ export const queryKeys = {
     detail: (id: string) => ['agents', 'detail', id] as const,
     messages: (id: string) => ['agents', 'messages', id] as const,
     workspace: (id: string) => ['agents', 'workspace', id] as const,
+    activityFeed: (project_id?: string) =>
+      ['agents', 'activity', project_id ? { project_id } : undefined] as const,
+    healthOverview: (project_id?: string) =>
+      ['agents', 'health', project_id ? { project_id } : undefined] as const,
+  },
+  approvals: {
+    all: ['approvals'] as const,
+    list: (params?: {
+      status?: ApprovalStatus;
+      approval_type?: ApprovalType;
+      agent_id?: string;
+      project_id?: string;
+    }) => {
+      const normalized =
+        params && (params.status || params.approval_type || params.agent_id || params.project_id)
+          ? {
+              ...(params.status ? { status: params.status } : {}),
+              ...(params.approval_type ? { approval_type: params.approval_type } : {}),
+              ...(params.agent_id ? { agent_id: params.agent_id } : {}),
+              ...(params.project_id ? { project_id: params.project_id } : {}),
+            }
+          : undefined;
+      return ['approvals', 'list', normalized] as const;
+    },
+    pending: (project_id?: string) =>
+      ['approvals', 'pending', project_id ? { project_id } : undefined] as const,
+    detail: (id: string) => ['approvals', 'detail', id] as const,
   },
 };
 
@@ -1597,4 +1627,136 @@ export function useAgentSubscription(agentId: string | undefined) {
       unsubWorkspace?.();
     };
   }, [agentId, queryClient]);
+}
+
+// =============================================================================
+// Approval Hooks (Human-in-the-Loop)
+// =============================================================================
+
+/**
+ * Fetch approvals with optional filtering.
+ */
+export function useApprovals(params?: {
+  status?: ApprovalStatus;
+  approval_type?: ApprovalType;
+  agent_id?: string;
+  project_id?: string;
+}) {
+  const normalized =
+    params && (params.status || params.approval_type || params.agent_id || params.project_id)
+      ? {
+          ...(params.status ? { status: params.status } : {}),
+          ...(params.approval_type ? { approval_type: params.approval_type } : {}),
+          ...(params.agent_id ? { agent_id: params.agent_id } : {}),
+          ...(params.project_id ? { project_id: params.project_id } : {}),
+        }
+      : undefined;
+
+  return useQuery({
+    queryKey: queryKeys.approvals.list(normalized),
+    queryFn: () => api.approvals.list(normalized),
+    // Poll for new approvals
+    refetchInterval: 10000,
+  });
+}
+
+/**
+ * Fetch pending approvals - convenience hook for the approval queue.
+ */
+export function usePendingApprovals(project_id?: string) {
+  return useQuery({
+    queryKey: queryKeys.approvals.pending(project_id),
+    queryFn: () => api.approvals.pending(project_id ? { project_id } : undefined),
+    // Poll more frequently for pending approvals
+    refetchInterval: 5000,
+  });
+}
+
+/**
+ * Fetch a single approval by ID.
+ */
+export function useApproval(id: string) {
+  return useQuery({
+    queryKey: queryKeys.approvals.detail(id),
+    queryFn: () => api.approvals.get(id),
+    enabled: !!id,
+  });
+}
+
+/**
+ * Respond to an approval (approve, deny, or edit).
+ */
+export function useRespondToApproval() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: RespondToApprovalRequest }) =>
+      api.approvals.respond(id, request),
+    onSuccess: (_data, { id }) => {
+      // Invalidate the specific approval and all lists
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.detail(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all });
+      // Also refresh agent data since approval response may unblock agent
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.all });
+    },
+  });
+}
+
+/**
+ * Subscribe to real-time approval updates via WebSocket.
+ * Automatically updates React Query cache when approval responses arrive.
+ */
+export function useApprovalSubscription() {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    // Subscribe to WebSocket approval events
+    wsClient.connect();
+
+    const unsubResponse = wsClient.on('approval_response', data => {
+      const approvalId = data.approval_id as string;
+      // Invalidate approval queries to refetch
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.detail(approvalId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.approvals.all });
+      // Agent may be unblocked, refresh agent data
+      if (data.agent_id) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.agents.detail(data.agent_id as string),
+        });
+      }
+    });
+
+    // Cleanup subscription
+    return () => {
+      unsubResponse();
+    };
+  }, [queryClient]);
+}
+
+// =============================================================================
+// Activity Feed Hooks
+// =============================================================================
+
+/**
+ * Fetch cross-agent activity feed.
+ */
+export function useActivityFeed(project_id?: string) {
+  return useQuery({
+    queryKey: queryKeys.agents.activityFeed(project_id),
+    queryFn: () => api.agents.getActivityFeed(project_id ? { project_id } : undefined),
+    // Poll for new activity
+    refetchInterval: 10000,
+  });
+}
+
+/**
+ * Fetch agent health overview with automatic polling.
+ */
+export function useHealthOverview(project_id?: string) {
+  return useQuery({
+    queryKey: queryKeys.agents.healthOverview(project_id),
+    queryFn: () => api.agents.getHealthOverview(project_id ? { project_id } : undefined),
+    // Poll for health updates every 15s
+    refetchInterval: 15000,
+  });
 }

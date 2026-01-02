@@ -892,9 +892,7 @@ class AgentMessage(SQLModel, table=True):
     """
 
     __tablename__ = "agent_messages"  # type: ignore[assignment]
-    __table_args__ = (
-        Index("ix_agent_messages_agent_num", "agent_id", "message_num"),
-    )
+    __table_args__ = (Index("ix_agent_messages_agent_num", "agent_id", "message_num"),)
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     agent_id: str = Field(

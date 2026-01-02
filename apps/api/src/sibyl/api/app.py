@@ -21,6 +21,7 @@ from sibyl.api.rate_limit import limiter
 from sibyl.api.routes import (
     admin_router,
     agents_router,
+    approvals_router,
     auth_router,
     crawler_router,
     entities_router,
@@ -87,7 +88,9 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None]:
         enable_pubsub()
         log.info("Redis pub/sub ready")
     except Exception as e:
-        log.warning("Failed to initialize Redis pub/sub (worker broadcasts may not work)", error=str(e))
+        log.warning(
+            "Failed to initialize Redis pub/sub (worker broadcasts may not work)", error=str(e)
+        )
 
     yield
 
@@ -172,6 +175,7 @@ def create_api_app() -> FastAPI:
 
     # Register routers
     app.include_router(agents_router)
+    app.include_router(approvals_router)
     app.include_router(entities_router)
     app.include_router(tasks_router)
     app.include_router(epics_router)

@@ -2,10 +2,13 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useCallback, useMemo } from 'react';
+import { Suspense, useCallback, useMemo, useState } from 'react';
+import { ActivityFeed } from '@/components/agents/activity-feed';
+import { ApprovalQueue } from '@/components/agents/approval-queue';
+import { HealthMonitor } from '@/components/agents/health-monitor';
 import { SpawnAgentDialog } from '@/components/agents/spawn-agent-dialog';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
-import { Plus } from '@/components/ui/icons';
+import { Dashboard, List, Plus } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
 import { FilterChip } from '@/components/ui/toggle';
 import { ErrorState } from '@/components/ui/tooltip';
@@ -290,9 +293,12 @@ function AgentsEmptyState() {
 // Main Page Content
 // =============================================================================
 
+type ViewMode = 'dashboard' | 'list';
+
 function AgentsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
 
   const statusFilter = searchParams.get('status') as AgentStatus | null;
   const projectFilter = useProjectFilter(); // From global selector
@@ -382,77 +388,176 @@ function AgentsPageContent() {
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <Breadcrumb />
-        <SpawnAgentDialog
-          trigger={
+        <div className="flex items-center gap-3">
+          {/* View Toggle */}
+          <div className="flex items-center gap-1 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-lg p-1">
             <button
               type="button"
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg transition-colors"
+              onClick={() => setViewMode('dashboard')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                viewMode === 'dashboard'
+                  ? 'bg-sc-purple text-white'
+                  : 'text-sc-fg-muted hover:text-sc-fg-primary'
+              }`}
             >
-              <Plus width={16} height={16} />
-              Start Agent
+              <Dashboard width={14} height={14} />
+              Dashboard
             </button>
-          }
-          onSpawned={id => {
-            router.push(`/agents/${id}`);
-          }}
-        />
-      </div>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-sc-purple text-white'
+                  : 'text-sc-fg-muted hover:text-sc-fg-primary'
+              }`}
+            >
+              <List width={14} height={14} />
+              List
+            </button>
+          </div>
 
-      {/* Summary Bar */}
-      {agents.length > 0 && <SummaryBar agents={agents} />}
-
-      {/* Status Filter */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-sc-fg-subtle font-medium">Status:</span>
-        <FilterChip active={!statusFilter} onClick={() => handleStatusFilter(null)}>
-          All
-        </FilterChip>
-        <FilterChip
-          active={statusFilter === 'working'}
-          onClick={() => handleStatusFilter('working')}
-        >
-          Active
-        </FilterChip>
-        <FilterChip active={statusFilter === 'paused'} onClick={() => handleStatusFilter('paused')}>
-          Paused
-        </FilterChip>
-        <FilterChip
-          active={statusFilter === 'waiting_approval'}
-          onClick={() => handleStatusFilter('waiting_approval')}
-        >
-          Needs Approval
-        </FilterChip>
-        <FilterChip
-          active={statusFilter === 'completed'}
-          onClick={() => handleStatusFilter('completed')}
-        >
-          Completed
-        </FilterChip>
-      </div>
-
-      {/* Content */}
-      {isLoading ? (
-        <LoadingState />
-      ) : error ? (
-        <ErrorState
-          title="Failed to load agents"
-          message={error instanceof Error ? error.message : 'Unknown error'}
-        />
-      ) : agents.length === 0 ? (
-        <AgentsEmptyState />
-      ) : (
-        <div className="space-y-6">
-          {agentsByProject.map(([projectId, { name, agents: projectAgents }]) => (
-            <ProjectGroup
-              key={projectId}
-              projectName={name}
-              agents={projectAgents}
-              onPause={handlePause}
-              onResume={handleResume}
-              onTerminate={handleTerminate}
-            />
-          ))}
+          <SpawnAgentDialog
+            trigger={
+              <button
+                type="button"
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg transition-colors"
+              >
+                <Plus width={16} height={16} />
+                Start Agent
+              </button>
+            }
+            onSpawned={id => {
+              router.push(`/agents/${id}`);
+            }}
+          />
         </div>
+      </div>
+
+      {/* Dashboard View */}
+      {viewMode === 'dashboard' && (
+        <div className="space-y-6">
+          {/* Summary Bar */}
+          {agents.length > 0 && <SummaryBar agents={agents} />}
+
+          {/* Dashboard Grid */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Left Column: Health + Activity */}
+            <div className="space-y-6">
+              <HealthMonitor projectId={projectFilter} maxHeight="280px" />
+              <ActivityFeed projectId={projectFilter} maxHeight="320px" />
+            </div>
+
+            {/* Right Column: Approvals */}
+            <div>
+              <ApprovalQueue projectId={projectFilter} maxHeight="640px" />
+            </div>
+          </div>
+
+          {/* Quick Agent List */}
+          {agents.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-medium text-sc-fg-primary">Active Agents</h2>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('list')}
+                  className="text-xs text-sc-purple hover:text-sc-purple/80"
+                >
+                  View all →
+                </button>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {agents
+                  .filter(a =>
+                    [
+                      'initializing',
+                      'working',
+                      'resuming',
+                      'waiting_approval',
+                      'waiting_dependency',
+                      'paused',
+                    ].includes(a.status)
+                  )
+                  .slice(0, 6)
+                  .map(agent => (
+                    <AgentCard
+                      key={agent.id}
+                      agent={agent}
+                      onPause={handlePause}
+                      onResume={handleResume}
+                      onTerminate={handleTerminate}
+                    />
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* List View */}
+      {viewMode === 'list' && (
+        <>
+          {/* Summary Bar */}
+          {agents.length > 0 && <SummaryBar agents={agents} />}
+
+          {/* Status Filter */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-sc-fg-subtle font-medium">Status:</span>
+            <FilterChip active={!statusFilter} onClick={() => handleStatusFilter(null)}>
+              All
+            </FilterChip>
+            <FilterChip
+              active={statusFilter === 'working'}
+              onClick={() => handleStatusFilter('working')}
+            >
+              Active
+            </FilterChip>
+            <FilterChip
+              active={statusFilter === 'paused'}
+              onClick={() => handleStatusFilter('paused')}
+            >
+              Paused
+            </FilterChip>
+            <FilterChip
+              active={statusFilter === 'waiting_approval'}
+              onClick={() => handleStatusFilter('waiting_approval')}
+            >
+              Needs Approval
+            </FilterChip>
+            <FilterChip
+              active={statusFilter === 'completed'}
+              onClick={() => handleStatusFilter('completed')}
+            >
+              Completed
+            </FilterChip>
+          </div>
+
+          {/* Content */}
+          {isLoading ? (
+            <LoadingState />
+          ) : error ? (
+            <ErrorState
+              title="Failed to load agents"
+              message={error instanceof Error ? error.message : 'Unknown error'}
+            />
+          ) : agents.length === 0 ? (
+            <AgentsEmptyState />
+          ) : (
+            <div className="space-y-6">
+              {agentsByProject.map(([projectId, { name, agents: projectAgents }]) => (
+                <ProjectGroup
+                  key={projectId}
+                  projectName={name}
+                  agents={projectAgents}
+                  onPause={handlePause}
+                  onResume={handleResume}
+                  onTerminate={handleTerminate}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Loading indicator for mutations */}

@@ -882,7 +882,12 @@ async def _store_agent_message(
     role_map = {"assistant": "agent", "tool": "system", "system": "system", "user": "user"}
     role = AgentMessageRole(role_map.get(role_str, "agent"))
 
-    type_map = {"text": "text", "tool_use": "tool_call", "tool_result": "tool_result", "result": "text"}
+    type_map = {
+        "text": "text",
+        "tool_use": "tool_call",
+        "tool_result": "tool_result",
+        "result": "text",
+    }
     msg_type = AgentMessageType(type_map.get(type_str, "text"))
 
     # Build content - always use preview/summary, never full output

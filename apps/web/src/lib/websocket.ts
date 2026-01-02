@@ -18,7 +18,9 @@ export type WebSocketEventType =
   // Agent events
   | 'agent_status'
   | 'agent_message'
-  | 'agent_workspace';
+  | 'agent_workspace'
+  // Approval events
+  | 'approval_response';
 
 export interface WebSocketMessage {
   event: WebSocketEventType;

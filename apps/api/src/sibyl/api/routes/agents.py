@@ -628,6 +628,333 @@ async def get_agent_workspace(
 
 
 # =============================================================================
+# Heartbeat & Health Monitoring
+# =============================================================================
+
+
+class HeartbeatRequest(BaseModel):
+    """Request to record agent heartbeat."""
+
+    tokens_delta: int = 0
+    cost_delta: float = 0.0
+    current_step: str | None = None
+
+
+class HeartbeatResponse(BaseModel):
+    """Response from heartbeat."""
+
+    success: bool
+    agent_id: str
+    last_heartbeat: str
+
+
+class AgentHealthStatus(StrEnum):
+    """Agent health based on heartbeat recency."""
+
+    HEALTHY = "healthy"
+    STALE = "stale"
+    UNRESPONSIVE = "unresponsive"
+
+
+class AgentHealth(BaseModel):
+    """Health status for a single agent."""
+
+    agent_id: str
+    agent_name: str
+    status: str  # AgentHealthStatus value
+    agent_status: str  # The agent's actual status (working, paused, etc.)
+    last_heartbeat: str | None = None
+    seconds_since_heartbeat: int | None = None
+    project_id: str | None = None
+
+
+class HealthOverviewResponse(BaseModel):
+    """Overview of agent health across the system."""
+
+    agents: list[AgentHealth]
+    total: int
+    healthy: int
+    stale: int
+    unresponsive: int
+
+
+@router.post("/{agent_id}/heartbeat", response_model=HeartbeatResponse)
+async def record_heartbeat(
+    agent_id: str,
+    request: HeartbeatRequest,
+    org: Organization = Depends(get_current_organization),
+) -> HeartbeatResponse:
+    """Record a heartbeat from an agent.
+
+    Called periodically by running agents to indicate liveness.
+    """
+    client = await get_graph_client()
+    manager = EntityManager(client, group_id=str(org.id))
+
+    entity = await manager.get(agent_id)
+    if not entity or entity.entity_type != EntityType.AGENT:
+        raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
+
+    now = datetime.now(UTC)
+    meta = entity.metadata or {}
+
+    # Update heartbeat and accumulate usage metrics
+    updates = {
+        "last_heartbeat": now.isoformat(),
+        "tokens_used": meta.get("tokens_used", 0) + request.tokens_delta,
+        "cost_usd": meta.get("cost_usd", 0.0) + request.cost_delta,
+    }
+    if request.current_step:
+        updates["current_step"] = request.current_step
+
+    await manager.update(agent_id, updates)
+
+    log.debug(
+        "Agent heartbeat recorded",
+        agent_id=agent_id,
+        tokens_delta=request.tokens_delta,
+        cost_delta=request.cost_delta,
+    )
+
+    return HeartbeatResponse(
+        success=True,
+        agent_id=agent_id,
+        last_heartbeat=now.isoformat(),
+    )
+
+
+# Thresholds for health status (in seconds)
+HEARTBEAT_STALE_THRESHOLD = 60  # 1 minute without heartbeat = stale
+HEARTBEAT_UNRESPONSIVE_THRESHOLD = 300  # 5 minutes = unresponsive
+
+
+@router.get("/health/overview", response_model=HealthOverviewResponse)
+async def get_health_overview(
+    project_id: str | None = None,
+    org: Organization = Depends(get_current_organization),
+) -> HealthOverviewResponse:
+    """Get health overview for all running agents.
+
+    Returns health status based on heartbeat recency:
+    - healthy: heartbeat within last 60 seconds
+    - stale: heartbeat 60-300 seconds ago
+    - unresponsive: no heartbeat for 5+ minutes
+    """
+    client = await get_graph_client()
+    manager = EntityManager(client, group_id=str(org.id))
+
+    # Get all agents
+    agents = await manager.list_by_type(entity_type=EntityType.AGENT, limit=100)
+    now = datetime.now(UTC)
+
+    agent_healths: list[AgentHealth] = []
+    healthy = 0
+    stale = 0
+    unresponsive = 0
+
+    # Only check agents that are in active states
+    active_states = (
+        AgentStatus.WORKING.value,
+        AgentStatus.WAITING_APPROVAL.value,
+        AgentStatus.RESUMING.value,
+    )
+
+    for agent in agents:
+        meta = agent.metadata or {}
+        agent_status = meta.get("status", "initializing")
+
+        # Filter by project if specified
+        if project_id and meta.get("project_id") != project_id:
+            continue
+
+        # Skip terminal states for health monitoring
+        terminal_states = (
+            AgentStatus.COMPLETED.value,
+            AgentStatus.FAILED.value,
+            AgentStatus.TERMINATED.value,
+        )
+        if agent_status in terminal_states:
+            continue
+
+        last_heartbeat_str = meta.get("last_heartbeat")
+        seconds_since: int | None = None
+        health_status = AgentHealthStatus.UNRESPONSIVE
+
+        if last_heartbeat_str:
+            last_heartbeat = datetime.fromisoformat(last_heartbeat_str)
+            seconds_since = int((now - last_heartbeat).total_seconds())
+
+            if seconds_since <= HEARTBEAT_STALE_THRESHOLD:
+                health_status = AgentHealthStatus.HEALTHY
+                healthy += 1
+            elif seconds_since <= HEARTBEAT_UNRESPONSIVE_THRESHOLD:
+                health_status = AgentHealthStatus.STALE
+                stale += 1
+            else:
+                health_status = AgentHealthStatus.UNRESPONSIVE
+                unresponsive += 1
+        # No heartbeat ever recorded - check if agent is supposed to be active
+        elif agent_status in active_states:
+            unresponsive += 1
+        else:
+            # Initializing/paused agents without heartbeat are considered healthy
+            health_status = AgentHealthStatus.HEALTHY
+            healthy += 1
+
+        agent_healths.append(
+            AgentHealth(
+                agent_id=agent.id,
+                agent_name=agent.name,
+                status=health_status.value,
+                agent_status=agent_status,
+                last_heartbeat=last_heartbeat_str,
+                seconds_since_heartbeat=seconds_since,
+                project_id=meta.get("project_id"),
+            )
+        )
+
+    return HealthOverviewResponse(
+        agents=agent_healths,
+        total=len(agent_healths),
+        healthy=healthy,
+        stale=stale,
+        unresponsive=unresponsive,
+    )
+
+
+# =============================================================================
+# Activity Feed
+# =============================================================================
+
+
+class ActivityEventType(StrEnum):
+    """Type of activity event."""
+
+    AGENT_SPAWNED = "agent_spawned"
+    AGENT_STARTED = "agent_started"
+    AGENT_COMPLETED = "agent_completed"
+    AGENT_FAILED = "agent_failed"
+    AGENT_PAUSED = "agent_paused"
+    AGENT_TERMINATED = "agent_terminated"
+    AGENT_MESSAGE = "agent_message"
+    APPROVAL_REQUESTED = "approval_requested"
+    APPROVAL_RESPONDED = "approval_responded"
+
+
+class ActivityEvent(BaseModel):
+    """A single activity event."""
+
+    id: str
+    event_type: str
+    agent_id: str
+    agent_name: str | None = None
+    project_id: str | None = None
+    summary: str
+    timestamp: str
+    metadata: dict | None = None
+
+
+class ActivityFeedResponse(BaseModel):
+    """Activity feed response."""
+
+    events: list[ActivityEvent]
+    total: int
+
+
+@router.get("/activity/feed", response_model=ActivityFeedResponse)
+async def get_activity_feed(
+    project_id: str | None = None,
+    limit: int = 50,
+    org: Organization = Depends(get_current_organization),
+) -> ActivityFeedResponse:
+    """Get recent activity across all agents.
+
+    Returns a chronological feed of agent events including status changes,
+    messages, and approval activity.
+    """
+    events: list[ActivityEvent] = []
+
+    # Get recent agent messages from Postgres
+    async with get_session() as session:
+        stmt = (
+            select(DbAgentMessage)
+            .where(col(DbAgentMessage.organization_id) == org.id)
+            .order_by(col(DbAgentMessage.created_at).desc())
+            .limit(limit)
+        )
+        result = await session.execute(stmt)
+        db_messages = result.scalars().all()
+
+        for msg in db_messages:
+            # Summarize message content
+            content_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
+
+            events.append(
+                ActivityEvent(
+                    id=str(msg.id),
+                    event_type=ActivityEventType.AGENT_MESSAGE.value,
+                    agent_id=msg.agent_id,
+                    agent_name=None,  # Would need join to get
+                    project_id=None,  # Would need join to get
+                    summary=f"[{msg.role.value}] {content_preview}",
+                    timestamp=msg.created_at.isoformat() if msg.created_at else "",
+                    metadata={"type": msg.type.value},
+                )
+            )
+
+    # Get recent agent status changes from graph
+    client = await get_graph_client()
+    manager = EntityManager(client, group_id=str(org.id))
+
+    agents = await manager.list_by_type(entity_type=EntityType.AGENT, limit=20)
+    for agent in agents:
+        meta = agent.metadata or {}
+
+        # Filter by project if specified
+        if project_id and meta.get("project_id") != project_id:
+            continue
+
+        status = meta.get("status", "initializing")
+        agent_name = agent.name
+
+        # Map status to event type
+        status_to_event = {
+            "initializing": ActivityEventType.AGENT_SPAWNED,
+            "working": ActivityEventType.AGENT_STARTED,
+            "completed": ActivityEventType.AGENT_COMPLETED,
+            "failed": ActivityEventType.AGENT_FAILED,
+            "paused": ActivityEventType.AGENT_PAUSED,
+            "terminated": ActivityEventType.AGENT_TERMINATED,
+        }
+        event_type = status_to_event.get(status, ActivityEventType.AGENT_SPAWNED)
+
+        timestamp = (
+            meta.get("completed_at")
+            or meta.get("started_at")
+            or (agent.created_at.isoformat() if agent.created_at else None)
+            or ""
+        )
+
+        events.append(
+            ActivityEvent(
+                id=f"{agent.id}-status",
+                event_type=event_type.value,
+                agent_id=agent.id,
+                agent_name=agent_name,
+                project_id=meta.get("project_id"),
+                summary=f"{agent_name} - {status}",
+                timestamp=timestamp,
+                metadata={"status": status, "agent_type": meta.get("agent_type")},
+            )
+        )
+
+    # Sort by timestamp descending (most recent first)
+    events.sort(key=lambda e: e.timestamp or "", reverse=True)
+
+    return ActivityFeedResponse(events=events[:limit], total=len(events))
+
+
+# =============================================================================
 # Helpers
 # =============================================================================
 
