@@ -668,6 +668,17 @@ pre {
   animation: shimmer 2s ease-in-out infinite;
 }
 
+.animate-shimmer-slow {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in oklch, var(--sc-purple) 8%, transparent),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 5s ease-in-out infinite;
+}
+
 .animate-gradient-rotate {
   background-size: 200% 200%;
   animation: gradient-rotate 3s ease infinite;
