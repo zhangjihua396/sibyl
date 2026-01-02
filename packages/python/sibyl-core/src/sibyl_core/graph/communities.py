@@ -364,16 +364,36 @@ class HierarchicalGraphData:
 async def _get_graph_totals(
     client: GraphClient,
     organization_id: str,
+    project_ids: list[str] | None = None,
 ) -> tuple[int, int]:
-    """Get total node and edge counts (no LIMIT) for stats display."""
+    """Get total node and edge counts (no LIMIT) for stats display.
+
+    Args:
+        client: Graph client.
+        organization_id: Organization UUID.
+        project_ids: Optional list of project IDs to filter by.
+
+    Returns:
+        Tuple of (total_nodes, total_edges) matching the filter criteria.
+    """
     total_nodes = 0
     total_edges = 0
 
+    # Build node filter
+    node_filters = ["(n:Episodic OR n:Entity)", "n.group_id = $group_id"]
+    if project_ids:
+        node_filters.append("(n.uuid IN $project_ids OR n.project_id IN $project_ids)")
+    node_where = " AND ".join(node_filters)
+
     try:
+        params: dict[str, str | list[str]] = {"group_id": organization_id}
+        if project_ids:
+            params["project_ids"] = project_ids
+
         result = await client.execute_read_org(
-            "MATCH (n) WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id RETURN count(n) AS cnt",
+            f"MATCH (n) WHERE {node_where} RETURN count(n) AS cnt",
             organization_id,
-            group_id=organization_id,
+            **params,
         )
         if result:
             record = result[0]
@@ -381,12 +401,29 @@ async def _get_graph_totals(
     except Exception as e:
         log.warning("count_nodes_failed", error=str(e))
 
+    # Build edge filter - count edges where both endpoints match the node filter
+    if project_ids:
+        # For project filter, count edges between matching nodes
+        edge_query = f"""
+        MATCH (a)-[r]->(b)
+        WHERE {node_where.replace('n.', 'a.')}
+          AND {node_where.replace('n.', 'b.').replace('$group_id', '$group_id2').replace('$project_ids', '$project_ids2')}
+          AND r.group_id = $group_id
+        RETURN count(r) AS cnt
+        """
+        edge_params: dict[str, str | list[str]] = {
+            "group_id": organization_id,
+            "group_id2": organization_id,
+        }
+        if project_ids:
+            edge_params["project_ids"] = project_ids
+            edge_params["project_ids2"] = project_ids
+    else:
+        edge_query = "MATCH ()-[r]->() WHERE r.group_id = $group_id RETURN count(r) AS cnt"
+        edge_params = {"group_id": organization_id}
+
     try:
-        result = await client.execute_read_org(
-            "MATCH ()-[r]->() WHERE r.group_id = $group_id RETURN count(r) AS cnt",
-            organization_id,
-            group_id=organization_id,
-        )
+        result = await client.execute_read_org(edge_query, organization_id, **edge_params)
         if result:
             record = result[0]
             total_edges = record[0] if isinstance(record, (list, tuple)) else record.get("cnt", 0)
@@ -659,9 +696,16 @@ async def get_hierarchical_graph(
         types=entity_types,
     )
 
-    # Get real totals for stats display
-    total_node_count, total_edge_count = await _get_graph_totals(client, organization_id)
-    log.info("graph_totals_queried", total_nodes=total_node_count, total_edges=total_edge_count)
+    # Get real totals for stats display (filtered by project if specified)
+    total_node_count, total_edge_count = await _get_graph_totals(
+        client, organization_id, project_ids=project_ids
+    )
+    log.info(
+        "graph_totals_queried",
+        total_nodes=total_node_count,
+        total_edges=total_edge_count,
+        filtered_by_projects=bool(project_ids),
+    )
 
     # Check cache for community detection (expensive operation)
     # Cache key includes org only - community structure is org-wide
