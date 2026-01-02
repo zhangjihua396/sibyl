@@ -461,24 +461,12 @@ Priority: {task.priority}
         except CheckpointRestoreError as e:
             raise AgentRunnerError(f"Cannot restore checkpoint: {e}") from e
 
-        # Get original agent record (manager.get returns Entity, construct AgentRecord)
+        # Get original agent record (manager.get returns Entity, use from_entity)
         entity = await self.entity_manager.get(checkpoint.agent_id)
         if not entity or entity.entity_type != EntityType.AGENT:
             raise AgentRunnerError(f"Agent record not found: {checkpoint.agent_id}")
 
-        # Construct AgentRecord from entity metadata
-        agent_meta = entity.metadata or {}
-        agent = AgentRecord(
-            id=entity.id,
-            name=entity.name,
-            entity_type=EntityType.AGENT,
-            agent_type=AgentType(agent_meta.get("agent_type", "general")),
-            status=AgentStatus(agent_meta.get("status", "initializing")),
-            project_id=agent_meta.get("project_id"),
-            task_id=agent_meta.get("task_id"),
-            session_id=agent_meta.get("session_id"),
-            spawn_source=AgentSpawnSource(agent_meta.get("spawn_source", "user")),
-        )
+        agent = AgentRecord.from_entity(entity, self.org_id)
 
         # Update agent status
         await self.entity_manager.update(

@@ -1474,16 +1474,7 @@ async def resume_agent_execution(
             key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC),
         )
 
-        # Construct AgentCheckpoint from entity metadata
-        chkpt_meta = latest_entity.metadata or {}
-        latest_checkpoint = AgentCheckpoint(
-            id=latest_entity.id,
-            name=latest_entity.name,
-            agent_id=chkpt_meta.get("agent_id", ""),
-            session_id=chkpt_meta.get("session_id", ""),
-            conversation_history=chkpt_meta.get("conversation_history", []),
-            current_step=chkpt_meta.get("current_step"),
-        )
+        latest_checkpoint = AgentCheckpoint.from_entity(latest_entity)
 
         # Extract the latest user message as the prompt
         history = latest_checkpoint.conversation_history or []

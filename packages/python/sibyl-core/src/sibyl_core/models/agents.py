@@ -115,6 +115,42 @@ class AgentRecord(Entity):
                 data["content"] = " | ".join(parts)
         return data
 
+    @classmethod
+    def from_entity(cls, entity: Entity, org_id: str) -> "AgentRecord":
+        """Construct AgentRecord from a generic Entity.
+
+        Use this when EntityManager.get() returns a generic Entity and you need
+        a typed AgentRecord. Centralizes conversion logic to avoid missing fields.
+
+        Args:
+            entity: Generic Entity from EntityManager.get()
+            org_id: Organization ID (fallback if not in entity)
+
+        Returns:
+            Typed AgentRecord with all fields populated from entity metadata.
+        """
+        meta = entity.metadata or {}
+        return cls(
+            id=entity.id,
+            name=entity.name,
+            organization_id=entity.organization_id or org_id,
+            entity_type=EntityType.AGENT,
+            agent_type=AgentType(meta.get("agent_type", "general")),
+            status=AgentStatus(meta.get("status", "initializing")),
+            spawn_source=AgentSpawnSource(meta.get("spawn_source", "user")),
+            project_id=meta.get("project_id", ""),
+            task_id=meta.get("task_id"),
+            session_id=meta.get("session_id"),
+            worktree_path=meta.get("worktree_path"),
+            worktree_branch=meta.get("worktree_branch"),
+            initial_prompt=meta.get("initial_prompt", ""),
+            created_by=meta.get("created_by"),
+            checkpoint_id=meta.get("checkpoint_id"),
+            conversation_turns=meta.get("conversation_turns", 0),
+            tokens_used=meta.get("tokens_used", 0),
+            cost_usd=meta.get("cost_usd", 0.0),
+        )
+
 
 class WorktreeStatus(StrEnum):
     """Worktree lifecycle states."""
@@ -284,3 +320,31 @@ class AgentCheckpoint(Entity):
                 step = data.get("current_step", "unknown")
                 data["content"] = f"Step: {step}"
         return data
+
+    @classmethod
+    def from_entity(cls, entity: Entity) -> "AgentCheckpoint":
+        """Construct AgentCheckpoint from a generic Entity.
+
+        Use this when EntityManager.list_by_type() returns generic Entities.
+
+        Args:
+            entity: Generic Entity from EntityManager
+
+        Returns:
+            Typed AgentCheckpoint with all fields populated from entity metadata.
+        """
+        meta = entity.metadata or {}
+        return cls(
+            id=entity.id,
+            name=entity.name,
+            agent_id=meta.get("agent_id", ""),
+            session_id=meta.get("session_id", ""),
+            conversation_history=meta.get("conversation_history", []),
+            pending_tool_calls=meta.get("pending_tool_calls", []),
+            files_modified=meta.get("files_modified", []),
+            uncommitted_changes=meta.get("uncommitted_changes", ""),
+            current_step=meta.get("current_step"),
+            completed_steps=meta.get("completed_steps", []),
+            pending_approval_id=meta.get("pending_approval_id"),
+            waiting_for_task_id=meta.get("waiting_for_task_id"),
+        )
