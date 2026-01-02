@@ -80,19 +80,33 @@ sibyl/
 
 ### Development Commands
 
+**⚡ Always use `moon` for monorepo operations.** Moon handles task orchestration, caching, and
+cross-package dependencies. Never use raw `pnpm`/`uv` commands for lint, test, build, or typecheck.
+
 ```bash
+# Lifecycle
 moon run dev              # Start everything (FalkorDB, API, worker, web)
 moon run stop             # Stop all services
 
-moon run api:test         # Run API tests
-moon run api:lint         # Lint API
-moon run web:dev          # Start frontend only
-moon run core:check       # Lint + typecheck + test core
+# Quality (from any directory)
+moon run :lint            # Lint current project (or all if at root)
+moon run :test            # Test current project
+moon run :typecheck       # Typecheck current project
+moon run :check           # All quality checks (lint + typecheck + test)
 
-# Installation
-moon run install-dev      # Install everything (sibyl, sibyld, skills) - editable
+# Target specific packages
+moon run web:lint         # Lint web app
+moon run api:test         # Test API
+moon run core:check       # Full check on sibyl-core
+
+# Build & Install
+moon run :build           # Build current project
+moon run install-dev      # Install everything editable (sibyl, sibyld, skills)
 moon run install          # Install everything (production)
 ```
+
+**Why moon?** Caches results, runs only what changed, handles dependencies between packages. A bare
+`pnpm lint` won't respect the monorepo graph and may miss cross-package issues.
 
 ### Ports
 
@@ -174,9 +188,10 @@ from sibyl.cli.common import ELECTRIC_PURPLE
 
 ### Monorepo
 
+- **Use `moon run` for everything** - lint, test, build, typecheck. No exceptions.
 - Run from workspace root unless working on isolated package
 - `uv sync` at root syncs all Python deps
-- `moon run` commands for orchestration
+- Raw `pnpm`/`uv` commands bypass moon's caching and dependency graph
 
 ---
 
