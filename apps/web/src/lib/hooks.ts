@@ -1401,11 +1401,14 @@ export function useAgents(params?: {
         }
       : undefined;
 
+  const wsStatus = useConnectionStatus();
+  const isWsConnected = wsStatus === 'connected';
+
   return useQuery({
     queryKey: queryKeys.agents.list(normalized),
     queryFn: () => api.agents.list(normalized),
-    // Fallback polling (WebSocket handles most real-time updates)
-    refetchInterval: 30000,
+    // Only poll when WebSocket is disconnected (WS handles real-time updates)
+    refetchInterval: isWsConnected ? false : 30000,
   });
 }
 
@@ -1652,11 +1655,14 @@ export function useApprovals(params?: {
         }
       : undefined;
 
+  const wsStatus = useConnectionStatus();
+  const isWsConnected = wsStatus === 'connected';
+
   return useQuery({
     queryKey: queryKeys.approvals.list(normalized),
     queryFn: () => api.approvals.list(normalized),
-    // Poll for new approvals
-    refetchInterval: 10000,
+    // Only poll when WebSocket is disconnected (WS handles real-time updates)
+    refetchInterval: isWsConnected ? false : 10000,
   });
 }
 
@@ -1664,11 +1670,14 @@ export function useApprovals(params?: {
  * Fetch pending approvals - convenience hook for the approval queue.
  */
 export function usePendingApprovals(project_id?: string) {
+  const wsStatus = useConnectionStatus();
+  const isWsConnected = wsStatus === 'connected';
+
   return useQuery({
     queryKey: queryKeys.approvals.pending(project_id),
     queryFn: () => api.approvals.pending(project_id ? { project_id } : undefined),
-    // Poll more frequently for pending approvals
-    refetchInterval: 5000,
+    // Only poll when WebSocket is disconnected (WS handles real-time updates)
+    refetchInterval: isWsConnected ? false : 5000,
   });
 }
 
@@ -1741,11 +1750,14 @@ export function useApprovalSubscription() {
  * Fetch cross-agent activity feed.
  */
 export function useActivityFeed(project_id?: string) {
+  const wsStatus = useConnectionStatus();
+  const isWsConnected = wsStatus === 'connected';
+
   return useQuery({
     queryKey: queryKeys.agents.activityFeed(project_id),
     queryFn: () => api.agents.getActivityFeed(project_id ? { project_id } : undefined),
-    // Poll for new activity
-    refetchInterval: 10000,
+    // Only poll when WebSocket is disconnected (WS handles real-time updates)
+    refetchInterval: isWsConnected ? false : 10000,
   });
 }
 
@@ -1753,10 +1765,13 @@ export function useActivityFeed(project_id?: string) {
  * Fetch agent health overview with automatic polling.
  */
 export function useHealthOverview(project_id?: string) {
+  const wsStatus = useConnectionStatus();
+  const isWsConnected = wsStatus === 'connected';
+
   return useQuery({
     queryKey: queryKeys.agents.healthOverview(project_id),
     queryFn: () => api.agents.getHealthOverview(project_id ? { project_id } : undefined),
-    // Poll for health updates every 15s
-    refetchInterval: 15000,
+    // Only poll when WebSocket is disconnected (WS handles real-time updates)
+    refetchInterval: isWsConnected ? false : 15000,
   });
 }
