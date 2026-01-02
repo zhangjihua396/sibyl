@@ -522,21 +522,16 @@ def list_epic_tasks(
         try:
             resolved_id = _validate_epic_id(epic_id)
 
-            # Get all tasks and filter by epic_id
+            # Use epic filter to get tasks with full metadata
             response = await client.explore(
                 mode="list",
                 types=["task"],
+                epic=resolved_id,
+                status=status,
                 limit=limit,
             )
 
             entities = response.get("entities", [])
-
-            # Filter by epic_id
-            entities = [e for e in entities if e.get("metadata", {}).get("epic_id") == resolved_id]
-
-            # Filter by status if specified
-            if status:
-                entities = [e for e in entities if e.get("metadata", {}).get("status") == status]
 
             if json_out:
                 print_json(entities)
