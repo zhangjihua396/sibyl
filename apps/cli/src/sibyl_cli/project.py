@@ -140,7 +140,7 @@ def show_project(
                 mode="list",
                 types=["task"],
                 project=project_id,
-                limit=500,
+                limit=200,
             )
 
             # JSON output (default)
@@ -280,7 +280,7 @@ def project_progress(
                 mode="list",
                 types=["task"],
                 project=project_id,
-                limit=500,
+                limit=200,
             )
             tasks = response.get("entities", [])
 
