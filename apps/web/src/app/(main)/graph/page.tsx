@@ -644,14 +644,14 @@ function GraphPageContent() {
       ctx.moveTo(sx, sy);
       ctx.lineTo(tx, ty);
 
-      // Theme-aware link colors - stronger in light mode for visibility
+      // Theme-aware link colors
       const linkColor = theme === 'neon' ? '#ffffff' : '#2b2540';
       if (isHighlighted) {
-        ctx.strokeStyle = theme === 'neon' ? `${linkColor}50` : `${linkColor}70`;
-        ctx.lineWidth = 1.5;
+        ctx.strokeStyle = theme === 'neon' ? `${linkColor}60` : `${linkColor}80`;
+        ctx.lineWidth = 2;
       } else {
-        ctx.strokeStyle = theme === 'neon' ? `${linkColor}18` : `${linkColor}35`;
-        ctx.lineWidth = theme === 'neon' ? 0.5 : 0.8;
+        ctx.strokeStyle = theme === 'neon' ? `${linkColor}30` : `${linkColor}50`;
+        ctx.lineWidth = 0.8;
       }
       ctx.stroke();
     },
@@ -774,7 +774,7 @@ function GraphPageContent() {
           {/* Graph - key forces re-render when theme changes */}
           {!isLoading && graphData.nodes.length > 0 && (
             <ForceGraph2D
-              key={theme}
+              key={`${theme}-${selectedProjects.join(',')}-${selectedCluster || 'all'}`}
               ref={graphRef as React.MutableRefObject<ForceGraphMethods | undefined>}
               graphData={graphData as { nodes: object[]; links: object[] }}
               nodeLabel={() => ''} // Disable default tooltip - we render labels on canvas
