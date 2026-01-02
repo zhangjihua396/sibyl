@@ -84,37 +84,12 @@ export function EnhancedEmptyState({
 }
 
 // Pre-built empty states for common scenarios
-export function TasksEmptyState({
-  projectName,
-  onCreateTask,
-  onClearFilter,
-}: {
-  projectName?: string;
-  onCreateTask?: () => void;
-  onClearFilter?: () => void;
-}) {
-  if (projectName) {
-    return (
-      <EnhancedEmptyState
-        icon={<List width={40} height={40} className="text-sc-yellow" />}
-        title={`No tasks in ${projectName}`}
-        description="This project doesn't have any tasks yet. Create one to start tracking work."
-        variant="filtered"
-        actions={[
-          ...(onCreateTask ? [{ label: `Add task to ${projectName}`, onClick: onCreateTask }] : []),
-          ...(onClearFilter
-            ? [{ label: 'View all tasks', onClick: onClearFilter, variant: 'secondary' as const }]
-            : []),
-        ]}
-      />
-    );
-  }
-
+export function TasksEmptyState({ onCreateTask }: { onCreateTask?: () => void }) {
   return (
     <EnhancedEmptyState
       icon={<List width={40} height={40} className="text-sc-fg-subtle" />}
-      title="No tasks yet"
-      description="Tasks help you track work across your projects. Press C or use the button below to create your first task."
+      title="No tasks found"
+      description="No tasks match your current filters. Press C or use the button below to create a new task."
       actions={[
         ...(onCreateTask ? [{ label: 'Create Task', onClick: onCreateTask }] : []),
         { label: 'View Projects', href: '/projects', variant: 'secondary' },

@@ -3,7 +3,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useCallback, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Breadcrumb, ROUTE_CONFIG } from '@/components/layout/breadcrumb';
+import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { KanbanBoard } from '@/components/tasks/kanban-board';
 import { type QuickTaskData, QuickTaskModal } from '@/components/tasks/quick-task-modal';
 import { TaskListMobile } from '@/components/tasks/task-list-mobile';
@@ -11,16 +11,18 @@ import { CommandPalette, useKeyboardShortcuts } from '@/components/ui/command-pa
 import { TasksEmptyState } from '@/components/ui/empty-state';
 import { Hash, Search, X } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
-import { FilterChip, TagChip } from '@/components/ui/toggle';
+import { TagChip } from '@/components/ui/toggle';
 import { ErrorState } from '@/components/ui/tooltip';
 import type { TaskStatus } from '@/lib/api';
 import { useCreateEntity, useEpics, useProjects, useTasks, useTaskUpdateStatus } from '@/lib/hooks';
+import { useProjectFilter } from '@/lib/project-context';
 
 function TasksPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const projectFilter = searchParams.get('project') || undefined;
+  // Project filtering is handled by global context (header selector)
+  const projectFilter = useProjectFilter();
   const tagFilter = searchParams.get('tag') || undefined;
 
   // State for modals and search
@@ -80,29 +82,11 @@ function TasksPageContent() {
     return filtered;
   }, [allTasks, tagFilter, searchQuery]);
 
-  // Find current project name for filtered view
-  const currentProjectName = projectFilter
-    ? projects.find(p => p.id === projectFilter)?.name
-    : undefined;
-
   // Keyboard shortcuts
   useKeyboardShortcuts({
     onCommandPalette: () => setIsCommandPaletteOpen(true),
     onCreateTask: () => setIsQuickTaskOpen(true),
   });
-
-  const handleProjectFilter = useCallback(
-    (projectId: string | null) => {
-      const params = new URLSearchParams(searchParams);
-      if (projectId) {
-        params.set('project', projectId);
-      } else {
-        params.delete('project');
-      }
-      router.push(`/tasks?${params.toString()}`);
-    },
-    [router, searchParams]
-  );
 
   const handleTagFilter = useCallback(
     (tag: string | null) => {
@@ -162,18 +146,9 @@ function TasksPageContent() {
     [createEntity]
   );
 
-  // Build breadcrumb items based on filter (only needed when filtering by project)
-  const breadcrumbItems = currentProjectName
-    ? [
-        { label: ROUTE_CONFIG[''].label, href: '/', icon: ROUTE_CONFIG[''].icon },
-        { label: 'Tasks', href: '/tasks', icon: ROUTE_CONFIG.tasks.icon },
-        { label: currentProjectName, icon: ROUTE_CONFIG.projects.icon },
-      ]
-    : undefined;
-
   return (
     <div className="space-y-4 animate-fade-in">
-      <Breadcrumb items={breadcrumbItems} />
+      <Breadcrumb />
 
       {/* Search + Filters */}
       <div className="space-y-2 sm:space-y-3">
@@ -202,55 +177,17 @@ function TasksPageContent() {
           )}
         </div>
 
-        {/* Mobile: Project Dropdown + New Button in row */}
-        <div className="flex sm:hidden items-center gap-2">
-          <select
-            value={projectFilter || ''}
-            onChange={e => handleProjectFilter(e.target.value || null)}
-            className="flex-1 min-w-0 px-3 py-2 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-lg text-sm text-sc-fg-primary focus:border-sc-purple focus:outline-none"
-          >
-            <option value="">All Projects</option>
-            {projects.map(project => (
-              <option key={project.id} value={project.id}>
-                {project.name}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={() => setIsQuickTaskOpen(true)}
-            className="shrink-0 px-3 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm"
-          >
-            <span>+</span>
-            <span>New</span>
-          </button>
-        </div>
-
-        {/* Desktop: Project Filter Chips + New Button */}
-        <div className="hidden sm:flex items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-sc-fg-subtle font-medium">Project:</span>
-            <FilterChip active={!projectFilter} onClick={() => handleProjectFilter(null)}>
-              All
-            </FilterChip>
-            {projects.map(project => (
-              <FilterChip
-                key={project.id}
-                active={projectFilter === project.id}
-                onClick={() => handleProjectFilter(project.id)}
-              >
-                {project.name}
-              </FilterChip>
-            ))}
-          </div>
+        {/* New Task Button */}
+        <div className="flex items-center justify-end">
           <button
             type="button"
             onClick={() => setIsQuickTaskOpen(true)}
             className="shrink-0 px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm"
           >
             <span>+</span>
-            <span>New Task</span>
-            <kbd className="text-xs bg-white/20 px-1.5 py-0.5 rounded ml-1">C</kbd>
+            <span className="hidden sm:inline">New Task</span>
+            <span className="sm:hidden">New</span>
+            <kbd className="hidden sm:inline text-xs bg-white/20 px-1.5 py-0.5 rounded ml-1">C</kbd>
           </button>
         </div>
 
@@ -290,11 +227,7 @@ function TasksPageContent() {
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       ) : tasks.length === 0 && !isLoading ? (
-        <TasksEmptyState
-          projectName={currentProjectName}
-          onCreateTask={() => setIsQuickTaskOpen(true)}
-          onClearFilter={projectFilter ? () => handleProjectFilter(null) : undefined}
-        />
+        <TasksEmptyState onCreateTask={() => setIsQuickTaskOpen(true)} />
       ) : (
         <>
           {/* Mobile: Filtered list with status tabs */}
@@ -302,10 +235,8 @@ function TasksPageContent() {
             <TaskListMobile
               tasks={tasks}
               projects={projects.map(p => ({ id: p.id, name: p.name }))}
-              currentProjectId={projectFilter}
               onStatusChange={handleStatusChange}
               onTaskClick={handleTaskClick}
-              onProjectFilter={handleProjectFilter}
             />
           </div>
 
@@ -315,10 +246,8 @@ function TasksPageContent() {
               tasks={tasks}
               projects={projects.map(p => ({ id: p.id, name: p.name }))}
               isLoading={isLoading}
-              currentProjectId={projectFilter}
               onStatusChange={handleStatusChange}
               onTaskClick={handleTaskClick}
-              onProjectFilter={handleProjectFilter}
             />
           </div>
         </>

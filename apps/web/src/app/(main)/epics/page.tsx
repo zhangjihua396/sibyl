@@ -11,6 +11,7 @@ import { ErrorState } from '@/components/ui/tooltip';
 import type { EpicStatus } from '@/lib/api';
 import { EPIC_STATUS_CONFIG } from '@/lib/constants';
 import { useEpics, useProjects } from '@/lib/hooks';
+import { useProjectFilter } from '@/lib/project-context';
 
 const EPIC_STATUSES: EpicStatus[] = ['planning', 'in_progress', 'blocked', 'completed', 'archived'];
 
@@ -18,7 +19,8 @@ function EpicsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const projectFilter = searchParams.get('project') || undefined;
+  // Project filtering is handled by global context (header selector)
+  const projectFilter = useProjectFilter();
   const statusFilter = (searchParams.get('status') as EpicStatus) || undefined;
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,19 +54,6 @@ function EpicsPageContent() {
     });
   }, [allEpics, searchQuery]);
 
-  const handleProjectFilter = useCallback(
-    (projectId: string | null) => {
-      const params = new URLSearchParams(searchParams);
-      if (projectId) {
-        params.set('project', projectId);
-      } else {
-        params.delete('project');
-      }
-      router.push(`/epics?${params.toString()}`);
-    },
-    [router, searchParams]
-  );
-
   const handleStatusFilter = useCallback(
     (status: EpicStatus | null) => {
       const params = new URLSearchParams(searchParams);
@@ -78,11 +67,6 @@ function EpicsPageContent() {
     [router, searchParams]
   );
 
-  // Find current project name for filtered view
-  const currentProjectName = projectFilter
-    ? projects.find(p => p.id === projectFilter)?.name
-    : undefined;
-
   return (
     <div className="space-y-4 animate-fade-in">
       <Breadcrumb />
@@ -93,9 +77,6 @@ function EpicsPageContent() {
           <h1 className="text-xl font-semibold text-sc-fg-primary flex items-center gap-2">
             <span className="text-[#ffb86c]">◈</span>
             Epics
-            {currentProjectName && (
-              <span className="text-sc-fg-muted font-normal">in {currentProjectName}</span>
-            )}
           </h1>
           <p className="text-sm text-sc-fg-muted mt-1">
             Feature initiatives that group related tasks
@@ -128,23 +109,6 @@ function EpicsPageContent() {
               <X width={14} height={14} />
             </button>
           )}
-        </div>
-
-        {/* Project Filter */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-sc-fg-subtle font-medium">Project:</span>
-          <FilterChip active={!projectFilter} onClick={() => handleProjectFilter(null)}>
-            All
-          </FilterChip>
-          {projects.map(project => (
-            <FilterChip
-              key={project.id}
-              active={projectFilter === project.id}
-              onClick={() => handleProjectFilter(project.id)}
-            >
-              {project.name}
-            </FilterChip>
-          ))}
         </div>
 
         {/* Status Filter */}
@@ -183,13 +147,7 @@ function EpicsPageContent() {
           projectNames={projectNames}
           showProject={!projectFilter}
           isLoading={isLoading}
-          emptyMessage={
-            searchQuery
-              ? 'No epics match your search'
-              : projectFilter
-                ? `No epics in ${currentProjectName || 'this project'}`
-                : 'No epics yet'
-          }
+          emptyMessage={searchQuery ? 'No epics match your search' : 'No epics found'}
         />
       )}
     </div>

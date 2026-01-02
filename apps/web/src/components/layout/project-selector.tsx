@@ -13,7 +13,13 @@ export function ProjectSelector() {
   const { selectedProjects, isAll, toggleProject, clearProjects, selectProject, contextEnabled } =
     useProjectContext();
   const { data: projectsData } = useProjects();
-  const projects = projectsData?.entities ?? [];
+
+  // Sort projects by recency (updated_at from metadata, descending)
+  const projects = [...(projectsData?.entities ?? [])].sort((a, b) => {
+    const aTime = a.metadata?.updated_at ? new Date(a.metadata.updated_at as string).getTime() : 0;
+    const bTime = b.metadata?.updated_at ? new Date(b.metadata.updated_at as string).getTime() : 0;
+    return bTime - aTime;
+  });
 
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);

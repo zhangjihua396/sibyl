@@ -5,6 +5,7 @@ import { memo, useMemo, useState } from 'react';
 import { ArrowDownAZ, Calendar, Sparkles, Zap } from '@/components/ui/icons';
 import type { TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG, type TaskStatusType } from '@/lib/constants';
+import { useProjectContext, useProjectFilter } from '@/lib/project-context';
 import { TaskCard } from './task-card';
 
 // Mobile-friendly status tabs (fewer options for cleaner UX)
@@ -75,21 +76,19 @@ function sortTasks(tasks: TaskSummary[], sortBy: SortOption): TaskSummary[] {
 interface TaskListMobileProps {
   tasks: TaskSummary[];
   projects?: Array<{ id: string; name: string }>;
-  currentProjectId?: string;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
   onTaskClick?: (taskId: string) => void;
-  onProjectFilter?: (projectId: string) => void;
 }
 
 export const TaskListMobile = memo(function TaskListMobile({
   tasks,
   projects,
-  currentProjectId,
   onStatusChange: _onStatusChange,
   onTaskClick,
-  onProjectFilter,
 }: TaskListMobileProps) {
   void _onStatusChange; // Reserved for future use
+  const projectFilter = useProjectFilter();
+  const { selectProject } = useProjectContext();
   const [activeStatus, setActiveStatus] = useState<TaskStatusType>('todo');
   const [sortBy, setSortBy] = useState<SortOption>('priority');
   const [showSortMenu, setShowSortMenu] = useState(false);
@@ -102,7 +101,8 @@ export const TaskListMobile = memo(function TaskListMobile({
     return map;
   }, [projects]);
 
-  const showProjectOnCards = !currentProjectId;
+  // Show project names on cards when viewing all projects
+  const showProjectOnCards = !projectFilter;
 
   // Count tasks per status for badges
   const statusCounts = useMemo(() => {
@@ -252,7 +252,7 @@ export const TaskListMobile = memo(function TaskListMobile({
                     showProject={showProjectOnCards}
                     draggable={false}
                     onClick={onTaskClick}
-                    onProjectClick={onProjectFilter}
+                    onProjectClick={selectProject}
                   />
                 </motion.div>
               );

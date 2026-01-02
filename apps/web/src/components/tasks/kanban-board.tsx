@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/icons';
 import type { TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG, TASK_STATUSES } from '@/lib/constants';
+import { useProjectContext, useProjectFilter } from '@/lib/project-context';
 import { TaskCard, TaskCardSkeleton } from './task-card';
 
 type SortOption = 'priority' | 'due_date' | 'created' | 'name' | 'manual';
@@ -99,10 +100,8 @@ interface KanbanBoardProps {
   tasks: TaskSummary[];
   projects?: Array<{ id: string; name: string }>;
   isLoading?: boolean;
-  currentProjectId?: string;
   onStatusChange?: (taskId: string, newStatus: TaskStatus) => void;
   onTaskClick?: (taskId: string) => void;
-  onProjectFilter?: (projectId: string) => void;
 }
 
 interface KanbanColumnProps {
@@ -347,11 +346,11 @@ export function KanbanBoard({
   tasks,
   projects,
   isLoading,
-  currentProjectId,
   onStatusChange,
   onTaskClick,
-  onProjectFilter,
 }: KanbanBoardProps) {
+  const projectFilter = useProjectFilter();
+  const { selectProject } = useProjectContext();
   const [dragState, setDragState] = useState<{ status: TaskStatus; index: number } | null>(null);
   const [columnSorts, setColumnSorts] = useState<Record<TaskStatus, SortOption>>({
     backlog: 'priority',
@@ -392,7 +391,8 @@ export function KanbanBoard({
     return grouped;
   }, [tasks]);
 
-  const showProjectOnCards = !currentProjectId;
+  // Show project names on cards when viewing all projects
+  const showProjectOnCards = !projectFilter;
 
   const handleDrop = (taskId: string, newStatus: TaskStatus) => {
     onStatusChange?.(taskId, newStatus);
@@ -448,7 +448,7 @@ export function KanbanBoard({
           onSortChange={sort => handleSortChange(status, sort)}
           onDrop={handleDrop}
           onTaskClick={onTaskClick}
-          onProjectClick={onProjectFilter}
+          onProjectClick={selectProject}
           isDragOver={dragState?.status === status}
           dropIndex={dragState?.status === status ? dragState.index : -1}
           onDragOver={handleDragOver}
