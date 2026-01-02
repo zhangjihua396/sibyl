@@ -575,6 +575,8 @@ async def get_cluster_detail(
 @router.get("/hierarchical")
 async def get_hierarchical_graph_data(
     org: Organization = Depends(get_current_organization),
+    projects: list[str] | None = Query(default=None, description="Filter by project IDs"),
+    types: list[EntityType] | None = Query(default=None, description="Filter by entity types"),
     max_nodes: int = Query(default=1000, ge=100, le=2000, description="Maximum nodes"),
     max_edges: int = Query(default=5000, ge=500, le=10000, description="Maximum edges"),
 ) -> dict:
@@ -598,6 +600,8 @@ async def get_hierarchical_graph_data(
         data = await get_hierarchical_graph(
             client,
             group_id,
+            project_ids=projects,
+            entity_types=[t.value for t in types] if types else None,
             max_nodes=max_nodes,
             max_edges=max_edges,
         )

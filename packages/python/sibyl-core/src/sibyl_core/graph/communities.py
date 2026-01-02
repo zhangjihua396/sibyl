@@ -26,6 +26,10 @@ log = structlog.get_logger()
 CLUSTER_CACHE: dict[str, tuple[datetime, list[ClusterSummary]]] = {}
 CLUSTER_CACHE_TTL = timedelta(minutes=5)
 
+# Cache for hierarchical graph community detection (expensive operation)
+HIERARCHICAL_CACHE: dict[str, tuple[datetime, dict[str, str], list[dict]]] = {}
+HIERARCHICAL_CACHE_TTL = timedelta(minutes=5)
+
 
 @dataclass
 class ClusterSummary:
@@ -317,6 +321,20 @@ def invalidate_cluster_cache(organization_id: str | None = None) -> None:
         log.debug("cluster_cache_cleared")
 
 
+def invalidate_hierarchical_cache(organization_id: str | None = None) -> None:
+    """Invalidate hierarchical graph cache for an organization or all.
+
+    Args:
+        organization_id: Specific org to invalidate, or None for all.
+    """
+    if organization_id:
+        HIERARCHICAL_CACHE.pop(organization_id, None)
+        log.debug("hierarchical_cache_invalidated", org_id=organization_id)
+    else:
+        HIERARCHICAL_CACHE.clear()
+        log.debug("hierarchical_cache_cleared")
+
+
 # =============================================================================
 # Hierarchical Graph Data for Rich Visualization
 # =============================================================================
@@ -432,22 +450,42 @@ async def _fetch_graph_nodes(
     organization_id: str,
     node_to_cluster: dict[str, str],
     max_nodes: int,
+    project_ids: list[str] | None = None,
+    entity_types: list[str] | None = None,
 ) -> tuple[list[dict[str, Any]], set[str]]:
-    """Fetch nodes with cluster assignments."""
-    query = """
+    """Fetch nodes with cluster assignments, optionally filtered by project/type."""
+    # Build dynamic WHERE clauses
+    filters = ["(n:Episodic OR n:Entity)", "n.group_id = $group_id"]
+
+    if project_ids:
+        # Filter to nodes belonging to specified projects
+        # This matches: project nodes themselves, tasks with project_id, or entities linked to projects
+        filters.append(
+            "(n.uuid IN $project_ids OR n.project_id IN $project_ids OR "
+            "EXISTS((n)-[:BELONGS_TO]->(:Entity {entity_type: 'project', uuid: $project_ids[0]})))"
+        )
+
+    if entity_types:
+        type_list = ", ".join(f"'{t}'" for t in entity_types)
+        filters.append(f"n.entity_type IN [{type_list}]")
+
+    where_clause = " AND ".join(filters)
+    query = f"""
     MATCH (n)
-    WHERE (n:Episodic OR n:Entity) AND n.group_id = $group_id
+    WHERE {where_clause}
     RETURN n.uuid AS id, n.name AS name, n.entity_type AS type,
-           n.summary AS summary, n.labels AS labels
+           n.summary AS summary, n.labels AS labels, n.project_id AS project_id
     LIMIT $limit
     """
     nodes: list[dict[str, Any]] = []
     node_ids: set[str] = set()
 
     try:
-        result = await client.execute_read_org(
-            query, organization_id, group_id=organization_id, limit=max_nodes
-        )
+        params: dict[str, Any] = {"group_id": organization_id, "limit": max_nodes}
+        if project_ids:
+            params["project_ids"] = project_ids
+
+        result = await client.execute_read_org(query, organization_id, **params)
         for record in result:
             if isinstance(record, (list, tuple)):
                 node_id = record[0] if len(record) > 0 else None
@@ -586,6 +624,8 @@ def _build_cluster_metadata(
 async def get_hierarchical_graph(
     client: GraphClient,
     organization_id: str,
+    project_ids: list[str] | None = None,
+    entity_types: list[str] | None = None,
     max_nodes: int = 1000,
     max_edges: int = 5000,
 ) -> HierarchicalGraphData:
@@ -597,52 +637,83 @@ async def get_hierarchical_graph(
     Args:
         client: Graph client.
         organization_id: Organization UUID.
+        project_ids: Optional list of project IDs to filter by.
+        entity_types: Optional list of entity types to filter by.
         max_nodes: Maximum nodes to return (will sample if exceeded).
         max_edges: Maximum edges to return.
 
     Returns:
         HierarchicalGraphData with nodes, edges, and cluster metadata.
     """
-    log.info("get_hierarchical_graph_start", org_id=organization_id, max_nodes=max_nodes)
+    log.info(
+        "get_hierarchical_graph_start",
+        org_id=organization_id,
+        max_nodes=max_nodes,
+        projects=project_ids,
+        types=entity_types,
+    )
 
     # Get real totals for stats display
     total_node_count, total_edge_count = await _get_graph_totals(client, organization_id)
     log.info("graph_totals_queried", total_nodes=total_node_count, total_edges=total_edge_count)
 
-    # Get cluster assignments via community detection
+    # Check cache for community detection (expensive operation)
+    # Cache key includes org only - community structure is org-wide
+    cache_key = organization_id
     node_to_cluster: dict[str, str] = {}
     clusters_meta: list[dict[str, Any]] = []
 
-    try:
-        detected = await detect_communities(
-            client,
-            organization_id,
-            config=CommunityConfig(
-                resolutions=[1.0], min_community_size=2, max_levels=1, store_in_graph=False
-            ),
-            algorithm="louvain",
-        )
-        if detected:
-            for community in detected:
-                for member_id in community.member_ids:
-                    node_to_cluster[member_id] = community.id
-            clusters_meta = [
-                {"id": c.id, "member_count": c.member_count, "level": c.level} for c in detected
-            ]
-            log.info(
-                "community_detection_success",
-                clusters=len(detected),
-                assigned_nodes=len(node_to_cluster),
-            )
+    if cache_key in HIERARCHICAL_CACHE:
+        cached_at, cached_clusters, cached_meta = HIERARCHICAL_CACHE[cache_key]
+        if datetime.now(UTC) - cached_at < HIERARCHICAL_CACHE_TTL:
+            log.info("hierarchical_cache_hit", org_id=organization_id)
+            node_to_cluster = cached_clusters
+            clusters_meta = cached_meta
         else:
-            log.warning("community_detection_empty", msg="no communities detected")
-    except ImportError:
-        log.warning("networkx_not_available", msg="community detection unavailable")
-    except Exception as e:
-        log.warning("community_detection_failed", error=str(e))
+            log.debug("hierarchical_cache_expired", org_id=organization_id)
 
-    # Fetch nodes and edges
-    nodes, node_ids = await _fetch_graph_nodes(client, organization_id, node_to_cluster, max_nodes)
+    # Run community detection if not cached
+    if not node_to_cluster:
+        try:
+            detected = await detect_communities(
+                client,
+                organization_id,
+                config=CommunityConfig(
+                    resolutions=[1.0], min_community_size=2, max_levels=1, store_in_graph=False
+                ),
+                algorithm="louvain",
+            )
+            if detected:
+                for community in detected:
+                    for member_id in community.member_ids:
+                        node_to_cluster[member_id] = community.id
+                clusters_meta = [
+                    {"id": c.id, "member_count": c.member_count, "level": c.level}
+                    for c in detected
+                ]
+                log.info(
+                    "community_detection_success",
+                    clusters=len(detected),
+                    assigned_nodes=len(node_to_cluster),
+                )
+                # Cache the result
+                HIERARCHICAL_CACHE[cache_key] = (datetime.now(UTC), node_to_cluster, clusters_meta)
+            else:
+                log.warning("community_detection_empty", msg="no communities detected")
+        except ImportError:
+            log.warning("networkx_not_available", msg="community detection unavailable")
+        except Exception as e:
+            log.warning("community_detection_failed", error=str(e))
+
+    # Fetch nodes and edges with optional project/type filtering
+    nodes, node_ids = await _fetch_graph_nodes(
+        client,
+        organization_id,
+        node_to_cluster,
+        max_nodes,
+        project_ids=project_ids,
+        entity_types=entity_types,
+    )
     edges = await _fetch_graph_edges(client, organization_id, node_ids, max_edges)
 
     # Build cluster metadata
