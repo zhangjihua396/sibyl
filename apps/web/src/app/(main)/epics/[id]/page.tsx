@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { use, useMemo } from 'react';
+import { RelatedEntitiesSection } from '@/components/entities/related-entities-section';
 import { EntityBreadcrumb } from '@/components/layout/breadcrumb';
 import { CheckCircle, Clock, Layers, Pause, Target, Zap } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
@@ -266,6 +267,19 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
           </div>
         )}
       </div>
+
+      {/* Related Entities Section */}
+      {epic.related && epic.related.length > 0 && (
+        <div className="bg-sc-bg-base border border-sc-fg-subtle/10 rounded-xl p-4">
+          <RelatedEntitiesSection
+            entityId={epic.id}
+            entityName={epic.name}
+            entityType="epic"
+            related={epic.related}
+            title="Related Entities"
+          />
+        </div>
+      )}
     </div>
   );
 }
