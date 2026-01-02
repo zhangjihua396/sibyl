@@ -106,9 +106,10 @@ export function ChatPanel({
   // Placeholder text based on agent state
   const getPlaceholder = () => {
     if (isAgentWorking) return 'Agent is working... you can still send messages';
-    if (agentStatus === 'paused') return 'Agent is paused. Resume to continue...';
-    if (agentStatus === 'completed') return 'Agent has completed. Start a new task...';
-    if (agentStatus === 'failed') return 'Agent encountered an error...';
+    if (agentStatus === 'paused') return 'Agent is paused. Click ▶ to resume...';
+    if (agentStatus === 'completed') return 'Session ended. Send a message to continue...';
+    if (agentStatus === 'failed') return 'Agent failed. Send a message to retry...';
+    if (agentStatus === 'terminated') return 'Session stopped. Send a message to continue...';
     return 'Send a message to the agent...';
   };
 

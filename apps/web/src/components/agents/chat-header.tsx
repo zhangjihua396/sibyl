@@ -111,13 +111,13 @@ export function AgentHeader({ agent }: AgentHeaderProps) {
               <Pause width={14} height={14} />
             </button>
           )}
-          {isPaused && (
+          {(isPaused || isTerminal) && (
             <button
               type="button"
               onClick={() => resumeAgent.mutate(agent.id)}
               className="p-1.5 text-sc-green hover:bg-sc-green/10 rounded transition-all duration-200 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:pointer-events-none"
               disabled={resumeAgent.isPending}
-              title="Resume"
+              title={isTerminal ? 'Continue Session' : 'Resume'}
             >
               <Play width={14} height={14} />
             </button>

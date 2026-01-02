@@ -350,7 +350,11 @@ async def resume_agent(
     agent_id: str,
     org: Organization = Depends(get_current_organization),
 ) -> AgentActionResponse:
-    """Resume a paused agent."""
+    """Resume an agent from paused or terminal state.
+
+    Allows continuing sessions even after completion, failure, or termination.
+    The agent will be restarted from its last checkpoint.
+    """
     client = await get_graph_client()
     manager = EntityManager(client, group_id=str(org.id))
 
@@ -359,17 +363,28 @@ async def resume_agent(
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
     agent_status = (entity.metadata or {}).get("status", "initializing")
-    if agent_status != AgentStatus.PAUSED.value:
+
+    # Allow resuming from paused or terminal states
+    resumable_states = (
+        AgentStatus.PAUSED.value,
+        AgentStatus.COMPLETED.value,
+        AgentStatus.FAILED.value,
+        AgentStatus.TERMINATED.value,
+    )
+    if agent_status not in resumable_states:
         raise HTTPException(
             status_code=400,
             detail=f"Cannot resume agent in {agent_status} status",
         )
 
+    # Clear terminal/paused state fields when resuming
     await manager.update(
         agent_id,
         {
             "status": AgentStatus.RESUMING.value,
             "paused_reason": None,
+            "error": None,
+            "completed_at": None,
         },
     )
 
@@ -511,10 +526,20 @@ async def send_agent_message(
         AgentStatus.FAILED.value,
         AgentStatus.TERMINATED.value,
     )
+    # Auto-resume terminal agents when user sends a message
     if agent_status in terminal_states:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Cannot send message to agent in {agent_status} status",
+        await manager.update(
+            agent_id,
+            {
+                "status": AgentStatus.RESUMING.value,
+                "error": None,
+                "completed_at": None,
+            },
+        )
+        log.info(
+            "Auto-resumed terminal agent for user message",
+            agent_id=agent_id,
+            previous_status=agent_status,
         )
 
     # Generate message ID
