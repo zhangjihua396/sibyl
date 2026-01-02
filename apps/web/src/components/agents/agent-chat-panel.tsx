@@ -35,6 +35,7 @@ import {
   usePauseAgent,
   useResumeAgent,
   useSendAgentMessage,
+  useStatusHints,
   useTerminateAgent,
 } from '@/lib/hooks';
 import { ToolContentRenderer } from './tool-renderers';
@@ -347,9 +348,10 @@ interface ToolMessageProps {
   message: ChatMessage;
   result?: ChatMessage; // Paired result for tool calls
   isNew?: boolean; // For entrance animation
+  tier3Hint?: string; // Haiku-generated contextual hint (overrides Tier 2)
 }
 
-function ToolMessage({ message, result, isNew = false }: ToolMessageProps) {
+function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolMessageProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -358,11 +360,14 @@ function ToolMessage({ message, result, isNew = false }: ToolMessageProps) {
   const Icon = iconName ? TOOL_ICONS[iconName] : Code;
   const input = message.metadata?.input as Record<string, unknown> | undefined;
 
-  // Memoize playful status so it doesn't change on re-render
+  // Memoize Tier 2 playful status so it doesn't change on re-render
   const playfulStatus = useMemo(
     () => (toolName ? getToolStatus(toolName, input) : null),
     [toolName, input]
   );
+
+  // Tier 3 hint overrides Tier 2 when available
+  const displayHint = tier3Hint || playfulStatus;
 
   // For results, check error status
   const resultError = result?.metadata?.is_error as boolean | undefined;
@@ -413,9 +418,9 @@ function ToolMessage({ message, result, isNew = false }: ToolMessageProps) {
           {toolName || 'Tool'}
         </span>
         <span className="text-sc-fg-muted truncate flex-1 min-w-0 group-hover:text-sc-fg-primary transition-colors duration-200">
-          {/* Show playful status when pending, raw content when complete */}
-          {!hasResult && playfulStatus ? (
-            <span className="italic">{playfulStatus}</span>
+          {/* Show contextual hint when pending (Tier 3 > Tier 2), raw content when complete */}
+          {!hasResult && displayHint ? (
+            <span className="italic">{displayHint}</span>
           ) : (
             message.content
           )}
@@ -816,16 +821,19 @@ interface ChatMessageComponentProps {
   message: ChatMessage;
   pairedResult?: ChatMessage; // For tool_call messages, the matching result
   isNew?: boolean;
+  statusHints?: Map<string, string>; // Tier 3 Haiku hints by tool_id
 }
 
-function ChatMessageComponent({ message, pairedResult, isNew = false }: ChatMessageComponentProps) {
+function ChatMessageComponent({ message, pairedResult, isNew = false, statusHints }: ChatMessageComponentProps) {
   const isAgent = message.role === 'agent';
   const isSystem = message.role === 'system';
   const isToolCall = message.type === 'tool_call';
 
   // Tool calls render with their paired result
   if (isToolCall) {
-    return <ToolMessage message={message} result={pairedResult} isNew={isNew} />;
+    const toolId = message.metadata?.tool_id as string | undefined;
+    const tier3Hint = toolId ? statusHints?.get(toolId) : undefined;
+    return <ToolMessage message={message} result={pairedResult} isNew={isNew} tier3Hint={tier3Hint} />;
   }
 
   // System messages - compact with subtle animation
@@ -1042,12 +1050,14 @@ function ChatPanel({
   isAgentWorking,
   agentName,
   agentStatus,
+  statusHints,
 }: {
   messages: ChatMessage[];
   onSendMessage: (content: string) => void;
   isAgentWorking: boolean;
   agentName: string;
   agentStatus: string;
+  statusHints: Map<string, string>;
 }) {
   const [inputValue, setInputValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
@@ -1181,6 +1191,7 @@ function ChatPanel({
               message={group.message}
               pairedResult={group.pairedResult}
               isNew={newMessageIds.current.has(group.message.id)}
+              statusHints={statusHints}
             />
           );
         })}
@@ -1239,6 +1250,9 @@ export function AgentChatPanel({ agent }: { agent: Agent }) {
   const { data: messagesData } = useAgentMessages(agent.id);
   const sendMessage = useSendAgentMessage();
 
+  // Tier 3 status hints from Haiku (via WebSocket)
+  const statusHints = useStatusHints(agent.id);
+
   // Check if agent is actively working
   const isAgentWorking = ['initializing', 'working', 'resuming'].includes(agent.status);
 
@@ -1271,6 +1285,7 @@ export function AgentChatPanel({ agent }: { agent: Agent }) {
         isAgentWorking={isAgentWorking}
         agentName={agent.name}
         agentStatus={agent.status}
+        statusHints={statusHints}
       />
     </div>
   );

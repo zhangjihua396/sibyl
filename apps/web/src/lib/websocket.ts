@@ -83,6 +83,13 @@ export interface ApprovalResponsePayload {
   message?: string;
 }
 
+/** Status hint payload (Tier 3 Haiku-generated hints) */
+export interface StatusHintPayload {
+  agent_id: string;
+  tool_call_id: string;
+  hint: string;
+}
+
 /** Map event types to their payload types */
 export interface WebSocketEventPayloadMap {
   entity_created: EntityEventPayload;
@@ -99,6 +106,7 @@ export interface WebSocketEventPayloadMap {
   agent_message: AgentMessagePayload;
   agent_workspace: AgentWorkspacePayload;
   approval_response: ApprovalResponsePayload;
+  status_hint: StatusHintPayload;
 }
 
 export type WebSocketEventType = keyof WebSocketEventPayloadMap;

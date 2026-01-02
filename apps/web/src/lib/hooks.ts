@@ -1564,6 +1564,37 @@ export function useAgentSubscription(agentId: string | undefined) {
   }, [agentId, queryClient]);
 }
 
+/**
+ * Subscribe to Tier 3 Haiku-generated status hints for an agent.
+ * Returns a Map of tool_call_id → hint that updates in real-time.
+ */
+export function useStatusHints(agentId: string | undefined) {
+  const [hints, setHints] = useState<Map<string, string>>(new Map());
+
+  useEffect(() => {
+    if (!agentId) return;
+
+    wsClient.connect();
+
+    const unsub = wsClient.on('status_hint', data => {
+      if (data.agent_id === agentId && data.tool_call_id && data.hint) {
+        setHints(prev => {
+          const next = new Map(prev);
+          next.set(data.tool_call_id, data.hint);
+          return next;
+        });
+      }
+    });
+
+    return () => {
+      unsub();
+      setHints(new Map()); // Clear hints on unmount
+    };
+  }, [agentId]);
+
+  return hints;
+}
+
 // =============================================================================
 // Approval Hooks (Human-in-the-Loop)
 // =============================================================================
