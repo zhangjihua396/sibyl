@@ -1,5 +1,6 @@
 """Task management models for the knowledge graph."""
 
+import uuid
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any
@@ -322,7 +323,7 @@ class Milestone(Entity):
 class TimeEntry(BaseModel):
     """Time tracking entry for tasks."""
 
-    id: str = Field(default_factory=lambda: str(id(object())), description="Entry ID")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), description="Entry ID")
     task_id: str = Field(..., description="Associated task UUID")
     user: str = Field(..., description="User who performed the work")
     duration_minutes: int = Field(..., description="Duration in minutes")
