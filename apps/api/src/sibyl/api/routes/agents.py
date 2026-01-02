@@ -352,7 +352,7 @@ async def spawn_agent(
         # Try to clean up the entity we created
         with contextlib.suppress(Exception):
             await manager.delete(agent_id)
-        raise HTTPException(status_code=500, detail=str(e)) from e
+        raise HTTPException(status_code=500, detail="Failed to spawn agent") from e
 
 
 @router.post("/{agent_id}/pause", response_model=AgentActionResponse)
