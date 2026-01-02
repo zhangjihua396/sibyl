@@ -474,8 +474,8 @@ class TestEstimateTaskEffort:
         result = await task_manager.estimate_task_effort(sample_task)
 
         assert len(result.similar_tasks) >= 1
-        assert result.similar_tasks[0]["id"] == "task_ref"
-        assert result.similar_tasks[0]["hours"] == 5.0
+        assert result.similar_tasks[0].task_id == "task_ref"
+        assert result.similar_tasks[0].actual_hours == 5.0
 
 
 class TestGetTaskDependencies:

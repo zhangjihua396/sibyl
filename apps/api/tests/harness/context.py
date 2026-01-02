@@ -68,14 +68,25 @@ class ToolTestContext:
             return self.graph_client
 
         patches = [
-            # Core tools
-            patch("sibyl_core.tools.core.get_graph_client", async_get_graph_client),
-            patch("sibyl_core.tools.core.EntityManager", make_entity_manager),
-            patch("sibyl_core.tools.core.RelationshipManager", make_relationship_manager),
-            # Manage tools
+            # Patch at the module level where tools import from
+            # Search tool
+            patch("sibyl_core.tools.search.get_graph_client", async_get_graph_client),
+            patch("sibyl_core.tools.search.EntityManager", make_entity_manager),
+            # Explore tool
+            patch("sibyl_core.tools.explore.get_graph_client", async_get_graph_client),
+            patch("sibyl_core.tools.explore.EntityManager", make_entity_manager),
+            patch("sibyl_core.tools.explore.RelationshipManager", make_relationship_manager),
+            # Add tool
+            patch("sibyl_core.tools.add.get_graph_client", async_get_graph_client),
+            patch("sibyl_core.tools.add.EntityManager", make_entity_manager),
+            patch("sibyl_core.tools.add.RelationshipManager", make_relationship_manager),
+            # Manage tool
             patch("sibyl_core.tools.manage.get_graph_client", async_get_graph_client),
             patch("sibyl_core.tools.manage.EntityManager", make_entity_manager),
             patch("sibyl_core.tools.manage.RelationshipManager", make_relationship_manager),
+            # Health tool
+            patch("sibyl_core.tools.health.get_graph_client", async_get_graph_client),
+            patch("sibyl_core.tools.health.EntityManager", make_entity_manager),
         ]
 
         for p in patches:
@@ -122,8 +133,11 @@ async def mock_graph_connected() -> AsyncGenerator[MockGraphClient]:
         return client
 
     with (
-        patch("sibyl_core.tools.core.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.search.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.explore.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.add.get_graph_client", async_get_client),
         patch("sibyl_core.tools.manage.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.health.get_graph_client", async_get_client),
         patch("sibyl_core.tools.admin.get_graph_client", async_get_client),
     ):
         yield client
@@ -142,8 +156,11 @@ async def mock_graph_disconnected() -> AsyncGenerator[MockGraphClient]:
         return client
 
     with (
-        patch("sibyl_core.tools.core.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.search.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.explore.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.add.get_graph_client", async_get_client),
         patch("sibyl_core.tools.manage.get_graph_client", async_get_client),
+        patch("sibyl_core.tools.health.get_graph_client", async_get_client),
         patch("sibyl_core.tools.admin.get_graph_client", async_get_client),
     ):
         yield client

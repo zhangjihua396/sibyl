@@ -534,7 +534,7 @@ class TestGetHealth:
         async def failing_client() -> None:
             raise ConnectionError("Cannot connect to FalkorDB")
 
-        with patch("sibyl_core.tools.core.get_graph_client", failing_client):
+        with patch("sibyl_core.tools.health.get_graph_client", failing_client):
             result = await get_health()
 
             assert result["status"] == "unhealthy"
@@ -565,9 +565,9 @@ class TestGetStats:
         )
 
         with (
-            patch("sibyl_core.tools.core.get_graph_client", AsyncMock(return_value=mock_client)),
+            patch("sibyl_core.tools.health.get_graph_client", AsyncMock(return_value=mock_client)),
             patch(
-                "sibyl_core.tools.core.GraphClient.normalize_result",
+                "sibyl_core.tools.health.GraphClient.normalize_result",
                 return_value=[
                     {"type": "pattern", "count": 10},
                     {"type": "rule", "count": 5},
