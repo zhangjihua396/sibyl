@@ -28,6 +28,32 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 
+# Regex to strip markdown link syntax from headings
+# Matches: [text](url "title") or [text](url) - keeps just 'text'
+# Also handles inline anchor links like: Text[​](url "Direct link")
+_MARKDOWN_LINK_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+# Version badges like v0.41.0 attached to text
+_VERSION_BADGE_RE = re.compile(r"v\d+\.\d+(?:\.\d+)?$")
+
+
+def _clean_heading(text: str) -> str:
+    """Clean markdown cruft from heading text.
+
+    Removes:
+    - Markdown links: [text](url) -> text
+    - Anchor links: Text[​](url "Direct link") -> Text
+    - Version badges: Locationsv0.41.0 -> Locations
+    - Zero-width spaces and extra whitespace
+    """
+    # Remove markdown links, keeping link text
+    text = _MARKDOWN_LINK_RE.sub(r"\1", text)
+    # Remove zero-width spaces (often in anchor links)
+    text = text.replace("\u200b", "")
+    # Remove trailing version badges
+    text = _VERSION_BADGE_RE.sub("", text)
+    # Clean up whitespace
+    return text.strip()
+
 
 class ChunkStrategy(StrEnum):
     """Available chunking strategies."""
@@ -197,7 +223,7 @@ class DocumentChunker:
 
                 # Update heading stack
                 level = len(line) - len(line.lstrip("#"))
-                heading_text = line.lstrip("#").strip()
+                heading_text = _clean_heading(line.lstrip("#").strip())
 
                 # Pop headings at same or lower level
                 while current_headings and len(current_headings) >= level:

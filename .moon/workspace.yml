@@ -5,11 +5,6 @@ vcs:
   manager: git
   defaultBranch: main
 
-# Only allow node to auto-install deps; Python handled by root:sync task
-pipeline:
-  installDependencies:
-    - node
-
 projects:
   root: "."
   api: "apps/api"
