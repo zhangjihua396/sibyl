@@ -318,6 +318,24 @@ class GraphClient:
             if "already indexed" not in str(e).lower() and "exists" not in str(e).lower():
                 log.debug("Vector index creation note", error=str(e))
 
+        # Create composite indexes for common query patterns
+        composite_indexes = [
+            # Task queries by project and status (most common filter combo)
+            "CREATE INDEX FOR (n:Entity) ON (n.project_id, n.status)",
+            # Entity type filtering (used in almost every query)
+            "CREATE INDEX FOR (n:Entity) ON (n.entity_type)",
+            # Episodic node type filtering
+            "CREATE INDEX FOR (n:Episodic) ON (n.entity_type)",
+        ]
+        for idx_query in composite_indexes:
+            try:
+                async with self.write_lock:
+                    await driver.execute_query(idx_query)
+            except Exception as e:
+                # Index likely already exists - this is fine
+                if "already indexed" not in str(e).lower() and "exists" not in str(e).lower():
+                    log.debug("Index creation note", query=idx_query, error=str(e))
+
     async def execute_read(self, query: str, **params: object) -> list[dict]:  # type: ignore[type-arg]
         """Execute a read query on the default graph. DEPRECATED for multi-tenant ops.
 
