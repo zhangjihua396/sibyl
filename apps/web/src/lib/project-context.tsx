@@ -8,6 +8,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -71,13 +72,22 @@ export function ProjectContextProvider({ children }: { children: ReactNode }) {
 
   const isAll = selectedProjects.length === 0;
 
-  // Sync to localStorage and URL when selection changes
+  // Sync to localStorage when selection changes
   useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(selectedProjects));
     }
+  }, [selectedProjects]);
 
-    // Update URL for shareable links
+  // Sync URL when selection changes (separate effect to avoid loop)
+  const prevProjectsRef = useRef<string[]>(selectedProjects);
+  useEffect(() => {
+    // Only update URL if state actually changed (not from URL sync)
+    if (JSON.stringify(prevProjectsRef.current) === JSON.stringify(selectedProjects)) {
+      return;
+    }
+    prevProjectsRef.current = selectedProjects;
+
     const params = new URLSearchParams(searchParams);
     params.delete('project'); // Remove legacy single 'project' param
 
@@ -112,17 +122,14 @@ export function ProjectContextProvider({ children }: { children: ReactNode }) {
   // Sync from URL on navigation (when URL changes externally)
   useEffect(() => {
     const urlProjects = searchParams.get('projects');
-    if (urlProjects) {
-      const projects = urlProjects.split(',').filter(Boolean);
-      // Only update if different from current state (prevents loop)
-      if (JSON.stringify(projects) !== JSON.stringify(selectedProjects)) {
-        setSelectedProjectsState(projects);
-      }
-    } else if (selectedProjects.length > 0 && !searchParams.has('projects')) {
-      // URL was cleared externally (e.g., back button) - sync state
-      setSelectedProjectsState([]);
+    const projects = urlProjects ? urlProjects.split(',').filter(Boolean) : [];
+
+    // Only sync if URL projects differ from our tracked state (use ref to avoid deps)
+    if (JSON.stringify(projects) !== JSON.stringify(prevProjectsRef.current)) {
+      prevProjectsRef.current = projects;
+      setSelectedProjectsState(projects);
     }
-  }, [searchParams, selectedProjects]);
+  }, [searchParams]);
 
   const value = useMemo(
     () => ({
