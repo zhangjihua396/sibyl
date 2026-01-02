@@ -5,6 +5,7 @@ and distributes tasks across multiple concurrent agents.
 """
 
 import asyncio
+import contextlib
 import logging
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
@@ -116,9 +117,12 @@ class AgentOrchestrator:
         logger.info("Stopping orchestrator")
         self._running = False
 
-        # Cancel health check
+        # Cancel health check and await cleanup
         if self._health_check_task:
             self._health_check_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await self._health_check_task
+            self._health_check_task = None
 
         # Checkpoint and stop all active agents
         active_agents = await self.runner.list_active()

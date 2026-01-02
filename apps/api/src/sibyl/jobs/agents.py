@@ -17,6 +17,25 @@ from sibyl.db import AgentMessage, AgentMessageRole, AgentMessageType, get_sessi
 log = structlog.get_logger()
 
 
+def _fire_and_forget(coro: Any, *, name: str = "task") -> asyncio.Task[Any]:
+    """Create a fire-and-forget task with error logging.
+
+    Unlike bare asyncio.create_task(), this logs exceptions instead of
+    silently swallowing them.
+    """
+
+    def _log_exception(task: asyncio.Task[Any]) -> None:
+        if task.cancelled():
+            return
+        exc = task.exception()
+        if exc:
+            log.error(f"Fire-and-forget task '{name}' failed", error=str(exc), exc_info=exc)
+
+    task = asyncio.create_task(coro)
+    task.add_done_callback(_log_exception)
+    return task
+
+
 def _is_valid_uuid(value: str | None) -> bool:
     """Check if a string is a valid UUID."""
     if not value:
@@ -367,7 +386,7 @@ async def run_agent_execution(  # noqa: PLR0915
                 # Generate and broadcast Tier 3 status hint (fire-and-forget)
                 tool_id = formatted.get("tool_id")
                 tool_input = formatted.get("input")
-                _ = asyncio.create_task(  # noqa: RUF006 - fire-and-forget intentional
+                _fire_and_forget(
                     _generate_and_broadcast_status_hint(
                         agent_id=agent_id,
                         tool_call_id=tool_id,
@@ -376,7 +395,8 @@ async def run_agent_execution(  # noqa: PLR0915
                         task_id=task_id,
                         agent_type=agent_type,
                         org_id=org_id,
-                    )
+                    ),
+                    name="status_hint",
                 )
 
             # Keep last meaningful content for summary
@@ -563,12 +583,14 @@ async def resume_agent_execution(  # noqa: PLR0915
             project_id=project_id,
         )
 
-        # Resume using agent's session_id - Claude handles conversation history
-        instance = await runner.resume_agent(
-            agent_id=agent_id,
-            session_id=session_id,
-            prompt=prompt,
-            enable_approvals=True,
+        # Update agent status to working BEFORE resuming (so page refreshes see correct state)
+        # Also update heartbeat to avoid "unresponsive" display
+        await manager.update(
+            agent_id,
+            {
+                "status": AgentStatus.WORKING.value,
+                "last_heartbeat": datetime.now(UTC).isoformat(),
+            },
         )
 
         # Broadcast that agent is now working
@@ -578,8 +600,27 @@ async def resume_agent_execution(  # noqa: PLR0915
             org_id=org_id,
         )
 
-        # Track execution state
-        message_count = 0
+        # Resume using agent's session_id - Claude handles conversation history
+        instance = await runner.resume_agent(
+            agent_id=agent_id,
+            session_id=session_id,
+            prompt=prompt,
+            enable_approvals=True,
+        )
+
+        # Get current max message_num to continue numbering from where we left off
+        from sqlalchemy import func, select
+
+        async with get_session() as session:
+            result = await session.execute(
+                select(func.coalesce(func.max(AgentMessage.message_num), 0)).where(
+                    AgentMessage.agent_id == agent_id
+                )
+            )
+            max_message_num = result.scalar() or 0
+
+        # Track execution state - continue from existing message count
+        message_count = max_message_num
         new_session_id = session_id  # May get updated during execution
         tool_calls: list[str] = []
         context_broadcasted = False
