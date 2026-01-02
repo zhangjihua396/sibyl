@@ -95,7 +95,7 @@ async def _search_documents(
 
             # Document-level deduplication: keep only best chunk per document
             # This prevents 10 chunks from the same doc appearing as 10 results
-            seen_docs: dict[str, tuple] = {}  # doc_id -> best row
+            seen_docs: dict[str, Any] = {}  # doc_id -> best row
             for row in rows:
                 chunk, doc, src_name, src_id, similarity = row
                 doc_id = str(doc.id)

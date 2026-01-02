@@ -1844,7 +1844,9 @@ class EntityManager:
         name = node.name
 
         # Try node attribute as fallback (may not be hydrated by Graphiti)
-        if entity_type == EntityType.EPISODE and (node_entity_type := getattr(node, "entity_type", None)):
+        if entity_type == EntityType.EPISODE and (
+            node_entity_type := getattr(node, "entity_type", None)
+        ):
             with contextlib.suppress(ValueError):
                 entity_type = EntityType(node_entity_type)
 

@@ -307,6 +307,7 @@ const AgentCard = memo(function AgentCard({
             }}
             onClick={e => e.stopPropagation()}
             className="w-full text-sm font-medium text-sc-fg-primary bg-sc-bg-highlight border border-sc-purple/30 rounded px-2 py-1 outline-none focus:border-sc-purple"
+            // biome-ignore lint/a11y/noAutofocus: User explicitly clicked rename
             autoFocus
           />
         ) : (

@@ -98,7 +98,12 @@ export const TOOL_REGISTRY: Record<ToolName, ToolEntry> = {
   },
   Write: {
     icon: Page,
-    statusTemplates: ['Manifesting {file}', 'Conjuring {file}', 'Crafting {file}', 'Birthing {file}'],
+    statusTemplates: [
+      'Manifesting {file}',
+      'Conjuring {file}',
+      'Crafting {file}',
+      'Birthing {file}',
+    ],
     hasRenderer: true,
     category: 'file',
   },
@@ -133,7 +138,11 @@ export const TOOL_REGISTRY: Record<ToolName, ToolEntry> = {
   },
   LSP: {
     icon: Code,
-    statusTemplates: ['Consulting the language server', 'Asking the code oracle', 'Querying symbols'],
+    statusTemplates: [
+      'Consulting the language server',
+      'Asking the code oracle',
+      'Querying symbols',
+    ],
     category: 'search',
   },
 
@@ -158,7 +167,12 @@ export const TOOL_REGISTRY: Record<ToolName, ToolEntry> = {
   // Agent operations
   Task: {
     icon: User,
-    statusTemplates: ['Summoning {agent}', 'Dispatching {agent}', 'Rallying {agent}', 'Awakening {agent}'],
+    statusTemplates: [
+      'Summoning {agent}',
+      'Dispatching {agent}',
+      'Rallying {agent}',
+      'Awakening {agent}',
+    ],
     category: 'agent',
   },
   TaskOutput: {
@@ -180,7 +194,11 @@ export const TOOL_REGISTRY: Record<ToolName, ToolEntry> = {
   },
   WebFetch: {
     icon: Globe,
-    statusTemplates: ['Fetching from the void', 'Retrieving distant knowledge', 'Pulling from the ether'],
+    statusTemplates: [
+      'Fetching from the void',
+      'Retrieving distant knowledge',
+      'Pulling from the ether',
+    ],
     category: 'web',
   },
 

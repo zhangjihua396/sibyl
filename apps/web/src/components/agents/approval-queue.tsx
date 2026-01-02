@@ -82,7 +82,10 @@ const ApprovalCard = memo(function ApprovalCard({
   isDismissing,
   projectFilter,
 }: ApprovalCardProps) {
-  const config = TYPE_CONFIG[approval.approval_type] || { icon: InfoCircle, color: 'text-sc-fg-muted' };
+  const config = TYPE_CONFIG[approval.approval_type] || {
+    icon: InfoCircle,
+    color: 'text-sc-fg-muted',
+  };
   const Icon = config.icon;
   const displayText = getDisplayText(approval);
   const createdAt = approval.created_at ? new Date(approval.created_at) : null;
@@ -128,7 +131,7 @@ const ApprovalCard = memo(function ApprovalCard({
       <div className="flex border-t border-sc-fg-subtle/20">
         <button
           type="button"
-          onClick={(e) => {
+          onClick={e => {
             e.preventDefault();
             onRespond(approval.id, 'approve');
           }}
@@ -140,7 +143,7 @@ const ApprovalCard = memo(function ApprovalCard({
         </button>
         <button
           type="button"
-          onClick={(e) => {
+          onClick={e => {
             e.preventDefault();
             onRespond(approval.id, 'deny');
           }}
@@ -240,7 +243,7 @@ export function ApprovalQueue({ projectId, maxHeight = '400px', className }: App
     >
       <div className="overflow-y-auto" style={{ maxHeight }}>
         <div className="space-y-2">
-          {approvals.map((approval) => (
+          {approvals.map(approval => (
             <ApprovalCard
               key={approval.id}
               approval={approval}

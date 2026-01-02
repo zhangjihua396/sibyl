@@ -8,15 +8,15 @@ import { forwardRef, useEffect, useRef } from 'react';
 import { Check, ChevronDown, Code, Xmark } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
 import { formatDuration } from './chat-constants';
-import { getToolIcon } from './tool-registry';
 import { ToolMessage } from './chat-tool-message';
-import { getExpandedClasses, useExpanded } from './use-expanded';
 import type {
   ParallelAgentsBlockProps,
   SubagentBlockProps,
   ToolCallMessage,
   ToolResultMessage,
 } from './chat-types';
+import { getToolIcon } from './tool-registry';
+import { getExpandedClasses, useExpanded } from './use-expanded';
 
 // =============================================================================
 // SubagentBlock

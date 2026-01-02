@@ -8,8 +8,8 @@ import { useMemo } from 'react';
 import { ChevronDown } from '@/components/ui/icons';
 import { stripAnsi } from './chat-constants';
 import type { ToolMessageProps } from './chat-types';
-import { ToolContentRenderer } from './tool-renderers';
 import { getToolIcon, getToolStatus, hasCustomRenderer } from './tool-registry';
+import { ToolContentRenderer } from './tool-renderers';
 import { getExpandedClasses, useExpanded } from './use-expanded';
 
 // =============================================================================

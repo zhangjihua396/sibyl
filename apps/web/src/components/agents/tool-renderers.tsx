@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { codeToHtml } from 'shiki';
 import { Code, EditPencil, Folder, Page, Search } from '@/components/ui/icons';
 import { stripAnsi } from './chat-constants';
-import { TOOLS, type ToolName, isKnownTool } from './tool-registry';
+import { isKnownTool, TOOLS, type ToolName } from './tool-registry';
 
 // SilkCircuit theme (shared with markdown.tsx)
 const silkCircuitTheme = {
