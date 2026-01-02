@@ -1446,20 +1446,31 @@ async def resume_agent_execution(
         agent_meta = agent.metadata or {}
         project_id = agent_meta.get("project_id") or ""
 
-        # Get latest checkpoint for this agent
+        # Get latest checkpoint for this agent (list_by_type returns Entity, not typed models)
         checkpoints = await manager.list_by_type(entity_type=EntityType.CHECKPOINT, limit=50)
         agent_checkpoints = [
             c
             for c in checkpoints
-            if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+            if (c.metadata or {}).get("agent_id") == agent_id
         ]
 
         if not agent_checkpoints:
             raise ValueError(f"No checkpoint found for agent {agent_id}")
 
-        latest_checkpoint = max(
+        latest_entity = max(
             agent_checkpoints,
             key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC),
+        )
+
+        # Construct AgentCheckpoint from entity metadata
+        chkpt_meta = latest_entity.metadata or {}
+        latest_checkpoint = AgentCheckpoint(
+            id=latest_entity.id,
+            name=latest_entity.name,
+            agent_id=chkpt_meta.get("agent_id", ""),
+            session_id=chkpt_meta.get("session_id", ""),
+            conversation_history=chkpt_meta.get("conversation_history", []),
+            current_step=chkpt_meta.get("current_step"),
         )
 
         # Extract the latest user message as the prompt
