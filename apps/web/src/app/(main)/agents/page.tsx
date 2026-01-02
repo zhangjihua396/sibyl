@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { memo, Suspense, useCallback, useMemo, useState } from 'react';
+import { memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityFeed } from '@/components/agents/activity-feed';
 import { ApprovalQueue } from '@/components/agents/approval-queue';
 import { HealthMonitor } from '@/components/agents/health-monitor';
@@ -368,10 +368,22 @@ function AgentsEmptyState() {
 
 type ViewMode = 'dashboard' | 'list';
 
+const VIEW_MODE_KEY = 'agents-view-mode';
+
 function AgentsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || 'dashboard';
+    }
+    return 'dashboard';
+  });
+
+  // Persist view mode preference
+  useEffect(() => {
+    localStorage.setItem(VIEW_MODE_KEY, viewMode);
+  }, [viewMode]);
 
   const statusFilter = searchParams.get('status') as AgentStatus | null;
   const projectFilter = useProjectFilter(); // From global selector
@@ -479,31 +491,49 @@ function AgentsPageContent() {
         <Breadcrumb />
         <div className="flex items-center gap-3">
           {/* View Toggle */}
-          <div className="flex items-center gap-1 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-lg p-1">
+          <div className="relative flex items-center gap-1 bg-sc-bg-elevated border border-sc-purple/20 rounded-lg p-1 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_0_16px_rgba(225,53,255,0.08)]">
             <button
               type="button"
               onClick={() => setViewMode('dashboard')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                viewMode === 'dashboard'
-                  ? 'bg-sc-purple text-white'
-                  : 'text-sc-fg-muted hover:text-sc-fg-primary'
-              }`}
+              className={`
+                relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md
+                transition-all duration-200 z-10
+                ${
+                  viewMode === 'dashboard'
+                    ? 'text-white'
+                    : 'text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight/50'
+                }
+              `}
             >
               <Dashboard width={14} height={14} />
-              Dashboard
+              <span className="hidden sm:inline">Dashboard</span>
             </button>
             <button
               type="button"
               onClick={() => setViewMode('list')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-sc-purple text-white'
-                  : 'text-sc-fg-muted hover:text-sc-fg-primary'
-              }`}
+              className={`
+                relative flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md
+                transition-all duration-200 z-10
+                ${
+                  viewMode === 'list'
+                    ? 'text-white'
+                    : 'text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight/50'
+                }
+              `}
             >
               <List width={14} height={14} />
-              List
+              <span className="hidden sm:inline">List</span>
             </button>
+            {/* Sliding background */}
+            <div
+              className={`
+                absolute top-1 bottom-1 rounded-md
+                bg-gradient-to-br from-sc-purple to-sc-purple/80
+                shadow-[0_2px_8px_rgba(225,53,255,0.3),0_0_16px_rgba(225,53,255,0.2)]
+                transition-all duration-300 ease-out
+                ${viewMode === 'dashboard' ? 'left-1 w-[calc(50%-0.25rem)]' : 'left-[calc(50%+0.125rem)] w-[calc(50%-0.375rem)]'}
+              `}
+            />
           </div>
 
           <SpawnAgentDialog
