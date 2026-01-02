@@ -18,6 +18,8 @@ tasks:
   # Linting & Formatting
   lint:
     command: "uv run ruff check src tests"
+    deps:
+      - "root:sync"
     inputs:
       - "@group(sources)"
       - "@group(tests)"
@@ -47,6 +49,8 @@ tasks:
   # Type Checking
   typecheck:
     command: "uv run pyright"
+    deps:
+      - "root:sync"
     inputs:
       - "@group(sources)"
       - "@group(configs)"
@@ -54,6 +58,8 @@ tasks:
   # Testing (unit tests only - e2e tests are in apps/e2e)
   test:
     command: "uv run pytest"
+    deps:
+      - "root:sync"
     inputs:
       - "@group(sources)"
       - "@group(tests)"
@@ -103,7 +109,6 @@ tasks:
     inputs:
       - "pyproject.toml"
       - "uv.lock"
-    local: true
 
   # Build
   build:

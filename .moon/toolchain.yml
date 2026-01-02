@@ -13,3 +13,5 @@ node:
 python:
   version: "3.13"
   packageManager: uv
+  # Only create venv at workspace root, not per-package
+  rootVenvOnly: true

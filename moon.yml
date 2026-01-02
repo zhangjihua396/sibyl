@@ -100,3 +100,15 @@ tasks:
   e2e-down:
     command: "docker compose -f compose.e2e.yml down -v"
     local: true
+
+  # ==========================================================================
+  # Python Environment
+  # ==========================================================================
+  sync:
+    # Create venv if missing/corrupt, then sync
+    command: "uv venv --allow-existing && uv sync"
+    inputs:
+      - "pyproject.toml"
+      - "uv.lock"
+    options:
+      shell: true

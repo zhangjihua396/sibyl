@@ -11,6 +11,8 @@ fileGroups:
 tasks:
   lint:
     command: "uv run ruff check ."
+    deps:
+      - "root:sync"
     inputs:
       - "@group(sources)"
 
