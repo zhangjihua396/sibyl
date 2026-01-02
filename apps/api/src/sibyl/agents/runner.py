@@ -7,12 +7,12 @@ enabling agent spawning, lifecycle management, and tool integration.
 import asyncio
 import contextlib
 import hashlib
-import logging
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from claude_agent_sdk import ClaudeSDKClient
 from claude_agent_sdk.types import (
     AssistantMessage,
@@ -45,7 +45,7 @@ from sibyl_core.models import (
 if TYPE_CHECKING:
     from sibyl_core.graph import EntityManager
 
-logger = logging.getLogger(__name__)
+log = structlog.get_logger()
 
 
 def _generate_agent_id(org_id: str, project_id: str, timestamp: str) -> str:
@@ -290,7 +290,7 @@ Priority: {task.priority}
         Returns:
             AgentInstance ready for execution
         """
-        logger.info(f"Spawning {agent_type} agent for task {task.id if task else 'adhoc'}")
+        log.info(f"Spawning {agent_type} agent for task {task.id if task else 'adhoc'}")
 
         # Generate agent ID if not provided
         if agent_id is None:
@@ -375,7 +375,7 @@ Priority: {task.priority}
         )
         merged_hooks = merge_hooks(sibyl_hooks, user_hooks)
 
-        logger.debug(
+        log.debug(
             f"Hooks configured for agent {record.id}: "
             f"user={list(user_hooks.keys()) if user_hooks else []}, "
             f"sibyl={list(sibyl_hooks.keys()) if sibyl_hooks else []}"
@@ -416,7 +416,7 @@ Priority: {task.priority}
             },
         )
 
-        logger.info(f"Agent {record.id} spawned and ready")
+        log.info(f"Agent {record.id} spawned and ready")
         return instance
 
     async def spawn_for_task(
@@ -532,7 +532,7 @@ Priority: {task.priority}
         Raises:
             AgentRunnerError: If agent cannot be resumed
         """
-        logger.info(f"Resuming agent {agent_id} with session {session_id}")
+        log.info(f"Resuming agent {agent_id} with session {session_id}")
 
         # Get agent record
         entity = await self.entity_manager.get(agent_id)
@@ -574,7 +574,7 @@ Priority: {task.priority}
         if agent.worktree_path:
             worktree_path = Path(agent.worktree_path)
             if not worktree_path.exists():
-                logger.warning(f"Worktree no longer exists: {worktree_path}")
+                log.warning(f"Worktree no longer exists: {worktree_path}")
                 worktree_path = None
 
         # Build hooks
@@ -617,7 +617,7 @@ Priority: {task.priority}
         instance.set_session_id(session_id)
         self._active_agents[agent.id] = instance
 
-        logger.info(f"Agent {agent.id} resumed (session: {session_id})")
+        log.info(f"Agent {agent.id} resumed (session: {session_id})")
         return instance
 
 
@@ -738,7 +738,7 @@ class AgentInstance:
                     yield message
 
         except Exception as e:
-            logger.exception(f"Agent {self.id} execution failed")
+            log.exception(f"Agent {self.id} execution failed")
             await self._update_status(AgentStatus.FAILED, error=str(e))
             raise
 
@@ -845,7 +845,7 @@ class AgentInstance:
             except asyncio.CancelledError:
                 break
             except Exception:
-                logger.exception(f"Heartbeat failed for agent {self.id}")
+                log.exception(f"Heartbeat failed for agent {self.id}")
 
     async def _update_status(
         self,
