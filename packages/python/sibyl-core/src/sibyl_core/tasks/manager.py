@@ -1,5 +1,6 @@
 """Task manager for creating and querying tasks with knowledge integration."""
 
+import asyncio
 import uuid
 from typing import TYPE_CHECKING
 
@@ -124,25 +125,23 @@ class TaskManager:
 
         query = f"{task_title} {task_description} {' '.join(technologies)}"
 
-        # Search across all knowledge types
-        patterns = await self._entity_manager.search(
-            query=query, entity_types=[EntityType.PATTERN], limit=limit
-        )
-
-        rules = await self._entity_manager.search(
-            query=query, entity_types=[EntityType.RULE], limit=limit
-        )
-
-        templates = await self._entity_manager.search(
-            query=query, entity_types=[EntityType.TEMPLATE], limit=limit
-        )
-
-        episodes = await self._entity_manager.search(
-            query=query, entity_types=[EntityType.EPISODE], limit=limit
-        )
-
-        error_patterns = await self._entity_manager.search(
-            query=query, entity_types=[EntityType.ERROR_PATTERN], limit=limit
+        # Search across all knowledge types in parallel
+        patterns, rules, templates, episodes, error_patterns = await asyncio.gather(
+            self._entity_manager.search(
+                query=query, entity_types=[EntityType.PATTERN], limit=limit
+            ),
+            self._entity_manager.search(
+                query=query, entity_types=[EntityType.RULE], limit=limit
+            ),
+            self._entity_manager.search(
+                query=query, entity_types=[EntityType.TEMPLATE], limit=limit
+            ),
+            self._entity_manager.search(
+                query=query, entity_types=[EntityType.EPISODE], limit=limit
+            ),
+            self._entity_manager.search(
+                query=query, entity_types=[EntityType.ERROR_PATTERN], limit=limit
+            ),
         )
 
         return TaskKnowledgeSuggestion(
@@ -277,11 +276,22 @@ class TaskManager:
             task_id, relationship_types=[RelationshipType.DEPENDS_ON], direction="outgoing"
         )
 
-        # Fetch the actual task entities
+        if not relationships:
+            return []
+
+        # Fetch all task entities in parallel
+        entities = await asyncio.gather(
+            *[self._entity_manager.get(rel.target_id) for rel in relationships],
+            return_exceptions=True,
+        )
+
+        # Build result, skipping any failed fetches
         dependencies = []
-        for rel in relationships:
-            dep_entity = await self._entity_manager.get(rel.target_id)
-            dep_task = self._entity_to_task(dep_entity)
+        for rel, entity in zip(relationships, entities, strict=True):
+            if isinstance(entity, Exception):
+                log.warning("Failed to fetch dependency", target_id=rel.target_id, error=str(entity))
+                continue
+            dep_task = self._entity_to_task(entity)
             dependencies.append((dep_task, rel.relationship_type.value))
 
         return dependencies
@@ -302,11 +312,22 @@ class TaskManager:
             task_id, relationship_types=[RelationshipType.DEPENDS_ON], direction="incoming"
         )
 
-        # Fetch the actual task entities
+        if not relationships:
+            return []
+
+        # Fetch all task entities in parallel
+        entities = await asyncio.gather(
+            *[self._entity_manager.get(rel.source_id) for rel in relationships],
+            return_exceptions=True,
+        )
+
+        # Build result, skipping any failed fetches
         blocked_tasks = []
-        for rel in relationships:
-            blocked_entity = await self._entity_manager.get(rel.source_id)
-            blocked_task = self._entity_to_task(blocked_entity)
+        for rel, entity in zip(relationships, entities, strict=True):
+            if isinstance(entity, Exception):
+                log.warning("Failed to fetch blocked task", source_id=rel.source_id, error=str(entity))
+                continue
+            blocked_task = self._entity_to_task(entity)
             blocked_tasks.append(blocked_task)
 
         return blocked_tasks
