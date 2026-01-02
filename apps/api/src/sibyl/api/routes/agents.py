@@ -5,11 +5,14 @@ REST API for managing AI agents via the AgentOrchestrator.
 
 from datetime import UTC, datetime
 from enum import StrEnum
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from sibyl.agents import AgentInstance
 from uuid import uuid4
 
 import structlog
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
 from sibyl.auth.dependencies import get_current_organization, require_org_role
@@ -248,12 +251,13 @@ async def get_agent(
 @router.post("", response_model=SpawnAgentResponse)
 async def spawn_agent(
     request: SpawnAgentRequest,
+    background_tasks: BackgroundTasks,
     org: Organization = Depends(get_current_organization),
 ) -> SpawnAgentResponse:
-    """Spawn a new agent.
+    """Spawn a new agent and start execution.
 
-    Note: This creates an agent record but does not start execution.
-    Execution is handled by the orchestrator service.
+    Creates an agent record and starts background execution using Claude SDK.
+    The agent will stream messages to its checkpoint for real-time updates.
     """
     from sibyl.agents import AgentRunner, WorktreeManager
 
@@ -270,7 +274,6 @@ async def spawn_agent(
             task = entity
 
     # Create worktree manager and agent runner
-    # Note: In production, the orchestrator would handle this
     worktree_manager = WorktreeManager(
         entity_manager=manager,
         org_id=str(org.id),
@@ -295,14 +298,112 @@ async def spawn_agent(
             enable_approvals=True,
         )
 
+        # Start agent execution in background
+        background_tasks.add_task(
+            _run_agent_execution,
+            instance=instance,
+            manager=manager,
+        )
+
         return SpawnAgentResponse(
             success=True,
             agent_id=instance.id,
-            message=f"Agent {instance.id} spawned successfully",
+            message=f"Agent {instance.id} spawned and starting execution",
         )
     except Exception as e:
         log.exception("Failed to spawn agent", error=str(e))
         raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+async def _run_agent_execution(
+    instance: "AgentInstance",
+    manager: EntityManager,
+) -> None:
+    """Run agent execution in background and stream results to checkpoint.
+
+    Args:
+        instance: The spawned AgentInstance to execute
+        manager: EntityManager for persisting messages
+    """
+
+    agent_id = instance.id
+    log.info("Starting agent execution", agent_id=agent_id)
+
+    # Create initial checkpoint
+    checkpoint_id = f"chkpt_{uuid4().hex[:12]}"
+    checkpoint = AgentCheckpoint(
+        id=checkpoint_id,
+        name=f"checkpoint-{agent_id[-8:]}",
+        agent_id=agent_id,
+        session_id="",  # Will be set after first message
+        conversation_history=[
+            {
+                "role": "user",
+                "content": instance.initial_prompt,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "type": "text",
+            }
+        ],
+    )
+    await manager.create(checkpoint)
+
+    try:
+        # Execute agent and stream messages to checkpoint
+        async for message in instance.execute():
+            # Extract message content using getattr for type safety
+            msg_content = str(getattr(message, "content", ""))
+            msg_role = "agent"
+            msg_type = "text"
+
+            # Determine message type from class name
+            msg_class = type(message).__name__
+            if "Tool" in msg_class:
+                msg_type = "tool_call"
+            elif "Result" in msg_class:
+                msg_type = "tool_result"
+            elif "Error" in msg_class or "error" in msg_class.lower():
+                msg_type = "error"
+
+            # Skip empty messages
+            if not msg_content:
+                continue
+
+            # Append to checkpoint history
+            new_msg = {
+                "role": msg_role,
+                "content": msg_content,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "type": msg_type,
+            }
+
+            # Update checkpoint with new message
+            checkpoint.conversation_history.append(new_msg)
+
+            # Update session_id if available (ResultMessage has it)
+            session_id = getattr(message, "session_id", None)
+            if session_id:
+                checkpoint.session_id = session_id
+
+            await manager.update(
+                checkpoint_id,
+                {
+                    "conversation_history": checkpoint.conversation_history,
+                    "session_id": checkpoint.session_id,
+                },
+            )
+
+        log.info("Agent execution completed", agent_id=agent_id)
+
+    except Exception as e:
+        log.exception("Agent execution failed", agent_id=agent_id, error=str(e))
+        # Update agent status to failed
+        await manager.update(
+            agent_id,
+            {
+                "status": AgentStatus.FAILED.value,
+                "error_message": str(e),
+            },
+        )
 
 
 @router.post("/{agent_id}/pause", response_model=AgentActionResponse)
