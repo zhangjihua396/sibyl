@@ -50,12 +50,16 @@ function SidebarContent({ onNavClick }: SidebarContentProps) {
             alt="Sibyl"
             width={180}
             height={52}
-            className="h-12 w-auto mx-auto animate-logo-glow"
+            className="h-14 w-auto mx-auto animate-logo-glow"
             priority
           />
-          <p className="text-[11px] text-sc-fg-muted uppercase tracking-widest mt-1.5 text-center">
-            Knowledge Oracle
-          </p>
+          <div className="mt-1.5 text-center">
+            <p className="tagline text-[10px] uppercase tracking-[0.08em] font-medium">
+              <span className="tagline-word">Collective</span>
+              <span className="tagline-separator mx-1 opacity-50">·</span>
+              <span className="tagline-word">Intelligence</span>
+            </p>
+          </div>
         </Link>
       </div>
 
