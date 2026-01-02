@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
     from sibyl.agents import AgentInstance
+    from sibyl_core.models.entities import Entity
 from uuid import uuid4
 
 import structlog
@@ -21,7 +22,6 @@ from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
 from sibyl_core.models import (
     AgentCheckpoint,
-    AgentRecord,
     AgentSpawnSource,
     AgentStatus,
     AgentType,
@@ -204,37 +204,41 @@ async def list_agents(
     client = await get_graph_client()
     manager = EntityManager(client, group_id=str(org.id))
 
-    # Get all agents
+    # Get all agents (returns generic Entity objects)
     results = await manager.list_by_type(
         entity_type=EntityType.AGENT,
         limit=limit * 2,  # Fetch extra for filtering
     )
 
-    agents = [r for r in results if isinstance(r, AgentRecord)]
-
     # Filter by user (default behavior - show only user's agents)
+    agents = list(results)
     if not all_users:
-        agents = [a for a in agents if a.created_by == str(user.id)]
+        user_id_str = str(user.id)
+        agents = [
+            a
+            for a in agents
+            if (a.metadata or {}).get("created_by") == user_id_str or a.created_by == user_id_str
+        ]
 
-    # Apply filters
+    # Apply filters (agents are generic Entity objects - fields in metadata)
     if project:
-        agents = [a for a in agents if a.project_id == project]
+        agents = [a for a in agents if (a.metadata or {}).get("project_id") == project]
     if status:
-        agents = [a for a in agents if a.status == status]
+        agents = [a for a in agents if (a.metadata or {}).get("status") == status.value]
     if agent_type:
-        agents = [a for a in agents if a.agent_type == agent_type]
+        agents = [a for a in agents if (a.metadata or {}).get("agent_type") == agent_type.value]
 
     # Calculate stats
     by_status: dict[str, int] = {}
     by_type: dict[str, int] = {}
     for agent in agents:
-        s = agent.status.value
+        s = (agent.metadata or {}).get("status") or "initializing"
         by_status[s] = by_status.get(s, 0) + 1
-        t = agent.agent_type.value
+        t = (agent.metadata or {}).get("agent_type") or "general"
         by_type[t] = by_type.get(t, 0) + 1
 
     return AgentListResponse(
-        agents=[_agent_to_response(a) for a in agents[:limit]],
+        agents=[_entity_to_agent_response(a) for a in agents[:limit]],
         total=len(agents),
         by_status=by_status,
         by_type=by_type,
@@ -251,10 +255,10 @@ async def get_agent(
     manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
-    return _agent_to_response(entity)
+    return _entity_to_agent_response(entity)
 
 
 @router.post("", response_model=SpawnAgentResponse)
@@ -448,13 +452,14 @@ async def pause_agent(
     manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
-    if entity.status not in (AgentStatus.WORKING, AgentStatus.WAITING_APPROVAL):
+    agent_status = (entity.metadata or {}).get("status", "initializing")
+    if agent_status not in (AgentStatus.WORKING.value, AgentStatus.WAITING_APPROVAL.value):
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot pause agent in {entity.status} status",
+            detail=f"Cannot pause agent in {agent_status} status",
         )
 
     await manager.update(
@@ -483,13 +488,14 @@ async def resume_agent(
     manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
-    if entity.status != AgentStatus.PAUSED:
+    agent_status = (entity.metadata or {}).get("status", "initializing")
+    if agent_status != AgentStatus.PAUSED.value:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot resume agent in {entity.status} status",
+            detail=f"Cannot resume agent in {agent_status} status",
         )
 
     await manager.update(
@@ -519,14 +525,19 @@ async def terminate_agent(
     manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
-    terminal_states = (AgentStatus.COMPLETED, AgentStatus.FAILED, AgentStatus.TERMINATED)
-    if entity.status in terminal_states:
+    agent_status = (entity.metadata or {}).get("status", "initializing")
+    terminal_states = (
+        AgentStatus.COMPLETED.value,
+        AgentStatus.FAILED.value,
+        AgentStatus.TERMINATED.value,
+    )
+    if agent_status in terminal_states:
         raise HTTPException(
             status_code=400,
-            detail=f"Agent already in terminal state: {entity.status}",
+            detail=f"Agent already in terminal state: {agent_status}",
         )
 
     await manager.update(
@@ -560,7 +571,7 @@ async def get_agent_messages(
 
     # Verify agent exists
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
     # Get latest checkpoint for this agent
@@ -569,9 +580,11 @@ async def get_agent_messages(
         limit=10,
     )
 
-    # Find checkpoints for this agent
+    # Find checkpoints for this agent (entity objects, check metadata for agent_id)
     agent_checkpoints = [
-        c for c in checkpoints if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+        c
+        for c in checkpoints
+        if c.entity_type == EntityType.CHECKPOINT and (c.metadata or {}).get("agent_id") == agent_id
     ]
 
     messages: list[AgentMessage] = []
@@ -581,8 +594,9 @@ async def get_agent_messages(
             agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
         )
 
-        # Convert conversation history to messages
-        for i, msg in enumerate(latest.conversation_history[-limit:]):
+        # Convert conversation history to messages (history is in metadata for Entity objects)
+        conversation_history = (latest.metadata or {}).get("conversation_history", [])
+        for i, msg in enumerate(conversation_history[-limit:]):
             role_str = msg.get("role", "agent")
             role = MessageRole.AGENT
             if role_str == "user":
@@ -632,15 +646,20 @@ async def send_agent_message(
 
     # Verify agent exists
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
     # Check agent is in a state that can accept messages
-    terminal_states = (AgentStatus.COMPLETED, AgentStatus.FAILED, AgentStatus.TERMINATED)
-    if entity.status in terminal_states:
+    agent_status = (entity.metadata or {}).get("status", "initializing")
+    terminal_states = (
+        AgentStatus.COMPLETED.value,
+        AgentStatus.FAILED.value,
+        AgentStatus.TERMINATED.value,
+    )
+    if agent_status in terminal_states:
         raise HTTPException(
             status_code=400,
-            detail=f"Cannot send message to agent in {entity.status} status",
+            detail=f"Cannot send message to agent in {agent_status} status",
         )
 
     # Generate message ID
@@ -653,24 +672,27 @@ async def send_agent_message(
     )
 
     agent_checkpoints = [
-        c for c in checkpoints if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+        c
+        for c in checkpoints
+        if c.entity_type == EntityType.CHECKPOINT and (c.metadata or {}).get("agent_id") == agent_id
     ]
 
     if agent_checkpoints:
         latest = max(
             agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
         )
-        # Add user message to conversation history
+        # Add user message to conversation history (history is in metadata for Entity objects)
+        current_history = (latest.metadata or {}).get("conversation_history", [])
         new_msg = {
             "role": "user",
             "content": request.content,
             "timestamp": datetime.now(UTC).isoformat(),
             "type": "text",
         }
-        updated_history = [*latest.conversation_history, new_msg]
+        updated_history = [*current_history, new_msg]
         await manager.update(latest.id, {"conversation_history": updated_history})
     else:
-        # Create initial checkpoint with user message
+        # Create initial checkpoint with user message (use create_direct to skip LLM extraction)
         checkpoint_id = f"chkpt_{uuid4().hex[:12]}"
         checkpoint = AgentCheckpoint(
             id=checkpoint_id,
@@ -686,7 +708,7 @@ async def send_agent_message(
                 }
             ],
         )
-        await manager.create(checkpoint)
+        await manager.create_direct(checkpoint)
 
     log.info(
         "User message sent to agent",
@@ -715,7 +737,7 @@ async def get_agent_workspace(
 
     # Verify agent exists
     entity = await manager.get(agent_id)
-    if not entity or not isinstance(entity, AgentRecord):
+    if not entity or entity.entity_type != EntityType.AGENT:
         raise HTTPException(status_code=404, detail=f"Agent not found: {agent_id}")
 
     # Get latest checkpoint for this agent
@@ -725,7 +747,9 @@ async def get_agent_workspace(
     )
 
     agent_checkpoints = [
-        c for c in checkpoints if isinstance(c, AgentCheckpoint) and c.agent_id == agent_id
+        c
+        for c in checkpoints
+        if c.entity_type == EntityType.CHECKPOINT and (c.metadata or {}).get("agent_id") == agent_id
     ]
 
     files: list[FileChange] = []
@@ -736,13 +760,15 @@ async def get_agent_workspace(
         latest = max(
             agent_checkpoints, key=lambda c: c.created_at or datetime.min.replace(tzinfo=UTC)
         )
-        current_step = latest.current_step
-        completed_steps = latest.completed_steps
+        meta = latest.metadata or {}
+        current_step = meta.get("current_step")
+        completed_steps = meta.get("completed_steps", [])
 
         # Parse files_modified into FileChange objects
         # Default to modified status; would need git status for accuracy
         files = [
-            FileChange(path=path, status="modified", diff=None) for path in latest.files_modified
+            FileChange(path=path, status="modified", diff=None)
+            for path in meta.get("files_modified", [])
         ]
 
     return AgentWorkspaceResponse(
@@ -758,23 +784,27 @@ async def get_agent_workspace(
 # =============================================================================
 
 
-def _agent_to_response(agent: AgentRecord) -> AgentResponse:
-    """Convert AgentRecord to response model."""
+def _entity_to_agent_response(entity: "Entity") -> AgentResponse:
+    """Convert Entity to AgentResponse by extracting attributes from metadata.
+
+    Agents stored via create_direct() have their fields in metadata.
+    """
+    meta = entity.metadata or {}
     return AgentResponse(
-        id=agent.id,
-        name=agent.name,
-        agent_type=agent.agent_type.value,
-        status=agent.status.value,
-        task_id=agent.task_id,
-        project_id=agent.project_id,
-        created_by=agent.created_by,
-        spawn_source=agent.spawn_source.value if agent.spawn_source else None,
-        started_at=agent.started_at.isoformat() if agent.started_at else None,
-        completed_at=agent.completed_at.isoformat() if agent.completed_at else None,
-        last_heartbeat=agent.last_heartbeat.isoformat() if agent.last_heartbeat else None,
-        tokens_used=agent.tokens_used or 0,
-        cost_usd=agent.cost_usd or 0.0,
-        worktree_path=agent.worktree_path,
-        worktree_branch=agent.worktree_branch,
-        error_message=agent.paused_reason,  # Use paused_reason for error context
+        id=entity.id,
+        name=entity.name,
+        agent_type=meta.get("agent_type", "general"),
+        status=meta.get("status", "initializing"),
+        task_id=meta.get("task_id"),
+        project_id=meta.get("project_id"),
+        created_by=meta.get("created_by") or entity.created_by,
+        spawn_source=meta.get("spawn_source"),
+        started_at=meta.get("started_at"),
+        completed_at=meta.get("completed_at"),
+        last_heartbeat=meta.get("last_heartbeat"),
+        tokens_used=meta.get("tokens_used", 0),
+        cost_usd=meta.get("cost_usd", 0.0),
+        worktree_path=meta.get("worktree_path"),
+        worktree_branch=meta.get("worktree_branch"),
+        error_message=meta.get("error_message") or meta.get("paused_reason"),
     )
