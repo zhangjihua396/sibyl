@@ -545,10 +545,10 @@ async def send_agent_message(
     msg_id = f"user-{datetime.now(UTC).timestamp():.0f}"
 
     # Store the user message for UI display (worker will also store agent responses)
+    from sibyl.db import get_session
     from sibyl.db.models import AgentMessage, AgentMessageRole, AgentMessageType
-    from sibyl.db.session import get_db_session
 
-    async with get_db_session() as session:
+    async with get_session() as session:
         # Get next message number
         from sqlalchemy import func, select
 
@@ -563,8 +563,8 @@ async def send_agent_message(
             agent_id=agent_id,
             organization_id=org.id,
             message_num=next_num,
-            role=AgentMessageRole.USER,
-            type=AgentMessageType.TEXT,
+            role=AgentMessageRole.user,
+            type=AgentMessageType.text,
             content=request.content[:500],  # Summary only
             extra={"full_content": request.content} if len(request.content) > 500 else None,
         )
