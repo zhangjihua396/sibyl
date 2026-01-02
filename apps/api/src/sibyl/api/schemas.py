@@ -385,6 +385,9 @@ class CrawlDocumentResponse(BaseModel):
     crawled_at: datetime
     headings: list[str] = Field(default_factory=list)
     code_languages: list[str] = Field(default_factory=list)
+    # Only populated in detail view, not list view
+    raw_content: str | None = None
+    markdown_content: str | None = None  # Assembled from chunks
 
 
 class CrawlDocumentListResponse(BaseModel):

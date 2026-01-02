@@ -264,7 +264,7 @@ async def get_document(
     document_id: str,
     org: Organization = Depends(get_current_organization),
 ) -> CrawlDocumentResponse:
-    """Get a crawled document by ID (org-scoped)."""
+    """Get a crawled document by ID with full content (org-scoped)."""
     async with get_session() as session:
         # Query with org check via source join
         result = await session.execute(
@@ -279,7 +279,21 @@ async def get_document(
         if not doc:
             raise HTTPException(status_code=404, detail=f"Document not found: {document_id}")
 
-        return _document_to_response(doc)
+        # Detail view includes raw_content
+        response = _document_to_response(doc)
+        response.raw_content = doc.raw_content
+
+        # Fetch chunks and assemble markdown content
+        chunks_result = await session.execute(
+            select(DocumentChunk)
+            .where(col(DocumentChunk.document_id) == doc.id)
+            .order_by(DocumentChunk.chunk_index)
+        )
+        chunks = chunks_result.scalars().all()
+        if chunks:
+            response.markdown_content = "\n\n".join(c.content for c in chunks)
+
+        return response
 
 
 @router.delete("/documents/{document_id}")
