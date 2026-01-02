@@ -67,10 +67,14 @@ tasks:
       envFile: ".env"
 
   test-cov:
-    command: "uv run pytest --cov=src --cov-report=term-missing"
+    command: "uv run pytest --cov=src --cov-report=term-missing --cov-report=xml:coverage.xml"
+    deps:
+      - "root:sync"
     inputs:
       - "@group(sources)"
       - "@group(tests)"
+    outputs:
+      - "coverage.xml"
     options:
       envFile: ".env"
 

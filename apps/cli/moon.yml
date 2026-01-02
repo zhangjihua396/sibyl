@@ -63,6 +63,16 @@ tasks:
       - "@group(sources)"
       - "@group(tests)"
 
+  test-cov:
+    command: "uv run pytest tests/ --cov=src --cov-report=term-missing --cov-report=xml:coverage.xml"
+    deps:
+      - "root:sync"
+    inputs:
+      - "@group(sources)"
+      - "@group(tests)"
+    outputs:
+      - "coverage.xml"
+
   check:
     deps:
       - "~:lint"
