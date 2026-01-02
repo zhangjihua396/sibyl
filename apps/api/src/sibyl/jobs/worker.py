@@ -747,6 +747,168 @@ async def update_entity(
         raise
 
 
+def _format_agent_message(message: Any) -> dict[str, Any]:
+    """Format a Claude SDK message for beautiful UI display.
+
+    Transforms raw SDK messages into rich, formatted output with:
+    - Markdown-rendered text content
+    - Beautifully formatted tool calls with syntax highlighting hints
+    - Clean tool results with collapsible previews
+    - Metadata for UI rendering (icons, colors, etc.)
+    """
+    msg_class = type(message).__name__
+    content = getattr(message, "content", None)
+    timestamp = datetime.now(UTC).isoformat()
+
+    # Handle different message types
+    if msg_class == "AssistantMessage":
+        # Assistant messages contain text or tool use blocks
+        if isinstance(content, list):
+            # Process content blocks
+            blocks = []
+            for block in content:
+                block_type = type(block).__name__
+
+                if block_type == "TextBlock":
+                    blocks.append({
+                        "type": "text",
+                        "content": getattr(block, "text", ""),
+                    })
+
+                elif block_type == "ToolUseBlock":
+                    tool_name = getattr(block, "name", "unknown")
+                    tool_input = getattr(block, "input", {})
+                    tool_id = getattr(block, "id", "")
+
+                    # Format tool input nicely
+                    if isinstance(tool_input, dict):
+                        # Special formatting for common tools
+                        if tool_name == "Read":
+                            preview = f"📖 Reading `{tool_input.get('file_path', 'file')}`"
+                        elif tool_name == "Write":
+                            preview = f"✍️ Writing to `{tool_input.get('file_path', 'file')}`"
+                        elif tool_name == "Edit":
+                            preview = f"✏️ Editing `{tool_input.get('file_path', 'file')}`"
+                        elif tool_name == "Bash":
+                            cmd = tool_input.get("command", "")
+                            preview = f"💻 `{cmd[:80]}{'...' if len(cmd) > 80 else ''}`"
+                        elif tool_name == "Grep":
+                            preview = f"🔍 Searching for `{tool_input.get('pattern', '')}`"
+                        elif tool_name == "Glob":
+                            preview = f"📁 Finding `{tool_input.get('pattern', '')}`"
+                        elif tool_name == "WebSearch":
+                            preview = f"🌐 Searching: {tool_input.get('query', '')}"
+                        elif tool_name == "WebFetch":
+                            preview = f"🔗 Fetching: {tool_input.get('url', '')[:60]}"
+                        else:
+                            preview = f"🔧 {tool_name}"
+
+                        blocks.append({
+                            "type": "tool_use",
+                            "tool_name": tool_name,
+                            "tool_id": tool_id,
+                            "input": tool_input,
+                            "preview": preview,
+                        })
+
+            # Return formatted assistant message
+            if len(blocks) == 1:
+                return {
+                    "role": "assistant",
+                    "timestamp": timestamp,
+                    **blocks[0],
+                }
+            return {
+                "role": "assistant",
+                "type": "multi_block",
+                "blocks": blocks,
+                "timestamp": timestamp,
+                "preview": blocks[0].get("preview", "") if blocks else "",
+            }
+        return {
+            "role": "assistant",
+            "type": "text",
+            "content": str(content) if content else "",
+            "timestamp": timestamp,
+            "preview": str(content)[:100] if content else "",
+        }
+
+    if msg_class == "UserMessage":
+        # User messages contain tool results
+        if isinstance(content, list):
+            results = []
+            for block in content:
+                block_type = type(block).__name__
+
+                if block_type == "ToolResultBlock":
+                    tool_id = getattr(block, "tool_use_id", "")
+                    result_content = getattr(block, "content", "")
+                    is_error = getattr(block, "is_error", False)
+
+                    # Truncate long results for preview
+                    preview = str(result_content)[:200]
+                    if len(str(result_content)) > 200:
+                        preview += "..."
+
+                    results.append({
+                        "type": "tool_result",
+                        "tool_id": tool_id,
+                        "content": str(result_content),
+                        "preview": preview,
+                        "is_error": is_error,
+                        "icon": "❌" if is_error else "✅",
+                    })
+
+            if len(results) == 1:
+                return {
+                    "role": "tool",
+                    "timestamp": timestamp,
+                    **results[0],
+                }
+            return {
+                "role": "tool",
+                "type": "multi_result",
+                "results": results,
+                "timestamp": timestamp,
+                "preview": f"{len(results)} tool results",
+            }
+        return {
+            "role": "user",
+            "type": "text",
+            "content": str(content) if content else "",
+            "timestamp": timestamp,
+            "preview": str(content)[:100] if content else "",
+        }
+
+    if msg_class == "ResultMessage":
+        # Final result message with usage stats
+        usage = getattr(message, "usage", None)
+        cost = getattr(message, "total_cost_usd", None)
+        session_id = getattr(message, "session_id", None)
+
+        return {
+            "role": "system",
+            "type": "result",
+            "session_id": session_id,
+            "usage": {
+                "input_tokens": getattr(usage, "input_tokens", 0) if usage else 0,
+                "output_tokens": getattr(usage, "output_tokens", 0) if usage else 0,
+            } if usage else None,
+            "cost_usd": cost,
+            "timestamp": timestamp,
+            "preview": f"💰 ${cost:.4f}" if cost else "Result",
+        }
+
+    # Unknown message type - return raw
+    return {
+        "role": "unknown",
+        "type": msg_class.lower(),
+        "content": str(content) if content else "",
+        "timestamp": timestamp,
+        "preview": f"{msg_class}: {str(content)[:50]}" if content else msg_class,
+    }
+
+
 async def run_agent_execution(
     ctx: dict[str, Any],  # noqa: ARG001
     agent_id: str,
@@ -844,19 +1006,32 @@ async def run_agent_execution(
         last_content = ""
         tool_calls: list[str] = []
 
-        # Execute agent - process messages without storing each one
+        # Execute agent - stream messages to UI in real-time
         log.info("run_agent_execution_starting", agent_id=agent_id)
         async for message in instance.execute():
             message_count += 1
-            msg_content = str(getattr(message, "content", ""))
             msg_class = type(message).__name__
+
+            # Format message for UI
+            formatted = _format_agent_message(message)
 
             log.debug(
                 "run_agent_message",
                 agent_id=agent_id,
                 message_num=message_count,
                 message_type=msg_class,
-                content_preview=msg_content[:100] if msg_content else None,
+                content_preview=formatted.get("preview", "")[:100],
+            )
+
+            # Broadcast message to UI in real-time
+            await _safe_broadcast(
+                "agent_message",
+                {
+                    "agent_id": agent_id,
+                    "message_num": message_count,
+                    **formatted,
+                },
+                org_id=org_id,
             )
 
             # Track session ID
@@ -864,13 +1039,13 @@ async def run_agent_execution(
                 session_id = sid
 
             # Track tool calls for summary
-            if "Tool" in msg_class and msg_content:
-                tool_name = msg_content.split("(")[0] if "(" in msg_content else msg_content[:50]
+            if "ToolUse" in msg_class or formatted.get("type") == "tool_use":
+                tool_name = formatted.get("tool_name", "unknown")
                 tool_calls.append(tool_name)
 
             # Keep last meaningful content for summary
-            if msg_content and "Result" not in msg_class:
-                last_content = msg_content[:500]
+            if formatted.get("content") and formatted.get("type") != "tool_result":
+                last_content = formatted.get("content", "")[:500]
 
         # Create checkpoint only on completion (summary, not full history)
         from uuid import uuid4
