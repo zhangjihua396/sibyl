@@ -9,8 +9,10 @@ import { Breadcrumb } from '@/components/layout/breadcrumb';
 import { Card } from '@/components/ui/card';
 import { GraphEmptyState } from '@/components/ui/empty-state';
 import {
+  Check,
   ChevronDown,
   ChevronUp,
+  Filter,
   Focus,
   Loader2,
   Maximize2,
@@ -18,10 +20,12 @@ import {
   MinusCircle,
   PlusCircle,
   RotateCcw,
+  Search,
+  X,
 } from '@/components/ui/icons';
 import { LoadingState } from '@/components/ui/spinner';
 import type { HierarchicalCluster, HierarchicalEdge, HierarchicalNode } from '@/lib/api';
-import { GRAPH_DEFAULTS, getClusterColor, getEntityColor } from '@/lib/constants';
+import { ENTITY_TYPES, GRAPH_DEFAULTS, getClusterColor, getEntityColor } from '@/lib/constants';
 import { useHierarchicalGraph } from '@/lib/hooks';
 import { useProjectContext } from '@/lib/project-context';
 import { useTheme } from '@/lib/theme';
@@ -53,6 +57,7 @@ interface GraphNode extends HierarchicalNode {
   degree?: number; // Number of connections (for sizing)
   isProject?: boolean; // Projects are STARS in our galaxy!
   isNeighbor?: boolean; // Context node from 1-hop expansion (render dimmed)
+  isSearchMatch?: boolean; // Matches current search term
   zIndex?: number; // Render order (higher = on top, gets label priority)
   __highlightTime?: number; // For pulse animation
 }
@@ -198,40 +203,30 @@ function ClusterLegend({
   );
 }
 
-// Stats overlay - shows real totals and displayed counts
-function StatsOverlay({
-  totalNodes,
-  totalEdges,
-  displayedNodes,
-  displayedEdges,
-  clusterCount,
-}: {
-  totalNodes: number;
-  totalEdges: number;
-  displayedNodes: number;
-  displayedEdges: number;
-  clusterCount: number;
-}) {
-  const showingAll = displayedNodes >= totalNodes;
+// Entity type labels for the UI (prettier versions)
+const ENTITY_TYPE_LABELS: Record<string, string> = {
+  task: 'Tasks',
+  project: 'Projects',
+  epic: 'Epics',
+  pattern: 'Patterns',
+  episode: 'Episodes',
+  topic: 'Topics',
+  concept: 'Concepts',
+  rule: 'Rules',
+  template: 'Templates',
+  convention: 'Conventions',
+  tool: 'Tools',
+  language: 'Languages',
+  source: 'Sources',
+  document: 'Documents',
+  file: 'Files',
+  function: 'Functions',
+  error_pattern: 'Errors',
+  milestone: 'Milestones',
+  team: 'Teams',
+};
 
-  return (
-    <div className="absolute top-4 right-4 z-10 bg-sc-bg-elevated/90 backdrop-blur-sm rounded-xl p-4 border border-sc-purple/20 min-w-[140px]">
-      <div className="text-sm text-sc-fg-muted">Total Nodes</div>
-      <div className="text-2xl font-bold text-sc-purple">{totalNodes.toLocaleString()}</div>
-      {!showingAll && (
-        <div className="text-xs text-sc-fg-subtle">showing {displayedNodes.toLocaleString()}</div>
-      )}
-      <div className="text-sm text-sc-fg-muted mt-2">Total Edges</div>
-      <div className="text-2xl font-bold text-sc-cyan">{totalEdges.toLocaleString()}</div>
-      {!showingAll && displayedEdges < totalEdges && (
-        <div className="text-xs text-sc-fg-subtle">showing {displayedEdges.toLocaleString()}</div>
-      )}
-      <div className="text-sm text-sc-fg-muted mt-2">Clusters</div>
-      <div className="text-2xl font-bold text-sc-coral">{clusterCount}</div>
-    </div>
-  );
-}
-
+// Unified graph toolbar - zoom, search, filters, stats all in one
 function GraphToolbar({
   onZoomIn,
   onZoomOut,
@@ -239,8 +234,14 @@ function GraphToolbar({
   onReset,
   isFullscreen,
   onToggleFullscreen,
+  searchTerm,
+  onSearchChange,
+  selectedTypes,
+  onTypesChange,
+  matchCount,
   nodeCount,
   edgeCount,
+  clusterCount,
 }: {
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -248,14 +249,48 @@ function GraphToolbar({
   onReset: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  searchTerm: string;
+  onSearchChange: (term: string) => void;
+  selectedTypes: string[];
+  onTypesChange: (types: string[]) => void;
+  matchCount: number;
   nodeCount: number;
   edgeCount: number;
+  clusterCount: number;
 }) {
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setTypeDropdownOpen(false);
+      }
+    }
+    if (typeDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [typeDropdownOpen]);
+
+  const toggleType = (type: string) => {
+    if (selectedTypes.includes(type)) {
+      onTypesChange(selectedTypes.filter(t => t !== type));
+    } else {
+      onTypesChange([...selectedTypes, type]);
+    }
+  };
+
+  const clearTypes = () => onTypesChange([]);
+
+  const primaryTypes = ['task', 'project', 'epic', 'pattern', 'episode', 'topic', 'concept'];
+  const secondaryTypes = ENTITY_TYPES.filter(t => !primaryTypes.includes(t));
+
   return (
     <>
       {/* Mobile compact toolbar */}
       <div className="absolute top-2 left-2 right-2 z-10 flex items-center gap-2 md:hidden">
-        {/* Stats pill */}
         <div className="flex-1 flex items-center justify-center gap-3 text-xs bg-sc-bg-base/90 rounded-lg px-3 py-2 border border-sc-fg-subtle/20">
           <span>
             <span className="text-sc-purple font-medium">{nodeCount}</span>
@@ -266,8 +301,6 @@ function GraphToolbar({
             <span className="text-sc-fg-subtle ml-1">edges</span>
           </span>
         </div>
-
-        {/* Fullscreen */}
         <button
           type="button"
           onClick={onToggleFullscreen}
@@ -281,56 +314,206 @@ function GraphToolbar({
         </button>
       </div>
 
-      {/* Desktop toolbar */}
-      <div className="absolute top-4 left-4 z-10 hidden md:flex items-start gap-3">
-        {/* Zoom Controls */}
-        <Card className="!p-1 flex items-center gap-1">
-          <button
-            type="button"
-            onClick={onZoomIn}
-            className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-            title="Zoom in"
-          >
-            <PlusCircle width={16} height={16} />
-          </button>
-          <button
-            type="button"
-            onClick={onZoomOut}
-            className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-            title="Zoom out"
-          >
-            <MinusCircle width={16} height={16} />
-          </button>
-          <div className="w-px h-4 bg-sc-fg-subtle/20" />
-          <button
-            type="button"
-            onClick={onFitView}
-            className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-            title="Fit to view"
-          >
-            <Focus width={16} height={16} />
-          </button>
-          <button
-            type="button"
-            onClick={onReset}
-            className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-            title="Reset view"
-          >
-            <RotateCcw width={16} height={16} />
-          </button>
-          <div className="w-px h-4 bg-sc-fg-subtle/20" />
-          <button
-            type="button"
-            onClick={onToggleFullscreen}
-            className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          >
-            {isFullscreen ? (
-              <Minimize2 width={16} height={16} />
-            ) : (
-              <Maximize2 width={16} height={16} />
+      {/* Desktop unified toolbar */}
+      <div className="absolute top-4 left-4 right-4 z-10 hidden md:flex items-center justify-between">
+        <Card className="!p-1.5 flex items-center gap-2">
+          {/* Zoom controls */}
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={onZoomIn}
+              className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
+              title="Zoom in"
+            >
+              <PlusCircle width={16} height={16} />
+            </button>
+            <button
+              type="button"
+              onClick={onZoomOut}
+              className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
+              title="Zoom out"
+            >
+              <MinusCircle width={16} height={16} />
+            </button>
+            <button
+              type="button"
+              onClick={onFitView}
+              className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
+              title="Fit to view"
+            >
+              <Focus width={16} height={16} />
+            </button>
+            <button
+              type="button"
+              onClick={onReset}
+              className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
+              title="Reset view"
+            >
+              <RotateCcw width={16} height={16} />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleFullscreen}
+              className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
+              title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            >
+              {isFullscreen ? (
+                <Minimize2 width={16} height={16} />
+              ) : (
+                <Maximize2 width={16} height={16} />
+              )}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-sc-fg-subtle/20" />
+
+          {/* Search input */}
+          <div className="relative">
+            <Search
+              width={14}
+              height={14}
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-sc-fg-subtle"
+            />
+            <input
+              type="text"
+              placeholder="Search nodes..."
+              value={searchTerm}
+              onChange={e => onSearchChange(e.target.value)}
+              className="pl-7 pr-7 py-1 w-44 text-xs bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg focus:border-sc-purple/50 focus:outline-none text-sc-fg-primary placeholder:text-sc-fg-subtle"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => onSearchChange('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-sc-fg-subtle hover:text-sc-fg-primary"
+              >
+                <X width={12} height={12} />
+              </button>
             )}
-          </button>
+          </div>
+
+          {/* Search result count */}
+          {searchTerm && (
+            <span className="text-xs text-sc-fg-muted whitespace-nowrap">
+              {matchCount}/{nodeCount}
+            </span>
+          )}
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-sc-fg-subtle/20" />
+
+          {/* Entity type filter dropdown */}
+          <div ref={dropdownRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
+              className={`flex items-center gap-1.5 px-2 py-1 text-xs rounded-lg transition-colors ${
+                selectedTypes.length > 0
+                  ? 'bg-sc-purple/10 text-sc-purple'
+                  : 'text-sc-fg-muted hover:text-sc-fg-primary'
+              }`}
+            >
+              <Filter width={14} height={14} />
+              <span>Types</span>
+              {selectedTypes.length > 0 && (
+                <span className="px-1 rounded bg-sc-purple/20 text-[10px]">
+                  {selectedTypes.length}
+                </span>
+              )}
+              <ChevronDown
+                width={12}
+                height={12}
+                className={`transition-transform ${typeDropdownOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {typeDropdownOpen && (
+              <div className="absolute top-full left-0 mt-1 w-56 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl shadow-lg overflow-hidden z-50 animate-fade-in">
+                {selectedTypes.length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={clearTypes}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-elevated transition-colors"
+                    >
+                      <X width={12} height={12} />
+                      Clear filter
+                    </button>
+                    <div className="border-t border-sc-fg-subtle/10" />
+                  </>
+                )}
+                <div className="max-h-64 overflow-y-auto p-2 space-y-1">
+                  {primaryTypes.map(type => {
+                    const isSelected = selectedTypes.includes(type);
+                    const color = getEntityColor(type);
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => toggleType(type)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          isSelected
+                            ? 'bg-sc-purple/10 text-sc-fg-primary'
+                            : 'text-sc-fg-muted hover:bg-sc-bg-elevated hover:text-sc-fg-primary'
+                        }`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="flex-1 text-left">{ENTITY_TYPE_LABELS[type] || type}</span>
+                        {isSelected && <Check width={14} height={14} className="text-sc-purple" />}
+                      </button>
+                    );
+                  })}
+                  <div className="border-t border-sc-fg-subtle/10 my-1" />
+                  {secondaryTypes.map(type => {
+                    const isSelected = selectedTypes.includes(type);
+                    const color = getEntityColor(type);
+                    return (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => toggleType(type)}
+                        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors ${
+                          isSelected
+                            ? 'bg-sc-purple/10 text-sc-fg-primary'
+                            : 'text-sc-fg-muted hover:bg-sc-bg-elevated hover:text-sc-fg-primary'
+                        }`}
+                      >
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{ backgroundColor: color }}
+                        />
+                        <span className="flex-1 text-left">{ENTITY_TYPE_LABELS[type] || type}</span>
+                        {isSelected && <Check width={14} height={14} className="text-sc-purple" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Divider */}
+          <div className="w-px h-5 bg-sc-fg-subtle/20" />
+
+          {/* Compact stats */}
+          <div className="flex items-center gap-3 text-xs px-1">
+            <span>
+              <span className="text-sc-purple font-medium">{nodeCount.toLocaleString()}</span>
+              <span className="text-sc-fg-subtle ml-1">nodes</span>
+            </span>
+            <span>
+              <span className="text-sc-cyan font-medium">{edgeCount.toLocaleString()}</span>
+              <span className="text-sc-fg-subtle ml-1">edges</span>
+            </span>
+            <span>
+              <span className="text-sc-coral font-medium">{clusterCount}</span>
+              <span className="text-sc-fg-subtle ml-1">clusters</span>
+            </span>
+          </div>
         </Card>
       </div>
 
@@ -375,8 +558,12 @@ function GraphPageContent() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
 
+  // Filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
+
   // Fetch hierarchical graph data with up to 1000 nodes
-  // Filter by selected projects if any are chosen
+  // Filter by selected projects and entity types
   const {
     data,
     isLoading,
@@ -385,6 +572,7 @@ function GraphPageContent() {
     max_nodes: GRAPH_DEFAULTS.MAX_NODES,
     max_edges: GRAPH_DEFAULTS.MAX_EDGES,
     projects: selectedProjects.length > 0 ? selectedProjects : undefined,
+    types: selectedTypes.length > 0 ? selectedTypes : undefined,
   });
 
   // Build cluster color map
@@ -414,10 +602,21 @@ function GraphPageContent() {
     })) as GraphNode[];
   }, [data]);
 
+  // Search matching helper
+  const matchesSearch = useCallback(
+    (node: { name?: string; label?: string; id: string }) => {
+      if (!searchTerm) return false;
+      const term = searchTerm.toLowerCase();
+      const name = (node.label || node.name || '').toLowerCase();
+      return name.includes(term) || node.id.toLowerCase().includes(term);
+    },
+    [searchTerm]
+  );
+
   // Transform data for force graph with entity coloring and degree-based sizing
   // When a cluster is selected, include 1-hop neighbors for context
   const graphData = useMemo(() => {
-    if (!data) return { nodes: [], links: [], maxDegree: 1 };
+    if (!data) return { nodes: [], links: [], maxDegree: 1, matchCount: 0 };
 
     // Build node ID set (also filters by cluster if selected)
     const clusterNodeIds = new Set<string>();
@@ -468,8 +667,9 @@ function GraphPageContent() {
         }
       }
 
-      // Build nodes array with neighbor flag
+      // Build nodes array with neighbor flag and search matching
       const graphNodes: GraphNode[] = [];
+      let matchCount = 0;
       for (const id of allVisibleIds) {
         const node = nodeIdToNode.get(id);
         if (!node) continue;
@@ -477,12 +677,15 @@ function GraphPageContent() {
         const isProject = node.type === 'project';
         const entityType = node.type || 'unknown';
         const isNeighbor = neighborIds.has(id);
+        const isSearchMatch = matchesSearch(node);
+        if (isSearchMatch) matchCount++;
 
         let zIndex = degree;
         if (isProject) zIndex += 1000;
         else if (entityType === 'task') zIndex += 50;
         else if (entityType === 'pattern') zIndex += 30;
         if (isNeighbor) zIndex -= 500; // Neighbors render behind cluster nodes
+        if (isSearchMatch) zIndex += 2000; // Search matches render on top
 
         graphNodes.push({
           ...node,
@@ -492,11 +695,12 @@ function GraphPageContent() {
           isProject,
           zIndex,
           isNeighbor, // Mark as neighbor for dimmed rendering
+          isSearchMatch,
         } as GraphNode);
       }
 
       graphNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
-      return { nodes: graphNodes, links: filteredEdges, maxDegree };
+      return { nodes: graphNodes, links: filteredEdges, maxDegree, matchCount };
     }
 
     // No cluster filter - show all nodes
@@ -520,19 +724,23 @@ function GraphPageContent() {
       }
     }
 
-    // Transform nodes with entity colors, degree, and z-index
+    // Transform nodes with entity colors, degree, z-index, and search matching
     const graphNodes: GraphNode[] = new Array(data.nodes.length);
+    let matchCount = 0;
     for (let i = 0; i < data.nodes.length; i++) {
       const node = data.nodes[i];
       const degree = degreeMap.get(node.id) || 0;
       const isProject = node.type === 'project';
       const entityType = node.type || 'unknown';
+      const isSearchMatch = matchesSearch(node);
+      if (isSearchMatch) matchCount++;
 
       // z-index for rendering order (higher = on top)
       let zIndex = degree;
       if (isProject) zIndex += 1000;
       else if (entityType === 'task') zIndex += 50;
       else if (entityType === 'pattern') zIndex += 30;
+      if (isSearchMatch) zIndex += 2000; // Search matches render on top
 
       graphNodes[i] = {
         ...node,
@@ -541,14 +749,15 @@ function GraphPageContent() {
         degree,
         isProject,
         zIndex,
+        isSearchMatch,
       };
     }
 
     // Sort by zIndex so important nodes render last (on top)
     graphNodes.sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
-    return { nodes: graphNodes, links: filteredEdges, maxDegree };
-  }, [data, selectedCluster, clusterColorMap]);
+    return { nodes: graphNodes, links: filteredEdges, maxDegree, matchCount };
+  }, [data, selectedCluster, clusterColorMap, matchesSearch]);
 
   // Configure d3 forces
   useEffect(() => {
@@ -584,6 +793,7 @@ function GraphPageContent() {
       const isHovered = node.id === hoveredNode;
       const isProject = node.isProject;
       const isNeighbor = node.isNeighbor;
+      const isSearchMatch = node.isSearchMatch;
       const degree = node.degree || 0;
       const maxDegree = graphData.maxDegree || 1;
 
@@ -594,6 +804,7 @@ function GraphPageContent() {
 
       // Minimum size of 5px ensures all nodes are visible
       // Neighbors are slightly smaller to emphasize cluster nodes
+      // Search matches are enlarged for visibility
       let size: number;
       if (isProject) {
         size = 14 + combinedScale * 10;
@@ -601,6 +812,8 @@ function GraphPageContent() {
         size = Math.max(12, 6 + combinedScale * 10);
       } else if (isHovered) {
         size = Math.max(10, 5 + combinedScale * 9);
+      } else if (isSearchMatch) {
+        size = Math.max(10, 6 + combinedScale * 10); // Enlarged for visibility
       } else if (isNeighbor) {
         size = 4 + combinedScale * 8; // Smaller context nodes
       } else {
@@ -609,7 +822,21 @@ function GraphPageContent() {
 
       const baseColor = node.entityColor || '#8b85a0';
       // Neighbors are rendered at 40% opacity to fade into background
-      const color = isNeighbor && !isSelected && !isHovered ? `${baseColor}66` : baseColor;
+      // Search matches keep full opacity
+      const color =
+        isNeighbor && !isSelected && !isHovered && !isSearchMatch ? `${baseColor}66` : baseColor;
+
+      // Outer glow for search matches (electric purple pulse)
+      if (isSearchMatch && !isSelected && !isHovered) {
+        ctx.beginPath();
+        ctx.arc(x, y, size + 8, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(225, 53, 255, 0.15)'; // Electric purple outer
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x, y, size + 4, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(225, 53, 255, 0.3)'; // Electric purple inner
+        ctx.fill();
+      }
 
       // Glow for selected/hovered
       if (isSelected || isHovered) {
@@ -625,7 +852,7 @@ function GraphPageContent() {
       ctx.fillStyle = color;
       ctx.fill();
 
-      // Border for selected/hovered
+      // Border for selected/hovered/search match
       if (isSelected) {
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
@@ -633,6 +860,10 @@ function GraphPageContent() {
       } else if (isHovered) {
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
         ctx.lineWidth = 1.5;
+        ctx.stroke();
+      } else if (isSearchMatch) {
+        ctx.strokeStyle = '#e135ff'; // Electric purple border
+        ctx.lineWidth = 2;
         ctx.stroke();
       }
 
@@ -645,9 +876,10 @@ function GraphPageContent() {
 
       // Determine if label should show based on zoom + importance
       // Neighbors only show labels when hovered/selected to keep focus on cluster
+      // Search matches always show labels for discoverability
       let showLabel = false;
 
-      if (isSelected || isHovered) {
+      if (isSelected || isHovered || isSearchMatch) {
         showLabel = true;
       } else if (isNeighbor) {
         // Neighbors only show label when zoomed in very close
@@ -691,7 +923,7 @@ function GraphPageContent() {
 
         // Text color - slightly transparent for non-priority labels
         const textColor = colors.fgPrimary;
-        const isPriority = isSelected || isHovered || isProject || isHubNode;
+        const isPriority = isSelected || isHovered || isProject || isHubNode || isSearchMatch;
         ctx.fillStyle = isPriority ? textColor : `${textColor}bb`;
         ctx.fillText(displayLabel, x, labelY);
       }
@@ -821,8 +1053,14 @@ function GraphPageContent() {
             onReset={handleReset}
             isFullscreen={isFullscreen}
             onToggleFullscreen={toggleFullscreen}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            selectedTypes={selectedTypes}
+            onTypesChange={setSelectedTypes}
+            matchCount={graphData.matchCount}
             nodeCount={nodeCount}
             edgeCount={edgeCount}
+            clusterCount={data?.clusters.length ?? 0}
           />
 
           {/* Loading overlay */}
@@ -885,17 +1123,6 @@ function GraphPageContent() {
               maxZoom={10}
               d3AlphaDecay={GRAPH_DEFAULTS.ALPHA_DECAY}
               d3VelocityDecay={GRAPH_DEFAULTS.VELOCITY_DECAY}
-            />
-          )}
-
-          {/* Stats overlay */}
-          {data && (
-            <StatsOverlay
-              totalNodes={data.total_nodes}
-              totalEdges={data.total_edges}
-              displayedNodes={data.displayed_nodes ?? graphData.nodes.length}
-              displayedEdges={data.displayed_edges ?? graphData.links.length}
-              clusterCount={data.clusters.length}
             />
           )}
 
