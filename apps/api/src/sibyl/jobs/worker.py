@@ -796,6 +796,37 @@ def _get_tool_icon_and_preview(tool_name: str, tool_input: dict[str, Any]) -> tu
     return "Settings", tool_name
 
 
+def _generate_workflow_reminder(workflow_summary: dict[str, Any]) -> str:
+    """Generate a follow-up prompt reminding about Sibyl workflow.
+
+    Args:
+        workflow_summary: Workflow state from WorkflowTracker
+
+    Returns:
+        Follow-up prompt for the agent
+    """
+    missing_steps: list[str] = []
+
+    if not workflow_summary.get("searched_sibyl") and not workflow_summary.get("received_context"):
+        missing_steps.append("search Sibyl for relevant patterns and past learnings")
+
+    if not workflow_summary.get("updated_task"):
+        missing_steps.append("update the task status if working on a tracked task")
+
+    if not workflow_summary.get("captured_learning"):
+        missing_steps.append("capture any non-obvious learnings discovered during this work")
+
+    if not missing_steps:
+        return "Please complete the Sibyl workflow before finishing."
+
+    steps_text = "\n- ".join(missing_steps)
+    return f"""Before finishing, please complete the Sibyl workflow:
+
+- {steps_text}
+
+This helps preserve learnings for future sessions. Use the Sibyl MCP tools (mcp__sibyl__search, mcp__sibyl__add, mcp__sibyl__manage) to complete these steps."""
+
+
 def _format_assistant_message(content: Any, timestamp: str) -> dict[str, Any]:
     """Format an AssistantMessage for UI display."""
     if isinstance(content, list):
@@ -1167,6 +1198,7 @@ async def run_agent_execution(  # noqa: PLR0915
         session_id = ""
         last_content = ""
         tool_calls: list[str] = []
+        context_broadcasted = False  # Track if we've shown injected context
 
         # Store the initial user prompt as message #1
         message_count += 1
@@ -1215,6 +1247,27 @@ async def run_agent_execution(  # noqa: PLR0915
             # Store summarized message to Postgres for reload persistence
             await _store_agent_message(agent_id, org_id, message_count, formatted)
 
+            # Broadcast injected Sibyl context (once, after first response)
+            if not context_broadcasted and instance.workflow_tracker:
+                injected = instance.workflow_tracker.injected_context
+                if injected:
+                    context_broadcasted = True
+                    message_count += 1
+                    context_message = {
+                        "role": "system",
+                        "type": "sibyl_context",
+                        "content": injected,
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "preview": "Sibyl context injected",
+                        "icon": "Sparkles",
+                    }
+                    await _safe_broadcast(
+                        "agent_message",
+                        {"agent_id": agent_id, "message_num": message_count, **context_message},
+                        org_id=org_id,
+                    )
+                    await _store_agent_message(agent_id, org_id, message_count, context_message)
+
             # Track session ID
             if sid := getattr(message, "session_id", None):
                 session_id = sid
@@ -1243,6 +1296,36 @@ async def run_agent_execution(  # noqa: PLR0915
             # Keep last meaningful content for summary
             if formatted.get("content") and formatted.get("type") != "tool_result":
                 last_content = formatted.get("content", "")[:500]
+
+        # Check workflow completion and send follow-up if needed
+        # Only for substantive work (5+ tool calls with code changes)
+        if instance.workflow_tracker and instance.workflow_tracker.should_remind():
+            workflow_summary = instance.workflow_tracker.get_workflow_summary()
+            log.info("run_agent_workflow_reminder", agent_id=agent_id, **workflow_summary)
+
+            # Send follow-up to remind about Sibyl workflow
+            follow_up_prompt = _generate_workflow_reminder(workflow_summary)
+
+            # Stream follow-up responses
+            async for message in instance.send_message(follow_up_prompt):
+                message_count += 1
+                formatted = _format_agent_message(message)
+
+                await _safe_broadcast(
+                    "agent_message",
+                    {"agent_id": agent_id, "message_num": message_count, **formatted},
+                    org_id=org_id,
+                )
+                await _store_agent_message(agent_id, org_id, message_count, formatted)
+
+                # Track tool calls
+                if "ToolUse" in type(message).__name__ or formatted.get("type") == "tool_use":
+                    tool_name = formatted.get("tool_name", "unknown")
+                    tool_calls.append(tool_name)
+
+                # Update last content
+                if formatted.get("content") and formatted.get("type") != "tool_result":
+                    last_content = formatted.get("content", "")[:500]
 
         # Create checkpoint only on completion (summary, not full history)
         from uuid import uuid4

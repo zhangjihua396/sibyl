@@ -61,6 +61,9 @@ class WorkflowTracker:
 
     Records what Sibyl-related actions the agent has taken to determine
     if the workflow was properly followed (search -> work -> capture).
+
+    The workflow reminder is NOT rigid - it only triggers for substantive
+    work sessions, not quick questions or simple tasks.
     """
 
     # Did agent search Sibyl for context?
@@ -75,11 +78,19 @@ class WorkflowTracker:
     # Did agent receive Sibyl context injection?
     received_context: bool = False
 
+    # The actual injected context (for UI display)
+    injected_context: str | None = None
+
     # Raw tool calls for analysis
     sibyl_tool_calls: list[str] = field(default_factory=list)
+    all_tool_calls: list[str] = field(default_factory=list)
 
     # Workflow state
     agent_stopped: bool = False
+
+    # Thresholds for "substantive work" that warrants workflow reminder
+    MIN_TOOL_CALLS_FOR_WORKFLOW = 5  # At least this many tool calls
+    SUBSTANTIVE_TOOLS = {"Write", "Edit", "MultiEdit", "Bash"}  # Code-changing tools
 
     def record_tool_use(self, tool_name: str, tool_input: dict[str, Any] | None = None) -> None:
         """Record a tool use and update workflow state.
@@ -88,6 +99,8 @@ class WorkflowTracker:
             tool_name: Name of the tool called
             tool_input: Tool input parameters
         """
+        self.all_tool_calls.append(tool_name)
+
         # Check if this is a Sibyl tool
         is_sibyl_tool = any(re.search(p, tool_name, re.IGNORECASE) for p in SIBYL_TOOL_PATTERNS)
 
@@ -105,23 +118,53 @@ class WorkflowTracker:
                 if tool_input and "learning" in str(tool_input).lower():
                     self.captured_learning = True
 
+    def _is_substantive_work(self) -> bool:
+        """Check if this session involved substantive work worth tracking.
+
+        Returns:
+            True if agent did enough work to warrant a workflow reminder
+        """
+        # Not enough tool calls = quick task, skip reminder
+        if len(self.all_tool_calls) < self.MIN_TOOL_CALLS_FOR_WORKFLOW:
+            return False
+
+        # Check if any substantive (code-changing) tools were used
+        used_substantive = any(
+            any(sub in tool for sub in self.SUBSTANTIVE_TOOLS)
+            for tool in self.all_tool_calls
+        )
+
+        return used_substantive
+
     def is_workflow_complete(self) -> bool:
         """Check if the Sibyl workflow was properly followed.
 
-        For a complete workflow, the agent should have:
-        1. Searched Sibyl for context (or received injected context)
-        2. Optionally updated task status
-        3. Optionally captured learnings
+        Only triggers for substantive work sessions. Quick questions,
+        simple lookups, or short tasks don't need the full workflow.
 
         Returns:
-            True if workflow appears complete
+            True if workflow is complete OR task wasn't substantive enough
         """
-        # If agent received injected context, that counts as searching
+        # If not substantive work, consider workflow "complete" (no reminder needed)
+        if not self._is_substantive_work():
+            return True
+
+        # If agent received injected context, that counts as engaging with Sibyl
         has_context = self.searched_sibyl or self.received_context
 
-        # For now, just check if they engaged with Sibyl at all
-        # More sophisticated validation can use fast model evaluation
+        # For substantive work, require some Sibyl engagement
         return has_context or len(self.sibyl_tool_calls) > 0
+
+    def should_remind(self) -> bool:
+        """Check if we should send a workflow reminder.
+
+        More explicit than is_workflow_complete() - use this to decide
+        whether to send the follow-up message.
+
+        Returns:
+            True if a workflow reminder should be sent
+        """
+        return self._is_substantive_work() and not self.is_workflow_complete()
 
     def get_workflow_summary(self) -> dict[str, Any]:
         """Get a summary of workflow state for logging/debugging."""
@@ -131,8 +174,11 @@ class WorkflowTracker:
             "captured_learning": self.captured_learning,
             "received_context": self.received_context,
             "sibyl_tool_calls": self.sibyl_tool_calls,
+            "total_tool_calls": len(self.all_tool_calls),
+            "is_substantive": self._is_substantive_work(),
             "agent_stopped": self.agent_stopped,
             "workflow_complete": self.is_workflow_complete(),
+            "should_remind": self.should_remind(),
         }
 
 
@@ -381,8 +427,9 @@ class SibylContextService:
 
             if additional_context:
                 logger.debug(f"Injecting Sibyl context for prompt: {prompt[:50]}...")
-                # Track that agent received context
+                # Track that agent received context and store it for UI display
                 self.workflow_tracker.received_context = True
+                self.workflow_tracker.injected_context = additional_context
                 return SyncHookJSONOutput(
                     continue_=True,
                     hookSpecificOutput={

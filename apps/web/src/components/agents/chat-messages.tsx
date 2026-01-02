@@ -9,6 +9,7 @@ import type { ApprovalType } from '@/lib/api';
 import { ApprovalRequestMessage } from './approval-request-message';
 import { ToolMessage } from './chat-tool-message';
 import type { ChatMessageComponentProps } from './chat-types';
+import { SibylContextMessage } from './sibyl-context-message';
 
 // =============================================================================
 // ChatMessageComponent
@@ -24,7 +25,15 @@ export function ChatMessageComponent({
   const isAgent = message.role === 'agent';
   const isSystem = message.role === 'system';
   const isToolCall = message.type === 'tool_call';
+  const isSibylContext = message.type === 'sibyl_context';
   const isApprovalRequest = message.metadata?.message_type === 'approval_request';
+
+  // Sibyl context injection - collapsible display
+  if (isSibylContext) {
+    return (
+      <SibylContextMessage content={message.content} timestamp={message.timestamp} isNew={isNew} />
+    );
+  }
 
   // Approval requests get special inline UI
   if (isApprovalRequest) {

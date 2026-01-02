@@ -35,6 +35,7 @@ export type {
   SubagentData,
 } from './chat-types';
 export { HealthMonitor } from './health-monitor';
+export { SibylContextMessage } from './sibyl-context-message';
 export { SpawnAgentDialog } from './spawn-agent-dialog';
 // Tool renderers
 export {
