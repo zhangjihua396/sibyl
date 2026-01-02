@@ -152,6 +152,9 @@ class DocumentChunker:
         else:  # SEMANTIC (default)
             raw_chunks = self._chunk_semantic(content)
 
+        # Deduplicate identical chunks (same content appearing multiple times)
+        raw_chunks = self._dedupe_chunks(raw_chunks)
+
         # Build document context for Anthropic-style contextual retrieval
         doc_context = self._build_document_context(document)
 
@@ -498,6 +501,32 @@ class DocumentChunker:
             merged.append(current)
 
         return merged
+
+    def _dedupe_chunks(self, chunks: list[dict]) -> list[dict]:
+        """Remove duplicate chunks with identical content.
+
+        Keeps the first occurrence of each unique content string.
+        This prevents the same code block or text appearing multiple times.
+        """
+        seen_content: set[str] = set()
+        deduped = []
+
+        for chunk in chunks:
+            # Normalize content for comparison (strip whitespace)
+            content_key = chunk["content"].strip()
+            if content_key and content_key not in seen_content:
+                seen_content.add(content_key)
+                deduped.append(chunk)
+
+        if len(deduped) < len(chunks):
+            log.debug(
+                "Deduped chunks",
+                original=len(chunks),
+                deduped=len(deduped),
+                removed=len(chunks) - len(deduped),
+            )
+
+        return deduped
 
     def _build_document_context(self, document: CrawledDocument) -> str:
         """Build document-level context for chunk prefixes.
