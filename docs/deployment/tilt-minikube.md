@@ -79,19 +79,19 @@ Open http://localhost:10350 to see the Tilt dashboard.
 
 The Tiltfile orchestrates deployment of:
 
-| Component              | Namespace      | Purpose                          |
-| ---------------------- | -------------- | -------------------------------- |
-| Gateway API CRDs       | -              | Kubernetes Gateway API           |
-| cert-manager           | cert-manager   | TLS certificate management       |
-| Kong Operator          | kong-system    | API Gateway operator             |
-| Kong Gateway           | kong           | Ingress/routing                  |
-| CNPG Operator          | cnpg-system    | PostgreSQL operator              |
-| PostgreSQL Cluster     | sibyl          | CNPG-managed database            |
-| FalkorDB               | sibyl          | Graph database                   |
-| Sibyl Backend          | sibyl          | FastAPI + MCP server             |
-| Sibyl Frontend         | sibyl          | Next.js UI                       |
-| Sibyl Worker           | sibyl          | arq job processor                |
-| Caddy Proxy            | localhost      | TLS termination for sibyl.local  |
+| Component          | Namespace    | Purpose                         |
+| ------------------ | ------------ | ------------------------------- |
+| Gateway API CRDs   | -            | Kubernetes Gateway API          |
+| cert-manager       | cert-manager | TLS certificate management      |
+| Kong Operator      | kong-system  | API Gateway operator            |
+| Kong Gateway       | kong         | Ingress/routing                 |
+| CNPG Operator      | cnpg-system  | PostgreSQL operator             |
+| PostgreSQL Cluster | sibyl        | CNPG-managed database           |
+| FalkorDB           | sibyl        | Graph database                  |
+| Sibyl Backend      | sibyl        | FastAPI + MCP server            |
+| Sibyl Frontend     | sibyl        | Next.js UI                      |
+| Sibyl Worker       | sibyl        | arq job processor               |
+| Caddy Proxy        | localhost    | TLS termination for sibyl.local |
 
 ## Secrets Configuration
 
@@ -118,12 +118,12 @@ export SIBYL_ANTHROPIC_API_KEY=sk-ant-...
 
 With Caddy proxy running (started by Tilt):
 
-| URL                          | Service             |
-| ---------------------------- | ------------------- |
-| https://sibyl.local          | Frontend UI         |
-| https://sibyl.local/api/docs | API Documentation   |
-| https://sibyl.local/api/*    | REST API            |
-| https://sibyl.local/mcp      | MCP Protocol        |
+| URL                          | Service           |
+| ---------------------------- | ----------------- |
+| https://sibyl.local          | Frontend UI       |
+| https://sibyl.local/api/docs | API Documentation |
+| https://sibyl.local/api/*    | REST API          |
+| https://sibyl.local/mcp      | MCP Protocol      |
 
 ### Direct Port-Forward
 
@@ -169,13 +169,13 @@ The `infra/local/sibyl-values.yaml` configures Sibyl for local development:
 backend:
   image:
     repository: sibyl-backend
-    pullPolicy: Never  # Use local images
+    pullPolicy: Never # Use local images
     tag: dev
 
   existingSecret: sibyl-secrets
 
   database:
-    existingSecret: sibyl-postgres-app  # CNPG auto-generated
+    existingSecret: sibyl-postgres-app # CNPG auto-generated
 
   falkordb:
     host: falkordb-redis-master

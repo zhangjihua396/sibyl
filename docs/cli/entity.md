@@ -1,6 +1,7 @@
 # entity
 
-Generic entity CRUD operations. Use this for working with knowledge entities like patterns, episodes, templates, and other types.
+Generic entity CRUD operations. Use this for working with knowledge entities like patterns,
+episodes, templates, and other types.
 
 ## Commands
 
@@ -14,28 +15,28 @@ Generic entity CRUD operations. Use this for working with knowledge entities lik
 
 ## Entity Types
 
-| Type | Description |
-|------|-------------|
-| `pattern` | Code patterns, best practices |
-| `episode` | Knowledge episodes, learnings |
-| `rule` | Rules and constraints |
-| `template` | Code templates |
-| `convention` | Team conventions, standards |
-| `tool` | Tools and utilities |
-| `language` | Programming languages |
-| `topic` | General topics |
-| `knowledge_source` | External knowledge sources |
-| `config_file` | Configuration files |
-| `slash_command` | Slash commands |
-| `task` | Tasks (use `sibyl task` instead) |
-| `project` | Projects (use `sibyl project` instead) |
-| `epic` | Epics (use `sibyl epic` instead) |
-| `team` | Team definitions |
-| `error_pattern` | Error patterns and solutions |
-| `milestone` | Project milestones |
-| `source` | Web sources |
-| `document` | Crawled documents |
-| `community` | Community groupings |
+| Type               | Description                            |
+| ------------------ | -------------------------------------- |
+| `pattern`          | Code patterns, best practices          |
+| `episode`          | Knowledge episodes, learnings          |
+| `rule`             | Rules and constraints                  |
+| `template`         | Code templates                         |
+| `convention`       | Team conventions, standards            |
+| `tool`             | Tools and utilities                    |
+| `language`         | Programming languages                  |
+| `topic`            | General topics                         |
+| `knowledge_source` | External knowledge sources             |
+| `config_file`      | Configuration files                    |
+| `slash_command`    | Slash commands                         |
+| `task`             | Tasks (use `sibyl task` instead)       |
+| `project`          | Projects (use `sibyl project` instead) |
+| `epic`             | Epics (use `sibyl epic` instead)       |
+| `team`             | Team definitions                       |
+| `error_pattern`    | Error patterns and solutions           |
+| `milestone`        | Project milestones                     |
+| `source`           | Web sources                            |
+| `document`         | Crawled documents                      |
+| `community`        | Community groupings                    |
 
 ---
 
@@ -51,14 +52,14 @@ sibyl entity list [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--type` | `-T` | `pattern` | Entity type to list |
-| `--language` | `-l` | (all) | Filter by language |
-| `--category` | `-c` | (all) | Filter by category |
-| `--limit` | `-n` | 50 | Max results |
-| `--json` | `-j` | false | JSON output |
-| `--csv` | | false | CSV output |
+| Option       | Short | Default   | Description         |
+| ------------ | ----- | --------- | ------------------- |
+| `--type`     | `-T`  | `pattern` | Entity type to list |
+| `--language` | `-l`  | (all)     | Filter by language  |
+| `--category` | `-c`  | (all)     | Filter by category  |
+| `--limit`    | `-n`  | 50        | Max results         |
+| `--json`     | `-j`  | false     | JSON output         |
+| `--csv`      |       | false     | CSV output          |
 
 ### Examples
 
@@ -80,6 +81,7 @@ sibyl entity list --type pattern --json
 ```
 
 Output (table):
+
 ```
 Patterns
 ID          Name                            Description
@@ -105,15 +107,15 @@ sibyl entity show <entity_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `entity_id` | Yes | Entity ID |
+| Argument    | Required | Description |
+| ----------- | -------- | ----------- |
+| `entity_id` | Yes      | Entity ID   |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -122,6 +124,7 @@ sibyl entity show ent_abc123
 ```
 
 Output:
+
 ```
 Pattern Details
   Name: JWT Authentication Pattern
@@ -156,20 +159,20 @@ sibyl entity create --type <type> --name <name> [options]
 
 ### Required Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--type` | `-T` | Entity type (required) |
-| `--name` | `-n` | Entity name (required) |
+| Option   | Short | Description            |
+| -------- | ----- | ---------------------- |
+| `--type` | `-T`  | Entity type (required) |
+| `--name` | `-n`  | Entity name (required) |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--content` | `-c` | Entity content |
-| `--category` | | Category |
-| `--languages` | `-l` | Comma-separated languages |
-| `--tags` | | Comma-separated tags |
-| `--json` | `-j` | JSON output |
+| Option        | Short | Description               |
+| ------------- | ----- | ------------------------- |
+| `--content`   | `-c`  | Entity content            |
+| `--category`  |       | Category                  |
+| `--languages` | `-l`  | Comma-separated languages |
+| `--tags`      |       | Comma-separated tags      |
+| `--json`      | `-j`  | JSON output               |
 
 ### Examples
 
@@ -199,6 +202,7 @@ sibyl entity create \
 ```
 
 Output:
+
 ```
 Entity created: ent_xyz789abc123
 ```
@@ -217,16 +221,16 @@ sibyl entity delete <entity_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `entity_id` | Yes | Entity ID to delete |
+| Argument    | Required | Description         |
+| ----------- | -------- | ------------------- |
+| `entity_id` | Yes      | Entity ID to delete |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--yes` | `-y` | Skip confirmation |
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description       |
+| -------- | ----- | ----------------- |
+| `--yes`  | `-y`  | Skip confirmation |
+| `--json` | `-j`  | JSON output       |
 
 ### Example
 
@@ -235,6 +239,7 @@ sibyl entity delete ent_abc123 --yes
 ```
 
 Output:
+
 ```
 Entity deleted: ent_abc1...
 ```
@@ -253,16 +258,16 @@ sibyl entity related <entity_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `entity_id` | Yes | Entity ID |
+| Argument    | Required | Description |
+| ----------- | -------- | ----------- |
+| `entity_id` | Yes      | Entity ID   |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--limit` | `-n` | 20 | Max results |
-| `--json` | `-j` | false | JSON output |
+| Option    | Short | Default | Description |
+| --------- | ----- | ------- | ----------- |
+| `--limit` | `-n`  | 20      | Max results |
+| `--json`  | `-j`  | false   | JSON output |
 
 ### Example
 
@@ -271,6 +276,7 @@ sibyl entity related ent_abc123
 ```
 
 Output:
+
 ```
 Related Entities
 ID          Name                      Type         Relationship

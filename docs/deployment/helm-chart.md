@@ -75,7 +75,7 @@ backend:
     sessionAffinity: ""
     sessionAffinityConfig:
       clientIP:
-        timeoutSeconds: 10800  # 3 hours
+        timeoutSeconds: 10800 # 3 hours
 ```
 
 ### Autoscaling
@@ -203,7 +203,7 @@ backend:
 ```yaml
 backend:
   database:
-    existingSecret: ""  # Leave empty
+    existingSecret: "" # Leave empty
     host: "postgres.example.com"
     port: "5432"
     database: "sibyl"
@@ -326,7 +326,7 @@ frontend:
 
   securityContext:
     allowPrivilegeEscalation: false
-    readOnlyRootFilesystem: false  # Next.js needs write access
+    readOnlyRootFilesystem: false # Next.js needs write access
     capabilities:
       drop:
         - ALL
@@ -534,21 +534,21 @@ serviceAccount:
 
 The chart includes these templates:
 
-| Template                  | Purpose                           |
-| ------------------------- | --------------------------------- |
-| backend-deployment.yaml   | Backend Deployment                |
-| backend-service.yaml      | Backend ClusterIP Service         |
-| backend-hpa.yaml          | Backend HorizontalPodAutoscaler   |
-| frontend-deployment.yaml  | Frontend Deployment               |
-| frontend-service.yaml     | Frontend ClusterIP Service        |
-| frontend-hpa.yaml         | Frontend HorizontalPodAutoscaler  |
-| worker-deployment.yaml    | Worker Deployment                 |
-| worker-hpa.yaml           | Worker HorizontalPodAutoscaler    |
-| pdb.yaml                  | PodDisruptionBudgets              |
-| configmap.yaml            | Non-secret environment config     |
-| falkordb-secret.yaml      | Auto-generated FalkorDB secret    |
-| migration-job.yaml        | Database migration Job (hook)     |
-| serviceaccount.yaml       | ServiceAccount                    |
+| Template                 | Purpose                          |
+| ------------------------ | -------------------------------- |
+| backend-deployment.yaml  | Backend Deployment               |
+| backend-service.yaml     | Backend ClusterIP Service        |
+| backend-hpa.yaml         | Backend HorizontalPodAutoscaler  |
+| frontend-deployment.yaml | Frontend Deployment              |
+| frontend-service.yaml    | Frontend ClusterIP Service       |
+| frontend-hpa.yaml        | Frontend HorizontalPodAutoscaler |
+| worker-deployment.yaml   | Worker Deployment                |
+| worker-hpa.yaml          | Worker HorizontalPodAutoscaler   |
+| pdb.yaml                 | PodDisruptionBudgets             |
+| configmap.yaml           | Non-secret environment config    |
+| falkordb-secret.yaml     | Auto-generated FalkorDB secret   |
+| migration-job.yaml       | Database migration Job (hook)    |
+| serviceaccount.yaml      | ServiceAccount                   |
 
 ## Debugging
 

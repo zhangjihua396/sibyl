@@ -12,66 +12,66 @@ sibyl task list [options]
 
 ### Filtering
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--query` | `-q` | Search query (semantic search on name/description) |
-| `--status` | `-s` | Filter by status (comma-separated) |
-| `--priority` | | Filter by priority (comma-separated) |
-| `--complexity` | | Filter by complexity (comma-separated) |
-| `--feature` | `-f` | Filter by feature area |
-| `--tags` | | Filter by tags (comma-separated, matches ANY) |
-| `--project` | `-p` | Project ID |
-| `--epic` | `-e` | Epic ID |
-| `--no-epic` | | Tasks without an epic |
-| `--assignee` | `-a` | Filter by assignee |
-| `--all` | `-A` | Ignore context, list from all projects |
+| Option         | Short | Description                                        |
+| -------------- | ----- | -------------------------------------------------- |
+| `--query`      | `-q`  | Search query (semantic search on name/description) |
+| `--status`     | `-s`  | Filter by status (comma-separated)                 |
+| `--priority`   |       | Filter by priority (comma-separated)               |
+| `--complexity` |       | Filter by complexity (comma-separated)             |
+| `--feature`    | `-f`  | Filter by feature area                             |
+| `--tags`       |       | Filter by tags (comma-separated, matches ANY)      |
+| `--project`    | `-p`  | Project ID                                         |
+| `--epic`       | `-e`  | Epic ID                                            |
+| `--no-epic`    |       | Tasks without an epic                              |
+| `--assignee`   | `-a`  | Filter by assignee                                 |
+| `--all`        | `-A`  | Ignore context, list from all projects             |
 
 ### Pagination
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--limit` | `-n` | 50 | Max results (max: 200) |
-| `--offset` | | 0 | Skip first N results |
-| `--page` | | (none) | Page number (1-based, uses limit) |
+| Option     | Short | Default | Description                       |
+| ---------- | ----- | ------- | --------------------------------- |
+| `--limit`  | `-n`  | 50      | Max results (max: 200)            |
+| `--offset` |       | 0       | Skip first N results              |
+| `--page`   |       | (none)  | Page number (1-based, uses limit) |
 
 ### Output
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
-| `--csv` | | CSV output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
+| `--csv`  |       | CSV output  |
 
 ## Status Values
 
-| Status | Description |
-|--------|-------------|
-| `backlog` | Not yet planned |
-| `todo` | Planned, ready to start |
-| `doing` | In progress |
-| `blocked` | Blocked by something |
-| `review` | In review |
-| `done` | Completed |
-| `archived` | Archived |
+| Status     | Description             |
+| ---------- | ----------------------- |
+| `backlog`  | Not yet planned         |
+| `todo`     | Planned, ready to start |
+| `doing`    | In progress             |
+| `blocked`  | Blocked by something    |
+| `review`   | In review               |
+| `done`     | Completed               |
+| `archived` | Archived                |
 
 ## Priority Values
 
-| Priority | Description |
-|----------|-------------|
-| `critical` | Production issues |
-| `high` | Important work |
-| `medium` | Normal priority |
-| `low` | Nice to have |
-| `someday` | Future consideration |
+| Priority   | Description          |
+| ---------- | -------------------- |
+| `critical` | Production issues    |
+| `high`     | Important work       |
+| `medium`   | Normal priority      |
+| `low`      | Nice to have         |
+| `someday`  | Future consideration |
 
 ## Complexity Values
 
 | Complexity | Description |
-|------------|-------------|
-| `trivial` | < 1 hour |
-| `simple` | 1-4 hours |
-| `medium` | 1-2 days |
-| `complex` | 3-5 days |
-| `epic` | > 1 week |
+| ---------- | ----------- |
+| `trivial`  | < 1 hour    |
+| `simple`   | 1-4 hours   |
+| `medium`   | 1-2 days    |
+| `complex`  | 3-5 days    |
+| `epic`     | > 1 week    |
 
 ## Examples
 

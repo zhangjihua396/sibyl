@@ -38,13 +38,13 @@ sibyl epic list [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--project` | `-p` | (auto) | Project ID |
-| `--status` | `-s` | (all) | Filter: planning, in_progress, blocked, completed |
-| `--limit` | `-n` | 50 | Max results |
-| `--json` | `-j` | false | JSON output |
-| `--all` | `-A` | false | Ignore context, list from all projects |
+| Option      | Short | Default | Description                                       |
+| ----------- | ----- | ------- | ------------------------------------------------- |
+| `--project` | `-p`  | (auto)  | Project ID                                        |
+| `--status`  | `-s`  | (all)   | Filter: planning, in_progress, blocked, completed |
+| `--limit`   | `-n`  | 50      | Max results                                       |
+| `--json`    | `-j`  | false   | JSON output                                       |
+| `--all`     | `-A`  | false   | Ignore context, list from all projects            |
 
 ### Examples
 
@@ -60,6 +60,7 @@ sibyl epic list --all
 ```
 
 Output:
+
 ```
 Epics
 ID              Title                    Status        Priority   Progress
@@ -85,15 +86,15 @@ sibyl epic show <epic_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `epic_id` | Yes | Epic ID (full or prefix) |
+| Argument  | Required | Description              |
+| --------- | -------- | ------------------------ |
+| `epic_id` | Yes      | Epic ID (full or prefix) |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -102,6 +103,7 @@ sibyl epic show epic_abc123
 ```
 
 Output:
+
 ```
 Epic epic_abc123de
   Title:     Authentication System
@@ -132,21 +134,21 @@ sibyl epic create --title <title> [options]
 
 ### Required Options
 
-| Option | Description |
-|--------|-------------|
+| Option           | Description           |
+| ---------------- | --------------------- |
 | `--title` / `-n` | Epic title (required) |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--project` | `-p` | (auto) | Project ID (auto-resolves from linked path) |
-| `--description` | `-d` | (none) | Epic description |
-| `--priority` | | `medium` | Priority: critical, high, medium, low, someday |
-| `--assignee` | `-a` | (none) | Epic lead/owner |
-| `--tags` | | (none) | Comma-separated tags |
-| `--sync` | | false | Wait for creation |
-| `--json` | `-j` | false | JSON output |
+| Option          | Short | Default  | Description                                    |
+| --------------- | ----- | -------- | ---------------------------------------------- |
+| `--project`     | `-p`  | (auto)   | Project ID (auto-resolves from linked path)    |
+| `--description` | `-d`  | (none)   | Epic description                               |
+| `--priority`    |       | `medium` | Priority: critical, high, medium, low, someday |
+| `--assignee`    | `-a`  | (none)   | Epic lead/owner                                |
+| `--tags`        |       | (none)   | Comma-separated tags                           |
+| `--sync`        |       | false    | Wait for creation                              |
+| `--json`        | `-j`  | false    | JSON output                                    |
 
 ### Examples
 
@@ -164,6 +166,7 @@ sibyl epic create \
 ```
 
 Output:
+
 ```
 Epic created: epic_abc123def456
 Lead: nova
@@ -183,10 +186,10 @@ sibyl epic start <epic_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--assignee` | `-a` | Epic lead |
-| `--json` | `-j` | JSON output |
+| Option       | Short | Description |
+| ------------ | ----- | ----------- |
+| `--assignee` | `-a`  | Epic lead   |
+| `--json`     | `-j`  | JSON output |
 
 ### Example
 
@@ -195,6 +198,7 @@ sibyl epic start epic_abc123
 ```
 
 Output:
+
 ```
 Epic started: epic_abc123...
 ```
@@ -213,10 +217,10 @@ sibyl epic complete <epic_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--learnings` | `-l` | Key learnings from the epic |
-| `--json` | `-j` | JSON output |
+| Option        | Short | Description                 |
+| ------------- | ----- | --------------------------- |
+| `--learnings` | `-l`  | Key learnings from the epic |
+| `--json`      | `-j`  | JSON output                 |
 
 ### Example
 
@@ -226,6 +230,7 @@ sibyl epic complete epic_abc123 \
 ```
 
 Output:
+
 ```
 Epic completed: epic_abc123...
 Learnings captured
@@ -245,11 +250,11 @@ sibyl epic archive <epic_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--reason` | `-r` | Archive reason |
-| `--yes` | `-y` | Skip confirmation |
-| `--json` | `-j` | JSON output |
+| Option     | Short | Description       |
+| ---------- | ----- | ----------------- |
+| `--reason` | `-r`  | Archive reason    |
+| `--yes`    | `-y`  | Skip confirmation |
+| `--json`   | `-j`  | JSON output       |
 
 ### Example
 
@@ -258,6 +263,7 @@ sibyl epic archive epic_abc123 --reason "Superseded by epic_xyz" --yes
 ```
 
 Output:
+
 ```
 Epic archived: epic_abc123def456...
 ```
@@ -276,14 +282,14 @@ sibyl epic update <epic_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--status` | `-s` | Status: planning, in_progress, blocked, completed |
-| `--priority` | `-p` | Priority: critical, high, medium, low, someday |
-| `--title` | | Epic title |
-| `--assignee` | `-a` | Epic lead |
-| `--tags` | | Comma-separated tags |
-| `--json` | `-j` | JSON output |
+| Option       | Short | Description                                       |
+| ------------ | ----- | ------------------------------------------------- |
+| `--status`   | `-s`  | Status: planning, in_progress, blocked, completed |
+| `--priority` | `-p`  | Priority: critical, high, medium, low, someday    |
+| `--title`    |       | Epic title                                        |
+| `--assignee` | `-a`  | Epic lead                                         |
+| `--tags`     |       | Comma-separated tags                              |
+| `--json`     | `-j`  | JSON output                                       |
 
 ### Examples
 
@@ -299,6 +305,7 @@ sibyl epic update epic_abc123 \
 ```
 
 Output:
+
 ```
 Epic updated: epic_abc123def456...
 Fields: status, assignees, tags
@@ -318,11 +325,11 @@ sibyl epic tasks <epic_id> [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--status` | `-s` | (all) | Filter by task status |
-| `--limit` | `-n` | 50 | Max results |
-| `--json` | `-j` | false | JSON output |
+| Option     | Short | Default | Description           |
+| ---------- | ----- | ------- | --------------------- |
+| `--status` | `-s`  | (all)   | Filter by task status |
+| `--limit`  | `-n`  | 50      | Max results           |
+| `--json`   | `-j`  | false   | JSON output           |
 
 ### Examples
 
@@ -338,6 +345,7 @@ sibyl epic tasks epic_abc123 --json
 ```
 
 Output:
+
 ```
 Tasks
 ID              Title                      Status    Priority   Assignees

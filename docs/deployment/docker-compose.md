@@ -1,6 +1,7 @@
 # Docker Compose Deployment
 
-Local development using Docker Compose for database services with the Python/Node applications running natively.
+Local development using Docker Compose for database services with the Python/Node applications
+running natively.
 
 ## Architecture
 
@@ -87,11 +88,11 @@ volumes:
 
 ## Port Mappings
 
-| Service        | Host Port | Container Port | Purpose               |
-| -------------- | --------- | -------------- | --------------------- |
-| FalkorDB       | 6380      | 6379           | Graph database        |
-| FalkorDB UI    | 3335      | 3000           | Browser interface     |
-| PostgreSQL     | 5433      | 5432           | Relational data       |
+| Service     | Host Port | Container Port | Purpose           |
+| ----------- | --------- | -------------- | ----------------- |
+| FalkorDB    | 6380      | 6379           | Graph database    |
+| FalkorDB UI | 3335      | 3000           | Browser interface |
+| PostgreSQL  | 5433      | 5432           | Relational data   |
 
 Ports are offset from defaults to avoid conflicts with local services.
 
@@ -119,7 +120,8 @@ moon run stop
 
 ## Full Stack Compose
 
-For a complete containerized deployment (backend + frontend + databases), use `docker-compose.prod.yml`:
+For a complete containerized deployment (backend + frontend + databases), use
+`docker-compose.prod.yml`:
 
 ```bash
 # Copy environment file

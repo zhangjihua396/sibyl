@@ -10,50 +10,49 @@ sibyl task create --title <title> [options]
 
 ## Required Options
 
-| Option | Description |
-|--------|-------------|
+| Option    | Description           |
+| --------- | --------------------- |
 | `--title` | Task title (required) |
 
-::: warning Note
-Unlike some CLIs, the title is passed as `--title`, not as a positional argument. This is intentional for clarity and to avoid ambiguity with descriptions.
-:::
+::: warning Note Unlike some CLIs, the title is passed as `--title`, not as a positional argument.
+This is intentional for clarity and to avoid ambiguity with descriptions. :::
 
 ## Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--title` | | (required) | Task title |
-| `--project` | `-p` | (auto) | Project ID (auto-resolves from linked path) |
-| `--description` | `-d` | (none) | Task description |
-| `--priority` | | `medium` | Priority: critical, high, medium, low, someday |
-| `--complexity` | | `medium` | Complexity: trivial, simple, medium, complex, epic |
-| `--assignee` | `-a` | (none) | Initial assignee |
-| `--epic` | `-e` | (none) | Epic ID to group under |
-| `--feature` | `-f` | (none) | Feature area |
-| `--tags` | | (none) | Comma-separated tags |
-| `--tech` | | (none) | Comma-separated technologies |
-| `--sync` | | false | Wait for task creation (slower but immediately available) |
-| `--json` | `-j` | false | JSON output |
+| Option          | Short | Default    | Description                                               |
+| --------------- | ----- | ---------- | --------------------------------------------------------- |
+| `--title`       |       | (required) | Task title                                                |
+| `--project`     | `-p`  | (auto)     | Project ID (auto-resolves from linked path)               |
+| `--description` | `-d`  | (none)     | Task description                                          |
+| `--priority`    |       | `medium`   | Priority: critical, high, medium, low, someday            |
+| `--complexity`  |       | `medium`   | Complexity: trivial, simple, medium, complex, epic        |
+| `--assignee`    | `-a`  | (none)     | Initial assignee                                          |
+| `--epic`        | `-e`  | (none)     | Epic ID to group under                                    |
+| `--feature`     | `-f`  | (none)     | Feature area                                              |
+| `--tags`        |       | (none)     | Comma-separated tags                                      |
+| `--tech`        |       | (none)     | Comma-separated technologies                              |
+| `--sync`        |       | false      | Wait for task creation (slower but immediately available) |
+| `--json`        | `-j`  | false      | JSON output                                               |
 
 ## Priority Levels
 
-| Priority | Use Case |
-|----------|----------|
-| `critical` | Production issues, blocking bugs |
-| `high` | Important features, significant bugs |
-| `medium` | Normal priority work (default) |
-| `low` | Nice to have, minor improvements |
-| `someday` | Ideas for later, backlog parking |
+| Priority   | Use Case                             |
+| ---------- | ------------------------------------ |
+| `critical` | Production issues, blocking bugs     |
+| `high`     | Important features, significant bugs |
+| `medium`   | Normal priority work (default)       |
+| `low`      | Nice to have, minor improvements     |
+| `someday`  | Ideas for later, backlog parking     |
 
 ## Complexity Levels
 
-| Complexity | Typical Effort |
-|------------|----------------|
-| `trivial` | < 1 hour, config changes |
-| `simple` | 1-4 hours, well-understood |
-| `medium` | 1-2 days, some unknowns (default) |
-| `complex` | 3-5 days, significant unknowns |
-| `epic` | > 1 week, should be broken down |
+| Complexity | Typical Effort                    |
+| ---------- | --------------------------------- |
+| `trivial`  | < 1 hour, config changes          |
+| `simple`   | 1-4 hours, well-understood        |
+| `medium`   | 1-2 days, some unknowns (default) |
+| `complex`  | 3-5 days, significant unknowns    |
+| `epic`     | > 1 week, should be broken down   |
 
 ## Examples
 
@@ -64,6 +63,7 @@ sibyl task create --title "Fix login button alignment"
 ```
 
 Output:
+
 ```
 Task created: task_abc123def456
 ```
@@ -150,9 +150,8 @@ sibyl task create --title "Quick task"
 sibyl task create --title "Important task" --sync
 ```
 
-::: tip When to Use --sync
-Use `--sync` when you need to immediately reference the task (e.g., in scripts that chain operations).
-:::
+::: tip When to Use --sync Use `--sync` when you need to immediately reference the task (e.g., in
+scripts that chain operations). :::
 
 ## Integration with Epics
 

@@ -16,15 +16,16 @@ The search endpoint provides:
 ## Authentication
 
 All endpoints require authentication via:
+
 - JWT access token (cookie or Authorization header)
 - API key with `api:read` scope
 
 ## Role Requirements
 
-| Operation | Required Roles |
-|-----------|----------------|
-| Search | Owner, Admin, Member, Viewer |
-| Explore | Owner, Admin, Member, Viewer |
+| Operation | Required Roles               |
+| --------- | ---------------------------- |
+| Search    | Owner, Admin, Member, Viewer |
+| Explore   | Owner, Admin, Member, Viewer |
 
 ## Endpoints
 
@@ -63,26 +64,26 @@ Search both knowledge graph entities and crawled documentation.
 
 **Request Schema:**
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `query` | string | Yes | - | Search query (min 1 char) |
-| `types` | string[] | No | - | Entity types to search |
-| `language` | string | No | - | Programming language filter |
-| `category` | string | No | - | Category filter |
-| `status` | string | No | - | Task status filter |
-| `project` | string | No | - | Project ID filter |
-| `source` | string | No | - | Source ID alias |
-| `source_id` | string | No | - | Document source UUID |
-| `source_name` | string | No | - | Document source name (partial) |
-| `assignee` | string | No | - | Task assignee filter |
-| `since` | string | No | - | Created after date (ISO or relative) |
-| `limit` | integer | No | 10 | Results per page (1-50) |
-| `offset` | integer | No | 0 | Pagination offset |
-| `include_content` | boolean | No | true | Include full content |
-| `include_documents` | boolean | No | true | Search documents |
-| `include_graph` | boolean | No | true | Search graph entities |
-| `use_enhanced` | boolean | No | true | Use hybrid retrieval |
-| `boost_recent` | boolean | No | true | Boost recent results |
+| Field               | Type     | Required | Default | Description                          |
+| ------------------- | -------- | -------- | ------- | ------------------------------------ |
+| `query`             | string   | Yes      | -       | Search query (min 1 char)            |
+| `types`             | string[] | No       | -       | Entity types to search               |
+| `language`          | string   | No       | -       | Programming language filter          |
+| `category`          | string   | No       | -       | Category filter                      |
+| `status`            | string   | No       | -       | Task status filter                   |
+| `project`           | string   | No       | -       | Project ID filter                    |
+| `source`            | string   | No       | -       | Source ID alias                      |
+| `source_id`         | string   | No       | -       | Document source UUID                 |
+| `source_name`       | string   | No       | -       | Document source name (partial)       |
+| `assignee`          | string   | No       | -       | Task assignee filter                 |
+| `since`             | string   | No       | -       | Created after date (ISO or relative) |
+| `limit`             | integer  | No       | 10      | Results per page (1-50)              |
+| `offset`            | integer  | No       | 0       | Pagination offset                    |
+| `include_content`   | boolean  | No       | true    | Include full content                 |
+| `include_documents` | boolean  | No       | true    | Search documents                     |
+| `include_graph`     | boolean  | No       | true    | Search graph entities                |
+| `use_enhanced`      | boolean  | No       | true    | Use hybrid retrieval                 |
+| `boost_recent`      | boolean  | No       | true    | Boost recent results                 |
 
 **Example Request:**
 
@@ -186,26 +187,26 @@ Navigate graph structure without semantic search.
 
 **Request Schema:**
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `mode` | string | No | `list` | `list`, `related`, `traverse`, `dependencies` |
-| `types` | string[] | No | - | Entity types |
-| `entity_id` | string | No | - | Starting entity (for related/traverse) |
-| `relationship_types` | string[] | No | - | Filter relationships |
-| `depth` | integer | No | 1 | Traversal depth (1-3) |
-| `language` | string | No | - | Language filter |
-| `category` | string | No | - | Category filter |
-| `project` | string | No | - | Project filter |
-| `epic` | string | No | - | Epic filter |
-| `no_epic` | boolean | No | false | Tasks without epic |
-| `status` | string | No | - | Status filter (comma-separated) |
-| `priority` | string | No | - | Priority filter (comma-separated) |
-| `complexity` | string | No | - | Complexity filter |
-| `feature` | string | No | - | Feature filter |
-| `tags` | string | No | - | Tags filter (comma-separated) |
-| `include_archived` | boolean | No | false | Include archived |
-| `limit` | integer | No | 50 | Results limit (1-200) |
-| `offset` | integer | No | 0 | Pagination offset |
+| Field                | Type     | Required | Default | Description                                   |
+| -------------------- | -------- | -------- | ------- | --------------------------------------------- |
+| `mode`               | string   | No       | `list`  | `list`, `related`, `traverse`, `dependencies` |
+| `types`              | string[] | No       | -       | Entity types                                  |
+| `entity_id`          | string   | No       | -       | Starting entity (for related/traverse)        |
+| `relationship_types` | string[] | No       | -       | Filter relationships                          |
+| `depth`              | integer  | No       | 1       | Traversal depth (1-3)                         |
+| `language`           | string   | No       | -       | Language filter                               |
+| `category`           | string   | No       | -       | Category filter                               |
+| `project`            | string   | No       | -       | Project filter                                |
+| `epic`               | string   | No       | -       | Epic filter                                   |
+| `no_epic`            | boolean  | No       | false   | Tasks without epic                            |
+| `status`             | string   | No       | -       | Status filter (comma-separated)               |
+| `priority`           | string   | No       | -       | Priority filter (comma-separated)             |
+| `complexity`         | string   | No       | -       | Complexity filter                             |
+| `feature`            | string   | No       | -       | Feature filter                                |
+| `tags`               | string   | No       | -       | Tags filter (comma-separated)                 |
+| `include_archived`   | boolean  | No       | false   | Include archived                              |
+| `limit`              | integer  | No       | 50      | Results limit (1-200)                         |
+| `offset`             | integer  | No       | 0       | Pagination offset                             |
 
 **Example Request:**
 
@@ -382,13 +383,13 @@ Check `has_more` in response to determine if more results exist.
 
 ## Error Responses
 
-| Status | Cause |
-|--------|-------|
-| 400 | Invalid query or parameters |
-| 401 | Missing or invalid authentication |
-| 403 | Insufficient permissions |
-| 422 | Request body validation failed |
-| 500 | Search failed |
+| Status | Cause                             |
+| ------ | --------------------------------- |
+| 400    | Invalid query or parameters       |
+| 401    | Missing or invalid authentication |
+| 403    | Insufficient permissions          |
+| 422    | Request body validation failed    |
+| 500    | Search failed                     |
 
 ## Performance Tips
 

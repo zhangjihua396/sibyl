@@ -1,9 +1,9 @@
 ---
 name: sibyl
 description:
-  Graph-RAG knowledge system with CLI interface. Use for semantic search, task management,
-  knowledge capture, project audits, and sprint planning. Invoke when you need persistent memory
-  across sessions, pattern/learning lookup, or task tracking. Requires FalkorDB running.
+  Graph-RAG knowledge system with CLI interface. Use for semantic search, task management, knowledge
+  capture, project audits, and sprint planning. Invoke when you need persistent memory across
+  sessions, pattern/learning lookup, or task tracking. Requires FalkorDB running.
 allowed-tools: Bash, Grep, Glob, Read
 ---
 
@@ -80,7 +80,8 @@ backlog <-> todo <-> doing <-> blocked <-> review <-> done -> archived
 
 ### Common Tags
 
-`backend`, `frontend`, `database`, `devops`, `bug`, `feature`, `refactor`, `chore`, `security`, `performance`, `testing`
+`backend`, `frontend`, `database`, `devops`, `bug`, `feature`, `refactor`, `chore`, `security`,
+`performance`, `testing`
 
 ---
 
@@ -103,12 +104,14 @@ sibyl search "python conventions" --all
 ```
 
 **Output includes:**
+
 - Document name and source
 - Section path (heading hierarchy)
 - Content preview
 - **Full entity ID** for retrieval
 
 **Two-step retrieval pattern:**
+
 ```bash
 # 1. Search to find relevant knowledge
 sibyl search "redis connection pooling"
@@ -244,6 +247,7 @@ sibyl epic update epic_a1b2c3d4e5f6 --priority high --description "..."
 ```
 
 **Epic workflow:**
+
 1. Create epic for a feature initiative
 2. Create tasks under the epic (`sibyl task create --title "..." --epic epic_a1b2c3d4e5f6`)
 3. Work through tasks, epic progress updates automatically
@@ -272,8 +276,8 @@ sibyl project links
 sibyl project unlink
 ```
 
-**One project per repo:** Each repository should link to exactly one Sibyl project.
-This enables automatic task scoping without needing `--project` flags.
+**One project per repo:** Each repository should link to exactly one Sibyl project. This enables
+automatic task scoping without needing `--project` flags.
 
 ---
 
@@ -484,10 +488,10 @@ sibyl task list --all              # Bypass context to see all
 
 ## Common Pitfalls
 
-| Wrong                        | Correct                              |
-| ---------------------------- | ------------------------------------ |
-| `sibyl task add "..."`       | `sibyl task create --title "..."`    |
-| `sibyl task list --todo`     | `sibyl task list --status todo`      |
+| Wrong                        | Correct                               |
+| ---------------------------- | ------------------------------------- |
+| `sibyl task add "..."`       | `sibyl task create --title "..."`     |
+| `sibyl task list --todo`     | `sibyl task list --status todo`       |
 | `sibyl task create -t "..."` | `sibyl task create --title "..."` (!) |
 
 **Full task IDs are required** - always use the complete ID returned by list/search commands:

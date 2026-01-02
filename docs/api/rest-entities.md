@@ -16,15 +16,16 @@ The entities endpoint provides a unified interface for all entity types:
 ## Authentication
 
 All endpoints require authentication via:
+
 - JWT access token (cookie or Authorization header)
 - API key with `api:read` and/or `api:write` scopes
 
 ## Role Requirements
 
-| Operation | Required Roles |
-|-----------|----------------|
-| Read (GET) | Owner, Admin, Member, Viewer |
-| Write (POST, PATCH, DELETE) | Owner, Admin, Member |
+| Operation                   | Required Roles               |
+| --------------------------- | ---------------------------- |
+| Read (GET)                  | Owner, Admin, Member, Viewer |
+| Write (POST, PATCH, DELETE) | Owner, Admin, Member         |
 
 ## Endpoints
 
@@ -36,16 +37,16 @@ GET /api/entities
 
 **Query Parameters:**
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `entity_type` | string | - | Filter by entity type |
-| `language` | string | - | Filter by programming language |
-| `category` | string | - | Filter by category |
-| `search` | string | - | Search in name and description |
-| `page` | integer | 1 | Page number (1-indexed) |
-| `page_size` | integer | 50 | Items per page (1-200) |
-| `sort_by` | string | `updated_at` | Sort field: `name`, `created_at`, `updated_at`, `entity_type` |
-| `sort_order` | string | `desc` | Sort direction: `asc`, `desc` |
+| Parameter     | Type    | Default      | Description                                                   |
+| ------------- | ------- | ------------ | ------------------------------------------------------------- |
+| `entity_type` | string  | -            | Filter by entity type                                         |
+| `language`    | string  | -            | Filter by programming language                                |
+| `category`    | string  | -            | Filter by category                                            |
+| `search`      | string  | -            | Search in name and description                                |
+| `page`        | integer | 1            | Page number (1-indexed)                                       |
+| `page_size`   | integer | 50           | Items per page (1-200)                                        |
+| `sort_by`     | string  | `updated_at` | Sort field: `name`, `created_at`, `updated_at`, `entity_type` |
+| `sort_order`  | string  | `desc`       | Sort direction: `asc`, `desc`                                 |
 
 **Example Request:**
 
@@ -88,13 +89,14 @@ GET /api/entities/{entity_id}
 ```
 
 Retrieves a single entity by ID. Transparently handles both:
+
 - Graph entities (stored in FalkorDB)
 - Document chunks (stored in PostgreSQL)
 
 **Path Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter   | Type   | Description                      |
+| ----------- | ------ | -------------------------------- |
 | `entity_id` | string | Entity ID or document chunk UUID |
 
 **Example Request:**
@@ -167,9 +169,9 @@ Creates a new entity in the knowledge graph.
 
 **Query Parameters:**
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `sync` | boolean | false | Wait for creation to complete |
+| Parameter | Type    | Default | Description                   |
+| --------- | ------- | ------- | ----------------------------- |
+| `sync`    | boolean | false   | Wait for creation to complete |
 
 **Request Body:**
 
@@ -191,16 +193,16 @@ Creates a new entity in the knowledge graph.
 
 **Request Schema:**
 
-| Field | Type | Required | Max Length | Description |
-|-------|------|----------|------------|-------------|
-| `name` | string | Yes | 200 | Entity name/title |
-| `description` | string | No | - | Short description |
-| `content` | string | No | 50,000 | Full content |
-| `entity_type` | string | No | - | Default: `episode` |
-| `category` | string | No | - | Category for organization |
-| `languages` | string[] | No | - | Programming languages |
-| `tags` | string[] | No | - | Searchable tags |
-| `metadata` | object | No | - | Additional structured data |
+| Field         | Type     | Required | Max Length | Description                |
+| ------------- | -------- | -------- | ---------- | -------------------------- |
+| `name`        | string   | Yes      | 200        | Entity name/title          |
+| `description` | string   | No       | -          | Short description          |
+| `content`     | string   | No       | 50,000     | Full content               |
+| `entity_type` | string   | No       | -          | Default: `episode`         |
+| `category`    | string   | No       | -          | Category for organization  |
+| `languages`   | string[] | No       | -          | Programming languages      |
+| `tags`        | string[] | No       | -          | Searchable tags            |
+| `metadata`    | object   | No       | -          | Additional structured data |
 
 **Example Request:**
 
@@ -269,8 +271,8 @@ Updates an existing entity. Only provided fields are updated.
 
 **Path Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter   | Type   | Description         |
+| ----------- | ------ | ------------------- |
 | `entity_id` | string | Entity ID to update |
 
 **Request Body:**
@@ -287,15 +289,15 @@ Updates an existing entity. Only provided fields are updated.
 
 **Request Schema (all fields optional):**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `name` | string | New name/title |
-| `description` | string | New description |
-| `content` | string | New content |
-| `category` | string | New category |
-| `languages` | string[] | New languages list |
-| `tags` | string[] | New tags list |
-| `metadata` | object | Merged with existing metadata |
+| Field         | Type     | Description                   |
+| ------------- | -------- | ----------------------------- |
+| `name`        | string   | New name/title                |
+| `description` | string   | New description               |
+| `content`     | string   | New content                   |
+| `category`    | string   | New category                  |
+| `languages`   | string[] | New languages list            |
+| `tags`        | string[] | New tags list                 |
+| `metadata`    | object   | Merged with existing metadata |
 
 **Example Request:**
 
@@ -321,7 +323,7 @@ curl -X PATCH "https://api.example.com/api/entities/pattern_abc123" \
   "category": "error-handling",
   "languages": ["python"],
   "tags": ["updated", "reviewed"],
-  "metadata": {"status": "approved"},
+  "metadata": { "status": "approved" },
   "source_file": null,
   "created_at": "2024-12-01T10:00:00Z",
   "updated_at": "2024-12-30T10:30:00Z"
@@ -338,8 +340,8 @@ Deletes an entity from the knowledge graph.
 
 **Path Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter   | Type   | Description         |
+| ----------- | ------ | ------------------- |
 | `entity_id` | string | Entity ID to delete |
 
 **Example Request:**
@@ -353,18 +355,18 @@ curl -X DELETE "https://api.example.com/api/entities/pattern_abc123" \
 
 ## Entity Types
 
-| Type | Description | Use Case |
-|------|-------------|----------|
-| `episode` | Temporal learning | Insights, discoveries, debugging notes |
-| `pattern` | Coding pattern | Best practices, design patterns |
-| `rule` | Convention | Guidelines, standards |
-| `template` | Code template | Boilerplate, scaffolding |
-| `topic` | Knowledge topic | Conceptual groupings |
-| `task` | Work item | See [rest-tasks.md](./rest-tasks.md) |
-| `epic` | Feature initiative | Groups related tasks |
-| `project` | Container | Groups epics and tasks |
-| `source` | Documentation source | Crawled documentation |
-| `document` | Document chunk | Individual doc sections |
+| Type       | Description          | Use Case                               |
+| ---------- | -------------------- | -------------------------------------- |
+| `episode`  | Temporal learning    | Insights, discoveries, debugging notes |
+| `pattern`  | Coding pattern       | Best practices, design patterns        |
+| `rule`     | Convention           | Guidelines, standards                  |
+| `template` | Code template        | Boilerplate, scaffolding               |
+| `topic`    | Knowledge topic      | Conceptual groupings                   |
+| `task`     | Work item            | See [rest-tasks.md](./rest-tasks.md)   |
+| `epic`     | Feature initiative   | Groups related tasks                   |
+| `project`  | Container            | Groups epics and tasks                 |
+| `source`   | Documentation source | Crawled documentation                  |
+| `document` | Document chunk       | Individual doc sections                |
 
 ## Concurrency Control
 
@@ -383,24 +385,24 @@ Locks automatically expire after 30 seconds. Use exponential backoff on 409 resp
 
 Entity operations broadcast real-time events:
 
-| Event | Trigger |
-|-------|---------|
-| `entity_pending` | Async creation started |
+| Event            | Trigger                                 |
+| ---------------- | --------------------------------------- |
+| `entity_pending` | Async creation started                  |
 | `entity_created` | Entity created (sync or async complete) |
-| `entity_updated` | Entity updated |
-| `entity_deleted` | Entity deleted |
+| `entity_updated` | Entity updated                          |
+| `entity_deleted` | Entity deleted                          |
 
 ## Error Responses
 
-| Status | Cause |
-|--------|-------|
-| 400 | Validation error in request body |
-| 401 | Missing or invalid authentication |
-| 403 | Insufficient permissions |
-| 404 | Entity not found |
-| 409 | Concurrent modification conflict |
-| 422 | Request body validation failed |
-| 500 | Internal server error |
+| Status | Cause                             |
+| ------ | --------------------------------- |
+| 400    | Validation error in request body  |
+| 401    | Missing or invalid authentication |
+| 403    | Insufficient permissions          |
+| 404    | Entity not found                  |
+| 409    | Concurrent modification conflict  |
+| 422    | Request body validation failed    |
+| 500    | Internal server error             |
 
 ## Related
 

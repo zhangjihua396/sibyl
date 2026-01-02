@@ -10,6 +10,7 @@ This guide gets you from zero to a working Sibyl setup in about 5 minutes.
 ## Prerequisites
 
 Make sure you have:
+
 - Python 3.13+ installed
 - Docker (for FalkorDB)
 - An OpenAI API key
@@ -87,7 +88,8 @@ Added: Python async gotcha (id: episode_abc123)
 sibyl search "async concurrency"
 ```
 
-The search will find your learning even though you searched for different words - that's semantic search in action.
+The search will find your learning even though you searched for different words - that's semantic
+search in action.
 
 ## Step 7: Create a Task
 
@@ -161,6 +163,7 @@ Add to your Claude Code MCP configuration:
 ```
 
 Now Claude can:
+
 - Search your knowledge graph
 - Track tasks
 - Capture learnings
@@ -179,16 +182,16 @@ When working with Claude Code and Sibyl:
 
 ## Common Commands Reference
 
-| Action | Command |
-|--------|---------|
-| Search knowledge | `sibyl search "query"` |
-| Add a learning | `sibyl add "title" "content"` |
-| List tasks | `sibyl task list --status todo` |
-| Start a task | `sibyl task start <id>` |
-| Complete a task | `sibyl task complete <id> --learnings "..."` |
-| List projects | `sibyl project list` |
-| Link directory | `sibyl project link <id>` |
-| Check health | `sibyl health` |
+| Action           | Command                                      |
+| ---------------- | -------------------------------------------- |
+| Search knowledge | `sibyl search "query"`                       |
+| Add a learning   | `sibyl add "title" "content"`                |
+| List tasks       | `sibyl task list --status todo`              |
+| Start a task     | `sibyl task start <id>`                      |
+| Complete a task  | `sibyl task complete <id> --learnings "..."` |
+| List projects    | `sibyl project list`                         |
+| Link directory   | `sibyl project link <id>`                    |
+| Check health     | `sibyl health`                               |
 
 ## Output Formats
 
@@ -216,18 +219,14 @@ Now that you have Sibyl running:
 
 ## Tips for Success
 
-::: tip Search First
-Before implementing anything, search the graph. Patterns, past solutions, and gotchas might already be there.
-:::
+::: tip Search First Before implementing anything, search the graph. Patterns, past solutions, and
+gotchas might already be there. :::
 
-::: tip Capture Non-Obvious Learnings
-If it took time to figure out, it's worth saving. Future you (or your AI agent) will thank you.
-:::
+::: tip Capture Non-Obvious Learnings If it took time to figure out, it's worth saving. Future you
+(or your AI agent) will thank you. :::
 
-::: tip Use Project Context
-Link your directories to projects. It keeps task lists focused and prevents cross-project confusion.
-:::
+::: tip Use Project Context Link your directories to projects. It keeps task lists focused and
+prevents cross-project confusion. :::
 
-::: warning Don't Skip Learnings
-The `--learnings` flag on task completion is where the real value accumulates. Be specific about what you learned.
-:::
+::: warning Don't Skip Learnings The `--learnings` flag on task completion is where the real value
+accumulates. Be specific about what you learned. :::

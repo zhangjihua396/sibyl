@@ -75,7 +75,7 @@ backend:
 
   # External PostgreSQL
   database:
-    existingSecret: ""  # Empty = use manual config below
+    existingSecret: "" # Empty = use manual config below
     host: "your-postgres.example.com"
     port: "5432"
     database: "sibyl"
@@ -183,7 +183,7 @@ ingress:
 
 - PostgreSQL 15+ recommended
 - pgvector extension installed
-- Sufficient connections (backend.postgres_pool_size * replicas)
+- Sufficient connections (backend.postgres_pool_size \* replicas)
 
 ```sql
 -- Create database and user
@@ -393,7 +393,7 @@ autoscaling:
   targetMemoryUtilizationPercentage: 80
   behavior:
     scaleDown:
-      stabilizationWindowSeconds: 300  # Wait 5min before scaling down
+      stabilizationWindowSeconds: 300 # Wait 5min before scaling down
       policies:
         - type: Percent
           value: 10

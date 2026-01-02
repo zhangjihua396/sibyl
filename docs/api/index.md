@@ -1,6 +1,7 @@
 # Sibyl API Reference
 
-Sibyl provides a dual-interface API: a 4-tool MCP interface for AI agents and a full REST API for applications and integrations.
+Sibyl provides a dual-interface API: a 4-tool MCP interface for AI agents and a full REST API for
+applications and integrations.
 
 ## Architecture Overview
 
@@ -14,10 +15,10 @@ Sibyl Combined App (Starlette, port 3334)
 
 ## Base URL
 
-| Environment | Base URL |
-|-------------|----------|
-| Local Development | `http://localhost:3334` |
-| Production | `https://api.your-domain.com` |
+| Environment       | Base URL                      |
+| ----------------- | ----------------------------- |
+| Local Development | `http://localhost:3334`       |
+| Production        | `https://api.your-domain.com` |
 
 ## API Interfaces
 
@@ -25,12 +26,12 @@ Sibyl Combined App (Starlette, port 3334)
 
 The MCP interface exposes 4 consolidated tools that cover all Sibyl operations:
 
-| Tool | Purpose | Documentation |
-|------|---------|---------------|
-| `search` | Semantic search across knowledge graph and documents | [mcp-search.md](./mcp-search.md) |
-| `explore` | Navigate and browse graph structure | [mcp-explore.md](./mcp-explore.md) |
-| `add` | Create new knowledge entities | [mcp-add.md](./mcp-add.md) |
-| `manage` | Lifecycle operations and administration | [mcp-manage.md](./mcp-manage.md) |
+| Tool      | Purpose                                              | Documentation                      |
+| --------- | ---------------------------------------------------- | ---------------------------------- |
+| `search`  | Semantic search across knowledge graph and documents | [mcp-search.md](./mcp-search.md)   |
+| `explore` | Navigate and browse graph structure                  | [mcp-explore.md](./mcp-explore.md) |
+| `add`     | Create new knowledge entities                        | [mcp-add.md](./mcp-add.md)         |
+| `manage`  | Lifecycle operations and administration              | [mcp-manage.md](./mcp-manage.md)   |
 
 **MCP Endpoint:** `POST /mcp` (streamable-http transport)
 
@@ -38,12 +39,12 @@ The MCP interface exposes 4 consolidated tools that cover all Sibyl operations:
 
 Full CRUD operations with OpenAPI documentation:
 
-| Category | Endpoints | Documentation |
-|----------|-----------|---------------|
-| Entities | `/api/entities/*` | [rest-entities.md](./rest-entities.md) |
-| Tasks | `/api/tasks/*` | [rest-tasks.md](./rest-tasks.md) |
+| Category | Endpoints                           | Documentation                          |
+| -------- | ----------------------------------- | -------------------------------------- |
+| Entities | `/api/entities/*`                   | [rest-entities.md](./rest-entities.md) |
+| Tasks    | `/api/tasks/*`                      | [rest-tasks.md](./rest-tasks.md)       |
 | Projects | `/api/entities?entity_type=project` | [rest-entities.md](./rest-entities.md) |
-| Search | `/api/search` | [rest-search.md](./rest-search.md) |
+| Search   | `/api/search`                       | [rest-search.md](./rest-search.md)     |
 
 **OpenAPI Spec:** Available at `/api/docs` (Swagger UI) and `/api/openapi.json`
 
@@ -51,11 +52,11 @@ Full CRUD operations with OpenAPI documentation:
 
 Sibyl supports multiple authentication methods:
 
-| Method | Use Case | Documentation |
-|--------|----------|---------------|
-| JWT Sessions | Web clients, browser-based apps | [auth-jwt.md](./auth-jwt.md) |
-| API Keys | Programmatic access, CI/CD | [auth-api-keys.md](./auth-api-keys.md) |
-| OAuth (GitHub) | Social login | [auth-jwt.md](./auth-jwt.md) |
+| Method         | Use Case                        | Documentation                          |
+| -------------- | ------------------------------- | -------------------------------------- |
+| JWT Sessions   | Web clients, browser-based apps | [auth-jwt.md](./auth-jwt.md)           |
+| API Keys       | Programmatic access, CI/CD      | [auth-api-keys.md](./auth-api-keys.md) |
+| OAuth (GitHub) | Social login                    | [auth-jwt.md](./auth-jwt.md)           |
 
 ### Quick Start
 
@@ -99,11 +100,11 @@ Sibyl is multi-tenant by design. Each organization gets:
 
 REST endpoints are rate-limited using SlowAPI:
 
-| Tier | Limit |
-|------|-------|
-| Default | 100 requests/minute |
-| Search | 30 requests/minute |
-| Write operations | 60 requests/minute |
+| Tier             | Limit               |
+| ---------------- | ------------------- |
+| Default          | 100 requests/minute |
+| Search           | 30 requests/minute  |
+| Write operations | 60 requests/minute  |
 
 Rate limit headers are included in responses:
 
@@ -118,7 +119,7 @@ X-RateLimit-Reset: 1704067200
 Real-time updates are available via WebSocket at `/ws`:
 
 ```javascript
-const ws = new WebSocket('wss://api.example.com/ws?token=YOUR_TOKEN');
+const ws = new WebSocket("wss://api.example.com/ws?token=YOUR_TOKEN");
 
 ws.onmessage = (event) => {
   const data = JSON.parse(event.data);
@@ -137,16 +138,16 @@ All errors follow a consistent format:
 }
 ```
 
-| Status Code | Meaning |
-|-------------|---------|
-| 400 | Bad Request - Invalid parameters |
-| 401 | Unauthorized - Missing or invalid credentials |
-| 403 | Forbidden - Insufficient permissions |
-| 404 | Not Found - Resource doesn't exist |
-| 409 | Conflict - Resource locked or concurrent update |
-| 422 | Validation Error - Request body validation failed |
-| 429 | Too Many Requests - Rate limit exceeded |
-| 500 | Internal Server Error |
+| Status Code | Meaning                                           |
+| ----------- | ------------------------------------------------- |
+| 400         | Bad Request - Invalid parameters                  |
+| 401         | Unauthorized - Missing or invalid credentials     |
+| 403         | Forbidden - Insufficient permissions              |
+| 404         | Not Found - Resource doesn't exist                |
+| 409         | Conflict - Resource locked or concurrent update   |
+| 422         | Validation Error - Request body validation failed |
+| 429         | Too Many Requests - Rate limit exceeded           |
+| 500         | Internal Server Error                             |
 
 ## Configuration
 

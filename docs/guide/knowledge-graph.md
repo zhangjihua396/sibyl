@@ -5,20 +5,22 @@ description: Understanding Sibyl's graph architecture
 
 # Knowledge Graph
 
-Sibyl stores knowledge in a graph database, enabling rich relationships between entities and semantic search. This guide explains how the graph works.
+Sibyl stores knowledge in a graph database, enabling rich relationships between entities and
+semantic search. This guide explains how the graph works.
 
 ## Architecture Overview
 
 Sibyl uses a two-database architecture:
 
-| Database | Purpose | Technology |
-|----------|---------|------------|
-| **Graph DB** | Entities, relationships, embeddings | FalkorDB |
+| Database          | Purpose                                 | Technology |
+| ----------------- | --------------------------------------- | ---------- |
+| **Graph DB**      | Entities, relationships, embeddings     | FalkorDB   |
 | **Relational DB** | Users, sessions, API keys, crawled docs | PostgreSQL |
 
 ### FalkorDB
 
-FalkorDB is a Redis-compatible graph database that Sibyl uses via [Graphiti](https://github.com/getzep/graphiti), a Graph RAG framework. It provides:
+FalkorDB is a Redis-compatible graph database that Sibyl uses via
+[Graphiti](https://github.com/getzep/graphiti), a Graph RAG framework. It provides:
 
 - **Cypher queries** - Graph query language
 - **Vector search** - Native embedding support
@@ -57,30 +59,30 @@ Extracted entities or directly inserted nodes:
 # Tasks, projects, patterns with specific schemas
 ```
 
-::: warning Query Both Node Types
-When querying the graph, you must handle both node types:
+::: warning Query Both Node Types When querying the graph, you must handle both node types:
 
 ```cypher
 MATCH (n)
 WHERE (n:Episodic OR n:Entity) AND n.entity_type = $type
 RETURN n
 ```
+
 :::
 
 ## Entity Types
 
 Sibyl supports many entity types (see [Entity Types](./entity-types.md) for full details):
 
-| Type | Description |
-|------|-------------|
-| `episode` | Temporal learnings, discoveries |
-| `pattern` | Reusable coding patterns |
-| `rule` | Sacred constraints, invariants |
-| `task` | Work items with workflow |
-| `project` | Container for tasks/epics |
-| `epic` | Feature-level grouping |
-| `document` | Crawled content |
-| `source` | Documentation sources |
+| Type       | Description                     |
+| ---------- | ------------------------------- |
+| `episode`  | Temporal learnings, discoveries |
+| `pattern`  | Reusable coding patterns        |
+| `rule`     | Sacred constraints, invariants  |
+| `task`     | Work items with workflow        |
+| `project`  | Container for tasks/epics       |
+| `epic`     | Feature-level grouping          |
+| `document` | Crawled content                 |
+| `source`   | Documentation sources           |
 
 ## Relationships
 
@@ -88,33 +90,33 @@ Entities connect through typed relationships:
 
 ### Knowledge Relationships
 
-| Type | Usage |
-|------|-------|
-| `APPLIES_TO` | Pattern applies to topic |
-| `REQUIRES` | A requires B |
-| `CONFLICTS_WITH` | Mutual exclusion |
-| `SUPERSEDES` | A replaces B |
-| `RELATED_TO` | Generic relationship |
-| `ENABLES` | A enables B |
-| `BREAKS` | A breaks B |
+| Type             | Usage                    |
+| ---------------- | ------------------------ |
+| `APPLIES_TO`     | Pattern applies to topic |
+| `REQUIRES`       | A requires B             |
+| `CONFLICTS_WITH` | Mutual exclusion         |
+| `SUPERSEDES`     | A replaces B             |
+| `RELATED_TO`     | Generic relationship     |
+| `ENABLES`        | A enables B              |
+| `BREAKS`         | A breaks B               |
 
 ### Task Relationships
 
-| Type | Usage |
-|------|-------|
-| `BELONGS_TO` | Task -> Project, Epic -> Project |
-| `DEPENDS_ON` | Task -> Task (blocking) |
-| `BLOCKS` | Task -> Task (inverse) |
-| `ASSIGNED_TO` | Task -> Person |
-| `REFERENCES` | Task -> Pattern/Rule |
+| Type          | Usage                            |
+| ------------- | -------------------------------- |
+| `BELONGS_TO`  | Task -> Project, Epic -> Project |
+| `DEPENDS_ON`  | Task -> Task (blocking)          |
+| `BLOCKS`      | Task -> Task (inverse)           |
+| `ASSIGNED_TO` | Task -> Person                   |
+| `REFERENCES`  | Task -> Pattern/Rule             |
 
 ### Document Relationships
 
-| Type | Usage |
-|------|-------|
+| Type           | Usage              |
+| -------------- | ------------------ |
 | `CRAWLED_FROM` | Document -> Source |
-| `CHILD_OF` | Document hierarchy |
-| `MENTIONS` | Document -> Entity |
+| `CHILD_OF`     | Document hierarchy |
+| `MENTIONS`     | Document -> Entity |
 
 ## Multi-Tenancy
 
@@ -128,9 +130,8 @@ graph_name = str(org.id)  # e.g., "550e8400-e29b-41d4-a716-446655440000"
 manager = EntityManager(client, group_id=str(org.id))
 ```
 
-::: danger Always Scope by Organization
-Never query without org scope - it will hit the wrong graph or break isolation.
-:::
+::: danger Always Scope by Organization Never query without org scope - it will hit the wrong graph
+or break isolation. :::
 
 ## Write Concurrency
 

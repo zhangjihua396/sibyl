@@ -20,11 +20,11 @@ Short-lived token for API authentication.
 
 ```json
 {
-  "sub": "user_uuid",           // User ID
-  "org": "org_uuid",            // Organization ID (optional)
-  "typ": "access",              // Token type
-  "iat": 1704067200,            // Issued at (Unix timestamp)
-  "exp": 1704070800             // Expires at (Unix timestamp)
+  "sub": "user_uuid", // User ID
+  "org": "org_uuid", // Organization ID (optional)
+  "typ": "access", // Token type
+  "iat": 1704067200, // Issued at (Unix timestamp)
+  "exp": 1704070800 // Expires at (Unix timestamp)
 }
 ```
 
@@ -38,13 +38,13 @@ Long-lived token for obtaining new access tokens.
 
 ```json
 {
-  "sub": "user_uuid",           // User ID
-  "org": "org_uuid",            // Organization ID (optional)
-  "sid": "session_uuid",        // Session ID (for token rotation)
-  "typ": "refresh",             // Token type
-  "jti": "unique_token_id",     // Unique ID for revocation
-  "iat": 1704067200,            // Issued at
-  "exp": 1706659200             // Expires at
+  "sub": "user_uuid", // User ID
+  "org": "org_uuid", // Organization ID (optional)
+  "sid": "session_uuid", // Session ID (for token rotation)
+  "typ": "refresh", // Token type
+  "jti": "unique_token_id", // Unique ID for revocation
+  "iat": 1704067200, // Issued at
+  "exp": 1706659200 // Expires at
 }
 ```
 
@@ -77,6 +77,7 @@ Cookie: sibyl_access_token=eyJhbGciOiJIUzI1NiIs...
 ```
 
 **Advantages:**
+
 - Automatic CSRF protection (SameSite=Lax)
 - No client-side token storage
 - Works with browser redirect flows
@@ -90,6 +91,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
 ```
 
 **Use Cases:**
+
 - API clients
 - CLI tools
 - Mobile apps
@@ -166,8 +168,8 @@ Redirects to GitHub OAuth consent screen.
 
 **Query Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
+| Parameter      | Type   | Description             |
+| -------------- | ------ | ----------------------- |
 | `redirect_uri` | string | Post-login redirect URL |
 
 #### OAuth Callback
@@ -180,10 +182,10 @@ Handles GitHub OAuth callback, creates/links user account.
 
 **Query Parameters:**
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `code` | string | OAuth authorization code |
-| `state` | string | CSRF state token |
+| Parameter | Type   | Description              |
+| --------- | ------ | ------------------------ |
+| `code`    | string | OAuth authorization code |
+| `state`   | string | CSRF state token         |
 
 **Response:** Redirects to `SIBYL_FRONTEND_URL` with tokens set.
 
@@ -258,13 +260,13 @@ Exchange refresh token for new access token.
 
 ### Validation Errors
 
-| Error | HTTP Status | Cause |
-|-------|-------------|-------|
-| `Not authenticated` | 401 | Missing token |
-| `Invalid token` | 401 | Signature verification failed |
-| `Token expired` | 401 | Token past expiration |
-| `User not found` | 401 | User ID not in database |
-| `No organization context` | 403 | Token missing org claim |
+| Error                     | HTTP Status | Cause                         |
+| ------------------------- | ----------- | ----------------------------- |
+| `Not authenticated`       | 401         | Missing token                 |
+| `Invalid token`           | 401         | Signature verification failed |
+| `Token expired`           | 401         | Token past expiration         |
+| `User not found`          | 401         | User ID not in database       |
+| `No organization context` | 403         | Token missing org claim       |
 
 ## Organization Context
 
@@ -278,6 +280,7 @@ JWT tokens include organization context:
 ```
 
 All API operations are scoped to this organization:
+
 - Graph queries use org-specific FalkorDB graph
 - Document queries filter by org ownership
 - Resource access is validated against org membership
@@ -303,16 +306,19 @@ POST /api/auth/switch-org
 ### Token Storage
 
 **Web Applications:**
+
 - Store in HTTP-only cookies (Sibyl sets this automatically)
 - Never store in localStorage (XSS vulnerable)
 
 **Native Applications:**
+
 - Use secure storage (Keychain, Keystore)
 - Encrypt tokens at rest
 
 ### Token Rotation
 
 Refresh tokens support rotation:
+
 1. Use refresh token to get new access token
 2. Server may issue new refresh token
 3. Old refresh token is invalidated
@@ -320,6 +326,7 @@ Refresh tokens support rotation:
 ### Revocation
 
 Tokens can be revoked by:
+
 - Logout (clears session)
 - Password change (invalidates all tokens)
 - Admin action
@@ -353,14 +360,14 @@ SIBYL_MCP_AUTH_MODE=auto  # auto, on, or off
 }
 ```
 
-| Status | Error | Resolution |
-|--------|-------|------------|
-| 401 | `Not authenticated` | Provide valid token |
-| 401 | `Invalid token` | Token may be corrupted or tampered |
-| 401 | `Token expired` | Refresh token or re-login |
-| 401 | `User not found` | Account may be deleted |
-| 403 | `No organization context` | Token missing org claim |
-| 403 | `Forbidden` | Insufficient role permissions |
+| Status | Error                     | Resolution                         |
+| ------ | ------------------------- | ---------------------------------- |
+| 401    | `Not authenticated`       | Provide valid token                |
+| 401    | `Invalid token`           | Token may be corrupted or tampered |
+| 401    | `Token expired`           | Refresh token or re-login          |
+| 401    | `User not found`          | Account may be deleted             |
+| 403    | `No organization context` | Token missing org claim            |
+| 403    | `Forbidden`               | Insufficient role permissions      |
 
 ## Related
 

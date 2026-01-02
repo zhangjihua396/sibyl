@@ -26,11 +26,11 @@ sibyl project list [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--limit` | `-n` | 20 | Max results |
-| `--json` | `-j` | false | JSON output |
-| `--csv` | | false | CSV output |
+| Option    | Short | Default | Description |
+| --------- | ----- | ------- | ----------- |
+| `--limit` | `-n`  | 20      | Max results |
+| `--json`  | `-j`  | false   | JSON output |
+| `--csv`   |       | false   | CSV output  |
 
 ### Example
 
@@ -39,6 +39,7 @@ sibyl project list
 ```
 
 Output:
+
 ```
 Projects
 ID          Name                Status    Description
@@ -64,9 +65,9 @@ sibyl project show <project_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -75,6 +76,7 @@ sibyl project show proj_abc123
 ```
 
 Output:
+
 ```
 Project proj_abc1
   Name:    Backend API
@@ -138,17 +140,17 @@ sibyl project create --name <name> [options]
 
 ### Required Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--name` | `-n` | Project name (required) |
+| Option   | Short | Description             |
+| -------- | ----- | ----------------------- |
+| `--name` | `-n`  | Project name (required) |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--description` | `-d` | Project description |
-| `--repo` | `-r` | Repository URL |
-| `--json` | `-j` | JSON output |
+| Option          | Short | Description         |
+| --------------- | ----- | ------------------- |
+| `--description` | `-d`  | Project description |
+| `--repo`        | `-r`  | Repository URL      |
+| `--json`        | `-j`  | JSON output         |
 
 ### Example
 
@@ -160,6 +162,7 @@ sibyl project create \
 ```
 
 Output:
+
 ```
 Project created: proj_abc123def456
 ```
@@ -178,9 +181,9 @@ sibyl project progress <project_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -189,6 +192,7 @@ sibyl project progress proj_abc123
 ```
 
 Output:
+
 ```
 Project Progress
 
@@ -230,7 +234,8 @@ sibyl project progress proj_abc123 --json
 
 ## project link
 
-Link a directory to a project for automatic context. This is the key to seamless project-scoped operations.
+Link a directory to a project for automatic context. This is the key to seamless project-scoped
+operations.
 
 ### Synopsis
 
@@ -240,9 +245,9 @@ sibyl project link <project_id> [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--path` | `-p` | cwd | Directory path to link |
+| Option   | Short | Default | Description            |
+| -------- | ----- | ------- | ---------------------- |
+| `--path` | `-p`  | cwd     | Directory path to link |
 
 ### Example
 
@@ -252,6 +257,7 @@ sibyl project link proj_abc123
 ```
 
 Output:
+
 ```
 Linked /Users/bliss/dev/backend-api
   -> Backend API (proj_abc123def456...)
@@ -297,9 +303,9 @@ sibyl project unlink [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--path` | `-p` | cwd | Directory path to unlink |
+| Option   | Short | Default | Description              |
+| -------- | ----- | ------- | ------------------------ |
+| `--path` | `-p`  | cwd     | Directory path to unlink |
 
 ### Example
 
@@ -309,6 +315,7 @@ sibyl project unlink
 ```
 
 Output:
+
 ```
 Unlinked /Users/bliss/dev/backend-api
 ```
@@ -338,6 +345,7 @@ sibyl project links
 ```
 
 Output:
+
 ```
 Project Links:
 

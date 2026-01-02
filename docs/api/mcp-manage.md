@@ -1,26 +1,28 @@
 # MCP Tool: manage
 
-Lifecycle operations and administration for Sibyl entities. Handles task workflow, epic management, source operations, and analysis actions.
+Lifecycle operations and administration for Sibyl entities. Handles task workflow, epic management,
+source operations, and analysis actions.
 
 ## Overview
 
 The `manage` tool handles state-changing operations organized by category:
 
-| Category | Actions |
-|----------|---------|
-| Task Workflow | start, block, unblock, submit_review, complete, archive, update, add_note |
-| Epic Workflow | start, complete, archive, update |
-| Source Operations | crawl, sync, refresh, link_graph |
-| Analysis | estimate, prioritize, detect_cycles, suggest |
+| Category          | Actions                                                                   |
+| ----------------- | ------------------------------------------------------------------------- |
+| Task Workflow     | start, block, unblock, submit_review, complete, archive, update, add_note |
+| Epic Workflow     | start, complete, archive, update                                          |
+| Source Operations | crawl, sync, refresh, link_graph                                          |
+| Analysis          | estimate, prioritize, detect_cycles, suggest                              |
 
-> **Note:** Task and epic workflow actions are deprecated in favor of REST endpoints (`/api/tasks/{id}/*`). Source and analysis actions should still use this tool.
+> **Note:** Task and epic workflow actions are deprecated in favor of REST endpoints
+> (`/api/tasks/{id}/*`). Source and analysis actions should still use this tool.
 
 ## Input Schema
 
 ```typescript
 interface ManageInput {
-  action: string;             // Action to perform
-  entity_id?: string;         // Target entity ID
+  action: string; // Action to perform
+  entity_id?: string; // Target entity ID
   data?: Record<string, any>; // Action-specific data
 }
 ```
@@ -422,8 +424,8 @@ Get pending linking status.
     "chunks_with_entities": 850,
     "chunks_pending": 350,
     "sources": [
-      {"name": "next-docs", "pending": 200},
-      {"name": "react-docs", "pending": 150}
+      { "name": "next-docs", "pending": 200 },
+      { "name": "react-docs", "pending": 150 }
     ]
   }
 }
@@ -487,9 +489,9 @@ Get smart task ordering for a project.
   "message": "Prioritized 15 tasks",
   "data": {
     "tasks": [
-      {"id": "task_1", "name": "Set up database", "priority": "critical", "status": "todo"},
-      {"id": "task_2", "name": "Create models", "priority": "high", "status": "todo"},
-      {"id": "task_3", "name": "Add API routes", "priority": "high", "status": "doing"}
+      { "id": "task_1", "name": "Set up database", "priority": "critical", "status": "todo" },
+      { "id": "task_2", "name": "Create models", "priority": "high", "status": "todo" },
+      { "id": "task_3", "name": "Add API routes", "priority": "high", "status": "doing" }
     ]
   }
 }
@@ -547,16 +549,10 @@ Suggest relevant knowledge for a task.
   "entity_id": "task_abc123",
   "message": "Knowledge suggestions retrieved",
   "data": {
-    "patterns": [
-      {"id": "pattern_oauth", "name": "OAuth 2.0 PKCE Flow", "score": 0.92}
-    ],
-    "rules": [
-      {"id": "rule_token", "name": "Token Rotation Rules", "score": 0.85}
-    ],
+    "patterns": [{ "id": "pattern_oauth", "name": "OAuth 2.0 PKCE Flow", "score": 0.92 }],
+    "rules": [{ "id": "rule_token", "name": "Token Rotation Rules", "score": 0.85 }],
     "templates": [],
-    "past_learnings": [
-      {"id": "episode_xyz", "name": "OAuth state bug fix", "score": 0.78}
-    ],
+    "past_learnings": [{ "id": "episode_xyz", "name": "OAuth state bug fix", "score": 0.78 }],
     "error_patterns": []
   }
 }
@@ -586,24 +582,24 @@ backlog --> todo --> doing --> blocked
 
 ### Valid Transitions
 
-| From | To |
-|------|-----|
-| `backlog` | `todo` |
-| `todo` | `doing`, `archived` |
-| `doing` | `blocked`, `review`, `done`, `todo` |
-| `blocked` | `doing`, `archived` |
-| `review` | `doing`, `done`, `archived` |
-| `done` | `archived` |
+| From      | To                                  |
+| --------- | ----------------------------------- |
+| `backlog` | `todo`                              |
+| `todo`    | `doing`, `archived`                 |
+| `doing`   | `blocked`, `review`, `done`, `todo` |
+| `blocked` | `doing`, `archived`                 |
+| `review`  | `doing`, `done`, `archived`         |
+| `done`    | `archived`                          |
 
 ## Error Handling
 
-| Error | Cause | Resolution |
-|-------|-------|------------|
-| `Unknown action` | Invalid action name | Check action spelling |
-| `entity_id required` | Missing entity ID | Provide entity_id |
-| `organization_id required` | No org context | Ensure valid JWT |
-| `InvalidTransitionError` | Invalid state transition | Check current status |
-| `Task not found` | Invalid entity_id | Verify entity exists |
+| Error                      | Cause                    | Resolution            |
+| -------------------------- | ------------------------ | --------------------- |
+| `Unknown action`           | Invalid action name      | Check action spelling |
+| `entity_id required`       | Missing entity ID        | Provide entity_id     |
+| `organization_id required` | No org context           | Ensure valid JWT      |
+| `InvalidTransitionError`   | Invalid state transition | Check current status  |
+| `Task not found`           | Invalid entity_id        | Verify entity exists  |
 
 ## Workflow Patterns
 
@@ -619,7 +615,8 @@ backlog --> todo --> doing --> blocked
 
 ### Knowledge Capture on Completion
 
-When completing tasks with learnings, Sibyl automatically creates an episode entity linking the learning to the completed task.
+When completing tasks with learnings, Sibyl automatically creates an episode entity linking the
+learning to the completed task.
 
 ## Related
 

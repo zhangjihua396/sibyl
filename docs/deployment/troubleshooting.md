@@ -7,12 +7,14 @@ Common issues and solutions for Sibyl deployments.
 ### Cannot Connect to API
 
 **Symptoms:**
+
 - Connection refused on port 3334
 - Frontend shows "Cannot connect to server"
 
 **Solutions:**
 
 1. **Check if server is running:**
+
    ```bash
    # Docker Compose
    docker compose ps
@@ -22,6 +24,7 @@ Common issues and solutions for Sibyl deployments.
    ```
 
 2. **Check server logs:**
+
    ```bash
    # Docker Compose
    docker compose logs backend
@@ -31,6 +34,7 @@ Common issues and solutions for Sibyl deployments.
    ```
 
 3. **Verify port binding:**
+
    ```bash
    # Check what's listening
    lsof -i :3334
@@ -50,12 +54,14 @@ sqlalchemy.exc.OperationalError: connection refused
 **Solutions:**
 
 1. **Verify PostgreSQL is running:**
+
    ```bash
    docker compose ps postgres
    kubectl get pods -n sibyl -l app=postgres
    ```
 
 2. **Check connection settings:**
+
    ```bash
    # Environment variables
    echo $SIBYL_POSTGRES_HOST
@@ -63,6 +69,7 @@ sqlalchemy.exc.OperationalError: connection refused
    ```
 
 3. **Test direct connection:**
+
    ```bash
    # Docker Compose
    docker exec -it sibyl-postgres psql -U sibyl sibyl
@@ -80,18 +87,21 @@ redis.exceptions.ConnectionError: Connection refused
 **Solutions:**
 
 1. **Verify FalkorDB is running:**
+
    ```bash
    docker compose ps falkordb
    kubectl get pods -n sibyl -l app=falkordb
    ```
 
 2. **Check connection settings:**
+
    ```bash
    echo $SIBYL_FALKORDB_HOST
    echo $SIBYL_FALKORDB_PORT  # Should be 6380 for local dev
    ```
 
 3. **Test direct connection:**
+
    ```bash
    # Docker Compose
    docker exec -it sibyl-falkordb redis-cli -a conventions PING
@@ -150,6 +160,7 @@ If graph data is lost but PostgreSQL data exists:
 ### Prevention
 
 1. **Enable FalkorDB persistence:**
+
    ```bash
    # In compose or k8s, ensure data volume is mounted
    volumes:
@@ -167,12 +178,14 @@ If graph data is lost but PostgreSQL data exists:
 ### JWT Token Invalid
 
 **Symptoms:**
+
 - 401 Unauthorized responses
 - "Invalid token" errors
 
 **Solutions:**
 
 1. **Check JWT secret is set:**
+
    ```bash
    # Should be non-empty
    echo $SIBYL_JWT_SECRET
@@ -189,12 +202,14 @@ If graph data is lost but PostgreSQL data exists:
 ### GitHub OAuth Failing
 
 **Symptoms:**
+
 - "OAuth error" after GitHub redirect
 - Missing callback URL
 
 **Solutions:**
 
 1. **Verify OAuth credentials:**
+
    ```bash
    echo $SIBYL_GITHUB_CLIENT_ID
    echo $SIBYL_GITHUB_CLIENT_SECRET
@@ -214,12 +229,14 @@ If graph data is lost but PostgreSQL data exists:
 ### Slow Queries
 
 **Symptoms:**
+
 - API responses taking > 5 seconds
 - Timeouts on graph operations
 
 **Solutions:**
 
 1. **Check graph size:**
+
    ```bash
    curl -H "Authorization: Bearer $TOKEN" \
      https://sibyl.local/api/admin/stats
@@ -230,6 +247,7 @@ If graph data is lost but PostgreSQL data exists:
    - Paginate large result sets
 
 3. **Check FalkorDB memory:**
+
    ```bash
    redis-cli -h localhost -p 6380 -a conventions INFO memory
    ```
@@ -242,12 +260,14 @@ If graph data is lost but PostgreSQL data exists:
 ### High Memory Usage
 
 **Symptoms:**
+
 - OOMKilled pods in Kubernetes
 - Container restarts
 
 **Solutions:**
 
 1. **Increase resource limits:**
+
    ```yaml
    backend:
      resources:
@@ -258,6 +278,7 @@ If graph data is lost but PostgreSQL data exists:
    ```
 
 2. **Check for memory leaks:**
+
    ```bash
    kubectl top pods -n sibyl
    ```
@@ -271,17 +292,20 @@ If graph data is lost but PostgreSQL data exists:
 ### Worker Queue Backlog
 
 **Symptoms:**
+
 - Jobs not completing
 - Crawl tasks stuck
 
 **Solutions:**
 
 1. **Check worker status:**
+
    ```bash
    kubectl logs -n sibyl -l app.kubernetes.io/component=worker -f
    ```
 
 2. **Scale workers:**
+
    ```bash
    kubectl scale deployment sibyl-worker -n sibyl --replicas=3
    ```
@@ -302,6 +326,7 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Stop conflicting service:**
+
    ```bash
    # macOS
    brew services stop redis
@@ -311,10 +336,11 @@ This commonly happens if you have Redis running locally.
    ```
 
 2. **Change port in compose:**
+
    ```yaml
    falkordb:
      ports:
-       - "6381:6379"  # Use different host port
+       - "6381:6379" # Use different host port
    ```
 
 3. **Update environment:**
@@ -329,11 +355,13 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Find conflicting process:**
+
    ```bash
    lsof -i :5433
    ```
 
 2. **Change port in compose:**
+
    ```yaml
    postgres:
      ports:
@@ -352,12 +380,14 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Check node resources:**
+
    ```bash
    kubectl describe nodes
    kubectl top nodes
    ```
 
 2. **Check resource requests:**
+
    ```bash
    kubectl describe pod <pod-name> -n sibyl
    ```
@@ -366,7 +396,7 @@ This commonly happens if you have Redis running locally.
    ```yaml
    resources:
      requests:
-       cpu: 50m      # Reduce from 100m
+       cpu: 50m # Reduce from 100m
        memory: 128Mi # Reduce from 256Mi
    ```
 
@@ -375,11 +405,13 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Check logs:**
+
    ```bash
    kubectl logs <pod-name> -n sibyl --previous
    ```
 
 2. **Check events:**
+
    ```bash
    kubectl get events -n sibyl --sort-by='.lastTimestamp'
    ```
@@ -394,12 +426,14 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Check CNPG operator:**
+
    ```bash
    kubectl get pods -n cnpg-system
    kubectl logs -n cnpg-system deployment/cnpg-cloudnative-pg
    ```
 
 2. **Check cluster status:**
+
    ```bash
    kubectl get cluster -n sibyl
    kubectl describe cluster sibyl-postgres -n sibyl
@@ -415,17 +449,20 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Check Kong operator:**
+
    ```bash
    kubectl get pods -n kong-system
    ```
 
 2. **Check gateway:**
+
    ```bash
    kubectl get gateway -n kong
    kubectl describe gateway sibyl-gateway -n kong
    ```
 
 3. **Check dataplane:**
+
    ```bash
    kubectl get pods -n kong
    kubectl logs -n kong -l app=dataplane-sibyl-gateway
@@ -448,6 +485,7 @@ This commonly happens if you have Redis running locally.
    - Look for error messages
 
 2. **Trigger manual rebuild:**
+
    ```bash
    tilt trigger <resource-name>
    ```
@@ -465,6 +503,7 @@ This commonly happens if you have Redis running locally.
 **Solutions:**
 
 1. **Check /etc/hosts:**
+
    ```bash
    grep sibyl.local /etc/hosts
    # Should show: 127.0.0.1 sibyl.local
@@ -487,18 +526,21 @@ This commonly happens if you have Redis running locally.
 If you're still stuck:
 
 1. **Check logs thoroughly:**
+
    ```bash
    # All logs with timestamps
    kubectl logs -n sibyl --all-containers --timestamps -l app.kubernetes.io/name=sibyl
    ```
 
 2. **Describe resources:**
+
    ```bash
    kubectl describe pod <pod-name> -n sibyl
    kubectl describe deployment <deploy-name> -n sibyl
    ```
 
 3. **Check events:**
+
    ```bash
    kubectl get events -n sibyl --sort-by='.lastTimestamp' | tail -50
    ```

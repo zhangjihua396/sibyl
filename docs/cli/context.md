@@ -1,10 +1,12 @@
 # context
 
-Manage CLI contexts. Contexts bundle server URL, organization, and project settings for easy switching between environments (local, staging, production).
+Manage CLI contexts. Contexts bundle server URL, organization, and project settings for easy
+switching between environments (local, staging, production).
 
 ## Overview
 
 A context contains:
+
 - **Server URL**: Where the Sibyl API is running
 - **Organization**: Which org to use (optional)
 - **Default Project**: Fallback project for operations
@@ -35,9 +37,9 @@ sibyl context [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -46,6 +48,7 @@ sibyl context
 ```
 
 Output:
+
 ```
   Context: local
   (active)
@@ -71,9 +74,9 @@ sibyl context list [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -82,6 +85,7 @@ sibyl context list
 ```
 
 Output:
+
 ```
 Contexts
         Name     Server                         Org        Project
@@ -107,15 +111,15 @@ sibyl context show [name] [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `name` | No | Context name (defaults to active) |
+| Argument | Required | Description                       |
+| -------- | -------- | --------------------------------- |
+| `name`   | No       | Context name (defaults to active) |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -124,6 +128,7 @@ sibyl context show prod
 ```
 
 Output:
+
 ```
   Context: prod
 
@@ -146,20 +151,20 @@ sibyl context create <name> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Context name (e.g., 'prod', 'local') |
+| Argument | Required | Description                          |
+| -------- | -------- | ------------------------------------ |
+| `name`   | Yes      | Context name (e.g., 'prod', 'local') |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--server` | `-s` | `http://localhost:3334` | Server URL |
-| `--org` | `-o` | (auto) | Organization slug |
-| `--project` | `-p` | (none) | Default project ID |
-| `--use` | `-u` | false | Set as active context |
-| `--insecure` | `-k` | false | Skip SSL verification |
-| `--json` | `-j` | false | JSON output |
+| Option       | Short | Default                 | Description           |
+| ------------ | ----- | ----------------------- | --------------------- |
+| `--server`   | `-s`  | `http://localhost:3334` | Server URL            |
+| `--org`      | `-o`  | (auto)                  | Organization slug     |
+| `--project`  | `-p`  | (none)                  | Default project ID    |
+| `--use`      | `-u`  | false                   | Set as active context |
+| `--insecure` | `-k`  | false                   | Skip SSL verification |
+| `--json`     | `-j`  | false                   | JSON output           |
 
 ### Examples
 
@@ -181,6 +186,7 @@ sibyl context create staging \
 ```
 
 Output:
+
 ```
 Created context 'prod'
 Set as active context
@@ -203,15 +209,15 @@ sibyl context use <name> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Context name to activate |
+| Argument | Required | Description              |
+| -------- | -------- | ------------------------ |
+| `name`   | Yes      | Context name to activate |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -220,6 +226,7 @@ sibyl context use prod
 ```
 
 Output:
+
 ```
 Switched to context 'prod'
   Server: https://sibyl.example.com
@@ -239,20 +246,20 @@ sibyl context update <name> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Context name to update |
+| Argument | Required | Description            |
+| -------- | -------- | ---------------------- |
+| `name`   | Yes      | Context name to update |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--server` | `-s` | New server URL |
-| `--org` | `-o` | New org slug (use 'auto' to clear) |
-| `--project` | `-p` | New default project (use 'none' to clear) |
-| `--insecure` | `-k` | Skip SSL verification |
-| `--secure` | | Re-enable SSL verification |
-| `--json` | `-j` | JSON output |
+| Option       | Short | Description                               |
+| ------------ | ----- | ----------------------------------------- |
+| `--server`   | `-s`  | New server URL                            |
+| `--org`      | `-o`  | New org slug (use 'auto' to clear)        |
+| `--project`  | `-p`  | New default project (use 'none' to clear) |
+| `--insecure` | `-k`  | Skip SSL verification                     |
+| `--secure`   |       | Re-enable SSL verification                |
+| `--json`     | `-j`  | JSON output                               |
 
 ### Examples
 
@@ -290,9 +297,9 @@ sibyl context delete <name>
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `name` | Yes | Context name to delete |
+| Argument | Required | Description            |
+| -------- | -------- | ---------------------- |
+| `name`   | Yes      | Context name to delete |
 
 ### Example
 
@@ -301,11 +308,13 @@ sibyl context delete old-staging
 ```
 
 Output:
+
 ```
 Deleted context 'old-staging'
 ```
 
 If you delete the active context:
+
 ```
 Deleted context 'local'
 No active context. Use 'sibyl context use <name>' to set one.
@@ -330,6 +339,7 @@ sibyl context clear
 ```
 
 Output:
+
 ```
 Cleared active context
 Using legacy server.url from config

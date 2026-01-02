@@ -5,7 +5,8 @@ description: Multi-agent patterns with shared knowledge
 
 # Agent Collaboration
 
-Sibyl enables multiple AI agents to share knowledge and coordinate work. This guide covers patterns for multi-agent collaboration.
+Sibyl enables multiple AI agents to share knowledge and coordinate work. This guide covers patterns
+for multi-agent collaboration.
 
 ## Shared Knowledge Graph
 
@@ -22,11 +23,13 @@ Organization Graph
 ```
 
 When Agent A captures knowledge:
+
 ```python
 add("OAuth redirect insight", "URIs must match exactly...")
 ```
 
 Agent B can immediately find it:
+
 ```python
 search("OAuth redirect")  # Returns Agent A's insight
 ```
@@ -38,6 +41,7 @@ search("OAuth redirect")  # Returns Agent A's insight
 When one agent completes work, another can continue:
 
 **Agent A (Morning Session):**
+
 ```python
 # Complete task with detailed learnings
 manage("complete_task", entity_id="task_oauth",
@@ -52,6 +56,7 @@ manage("complete_task", entity_id="task_oauth",
 ```
 
 **Agent B (Afternoon Session):**
+
 ```python
 # Search for context from previous work
 search("OAuth implementation", types=["task"])
@@ -67,6 +72,7 @@ search("OAuth", types=["episode"])
 Multiple agents can work on related tasks:
 
 **Agent A:**
+
 ```python
 # Claim a task
 manage("start_task", entity_id="task_frontend_auth")
@@ -77,6 +83,7 @@ manage("update_task", entity_id="task_frontend_auth",
 ```
 
 **Agent B:**
+
 ```python
 # Find in-progress work
 explore(mode="list", types=["task"], status="doing")
@@ -91,6 +98,7 @@ manage("start_task", entity_id="task_backend_auth")
 Track cross-agent blockers:
 
 **Agent A:**
+
 ```python
 # Block on dependency
 manage("block_task", entity_id="task_frontend",
@@ -98,6 +106,7 @@ manage("block_task", entity_id="task_frontend",
 ```
 
 **Agent B:**
+
 ```python
 # Find blocked tasks
 explore(mode="list", types=["task"], status="blocked")
@@ -175,6 +184,7 @@ When agents capture conflicting knowledge:
 3. Use temporal boosting to prefer recent
 
 **Resolution Pattern:**
+
 ```python
 # Search returns both entries
 search("conflicting topic")
@@ -192,6 +202,7 @@ add("Merged insight",
 Different agents can focus on different domains:
 
 **Backend Agent:**
+
 ```python
 # Focus on backend patterns
 search("API design", types=["pattern"])
@@ -199,6 +210,7 @@ add("REST pagination pattern", "...", category="backend")
 ```
 
 **Frontend Agent:**
+
 ```python
 # Focus on frontend patterns
 search("React hooks", types=["pattern"])
@@ -206,6 +218,7 @@ add("Custom hook pattern", "...", category="frontend")
 ```
 
 **DevOps Agent:**
+
 ```python
 # Focus on infrastructure
 search("deployment", types=["pattern"])
@@ -227,6 +240,7 @@ search("API response format", types=["pattern"])
 ### Sprint Planning Pattern
 
 **Project Manager Agent:**
+
 ```python
 # Review all tasks
 explore(mode="list", types=["task"], project="proj_abc")
@@ -243,6 +257,7 @@ add("Sprint 5 - Auth Feature",
 ```
 
 **Worker Agents:**
+
 ```python
 # Find highest priority work
 explore(mode="list", types=["task"],
@@ -271,6 +286,7 @@ manage("start_task", entity_id="available_task")
 ### Review Pattern
 
 **Curator Agent:**
+
 ```python
 # Find recent additions
 explore(mode="list", types=["episode"], since="7d")
@@ -375,6 +391,7 @@ Periodically clean up and promote knowledge:
 ## Example: Day in Multi-Agent Life
 
 **Morning - Agent A (Developer):**
+
 ```python
 # Start session
 explore(mode="list", types=["task"], project="proj_auth", status="todo")
@@ -389,6 +406,7 @@ manage("update_task", entity_id="task_oauth",
 ```
 
 **Afternoon - Agent B (Reviewer):**
+
 ```python
 # Find work to review
 explore(mode="list", types=["task"], status="review")
@@ -403,6 +421,7 @@ manage("complete_task", entity_id="task_oauth",
 ```
 
 **Evening - Agent C (Planner):**
+
 ```python
 # Review completed work
 explore(mode="list", types=["task"], status="done", since="1d")

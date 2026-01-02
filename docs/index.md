@@ -4,7 +4,9 @@ layout: home
 hero:
   name: Sibyl
   text: Your AI's Memory
-  tagline: Stop watching your agents rediscover the same solutions every session. Sibyl gives them persistent memory, semantic search, and the ability to learn from each other.
+  tagline:
+    Stop watching your agents rediscover the same solutions every session. Sibyl gives them
+    persistent memory, semantic search, and the ability to learn from each other.
   actions:
     - theme: brand
       text: Get Started
@@ -16,33 +18,48 @@ hero:
 features:
   - icon: 🧠
     title: Agents That Remember
-    details: Knowledge survives across sessions. Your agents remember patterns, gotchas, and hard-won lessons—forever.
+    details:
+      Knowledge survives across sessions. Your agents remember patterns, gotchas, and hard-won
+      lessons—forever.
   - icon: 🎯
     title: Skills-Forward Design
-    details: Skills teach your agents HOW to work. Hooks inject relevant knowledge automatically. No manual prompting needed.
+    details:
+      Skills teach your agents HOW to work. Hooks inject relevant knowledge automatically. No manual
+      prompting needed.
   - icon: 📋
     title: Project-Centric Tasks
-    details: Track work across agents and sessions. Full lifecycle from backlog to completion, with learnings captured along the way.
+    details:
+      Track work across agents and sessions. Full lifecycle from backlog to completion, with
+      learnings captured along the way.
   - icon: 🔍
     title: Find by Meaning
-    details: Semantic search finds knowledge by intent, not keywords. Ask "how do I handle auth?" and find relevant patterns instantly.
+    details:
+      Semantic search finds knowledge by intent, not keywords. Ask "how do I handle auth?" and find
+      relevant patterns instantly.
   - icon: 📚
     title: Ingest External Docs
-    details: Crawl documentation sites and make them searchable. Your agents can reference React docs, API references, anything.
+    details:
+      Crawl documentation sites and make them searchable. Your agents can reference React docs, API
+      references, anything.
   - icon: 🤝
     title: Multi-Agent Collaboration
-    details: When one agent learns something, all agents benefit. Build collective intelligence across your entire workflow.
+    details:
+      When one agent learns something, all agents benefit. Build collective intelligence across your
+      entire workflow.
 ---
 
 ## The Problem
 
-Every time you start a new Claude Code session, your agent forgets everything. That OAuth gotcha you debugged for 2 hours? Gone. The pattern that finally made your tests pass? Vanished. The configuration quirk that took forever to figure out? Lost to the void.
+Every time you start a new Claude Code session, your agent forgets everything. That OAuth gotcha you
+debugged for 2 hours? Gone. The pattern that finally made your tests pass? Vanished. The
+configuration quirk that took forever to figure out? Lost to the void.
 
 **Your AI agents are brilliant but amnesiac.**
 
 ## The Solution
 
-Sibyl is a **Collective Intelligence Runtime**—a persistent knowledge graph that gives your AI agents:
+Sibyl is a **Collective Intelligence Runtime**—a persistent knowledge graph that gives your AI
+agents:
 
 - **Memory**: Store patterns, learnings, and solutions that persist forever
 - **Task Tracking**: Manage work across sessions with full lifecycle support
@@ -85,6 +102,7 @@ Sibyl is a **Collective Intelligence Runtime**—a persistent knowledge graph th
 ### For Agents: Skills + Hooks
 
 **Skills** teach your agents structured workflows:
+
 ```bash
 # The agent learns to search before implementing
 sibyl search "authentication patterns"
@@ -96,17 +114,20 @@ sibyl task start task_xyz
 sibyl task complete task_xyz --learnings "OAuth tokens need refresh..."
 ```
 
-**Hooks** automatically inject relevant knowledge into every prompt—your agent doesn't even need to ask.
+**Hooks** automatically inject relevant knowledge into every prompt—your agent doesn't even need to
+ask.
 
 ### For Humans: Web UI + CLI
 
 **Web UI** for collaboration and oversight:
+
 - Visual knowledge graph exploration
 - Project and task management
 - Document source configuration
 - Team-wide dashboards
 
 **CLI** for power users and scripting:
+
 - Full CRUD on all entities
 - Semantic search from terminal
 - Task lifecycle management
@@ -159,17 +180,18 @@ Sibyl enforces a simple but powerful cycle:
 └─────────────────────────────────────────────────────┘
 ```
 
-Every completed task makes your knowledge graph smarter. Every pattern discovered helps future agents work faster. **The system learns as you work.**
+Every completed task makes your knowledge graph smarter. Every pattern discovered helps future
+agents work faster. **The system learns as you work.**
 
 ## Why Sibyl?
 
-| Without Sibyl | With Sibyl |
-|---------------|------------|
+| Without Sibyl                    | With Sibyl                              |
+| -------------------------------- | --------------------------------------- |
 | Agent rediscovers same solutions | Agent finds existing patterns instantly |
-| Context lost between sessions | Knowledge persists forever |
-| Manual prompting required | Hooks inject context automatically |
-| No task tracking | Full lifecycle with learnings capture |
-| Scattered documentation | Searchable, connected knowledge graph |
+| Context lost between sessions    | Knowledge persists forever              |
+| Manual prompting required        | Hooks inject context automatically      |
+| No task tracking                 | Full lifecycle with learnings capture   |
+| Scattered documentation          | Searchable, connected knowledge graph   |
 
 ## Get Started
 

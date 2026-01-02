@@ -5,16 +5,19 @@ description: Teaching agents how to work with Sibyl
 
 # Skills & Hooks
 
-Sibyl's power comes from two complementary systems: **Skills** teach agents structured workflows, and **Hooks** inject knowledge automatically. Together, they transform Claude from a capable assistant into a knowledge-connected collaborator.
+Sibyl's power comes from two complementary systems: **Skills** teach agents structured workflows,
+and **Hooks** inject knowledge automatically. Together, they transform Claude from a capable
+assistant into a knowledge-connected collaborator.
 
 ## The Two Systems
 
-| System | Purpose | When it Runs | User Action |
-|--------|---------|--------------|-------------|
-| **Skills** | Teach workflows | On `/skill-name` invocation | Manual |
-| **Hooks** | Inject context | Automatically on triggers | None needed |
+| System     | Purpose         | When it Runs                | User Action |
+| ---------- | --------------- | --------------------------- | ----------- |
+| **Skills** | Teach workflows | On `/skill-name` invocation | Manual      |
+| **Hooks**  | Inject context  | Automatically on triggers   | None needed |
 
 Think of it this way:
+
 - **Skills** = Training manual (agent reads when invoked)
 - **Hooks** = Invisible assistant (works behind the scenes)
 
@@ -29,6 +32,7 @@ Hooks are the magic that makes Sibyl invisible. They run automatically at specif
 **Trigger:** When you start a new Claude Code session
 
 **What it does:**
+
 - Loads your active tasks (status: `doing`, `blocked`, `review`)
 - Shows your project context
 - Reminds the agent about capturing learnings
@@ -51,6 +55,7 @@ Hooks are the magic that makes Sibyl invisible. They run automatically at specif
 **Trigger:** Before processing every user prompt
 
 **What it does:**
+
 - Searches Sibyl for relevant knowledge
 - Injects matching patterns and learnings into context
 - Agent sees relevant knowledge without asking
@@ -58,6 +63,7 @@ Hooks are the magic that makes Sibyl invisible. They run automatically at specif
 Example: You type "help me fix the OAuth redirect issue"
 
 The hook automatically:
+
 1. Searches: `sibyl search "OAuth redirect"`
 2. Finds: Pattern about OAuth callback URL matching
 3. Injects: The pattern content into Claude's context
@@ -95,6 +101,7 @@ The unified skill for all Sibyl operations:
 ```
 
 **Teaches Claude:**
+
 - CLI command syntax and patterns
 - Search-first workflow
 - Task lifecycle management
@@ -140,10 +147,10 @@ allowed-tools: Bash, Grep, Glob, Read
 ---
 ```
 
-| Field | Description |
-|-------|-------------|
-| `name` | Skill identifier (must be unique) |
-| `description` | Brief description for skill discovery |
+| Field           | Description                               |
+| --------------- | ----------------------------------------- |
+| `name`          | Skill identifier (must be unique)         |
+| `description`   | Brief description for skill discovery     |
 | `allowed-tools` | Tools Claude can use when skill is active |
 
 ## Installing Skills
@@ -205,15 +212,11 @@ Explain what this skill helps Claude do...
 
 ### Primary Command
 
-\`\`\`bash
-command example
-\`\`\`
+\`\`\`bash command example \`\`\`
 
 ### Secondary Command
 
-\`\`\`bash
-another command
-\`\`\`
+\`\`\`bash another command \`\`\`
 
 ## Workflows
 
@@ -250,10 +253,10 @@ Provide clear command tables:
 ```markdown
 ## CLI Reference
 
-| Command | Description |
-|---------|-------------|
+| Command                | Description     |
+| ---------------------- | --------------- |
 | `sibyl search "query"` | Semantic search |
-| `sibyl task list` | List tasks |
+| `sibyl task list`      | List tasks      |
 ```
 
 ### Workflow Pattern
@@ -263,20 +266,11 @@ Describe step-by-step processes:
 ```markdown
 ## Task Workflow
 
-1. **Find Tasks**
-   \`\`\`bash
-   sibyl task list --status todo
-   \`\`\`
+1. **Find Tasks** \`\`\`bash sibyl task list --status todo \`\`\`
 
-2. **Start Working**
-   \`\`\`bash
-   sibyl task start task_xyz
-   \`\`\`
+2. **Start Working** \`\`\`bash sibyl task start task_xyz \`\`\`
 
-3. **Complete**
-   \`\`\`bash
-   sibyl task complete task_xyz --learnings "..."
-   \`\`\`
+3. **Complete** \`\`\`bash sibyl task complete task_xyz --learnings "..." \`\`\`
 ```
 
 ### Common Mistakes Pattern
@@ -286,10 +280,10 @@ Help Claude avoid errors:
 ```markdown
 ## Common Pitfalls
 
-| Wrong | Correct |
-|-------|---------|
-| `sibyl task add "..."` | `sibyl task create --title "..."` |
-| `sibyl task list --todo` | `sibyl task list --status todo` |
+| Wrong                    | Correct                           |
+| ------------------------ | --------------------------------- |
+| `sibyl task add "..."`   | `sibyl task create --title "..."` |
+| `sibyl task list --todo` | `sibyl task list --status todo`   |
 ```
 
 ### Agent Loop Pattern
@@ -300,11 +294,11 @@ Teach feedback loops:
 ## The Agent Feedback Loop
 
 \`\`\`
-1. SEARCH FIRST     -> sibyl search "topic"
-2. CHECK TASKS      -> sibyl task list --status doing
-3. WORK & CAPTURE   -> sibyl add (for learnings)
-4. COMPLETE         -> sibyl task complete --learnings "..."
-\`\`\`
+
+1. SEARCH FIRST -> sibyl search "topic"
+2. CHECK TASKS -> sibyl task list --status doing
+3. WORK & CAPTURE -> sibyl add (for learnings)
+4. COMPLETE -> sibyl task complete --learnings "..." \`\`\`
 ```
 
 ## Skill Content Guidelines
@@ -313,9 +307,11 @@ Teach feedback loops:
 
 ```markdown
 # GOOD
+
 sibyl task list --status todo,doing,blocked
 
 # LESS GOOD
+
 sibyl task list (various options available)
 ```
 
@@ -323,11 +319,14 @@ sibyl task list (various options available)
 
 ```markdown
 # Search for patterns
+
 sibyl search "authentication" --type pattern
 
 # Result:
-# pattern_abc  OAuth callback handling  0.95
-# pattern_xyz  JWT token refresh       0.89
+
+# pattern_abc OAuth callback handling 0.95
+
+# pattern_xyz JWT token refresh 0.89
 ```
 
 ### Include Error Handling
@@ -336,7 +335,9 @@ sibyl search "authentication" --type pattern
 ## Troubleshooting
 
 ### Connection Error
+
 If you see "connection refused":
+
 1. Check server is running: `sibyl health`
 2. Verify URL in config
 ```
@@ -347,11 +348,13 @@ If you see "connection refused":
 ## When to Use
 
 Use `episode` type for:
+
 - Debugging discoveries
 - One-time learnings
 - Context-specific insights
 
 Use `pattern` type for:
+
 - Reusable approaches
 - Best practices
 - Standard solutions
@@ -374,14 +377,12 @@ allowed-tools: Bash, Read
 ## Project-Specific Commands
 
 ### If Working in `auth` Project
-\`\`\`bash
-sibyl task list --project proj_auth --status todo
-\`\`\`
+
+\`\`\`bash sibyl task list --project proj_auth --status todo \`\`\`
 
 ### If Working in `api` Project
-\`\`\`bash
-sibyl task list --project proj_api --status todo
-\`\`\`
+
+\`\`\`bash sibyl task list --project proj_api --status todo \`\`\`
 ```
 
 ### Integration with Other Skills
@@ -409,6 +410,7 @@ Guide Claude through code review using Sibyl's knowledge graph.
 ## Purpose
 
 Use Sibyl to:
+
 - Find relevant patterns for the code being reviewed
 - Check for applicable rules
 - Track review tasks
@@ -416,31 +418,37 @@ Use Sibyl to:
 ## Quick Start
 
 \`\`\`bash
+
 # 1. Search for relevant patterns
+
 sibyl search "code being reviewed" --type pattern
 
 # 2. Check applicable rules
+
 sibyl entity list --type rule
 
 # 3. Start review task
-sibyl task start task_review_xyz
-\`\`\`
+
+sibyl task start task_review_xyz \`\`\`
 
 ## Review Workflow
 
 ### 1. Prepare
 
 \`\`\`bash
+
 # Find patterns for the domain
+
 sibyl search "domain of code" --type pattern
 
 # Check rules
-sibyl entity list --type rule --category "domain"
-\`\`\`
+
+sibyl entity list --type rule --category "domain" \`\`\`
 
 ### 2. Review
 
 Check code against:
+
 - Discovered patterns
 - Applicable rules
 - Past learnings (episodes)
@@ -448,12 +456,14 @@ Check code against:
 ### 3. Document
 
 \`\`\`bash
+
 # Capture new discoveries
+
 sibyl add "Review finding" "What was discovered..."
 
 # Complete review task
-sibyl task complete task_xyz --learnings "Key insights from review..."
-\`\`\`
+
+sibyl task complete task_xyz --learnings "Key insights from review..." \`\`\`
 
 ## Best Practices
 

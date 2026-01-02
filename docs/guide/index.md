@@ -5,7 +5,8 @@ description: Give your AI agents the memory they deserve
 
 # Introduction
 
-Welcome to Sibyl—the Collective Intelligence Runtime that transforms your AI agents from brilliant amnesiacs into knowledge-building collaborators.
+Welcome to Sibyl—the Collective Intelligence Runtime that transforms your AI agents from brilliant
+amnesiacs into knowledge-building collaborators.
 
 ## What You'll Learn
 
@@ -21,7 +22,9 @@ This guide teaches you how to:
 
 Sibyl is built on a simple insight: **AI agents are only as good as the context they have.**
 
-Most AI coding assistants start every session from scratch. They can't remember the OAuth gotcha you figured out yesterday. They don't know about the pattern that finally made your tests pass. They're brilliant, but amnesiac.
+Most AI coding assistants start every session from scratch. They can't remember the OAuth gotcha you
+figured out yesterday. They don't know about the pattern that finally made your tests pass. They're
+brilliant, but amnesiac.
 
 Sibyl fixes this by providing:
 
@@ -38,7 +41,8 @@ Sibyl consists of three main components:
 
 ### 1. Skills (For Agents)
 
-Skills are documents that teach your AI agents how to work with Sibyl. When you invoke `/sibyl` in Claude Code, the agent receives:
+Skills are documents that teach your AI agents how to work with Sibyl. When you invoke `/sibyl` in
+Claude Code, the agent receives:
 
 - Command reference for all CLI operations
 - Workflow patterns (when to search, when to capture)
@@ -53,7 +57,8 @@ Hooks are the magic that makes Sibyl invisible. They run automatically:
 - **SessionStart**: Loads your active tasks when you begin a session
 - **UserPromptSubmit**: Searches for relevant knowledge on every prompt
 
-Your agent doesn't need to remember to search—relevant patterns appear automatically in their context.
+Your agent doesn't need to remember to search—relevant patterns appear automatically in their
+context.
 
 ### 3. Web UI (For Humans)
 
@@ -61,15 +66,18 @@ The web interface gives you visibility and control:
 
 ![Knowledge Graph Visualization](/screenshots/web-graph.png)
 
-**Graph Explorer**: Visualize connections between entities, patterns, and learnings. See how knowledge clusters and relates.
+**Graph Explorer**: Visualize connections between entities, patterns, and learnings. See how
+knowledge clusters and relates.
 
 ![Task Management](/screenshots/web-tasks.png)
 
-**Task Management**: Track work across projects with full lifecycle support. Filter by status, priority, assignee, and more.
+**Task Management**: Track work across projects with full lifecycle support. Filter by status,
+priority, assignee, and more.
 
 ![Entity Browser](/screenshots/web-entities.png)
 
-**Entity Browser**: Browse all knowledge types—patterns, episodes, conventions, rules. Search and filter to find what you need.
+**Entity Browser**: Browse all knowledge types—patterns, episodes, conventions, rules. Search and
+filter to find what you need.
 
 ![Semantic Search](/screenshots/web-search.png)
 
@@ -135,12 +143,17 @@ Not everything belongs in the knowledge graph. Focus on:
 The knowledge graph gets smarter with every entry—but only if entries are high quality.
 
 **Bad entry:**
+
 > "Fixed the auth bug"
 
 **Good entry:**
-> "JWT refresh tokens fail silently when Redis TTL expires. Root cause: token service doesn't handle WRONGTYPE error. Fix: Add try/except with token regeneration fallback. Prevention: Always handle Redis type mismatches in token renewal logic."
+
+> "JWT refresh tokens fail silently when Redis TTL expires. Root cause: token service doesn't handle
+> WRONGTYPE error. Fix: Add try/except with token regeneration fallback. Prevention: Always handle
+> Redis type mismatches in token renewal logic."
 
 The good entry includes:
+
 - What happened
 - Root cause
 - How to fix it
@@ -150,13 +163,14 @@ The good entry includes:
 
 Sibyl offers three interfaces, each suited to different users:
 
-| Interface | Best For | Token Usage |
-|-----------|----------|-------------|
-| **CLI** | Agents doing scripted work | Low—text output only |
-| **MCP** | Direct tool invocation | Higher—full JSON schemas |
-| **Web UI** | Humans managing projects | N/A—visual interface |
+| Interface  | Best For                   | Token Usage              |
+| ---------- | -------------------------- | ------------------------ |
+| **CLI**    | Agents doing scripted work | Low—text output only     |
+| **MCP**    | Direct tool invocation     | Higher—full JSON schemas |
+| **Web UI** | Humans managing projects   | N/A—visual interface     |
 
-For AI agents, **prefer the CLI** for routine operations. It's more expressive, enables scripting, and uses fewer tokens than MCP tool calls.
+For AI agents, **prefer the CLI** for routine operations. It's more expressive, enables scripting,
+and uses fewer tokens than MCP tool calls.
 
 ## Next Steps
 

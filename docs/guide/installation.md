@@ -77,9 +77,8 @@ docker run -d \
 moon run docker-up
 ```
 
-::: warning Port 6380
-FalkorDB runs on port **6380** (not 6379) to avoid conflicts with a standard Redis installation.
-:::
+::: warning Port 6380 FalkorDB runs on port **6380** (not 6379) to avoid conflicts with a standard
+Redis installation. :::
 
 ### PostgreSQL Setup
 
@@ -133,22 +132,22 @@ SIBYL_ANTHROPIC_API_KEY=...        # For LLM operations
 
 ### Required Environment Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable               | Description                              |
+| ---------------------- | ---------------------------------------- |
 | `SIBYL_OPENAI_API_KEY` | OpenAI API key for generating embeddings |
-| `SIBYL_JWT_SECRET` | Secret key for JWT token signing |
+| `SIBYL_JWT_SECRET`     | Secret key for JWT token signing         |
 
 ### Optional Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIBYL_FALKORDB_HOST` | `localhost` | FalkorDB hostname |
-| `SIBYL_FALKORDB_PORT` | `6380` | FalkorDB port |
-| `SIBYL_DATABASE_URL` | - | PostgreSQL connection string |
-| `SIBYL_LOG_LEVEL` | `INFO` | Logging level |
-| `SIBYL_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model |
-| `SIBYL_SERVER_URL` | - | Public server URL (for OAuth callbacks) |
-| `SIBYL_FRONTEND_URL` | - | Frontend URL (for redirects) |
+| Variable                | Default                  | Description                             |
+| ----------------------- | ------------------------ | --------------------------------------- |
+| `SIBYL_FALKORDB_HOST`   | `localhost`              | FalkorDB hostname                       |
+| `SIBYL_FALKORDB_PORT`   | `6380`                   | FalkorDB port                           |
+| `SIBYL_DATABASE_URL`    | -                        | PostgreSQL connection string            |
+| `SIBYL_LOG_LEVEL`       | `INFO`                   | Logging level                           |
+| `SIBYL_EMBEDDING_MODEL` | `text-embedding-3-small` | OpenAI embedding model                  |
+| `SIBYL_SERVER_URL`      | -                        | Public server URL (for OAuth callbacks) |
+| `SIBYL_FRONTEND_URL`    | -                        | Frontend URL (for redirects)            |
 
 ## Running Sibyl
 
@@ -161,6 +160,7 @@ moon run dev
 ```
 
 This starts:
+
 - API server on port 3334
 - Background worker for async jobs
 - Web frontend on port 3337
@@ -210,12 +210,12 @@ Open [http://localhost:3337](http://localhost:3337) in your browser.
 
 ## Ports Reference
 
-| Service | Port |
-|---------|------|
-| API + MCP | 3334 |
+| Service      | Port |
+| ------------ | ---- |
+| API + MCP    | 3334 |
 | Web Frontend | 3337 |
-| FalkorDB | 6380 |
-| PostgreSQL | 5432 |
+| FalkorDB     | 6380 |
+| PostgreSQL   | 5432 |
 
 ## Troubleshooting
 
@@ -260,7 +260,8 @@ echo $SIBYL_OPENAI_API_KEY
 
 [SCREENSHOT: Docker compose architecture diagram]
 
-A production Docker Compose configuration is planned. For now, use the individual Docker commands above.
+A production Docker Compose configuration is planned. For now, use the individual Docker commands
+above.
 
 ## Next Steps
 

@@ -1,6 +1,7 @@
 # explore
 
-Graph traversal and exploration commands. Navigate the knowledge graph to discover relationships and dependencies.
+Graph traversal and exploration commands. Navigate the knowledge graph to discover relationships and
+dependencies.
 
 ## Commands
 
@@ -23,17 +24,17 @@ sibyl explore related <entity_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `entity_id` | Yes | Starting entity ID |
+| Argument    | Required | Description        |
+| ----------- | -------- | ------------------ |
+| `entity_id` | Yes      | Starting entity ID |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--rel` | `-r` | (all) | Relationship types to follow (comma-separated) |
-| `--limit` | `-n` | 20 | Maximum results |
-| `--json` | `-j` | false | JSON output |
+| Option    | Short | Default | Description                                    |
+| --------- | ----- | ------- | ---------------------------------------------- |
+| `--rel`   | `-r`  | (all)   | Relationship types to follow (comma-separated) |
+| `--limit` | `-n`  | 20      | Maximum results                                |
+| `--json`  | `-j`  | false   | JSON output                                    |
 
 ### Examples
 
@@ -49,6 +50,7 @@ sibyl explore related task_abc123 --json
 ```
 
 Output (table):
+
 ```
 Related Entities
 ID          Name                      Type      Relationship
@@ -72,17 +74,17 @@ sibyl explore traverse <entity_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `entity_id` | Yes | Starting entity ID |
+| Argument    | Required | Description        |
+| ----------- | -------- | ------------------ |
+| `entity_id` | Yes      | Starting entity ID |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--depth` | `-d` | 2 | Traversal depth (1-3) |
-| `--limit` | `-n` | 50 | Maximum results |
-| `--json` | `-j` | false | JSON output |
+| Option    | Short | Default | Description           |
+| --------- | ----- | ------- | --------------------- |
+| `--depth` | `-d`  | 2       | Traversal depth (1-3) |
+| `--limit` | `-n`  | 50      | Maximum results       |
+| `--json`  | `-j`  | false   | JSON output           |
 
 ### Examples
 
@@ -98,6 +100,7 @@ sibyl explore traverse task_abc123 --depth 3 --limit 100
 ```
 
 Output (tree):
+
 ```
 Traversal from task_abc1...
   Hop 1 (5 entities)
@@ -114,15 +117,15 @@ Traversal from task_abc1...
 Total: 17 entities across 2 hop(s)
 ```
 
-::: warning Depth Limit
-Maximum depth is 3 to prevent performance issues. For deep graph exploration, use multiple targeted traversals.
-:::
+::: warning Depth Limit Maximum depth is 3 to prevent performance issues. For deep graph
+exploration, use multiple targeted traversals. :::
 
 ---
 
 ## explore dependencies
 
-Show task dependency graph with topological ordering. Essential for understanding task execution order.
+Show task dependency graph with topological ordering. Essential for understanding task execution
+order.
 
 ### Synopsis
 
@@ -132,16 +135,16 @@ sibyl explore dependencies [entity_id] [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `entity_id` | No | Task ID (or use `--project`) |
+| Argument    | Required | Description                  |
+| ----------- | -------- | ---------------------------- |
+| `entity_id` | No       | Task ID (or use `--project`) |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--project` | `-p` | (none) | Project ID for all dependencies |
-| `--json` | `-j` | false | JSON output |
+| Option      | Short | Default | Description                     |
+| ----------- | ----- | ------- | ------------------------------- |
+| `--project` | `-p`  | (none)  | Project ID for all dependencies |
+| `--json`    | `-j`  | false   | JSON output                     |
 
 ### Examples
 
@@ -157,6 +160,7 @@ sibyl explore dependencies --project proj_xyz --json
 ```
 
 Output (table):
+
 ```
 Dependency Order (execute top to bottom):
 
@@ -203,17 +207,17 @@ sibyl explore path <from_id> <to_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `from_id` | Yes | Starting entity ID |
-| `to_id` | Yes | Target entity ID |
+| Argument  | Required | Description        |
+| --------- | -------- | ------------------ |
+| `from_id` | Yes      | Starting entity ID |
+| `to_id`   | Yes      | Target entity ID   |
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--depth` | `-d` | 5 | Maximum path length |
-| `--json` | `-j` | false | JSON output |
+| Option    | Short | Default | Description         |
+| --------- | ----- | ------- | ------------------- |
+| `--depth` | `-d`  | 5       | Maximum path length |
+| `--json`  | `-j`  | false   | JSON output         |
 
 ### Examples
 
@@ -226,6 +230,7 @@ sibyl explore path ent_start ent_end --depth 3
 ```
 
 Output:
+
 ```
 Path Found (length: 3)
 

@@ -1,6 +1,7 @@
 # search
 
-Semantic search across the knowledge graph. Uses vector similarity to find relevant entities based on meaning, not just keywords.
+Semantic search across the knowledge graph. Uses vector similarity to find relevant entities based
+on meaning, not just keywords.
 
 ## Synopsis
 
@@ -10,18 +11,18 @@ sibyl search <query> [options]
 
 ## Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `query` | Yes | Search query (natural language) |
+| Argument | Required | Description                     |
+| -------- | -------- | ------------------------------- |
+| `query`  | Yes      | Search query (natural language) |
 
 ## Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--type` | `-t` | (all) | Filter by entity type |
-| `--limit` | `-l` | 10 | Maximum results to return |
-| `--all` | `-a` | false | Search all projects (bypass context) |
-| `--json` | `-j` | false | Output as JSON |
+| Option    | Short | Default | Description                          |
+| --------- | ----- | ------- | ------------------------------------ |
+| `--type`  | `-t`  | (all)   | Filter by entity type                |
+| `--limit` | `-l`  | 10      | Maximum results to return            |
+| `--all`   | `-a`  | false   | Search all projects (bypass context) |
+| `--json`  | `-j`  | false   | Output as JSON                       |
 
 ## Entity Types
 
@@ -44,6 +45,7 @@ sibyl search "authentication flow"
 ```
 
 Output:
+
 ```
 Found 5 results:
 

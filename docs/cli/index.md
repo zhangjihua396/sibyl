@@ -1,6 +1,7 @@
 # CLI Reference
 
-The Sibyl CLI (`sibyl`) is a REST API client for interacting with your knowledge graph. Designed for both human users and AI agents, it provides rich terminal output with the SilkCircuit color palette.
+The Sibyl CLI (`sibyl`) is a REST API client for interacting with your knowledge graph. Designed for
+both human users and AI agents, it provides rich terminal output with the SilkCircuit color palette.
 
 ## Installation
 
@@ -35,21 +36,21 @@ sibyl search "authentication"
 
 ## Command Groups
 
-| Command | Description |
-|---------|-------------|
-| [`sibyl search`](./search.md) | Semantic search across the knowledge graph |
-| [`sibyl add`](./add.md) | Quick knowledge capture |
-| [`sibyl task`](./task-list.md) | Task lifecycle management |
-| [`sibyl project`](./project.md) | Project management |
-| [`sibyl epic`](./epic.md) | Epic (feature group) management |
-| [`sibyl entity`](./entity.md) | Generic entity CRUD operations |
-| [`sibyl explore`](./explore.md) | Graph traversal and exploration |
-| [`sibyl context`](./context.md) | Manage CLI contexts |
-| `sibyl auth` | Authentication and API keys |
-| `sibyl org` | Organization management |
-| `sibyl config` | Configuration management |
-| `sibyl source` | Knowledge source management |
-| `sibyl crawl` | Trigger web crawls |
+| Command                         | Description                                |
+| ------------------------------- | ------------------------------------------ |
+| [`sibyl search`](./search.md)   | Semantic search across the knowledge graph |
+| [`sibyl add`](./add.md)         | Quick knowledge capture                    |
+| [`sibyl task`](./task-list.md)  | Task lifecycle management                  |
+| [`sibyl project`](./project.md) | Project management                         |
+| [`sibyl epic`](./epic.md)       | Epic (feature group) management            |
+| [`sibyl entity`](./entity.md)   | Generic entity CRUD operations             |
+| [`sibyl explore`](./explore.md) | Graph traversal and exploration            |
+| [`sibyl context`](./context.md) | Manage CLI contexts                        |
+| `sibyl auth`                    | Authentication and API keys                |
+| `sibyl org`                     | Organization management                    |
+| `sibyl config`                  | Configuration management                   |
+| `sibyl source`                  | Knowledge source management                |
+| `sibyl crawl`                   | Trigger web crawls                         |
 
 ## Global Options
 
@@ -64,11 +65,11 @@ sibyl -C <project_id> <command>          # Short form
 
 Most commands support three output formats:
 
-| Option | Description | Use Case |
-|--------|-------------|----------|
-| (default) | Table format | Human-readable terminal output |
-| `--json` / `-j` | JSON output | AI agents, scripting, piping to `jq` |
-| `--csv` | CSV output | Spreadsheets, data analysis |
+| Option          | Description  | Use Case                             |
+| --------------- | ------------ | ------------------------------------ |
+| (default)       | Table format | Human-readable terminal output       |
+| `--json` / `-j` | JSON output  | AI agents, scripting, piping to `jq` |
+| `--csv`         | CSV output   | Spreadsheets, data analysis          |
 
 ```bash
 # Table output (default)
@@ -83,11 +84,11 @@ sibyl task list --csv > tasks.csv
 
 ## Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `SIBYL_API_URL` | Server URL | `http://localhost:3334/api` |
-| `SIBYL_CONTEXT` | Override project context | `proj_abc123` |
-| `SIBYL_ACCESS_TOKEN` | Auth token (rarely needed) | `eyJhbG...` |
+| Variable             | Description                | Example                     |
+| -------------------- | -------------------------- | --------------------------- |
+| `SIBYL_API_URL`      | Server URL                 | `http://localhost:3334/api` |
+| `SIBYL_CONTEXT`      | Override project context   | `proj_abc123`               |
+| `SIBYL_ACCESS_TOKEN` | Auth token (rarely needed) | `eyJhbG...`                 |
 
 ## Configuration
 
@@ -141,6 +142,7 @@ sibyl health
 ```
 
 Output:
+
 ```
 sibyl is healthy
   Entities: 1234
@@ -303,14 +305,14 @@ sibyl
 
 The CLI uses the SilkCircuit palette for terminal output:
 
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Electric Purple | `#e135ff` | Headers, importance |
-| Neon Cyan | `#80ffea` | Interactions, paths |
-| Coral | `#ff6ac1` | Data, IDs, secondary |
-| Electric Yellow | `#f1fa8c` | Warnings |
-| Success Green | `#50fa7b` | Success states |
-| Error Red | `#ff6363` | Errors |
+| Color           | Hex       | Usage                |
+| --------------- | --------- | -------------------- |
+| Electric Purple | `#e135ff` | Headers, importance  |
+| Neon Cyan       | `#80ffea` | Interactions, paths  |
+| Coral           | `#ff6ac1` | Data, IDs, secondary |
+| Electric Yellow | `#f1fa8c` | Warnings             |
+| Success Green   | `#50fa7b` | Success states       |
+| Error Red       | `#ff6363` | Errors               |
 
 ## Troubleshooting
 
@@ -322,6 +324,7 @@ Cannot connect to Sibyl server
 ```
 
 Ensure the server is running:
+
 ```bash
 sibyld serve  # or: moon run dev
 ```
@@ -343,6 +346,7 @@ No project specified and no linked project for current directory
 ```
 
 Either:
+
 - Link the directory: `sibyl project link <project_id>`
 - Specify project: `--project <project_id>` or `-p`
 - Use global flag: `--all` or `-A` to bypass context

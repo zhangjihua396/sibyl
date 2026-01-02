@@ -1,6 +1,7 @@
 # MCP Tool: add
 
-Add new knowledge to the Sibyl knowledge graph. Supports episodes (learnings), patterns, tasks, epics, and projects with automatic relationship discovery.
+Add new knowledge to the Sibyl knowledge graph. Supports episodes (learnings), patterns, tasks,
+epics, and projects with automatic relationship discovery.
 
 ## Overview
 
@@ -16,43 +17,43 @@ The `add` tool creates entities in the knowledge graph with:
 ```typescript
 interface AddInput {
   // Required
-  title: string;              // Short title (max 200 chars)
-  content: string;            // Full content (max 50k chars)
+  title: string; // Short title (max 200 chars)
+  content: string; // Full content (max 50k chars)
 
   // Entity Configuration
-  entity_type?: string;       // Default: "episode"
-  category?: string;          // Domain category
-  languages?: string[];       // Programming languages
-  tags?: string[];            // Searchable tags
-  related_to?: string[];      // Entity IDs to link (RELATED_TO)
+  entity_type?: string; // Default: "episode"
+  category?: string; // Domain category
+  languages?: string[]; // Programming languages
+  tags?: string[]; // Searchable tags
+  related_to?: string[]; // Entity IDs to link (RELATED_TO)
   metadata?: Record<string, any>; // Additional structured data
 
   // Task/Epic-Specific
-  project?: string;           // Project ID (REQUIRED for tasks/epics)
-  epic?: string;              // Epic ID for tasks
-  priority?: string;          // critical, high, medium, low, someday
-  assignees?: string[];       // Assignee names
-  due_date?: string;          // ISO date format
-  technologies?: string[];    // Technologies involved
-  depends_on?: string[];      // Task IDs for dependencies
+  project?: string; // Project ID (REQUIRED for tasks/epics)
+  epic?: string; // Epic ID for tasks
+  priority?: string; // critical, high, medium, low, someday
+  assignees?: string[]; // Assignee names
+  due_date?: string; // ISO date format
+  technologies?: string[]; // Technologies involved
+  depends_on?: string[]; // Task IDs for dependencies
 
   // Project-Specific
-  repository_url?: string;    // Repository URL
+  repository_url?: string; // Repository URL
 
   // Execution Mode
-  sync?: boolean;             // Wait for processing (default: false)
+  sync?: boolean; // Wait for processing (default: false)
 }
 ```
 
 ### Entity Types
 
-| Type | Description | Requirements |
-|------|-------------|--------------|
-| `episode` | Temporal learning (default) | None |
-| `pattern` | Coding pattern or best practice | None |
-| `task` | Work item with workflow | **Requires `project`** |
-| `epic` | Feature initiative | **Requires `project`** |
-| `project` | Container for epics/tasks | None |
+| Type      | Description                     | Requirements           |
+| --------- | ------------------------------- | ---------------------- |
+| `episode` | Temporal learning (default)     | None                   |
+| `pattern` | Coding pattern or best practice | None                   |
+| `task`    | Work item with workflow         | **Requires `project`** |
+| `epic`    | Feature initiative              | **Requires `project`** |
+| `project` | Container for epics/tasks       | None                   |
 
 ### Priority Values
 
@@ -65,9 +66,9 @@ critical, high, medium (default), low, someday
 ```typescript
 interface AddResponse {
   success: boolean;
-  id: string | null;          // Created entity ID
+  id: string | null; // Created entity ID
   message: string;
-  timestamp: string;          // ISO timestamp
+  timestamp: string; // ISO timestamp
 }
 ```
 
@@ -101,7 +102,7 @@ interface AddResponse {
 
 ### Create a Pattern
 
-```json
+````json
 {
   "name": "add",
   "arguments": {
@@ -113,7 +114,7 @@ interface AddResponse {
     "tags": ["frontend", "resilience"]
   }
 }
-```
+````
 
 ### Create a Project
 
@@ -193,24 +194,24 @@ When creating tasks, Sibyl automatically generates tags based on:
 
 ### Domain Keywords
 
-| Domain | Keywords |
-|--------|----------|
-| `frontend` | ui, ux, component, react, vue, css, layout, responsive |
-| `backend` | api, server, endpoint, route, middleware, database |
-| `database` | sql, postgres, mongodb, redis, migration, schema |
-| `devops` | deploy, docker, kubernetes, ci, cd, terraform |
-| `testing` | test, pytest, jest, e2e, integration, mock |
-| `security` | auth, permission, role, encryption, vulnerability |
-| `performance` | optimize, cache, lazy, memoize, bundle, profil |
+| Domain        | Keywords                                               |
+| ------------- | ------------------------------------------------------ |
+| `frontend`    | ui, ux, component, react, vue, css, layout, responsive |
+| `backend`     | api, server, endpoint, route, middleware, database     |
+| `database`    | sql, postgres, mongodb, redis, migration, schema       |
+| `devops`      | deploy, docker, kubernetes, ci, cd, terraform          |
+| `testing`     | test, pytest, jest, e2e, integration, mock             |
+| `security`    | auth, permission, role, encryption, vulnerability      |
+| `performance` | optimize, cache, lazy, memoize, bundle, profil         |
 
 ### Task Type Detection
 
-| Type | Keywords |
-|------|----------|
-| `feature` | add, implement, create, build, new |
-| `bug` | fix, bug, issue, error, broken, crash |
-| `refactor` | refactor, clean, reorganize, simplify |
-| `chore` | update, upgrade, bump, dependency, config |
+| Type       | Keywords                                   |
+| ---------- | ------------------------------------------ |
+| `feature`  | add, implement, create, build, new         |
+| `bug`      | fix, bug, issue, error, broken, crash      |
+| `refactor` | refactor, clean, reorganize, simplify      |
+| `chore`    | update, upgrade, bump, dependency, config  |
 | `research` | research, investigate, explore, spike, poc |
 
 ## Auto-Linking
@@ -242,6 +243,7 @@ When `sync: true`, Sibyl automatically discovers and links to related entities:
 ```
 
 Auto-linking searches for:
+
 - Patterns with similarity >= 0.75
 - Rules related to the same domain
 - Templates with matching technologies
@@ -287,43 +289,43 @@ Auto-linking searches for:
 
 ### Task Relationships
 
-| Relationship | Target | Condition |
-|--------------|--------|-----------|
-| `BELONGS_TO` | Project | Always (required) |
-| `BELONGS_TO` | Epic | When `epic` provided |
-| `DEPENDS_ON` | Task | When `depends_on` provided |
+| Relationship | Target  | Condition                  |
+| ------------ | ------- | -------------------------- |
+| `BELONGS_TO` | Project | Always (required)          |
+| `BELONGS_TO` | Epic    | When `epic` provided       |
+| `DEPENDS_ON` | Task    | When `depends_on` provided |
 
 ### Epic Relationships
 
-| Relationship | Target | Condition |
-|--------------|--------|-----------|
+| Relationship | Target  | Condition         |
+| ------------ | ------- | ----------------- |
 | `BELONGS_TO` | Project | Always (required) |
 
 ### Auto-Discovered
 
-| Relationship | Source | Target |
-|--------------|--------|--------|
+| Relationship | Source     | Target                              |
+| ------------ | ---------- | ----------------------------------- |
 | `RELATED_TO` | New entity | Semantically similar patterns/rules |
 
 ## Validation
 
-| Field | Constraint |
-|-------|------------|
-| `title` | Required, max 200 characters |
-| `content` | Required, max 50,000 characters |
-| `project` | Required for `task` and `epic` types |
-| `priority` | Must be valid priority value |
-| `due_date` | Must be valid ISO date |
+| Field      | Constraint                           |
+| ---------- | ------------------------------------ |
+| `title`    | Required, max 200 characters         |
+| `content`  | Required, max 50,000 characters      |
+| `project`  | Required for `task` and `epic` types |
+| `priority` | Must be valid priority value         |
+| `due_date` | Must be valid ISO date               |
 
 ## Error Handling
 
-| Error | Cause | Resolution |
-|-------|-------|------------|
-| `Title cannot be empty` | Missing title | Provide title |
-| `Content cannot be empty` | Missing content | Provide content |
-| `Tasks require a project` | Task without project | Use `explore(types=["project"])` to find project |
-| `Epics require a project` | Epic without project | Specify `project` parameter |
-| `organization_id required` | No org context | Ensure valid JWT with org claim |
+| Error                      | Cause                | Resolution                                       |
+| -------------------------- | -------------------- | ------------------------------------------------ |
+| `Title cannot be empty`    | Missing title        | Provide title                                    |
+| `Content cannot be empty`  | Missing content      | Provide content                                  |
+| `Tasks require a project`  | Task without project | Use `explore(types=["project"])` to find project |
+| `Epics require a project`  | Epic without project | Specify `project` parameter                      |
+| `organization_id required` | No org context       | Ensure valid JWT with org claim                  |
 
 ## Workflow Patterns
 

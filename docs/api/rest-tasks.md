@@ -16,6 +16,7 @@ The tasks endpoint provides:
 ## Authentication
 
 All endpoints require authentication via:
+
 - JWT access token (cookie or Authorization header)
 - API key with `api:write` scope
 
@@ -48,35 +49,35 @@ interface Task {
 
 ### Status Values
 
-| Status | Description |
-|--------|-------------|
-| `backlog` | Not yet prioritized |
-| `todo` | Ready to work on |
-| `doing` | Currently in progress |
-| `blocked` | Waiting on dependency |
-| `review` | In code review |
-| `done` | Completed |
-| `archived` | Archived (terminal) |
+| Status     | Description           |
+| ---------- | --------------------- |
+| `backlog`  | Not yet prioritized   |
+| `todo`     | Ready to work on      |
+| `doing`    | Currently in progress |
+| `blocked`  | Waiting on dependency |
+| `review`   | In code review        |
+| `done`     | Completed             |
+| `archived` | Archived (terminal)   |
 
 ### Priority Values
 
-| Priority | Description |
-|----------|-------------|
-| `critical` | Immediate attention |
-| `high` | Important, do soon |
-| `medium` | Normal priority (default) |
-| `low` | Nice to have |
-| `someday` | Backlog item |
+| Priority   | Description               |
+| ---------- | ------------------------- |
+| `critical` | Immediate attention       |
+| `high`     | Important, do soon        |
+| `medium`   | Normal priority (default) |
+| `low`      | Nice to have              |
+| `someday`  | Backlog item              |
 
 ### Complexity Values
 
-| Complexity | Description |
-|------------|-------------|
-| `trivial` | Minutes of work |
-| `simple` | Less than an hour |
-| `medium` | Few hours (default) |
-| `complex` | Multiple days |
-| `epic` | Needs breakdown |
+| Complexity | Description         |
+| ---------- | ------------------- |
+| `trivial`  | Minutes of work     |
+| `simple`   | Less than an hour   |
+| `medium`   | Few hours (default) |
+| `complex`  | Multiple days       |
+| `epic`     | Needs breakdown     |
 
 ## Endpoints
 
@@ -107,20 +108,20 @@ POST /api/tasks
 
 **Request Schema:**
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `title` | string | Yes | - | Task title |
-| `description` | string | No | "" | Task description |
-| `project_id` | string | Yes | - | Parent project ID |
-| `priority` | string | No | `medium` | Task priority |
-| `complexity` | string | No | `medium` | Task complexity |
-| `status` | string | No | `todo` | Initial status |
-| `assignees` | string[] | No | [] | Assignee names |
-| `epic_id` | string | No | - | Parent epic ID |
-| `feature` | string | No | - | Feature area |
-| `tags` | string[] | No | [] | Tags |
-| `technologies` | string[] | No | [] | Technologies |
-| `depends_on` | string[] | No | [] | Task dependencies |
+| Field          | Type     | Required | Default  | Description       |
+| -------------- | -------- | -------- | -------- | ----------------- |
+| `title`        | string   | Yes      | -        | Task title        |
+| `description`  | string   | No       | ""       | Task description  |
+| `project_id`   | string   | Yes      | -        | Parent project ID |
+| `priority`     | string   | No       | `medium` | Task priority     |
+| `complexity`   | string   | No       | `medium` | Task complexity   |
+| `status`       | string   | No       | `todo`   | Initial status    |
+| `assignees`    | string[] | No       | []       | Assignee names    |
+| `epic_id`      | string   | No       | -        | Parent epic ID    |
+| `feature`      | string   | No       | -        | Feature area      |
+| `tags`         | string[] | No       | []       | Tags              |
+| `technologies` | string[] | No       | []       | Technologies      |
+| `depends_on`   | string[] | No       | []       | Task dependencies |
 
 **Response:**
 
@@ -284,7 +285,8 @@ Marks task as done with optional learnings.
 }
 ```
 
-When learnings are provided, Sibyl automatically creates an episode entity and enqueues it for processing in the background.
+When learnings are provided, Sibyl automatically creates an episode entity and enqueues it for
+processing in the background.
 
 ### Archive Task
 
@@ -343,17 +345,17 @@ Updates task fields directly. Bypasses workflow state machine.
 
 **Request Schema (all fields optional):**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `status` | string | New status |
-| `priority` | string | New priority |
-| `complexity` | string | New complexity |
-| `title` | string | New title |
-| `description` | string | New description |
-| `assignees` | string[] | New assignees |
-| `epic_id` | string | New epic |
-| `feature` | string | New feature area |
-| `tags` | string[] | New tags |
+| Field          | Type     | Description      |
+| -------------- | -------- | ---------------- |
+| `status`       | string   | New status       |
+| `priority`     | string   | New priority     |
+| `complexity`   | string   | New complexity   |
+| `title`        | string   | New title        |
+| `description`  | string   | New description  |
+| `assignees`    | string[] | New assignees    |
+| `epic_id`      | string   | New epic         |
+| `feature`      | string   | New feature area |
+| `tags`         | string[] | New tags         |
 | `technologies` | string[] | New technologies |
 
 **Response:**
@@ -393,11 +395,11 @@ Adds a note to a task.
 
 **Request Schema:**
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `content` | string | Yes | - | Note content |
-| `author_type` | string | No | `user` | `user` or `agent` |
-| `author_name` | string | No | "" | Author identifier |
+| Field         | Type   | Required | Default | Description       |
+| ------------- | ------ | -------- | ------- | ----------------- |
+| `content`     | string | Yes      | -       | Note content      |
+| `author_type` | string | No       | `user`  | `user` or `agent` |
+| `author_name` | string | No       | ""      | Author identifier |
 
 **Response:**
 
@@ -420,9 +422,9 @@ GET /api/tasks/{task_id}/notes
 
 **Query Parameters:**
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `limit` | integer | 50 | Maximum notes to return |
+| Parameter | Type    | Default | Description             |
+| --------- | ------- | ------- | ----------------------- |
+| `limit`   | integer | 50      | Maximum notes to return |
 
 **Response:**
 
@@ -461,14 +463,14 @@ backlog --> todo --> doing --> blocked
               review --> done --> archived
 ```
 
-| From | Allowed To |
-|------|------------|
-| `backlog` | `todo` |
-| `todo` | `doing`, `archived` |
-| `doing` | `blocked`, `review`, `done`, `todo` |
-| `blocked` | `doing`, `archived` |
-| `review` | `doing`, `done`, `archived` |
-| `done` | `archived` |
+| From      | Allowed To                          |
+| --------- | ----------------------------------- |
+| `backlog` | `todo`                              |
+| `todo`    | `doing`, `archived`                 |
+| `doing`   | `blocked`, `review`, `done`, `todo` |
+| `blocked` | `doing`, `archived`                 |
+| `review`  | `doing`, `done`, `archived`         |
+| `done`    | `archived`                          |
 
 Invalid transitions return:
 
@@ -493,23 +495,23 @@ Update operations acquire a distributed lock:
 
 Task operations broadcast real-time events:
 
-| Event | Data |
-|-------|------|
-| `entity_created` | Task creation |
+| Event            | Data                                  |
+| ---------------- | ------------------------------------- |
+| `entity_created` | Task creation                         |
 | `entity_updated` | Task update (includes `action` field) |
-| `note_created` | Note added |
+| `note_created`   | Note added                            |
 
 ## Error Responses
 
-| Status | Cause |
-|--------|-------|
-| 400 | Invalid state transition or request |
-| 401 | Missing or invalid authentication |
-| 403 | Insufficient permissions |
-| 404 | Task not found |
-| 409 | Concurrent modification conflict |
-| 422 | Request body validation failed |
-| 500 | Internal server error |
+| Status | Cause                               |
+| ------ | ----------------------------------- |
+| 400    | Invalid state transition or request |
+| 401    | Missing or invalid authentication   |
+| 403    | Insufficient permissions            |
+| 404    | Task not found                      |
+| 409    | Concurrent modification conflict    |
+| 422    | Request body validation failed      |
+| 500    | Internal server error               |
 
 ## Examples
 

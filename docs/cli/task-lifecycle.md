@@ -1,6 +1,7 @@
 # Task Lifecycle Commands
 
-Commands for managing task state transitions: show, start, block, unblock, review, complete, archive, update.
+Commands for managing task state transitions: show, start, block, unblock, review, complete,
+archive, update.
 
 ## Task States
 
@@ -27,19 +28,18 @@ sibyl task show <task_id> [options]
 
 ### Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `task_id` | Yes | Task ID (full or prefix) |
+| Argument  | Required | Description              |
+| --------- | -------- | ------------------------ |
+| `task_id` | Yes      | Task ID (full or prefix) |
 
-::: tip Short IDs
-You can use ID prefixes: `task_abc` instead of `task_abc123def456`. The CLI resolves to the full ID.
-:::
+::: tip Short IDs You can use ID prefixes: `task_abc` instead of `task_abc123def456`. The CLI
+resolves to the full ID. :::
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -48,6 +48,7 @@ sibyl task show task_abc123
 ```
 
 Output:
+
 ```
 Task task_abc1
   Title:      Fix authentication bug
@@ -79,10 +80,10 @@ sibyl task start <task_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--assignee` | `-a` | Assign to this person |
-| `--json` | `-j` | JSON output |
+| Option       | Short | Description           |
+| ------------ | ----- | --------------------- |
+| `--assignee` | `-a`  | Assign to this person |
+| `--json`     | `-j`  | JSON output           |
 
 ### Example
 
@@ -91,6 +92,7 @@ sibyl task start task_abc123
 ```
 
 Output:
+
 ```
 Task started: task_abc1...
 Branch: fix/auth-token-refresh
@@ -125,15 +127,15 @@ sibyl task block <task_id> --reason <reason> [options]
 
 ### Required Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--reason` | `-r` | Blocker reason (required) |
+| Option     | Short | Description               |
+| ---------- | ----- | ------------------------- |
+| `--reason` | `-r`  | Blocker reason (required) |
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -142,6 +144,7 @@ sibyl task block task_abc123 --reason "Waiting for API spec from backend team"
 ```
 
 Output:
+
 ```
 Task blocked: task_abc1...
 ```
@@ -169,9 +172,9 @@ sibyl task unblock <task_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--json` | `-j` | JSON output |
+| Option   | Short | Description |
+| -------- | ----- | ----------- |
+| `--json` | `-j`  | JSON output |
 
 ### Example
 
@@ -180,6 +183,7 @@ sibyl task unblock task_abc123
 ```
 
 Output:
+
 ```
 Task unblocked: task_abc1...
 ```
@@ -198,11 +202,11 @@ sibyl task review <task_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--pr` | | Pull request URL |
-| `--commits` | `-c` | Comma-separated commit SHAs |
-| `--json` | `-j` | JSON output |
+| Option      | Short | Description                 |
+| ----------- | ----- | --------------------------- |
+| `--pr`      |       | Pull request URL            |
+| `--commits` | `-c`  | Comma-separated commit SHAs |
+| `--json`    | `-j`  | JSON output                 |
 
 ### Example
 
@@ -211,6 +215,7 @@ sibyl task review task_abc123 --pr "https://github.com/org/repo/pull/42"
 ```
 
 Output:
+
 ```
 Task submitted for review: task_abc1...
 ```
@@ -237,11 +242,11 @@ sibyl task complete <task_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--hours` | `-h` | Actual hours spent |
-| `--learnings` | `-l` | Key learnings (creates an episode) |
-| `--json` | `-j` | JSON output |
+| Option        | Short | Description                        |
+| ------------- | ----- | ---------------------------------- |
+| `--hours`     | `-h`  | Actual hours spent                 |
+| `--learnings` | `-l`  | Key learnings (creates an episode) |
+| `--json`      | `-j`  | JSON output                        |
 
 ### Basic Completion
 
@@ -250,6 +255,7 @@ sibyl task complete task_abc123
 ```
 
 Output:
+
 ```
 Task completed: task_abc1...
 ```
@@ -268,14 +274,14 @@ sibyl task complete task_abc123 \
 ```
 
 Output:
+
 ```
 Task completed: task_abc1...
 Learning episode created from task
 ```
 
-::: tip Capture Knowledge
-Use `--learnings` to capture non-obvious solutions, gotchas, or insights. This creates a linked episode in the knowledge graph.
-:::
+::: tip Capture Knowledge Use `--learnings` to capture non-obvious solutions, gotchas, or insights.
+This creates a linked episode in the knowledge graph. :::
 
 ### Full Example
 
@@ -300,12 +306,12 @@ sibyl task archive --stdin [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--reason` | `-r` | Archive reason |
-| `--yes` | `-y` | Skip confirmation (required for bulk) |
-| `--stdin` | | Read task IDs from stdin |
-| `--json` | `-j` | JSON output |
+| Option     | Short | Description                           |
+| ---------- | ----- | ------------------------------------- |
+| `--reason` | `-r`  | Archive reason                        |
+| `--yes`    | `-y`  | Skip confirmation (required for bulk) |
+| `--stdin`  |       | Read task IDs from stdin              |
+| `--json`   | `-j`  | JSON output                           |
 
 ### Single Task
 
@@ -329,9 +335,7 @@ sibyl task list --status done --json | jq -r '.[].id' | sibyl task archive --std
 sibyl task list --status todo -q "deprecated" --json | jq -r '.[].id' | sibyl task archive --stdin --yes
 ```
 
-::: warning Bulk Safety
-Bulk archive requires `--yes` flag for safety.
-:::
+::: warning Bulk Safety Bulk archive requires `--yes` flag for safety. :::
 
 ---
 
@@ -347,19 +351,19 @@ sibyl task update <task_id> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--status` | `-s` | Status: backlog, todo, doing, blocked, review, done, archived |
-| `--priority` | `-p` | Priority: critical, high, medium, low, someday |
-| `--complexity` | | Complexity: trivial, simple, medium, complex, epic |
-| `--title` | | Task title |
-| `--description` | `-d` | Task description |
-| `--assignee` | `-a` | Assignee |
-| `--epic` | `-e` | Epic ID |
-| `--feature` | `-f` | Feature area |
-| `--tags` | | Comma-separated tags (replaces existing) |
-| `--tech` | | Comma-separated technologies (replaces existing) |
-| `--json` | `-j` | JSON output |
+| Option          | Short | Description                                                   |
+| --------------- | ----- | ------------------------------------------------------------- |
+| `--status`      | `-s`  | Status: backlog, todo, doing, blocked, review, done, archived |
+| `--priority`    | `-p`  | Priority: critical, high, medium, low, someday                |
+| `--complexity`  |       | Complexity: trivial, simple, medium, complex, epic            |
+| `--title`       |       | Task title                                                    |
+| `--description` | `-d`  | Task description                                              |
+| `--assignee`    | `-a`  | Assignee                                                      |
+| `--epic`        | `-e`  | Epic ID                                                       |
+| `--feature`     | `-f`  | Feature area                                                  |
+| `--tags`        |       | Comma-separated tags (replaces existing)                      |
+| `--tech`        |       | Comma-separated technologies (replaces existing)              |
+| `--json`        | `-j`  | JSON output                                                   |
 
 ### Examples
 
@@ -397,11 +401,11 @@ sibyl task note <task_id> <content> [options]
 
 ### Options
 
-| Option | Short | Description |
-|--------|-------|-------------|
-| `--agent` | | Mark as agent-authored (default: user) |
-| `--author` | `-a` | Author name/identifier |
-| `--json` | `-j` | JSON output |
+| Option     | Short | Description                            |
+| ---------- | ----- | -------------------------------------- |
+| `--agent`  |       | Mark as agent-authored (default: user) |
+| `--author` | `-a`  | Author name/identifier                 |
+| `--json`   | `-j`  | JSON output                            |
 
 ### Examples
 
@@ -427,10 +431,10 @@ sibyl task notes <task_id> [options]
 
 ### Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--limit` | `-n` | 20 | Max results |
-| `--json` | `-j` | false | JSON output |
+| Option    | Short | Default | Description |
+| --------- | ----- | ------- | ----------- |
+| `--limit` | `-n`  | 20      | Max results |
+| `--json`  | `-j`  | false   | JSON output |
 
 ### Example
 
@@ -439,6 +443,7 @@ sibyl task notes task_abc123
 ```
 
 Output:
+
 ```
 user 2024-01-15 10:30:00
   Found the root cause - Redis connection timeout

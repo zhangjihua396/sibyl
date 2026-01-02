@@ -13,6 +13,7 @@ GET /api/health
 Simple health check for load balancers and monitoring. No authentication required.
 
 **Response:**
+
 ```json
 {
   "status": "healthy"
@@ -20,6 +21,7 @@ Simple health check for load balancers and monitoring. No authentication require
 ```
 
 Used by:
+
 - Kubernetes liveness/readiness probes
 - Load balancer health checks
 - Frontend connection checks
@@ -30,9 +32,11 @@ Used by:
 GET /api/admin/health
 ```
 
-Detailed health information with database connectivity status. Requires authentication (org member role).
+Detailed health information with database connectivity status. Requires authentication (org member
+role).
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -58,6 +62,7 @@ GET /api/admin/stats
 Knowledge graph statistics. Requires authentication.
 
 **Response:**
+
 ```json
 {
   "entity_counts": {
@@ -97,18 +102,20 @@ backend:
 
 ### Probe Behavior
 
-| Probe     | Purpose                                    | Failure Action          |
-| --------- | ------------------------------------------ | ----------------------- |
-| Liveness  | Is the process alive?                      | Restart container       |
-| Readiness | Can the pod accept traffic?                | Remove from service     |
+| Probe     | Purpose                     | Failure Action      |
+| --------- | --------------------------- | ------------------- |
+| Liveness  | Is the process alive?       | Restart container   |
+| Readiness | Can the pod accept traffic? | Remove from service |
 
 ## Logging
 
 ### Log Format
 
-Sibyl uses [structlog](https://www.structlog.org/) for structured logging with a custom SilkCircuit-themed renderer.
+Sibyl uses [structlog](https://www.structlog.org/) for structured logging with a custom
+SilkCircuit-themed renderer.
 
 Console output (development):
+
 ```
 14:32:15 INFO  api     request path=/api/health status=200 duration_ms=1.23
 14:32:16 INFO  api     graph_connected host=falkordb port=6379
@@ -116,8 +123,17 @@ Console output (development):
 ```
 
 JSON output (production):
+
 ```json
-{"timestamp": "2025-01-15T14:32:15Z", "level": "info", "service": "api", "event": "request", "path": "/api/health", "status": 200, "duration_ms": 1.23}
+{
+  "timestamp": "2025-01-15T14:32:15Z",
+  "level": "info",
+  "service": "api",
+  "event": "request",
+  "path": "/api/health",
+  "status": 200,
+  "duration_ms": 1.23
+}
 ```
 
 ### Log Configuration
@@ -136,14 +152,15 @@ configure_logging(
 
 ### Log Levels
 
-| Level   | When to Use                                |
-| ------- | ------------------------------------------ |
-| DEBUG   | Detailed debugging information             |
-| INFO    | General operational events                 |
-| WARNING | Unexpected but recoverable situations      |
-| ERROR   | Errors that need attention                 |
+| Level   | When to Use                           |
+| ------- | ------------------------------------- |
+| DEBUG   | Detailed debugging information        |
+| INFO    | General operational events            |
+| WARNING | Unexpected but recoverable situations |
+| ERROR   | Errors that need attention            |
 
 Set via environment:
+
 ```bash
 SIBYL_LOG_LEVEL=DEBUG
 ```
@@ -193,6 +210,7 @@ log.error(
 ```
 
 Clients receive a safe error response:
+
 ```json
 {
   "detail": "An internal error occurred. Please try again later. (ref: a1b2c3d4)"
@@ -202,6 +220,7 @@ Clients receive a safe error response:
 ### Exception Context
 
 Exceptions include full stack traces in logs:
+
 ```
 14:32:15 ERROR api     unhandled_exception error_id=a1b2c3d4 path=/api/tasks
     Traceback (most recent call last):
@@ -219,6 +238,7 @@ GET /api/metrics/projects/{project_id}
 ```
 
 Returns metrics for a specific project:
+
 - Task counts by status (backlog, todo, doing, done, etc.)
 - Priority distribution
 - Assignee statistics
@@ -232,6 +252,7 @@ GET /api/metrics
 ```
 
 Aggregated metrics across all projects:
+
 - Total projects and tasks
 - Status/priority distributions
 - Top assignees
@@ -294,6 +315,7 @@ backend:
 Logs are written to stdout/stderr and collected by the node's container runtime.
 
 View logs with kubectl:
+
 ```bash
 # All backend logs
 kubectl logs -n sibyl -l app.kubernetes.io/component=backend -f
@@ -336,20 +358,20 @@ service:sibyl-api status:error
 
 ### Critical Alerts
 
-| Condition                          | Threshold | Action                    |
-| ---------------------------------- | --------- | ------------------------- |
-| Pod not ready                      | > 2 min   | Page on-call              |
-| Error rate                         | > 5%      | Page on-call              |
-| Response time P95                  | > 5s      | Notify team               |
-| Database connection failures       | > 3       | Page on-call              |
+| Condition                    | Threshold | Action       |
+| ---------------------------- | --------- | ------------ |
+| Pod not ready                | > 2 min   | Page on-call |
+| Error rate                   | > 5%      | Page on-call |
+| Response time P95            | > 5s      | Notify team  |
+| Database connection failures | > 3       | Page on-call |
 
 ### Warning Alerts
 
-| Condition                          | Threshold | Action                    |
-| ---------------------------------- | --------- | ------------------------- |
-| High memory usage                  | > 80%     | Notify team               |
-| High CPU usage                     | > 80%     | Notify team               |
-| Rate limiting triggered            | > 100/min | Investigate               |
+| Condition               | Threshold | Action      |
+| ----------------------- | --------- | ----------- |
+| High memory usage       | > 80%     | Notify team |
+| High CPU usage          | > 80%     | Notify team |
+| Rate limiting triggered | > 100/min | Investigate |
 
 ## Startup Validation
 

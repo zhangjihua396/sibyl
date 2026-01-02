@@ -5,13 +5,15 @@ description: Organization scoping and graph isolation
 
 # Multi-Tenancy
 
-Sibyl supports multiple organizations with complete data isolation. Each organization gets its own knowledge graph, ensuring security and separation.
+Sibyl supports multiple organizations with complete data isolation. Each organization gets its own
+knowledge graph, ensuring security and separation.
 
 ## How It Works
 
 ### Isolated Graphs
 
-FalkorDB supports multiple named graphs within a single database instance. Sibyl uses the organization UUID as the graph name:
+FalkorDB supports multiple named graphs within a single database instance. Sibyl uses the
+organization UUID as the graph name:
 
 ```python
 # Each org gets its own graph
@@ -20,7 +22,8 @@ graph_name = str(org.id)  # e.g., "550e8400-e29b-41d4-a716-446655440000"
 
 ### Organization Context
 
-Every graph operation requires organization context. There are **no defaults** - callers must explicitly provide org scope:
+Every graph operation requires organization context. There are **no defaults** - callers must
+explicitly provide org scope:
 
 ```python
 # EntityManager requires group_id
@@ -173,13 +176,13 @@ async def list_entities():
 
 Key route files handling organization context:
 
-| File | Purpose |
-|------|---------|
-| `routes/orgs.py` | Organization CRUD |
-| `routes/org_members.py` | Membership management |
-| `routes/org_invitations.py` | Invitation handling |
-| `routes/entities.py` | Entity operations (org-scoped) |
-| `routes/tasks.py` | Task operations (org-scoped) |
+| File                        | Purpose                        |
+| --------------------------- | ------------------------------ |
+| `routes/orgs.py`            | Organization CRUD              |
+| `routes/org_members.py`     | Membership management          |
+| `routes/org_invitations.py` | Invitation handling            |
+| `routes/entities.py`        | Entity operations (org-scoped) |
+| `routes/tasks.py`           | Task operations (org-scoped)   |
 
 ## CLI Organization Support
 

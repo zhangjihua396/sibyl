@@ -5,7 +5,8 @@ description: How to effectively capture learnings in Sibyl
 
 # Capturing Knowledge
 
-The value of Sibyl grows with every piece of knowledge you capture. This guide explains what to capture, how to capture it, and patterns for high-quality knowledge entries.
+The value of Sibyl grows with every piece of knowledge you capture. This guide explains what to
+capture, how to capture it, and patterns for high-quality knowledge entries.
 
 ## The Philosophy
 
@@ -102,11 +103,13 @@ A good entry answers:
 ### Examples
 
 **Bad:**
+
 ```bash
 sibyl add "Fixed the bug" "It works now"
 ```
 
 **Good:**
+
 ```bash
 sibyl add "JWT refresh fails on Redis TTL expiry" \
   "Root cause: Token service doesn't handle WRONGTYPE error when Redis key
@@ -167,12 +170,12 @@ URI problem. Always test with the exact production URL."
 
 ### Learning vs Episode
 
-| Task Learning | Episode |
-|--------------|---------|
+| Task Learning         | Episode           |
+| --------------------- | ----------------- |
 | Specific to task work | General discovery |
 | Linked to task entity | Standalone entity |
-| Part of completion | Created anytime |
-| Brief summary | Can be detailed |
+| Part of completion    | Created anytime   |
+| Brief summary         | Can be detailed   |
 
 ## Auto-Linking
 
@@ -199,13 +202,13 @@ add(
 
 ## Entity Type Selection
 
-| Scenario | Type | Example |
-|----------|------|---------|
-| Figured out why something broke | `episode` | "Redis WRONGTYPE on TTL expiry" |
-| Found a reusable approach | `pattern` | "Retry with exponential backoff" |
-| Discovered a constraint | `rule` | "Never store PII in logs" |
-| Common error with solution | `error_pattern` | "CORS preflight fails on POST" |
-| External docs to reference | `source` | "Next.js docs" |
+| Scenario                        | Type            | Example                          |
+| ------------------------------- | --------------- | -------------------------------- |
+| Figured out why something broke | `episode`       | "Redis WRONGTYPE on TTL expiry"  |
+| Found a reusable approach       | `pattern`       | "Retry with exponential backoff" |
+| Discovered a constraint         | `rule`          | "Never store PII in logs"        |
+| Common error with solution      | `error_pattern` | "CORS preflight fails on POST"   |
+| External docs to reference      | `source`        | "Next.js docs"                   |
 
 ## Organizational Patterns
 

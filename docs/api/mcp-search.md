@@ -1,6 +1,7 @@
 # MCP Tool: search
 
-Unified semantic search across Sibyl's knowledge graph AND crawled documentation. Results are merged and ranked by relevance score.
+Unified semantic search across Sibyl's knowledge graph AND crawled documentation. Results are merged
+and ranked by relevance score.
 
 ## Overview
 
@@ -14,51 +15,51 @@ The `search` tool is the primary discovery mechanism for AI agents. It searches:
 ```typescript
 interface SearchInput {
   // Required
-  query: string;              // Natural language search query
+  query: string; // Natural language search query
 
   // Entity Filtering
-  types?: string[];           // Entity types to search
-  language?: string;          // Programming language filter
-  category?: string;          // Category/domain filter
+  types?: string[]; // Entity types to search
+  language?: string; // Programming language filter
+  category?: string; // Category/domain filter
 
   // Task-Specific Filters
-  status?: string;            // Task status filter (comma-separated)
-  project?: string;           // Project ID filter
-  assignee?: string;          // Assignee name filter
+  status?: string; // Task status filter (comma-separated)
+  project?: string; // Project ID filter
+  assignee?: string; // Assignee name filter
 
   // Document-Specific Filters
-  source?: string;            // Graph source_id filter
-  source_id?: string;         // Document source UUID filter
-  source_name?: string;       // Document source name (partial match)
+  source?: string; // Graph source_id filter
+  source_id?: string; // Document source UUID filter
+  source_name?: string; // Document source name (partial match)
 
   // Temporal
-  since?: string;             // ISO date or relative (7d, 2w)
+  since?: string; // ISO date or relative (7d, 2w)
 
   // Pagination
-  limit?: number;             // 1-50, default 10
-  offset?: number;            // Default 0
+  limit?: number; // 1-50, default 10
+  offset?: number; // Default 0
 
   // Control Flags
-  include_content?: boolean;  // Include full content (default true)
+  include_content?: boolean; // Include full content (default true)
   include_documents?: boolean; // Search docs (default true)
-  include_graph?: boolean;    // Search graph (default true)
-  use_enhanced?: boolean;     // Use hybrid retrieval (default true)
-  boost_recent?: boolean;     // Temporal boosting (default true)
+  include_graph?: boolean; // Search graph (default true)
+  use_enhanced?: boolean; // Use hybrid retrieval (default true)
+  boost_recent?: boolean; // Temporal boosting (default true)
 }
 ```
 
 ### Entity Types
 
-| Type | Description |
-|------|-------------|
-| `pattern` | Coding patterns and best practices |
-| `rule` | Conventions and guidelines |
-| `template` | Code templates and boilerplate |
-| `topic` | Knowledge topics |
-| `episode` | Temporal learnings and discoveries |
-| `task` | Work items with workflow state |
-| `project` | Project containers |
-| `document` | Crawled documentation chunks |
+| Type       | Description                        |
+| ---------- | ---------------------------------- |
+| `pattern`  | Coding patterns and best practices |
+| `rule`     | Conventions and guidelines         |
+| `template` | Code templates and boilerplate     |
+| `topic`    | Knowledge topics                   |
+| `episode`  | Temporal learnings and discoveries |
+| `task`     | Work items with workflow state     |
+| `project`  | Project containers                 |
+| `document` | Crawled documentation chunks       |
 
 ### Task Status Values
 
@@ -74,22 +75,22 @@ interface SearchResponse {
   total: number;
   query: string;
   filters: Record<string, any>;
-  graph_count: number;        // Results from knowledge graph
-  document_count: number;     // Results from documents
+  graph_count: number; // Results from knowledge graph
+  document_count: number; // Results from documents
   limit: number;
   offset: number;
   has_more: boolean;
-  usage_hint: string;         // Guidance for fetching full content
+  usage_hint: string; // Guidance for fetching full content
 }
 
 interface SearchResult {
   id: string;
-  type: string;               // Entity type or "document"
+  type: string; // Entity type or "document"
   name: string;
-  content: string;            // Truncated preview
-  score: float;               // Relevance score (0-1)
-  source?: string;            // Source file or doc source
-  url?: string;               // URL for documents
+  content: string; // Truncated preview
+  score: float; // Relevance score (0-1)
+  source?: string; // Source file or doc source
+  url?: string; // URL for documents
   result_origin: "graph" | "document";
   metadata: Record<string, any>;
 }
@@ -246,11 +247,11 @@ When `use_enhanced: true` (default), search uses hybrid retrieval:
 
 ## Error Handling
 
-| Error | Cause | Resolution |
-|-------|-------|------------|
+| Error                      | Cause                   | Resolution                      |
+| -------------------------- | ----------------------- | ------------------------------- |
 | `organization_id required` | No org context in token | Ensure valid JWT with org claim |
-| `Search failed` | Internal search error | Retry or check server logs |
-| `Invalid token` | Auth failure | Re-authenticate |
+| `Search failed`            | Internal search error   | Retry or check server logs      |
+| `Invalid token`            | Auth failure            | Re-authenticate                 |
 
 ## Related
 

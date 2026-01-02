@@ -5,13 +5,15 @@ description: How Sibyl's semantic search works
 
 # Semantic Search
 
-Sibyl's search goes beyond keyword matching to understand the *meaning* of your queries. This guide explains how semantic search works and how to use it effectively.
+Sibyl's search goes beyond keyword matching to understand the _meaning_ of your queries. This guide
+explains how semantic search works and how to use it effectively.
 
 ## How It Works
 
 ### Vector Embeddings
 
-When you add knowledge to Sibyl, the content is converted into a vector embedding - a high-dimensional numerical representation of meaning:
+When you add knowledge to Sibyl, the content is converted into a vector embedding - a
+high-dimensional numerical representation of meaning:
 
 ```
 "OAuth refresh token implementation"
@@ -107,12 +109,12 @@ sibyl search "OAuth" --assignee alice
 
 Sibyl offers two ways to find entities:
 
-| Feature | `search` | `explore` |
-|---------|----------|-----------|
-| **Purpose** | Find by meaning | Browse structure |
-| **Input** | Natural language query | Filters |
-| **Uses embeddings** | Yes | No |
-| **Good for** | "Find related to X" | "List all Y" |
+| Feature             | `search`               | `explore`        |
+| ------------------- | ---------------------- | ---------------- |
+| **Purpose**         | Find by meaning        | Browse structure |
+| **Input**           | Natural language query | Filters          |
+| **Uses embeddings** | Yes                    | No               |
+| **Good for**        | "Find related to X"    | "List all Y"     |
 
 ### When to Use Search
 
@@ -282,19 +284,18 @@ Document search uses the same hybrid approach, with pgvector for document chunks
 
 Search results include:
 
-| Field | Description |
-|-------|-------------|
-| `id` | Entity ID |
-| `type` | Entity type |
-| `name` | Entity name |
-| `content` | Content preview (truncated) |
-| `score` | Relevance score (0-1) |
-| `source` | Source file or URL |
-| `result_origin` | "graph" or "document" |
+| Field           | Description                 |
+| --------------- | --------------------------- |
+| `id`            | Entity ID                   |
+| `type`          | Entity type                 |
+| `name`          | Entity name                 |
+| `content`       | Content preview (truncated) |
+| `score`         | Relevance score (0-1)       |
+| `source`        | Source file or URL          |
+| `result_origin` | "graph" or "document"       |
 
-::: tip Get Full Content
-Search results show previews. Use `sibyl entity show <id>` to get full content.
-:::
+::: tip Get Full Content Search results show previews. Use `sibyl entity show <id>` to get full
+content. :::
 
 ## Performance Considerations
 
@@ -316,7 +317,8 @@ Vector search is fast, but filtering is applied post-search. For large graphs:
 
 ### Caching
 
-Embeddings are generated once when entities are created. Search queries generate a new embedding for the query.
+Embeddings are generated once when entities are created. Search queries generate a new embedding for
+the query.
 
 ## Troubleshooting
 

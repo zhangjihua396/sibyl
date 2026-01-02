@@ -32,6 +32,7 @@ uv run sibyl-serve
 ```
 
 Configuration:
+
 ```json
 {
   "mcpServers": {
@@ -52,6 +53,7 @@ uv run sibyl-serve -t stdio
 ```
 
 Configuration:
+
 ```json
 {
   "mcpServers": {
@@ -96,8 +98,7 @@ Disable authentication:
 SIBYL_MCP_AUTH_MODE=off
 ```
 
-::: danger Production Warning
-Never disable authentication in production. Use `auto` or `on` mode.
+::: danger Production Warning Never disable authentication in production. Use `auto` or `on` mode.
 :::
 
 ## OAuth Flow
@@ -106,11 +107,11 @@ When auth is enabled, Sibyl implements OAuth 2.0:
 
 ### OAuth Endpoints
 
-| Endpoint | Purpose |
-|----------|---------|
-| `/_oauth/login` | Login form |
-| `/_oauth/org` | Organization selection |
-| `/mcp` | Token-authenticated MCP endpoint |
+| Endpoint        | Purpose                          |
+| --------------- | -------------------------------- |
+| `/_oauth/login` | Login form                       |
+| `/_oauth/org`   | Organization selection           |
+| `/mcp`          | Token-authenticated MCP endpoint |
 
 ### Token Acquisition
 
@@ -146,43 +147,43 @@ sibyl auth api-key create --name "MCP Client" --scopes mcp
 
 ### Core Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIBYL_SERVER_HOST` | `localhost` | Host to bind to |
-| `SIBYL_SERVER_PORT` | `3334` | Port to listen on |
-| `SIBYL_SERVER_URL` | - | Public URL (for OAuth callbacks) |
-| `SIBYL_SERVER_NAME` | `sibyl` | Server name in MCP responses |
+| Variable            | Default     | Description                      |
+| ------------------- | ----------- | -------------------------------- |
+| `SIBYL_SERVER_HOST` | `localhost` | Host to bind to                  |
+| `SIBYL_SERVER_PORT` | `3334`      | Port to listen on                |
+| `SIBYL_SERVER_URL`  | -           | Public URL (for OAuth callbacks) |
+| `SIBYL_SERVER_NAME` | `sibyl`     | Server name in MCP responses     |
 
 ### Authentication Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIBYL_JWT_SECRET` | - | JWT signing secret (required for auth) |
-| `SIBYL_JWT_EXPIRY_HOURS` | `24` | Token expiration time |
-| `SIBYL_MCP_AUTH_MODE` | `auto` | Auth mode: auto, on, off |
+| Variable                 | Default | Description                            |
+| ------------------------ | ------- | -------------------------------------- |
+| `SIBYL_JWT_SECRET`       | -       | JWT signing secret (required for auth) |
+| `SIBYL_JWT_EXPIRY_HOURS` | `24`    | Token expiration time                  |
+| `SIBYL_MCP_AUTH_MODE`    | `auto`  | Auth mode: auto, on, off               |
 
 ### GitHub OAuth (Optional)
 
-| Variable | Description |
-|----------|-------------|
-| `SIBYL_GITHUB_CLIENT_ID` | GitHub OAuth app client ID |
-| `SIBYL_GITHUB_CLIENT_SECRET` | GitHub OAuth app secret |
+| Variable                     | Description                |
+| ---------------------------- | -------------------------- |
+| `SIBYL_GITHUB_CLIENT_ID`     | GitHub OAuth app client ID |
+| `SIBYL_GITHUB_CLIENT_SECRET` | GitHub OAuth app secret    |
 
 ### Database Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIBYL_FALKORDB_HOST` | `localhost` | FalkorDB host |
-| `SIBYL_FALKORDB_PORT` | `6380` | FalkorDB port |
-| `SIBYL_FALKORDB_PASSWORD` | `conventions` | FalkorDB password |
-| `SIBYL_DATABASE_URL` | - | PostgreSQL connection string |
+| Variable                  | Default       | Description                  |
+| ------------------------- | ------------- | ---------------------------- |
+| `SIBYL_FALKORDB_HOST`     | `localhost`   | FalkorDB host                |
+| `SIBYL_FALKORDB_PORT`     | `6380`        | FalkorDB port                |
+| `SIBYL_FALKORDB_PASSWORD` | `conventions` | FalkorDB password            |
+| `SIBYL_DATABASE_URL`      | -             | PostgreSQL connection string |
 
 ### Embedding Settings
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SIBYL_OPENAI_API_KEY` | - | OpenAI API key (required) |
-| `SIBYL_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model |
+| Variable                | Default                  | Description               |
+| ----------------------- | ------------------------ | ------------------------- |
+| `SIBYL_OPENAI_API_KEY`  | -                        | OpenAI API key (required) |
+| `SIBYL_EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model           |
 
 ## Server Implementation
 
@@ -241,10 +242,10 @@ async def stats_resource() -> str:
 
 API keys can have different scopes:
 
-| Scope | Permission |
-|-------|------------|
-| `mcp` | Access MCP endpoint |
-| `api:read` | REST GET/HEAD/OPTIONS |
+| Scope       | Permission                 |
+| ----------- | -------------------------- |
+| `mcp`       | Access MCP endpoint        |
+| `api:read`  | REST GET/HEAD/OPTIONS      |
 | `api:write` | REST writes (implies read) |
 
 Create scoped keys:
@@ -279,6 +280,7 @@ upstream sibyl {
 ### Shared State
 
 For stateless scaling:
+
 1. Use Redis for session storage
 2. Ensure all instances share FalkorDB connection
 3. Configure shared PostgreSQL
@@ -294,6 +296,7 @@ curl http://localhost:3334/api/health
 ### MCP Status
 
 Access via MCP resource:
+
 ```
 sibyl://health
 sibyl://stats

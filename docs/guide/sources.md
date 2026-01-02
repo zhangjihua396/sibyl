@@ -5,7 +5,9 @@ description: Ingest external documentation and make it searchable
 
 # External Sources
 
-Sibyl can ingest external documentation—API references, framework guides, library docs—and make them searchable alongside your knowledge graph. Your agents can reference React docs, AWS documentation, or any web content as easily as they search your own patterns.
+Sibyl can ingest external documentation—API references, framework guides, library docs—and make them
+searchable alongside your knowledge graph. Your agents can reference React docs, AWS documentation,
+or any web content as easily as they search your own patterns.
 
 ## The Big Picture
 
@@ -58,6 +60,7 @@ sibyl source add "https://nextjs.org/docs" \
 ![Managing Sources](/screenshots/web-sources.png)
 
 Navigate to **Sources** in the web UI to:
+
 - Add new documentation sources
 - View crawl status and progress
 - Trigger manual syncs
@@ -90,15 +93,14 @@ When you add a source, Sibyl:
 
 ### Crawl Depth
 
-| Depth | Behavior | Best For |
-|-------|----------|----------|
-| 1 | Root page only | Single reference pages |
-| 2 | Root + linked pages | Section of documentation |
-| 3+ | Deep crawl | Entire documentation sites |
+| Depth | Behavior            | Best For                   |
+| ----- | ------------------- | -------------------------- |
+| 1     | Root page only      | Single reference pages     |
+| 2     | Root + linked pages | Section of documentation   |
+| 3+    | Deep crawl          | Entire documentation sites |
 
-::: warning Crawl Responsibly
-Higher depths exponentially increase crawl time and storage. Start with depth 2 and increase only if needed.
-:::
+::: warning Crawl Responsibly Higher depths exponentially increase crawl time and storage. Start
+with depth 2 and increase only if needed. :::
 
 ### Crawl Triggers
 
@@ -130,6 +132,7 @@ Source (e.g., "React Docs")
 ```
 
 Each document chunk includes:
+
 - **Content**: The actual text
 - **Embedding**: Vector for semantic search
 - **Metadata**: Source URL, title, position
@@ -154,10 +157,10 @@ sibyl search "hooks" --source "React Docs"
 
 When you search, results come from two places:
 
-| Source | Result Type | Content |
-|--------|-------------|---------|
-| Knowledge Graph | pattern, episode, rule, etc. | Your team's learnings |
-| Document Store | document | External documentation |
+| Source          | Result Type                  | Content                |
+| --------------- | ---------------------------- | ---------------------- |
+| Knowledge Graph | pattern, episode, rule, etc. | Your team's learnings  |
+| Document Store  | document                     | External documentation |
 
 Results are merged and ranked by semantic relevance.
 
@@ -170,6 +173,7 @@ sibyl source list
 ```
 
 Output:
+
 ```
 ID              Name              URL                               Documents  Last Sync
 source_abc123   React Docs        https://react.dev/reference       142        2024-01-15 10:30
@@ -184,6 +188,7 @@ sibyl source show source_abc123
 ```
 
 Output:
+
 ```
 Source: React Docs (source_abc123)
   URL:        https://react.dev/reference/react
@@ -217,9 +222,8 @@ sibyl source update source_abc123 --name "React 19 Reference"
 sibyl source delete source_abc123
 ```
 
-::: danger Destructive Operation
-Deleting a source removes all associated documents and chunks. This cannot be undone.
-:::
+::: danger Destructive Operation Deleting a source removes all associated documents and chunks. This
+cannot be undone. :::
 
 ## Graph Linking
 
@@ -230,7 +234,8 @@ After documents are crawled, you can link them to your knowledge graph:
 sibyl source link-graph source_abc123
 ```
 
-This creates `DOCUMENTED_IN` relationships between your patterns/episodes and relevant documentation chunks. For example:
+This creates `DOCUMENTED_IN` relationships between your patterns/episodes and relevant documentation
+chunks. For example:
 
 - Your "OAuth token refresh" pattern links to AWS Cognito docs
 - Your "Redis connection pooling" episode links to Redis documentation
@@ -246,12 +251,14 @@ sibyl source link-graph-status source_abc123
 ### Choose Sources Wisely
 
 **Good sources:**
+
 - Official framework documentation
 - API references you use frequently
 - Internal wikis with tribal knowledge
 - Frequently-referenced guides
 
 **Avoid:**
+
 - General content (blogs, news)
 - Massive documentation sites (start with specific sections)
 - Frequently-changing content (requires constant re-sync)
@@ -280,6 +287,7 @@ sibyl source add "https://react.dev/reference" --name "docs"
 ### Monitor Crawl Health
 
 Check the Sources page in the web UI regularly. Look for:
+
 - Sources stuck in "crawling" state
 - Sources with zero documents
 - Large time gaps since last sync
@@ -305,6 +313,7 @@ The Sources page shows:
 ### Monitoring Crawls
 
 Active crawls show:
+
 - Progress percentage
 - Pages discovered vs crawled
 - Current URL being processed
@@ -325,6 +334,7 @@ moon run stop && moon run dev
 ### No Documents After Crawl
 
 Possible causes:
+
 - JavaScript-rendered content (Sibyl needs static HTML)
 - Robots.txt blocking
 - Rate limiting by the source

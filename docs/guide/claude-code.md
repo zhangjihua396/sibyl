@@ -5,18 +5,20 @@ description: Using Sibyl with Claude Code via MCP
 
 # Claude Code Integration
 
-Sibyl is designed as an MCP (Model Context Protocol) server that integrates directly with Claude Code. This guide explains how to set up and use Sibyl as your AI agent's persistent memory.
+Sibyl is designed as an MCP (Model Context Protocol) server that integrates directly with Claude
+Code. This guide explains how to set up and use Sibyl as your AI agent's persistent memory.
 
 ## What is MCP?
 
-The Model Context Protocol (MCP) allows AI assistants like Claude to interact with external tools and data sources. Sibyl exposes 4 MCP tools:
+The Model Context Protocol (MCP) allows AI assistants like Claude to interact with external tools
+and data sources. Sibyl exposes 4 MCP tools:
 
-| Tool | Purpose |
-|------|---------|
-| `search` | Find knowledge by meaning |
-| `explore` | Navigate graph structure |
-| `add` | Create knowledge entries |
-| `manage` | Task workflow and admin |
+| Tool      | Purpose                   |
+| --------- | ------------------------- |
+| `search`  | Find knowledge by meaning |
+| `explore` | Navigate graph structure  |
+| `add`     | Create knowledge entries  |
+| `manage`  | Task workflow and admin   |
 
 ## Configuration
 
@@ -57,6 +59,7 @@ Run Sibyl as a subprocess:
 ```
 
 Use subprocess mode when:
+
 - Running locally without a server
 - Each project needs isolated state
 - CI/CD environments
@@ -82,6 +85,7 @@ When `SIBYL_JWT_SECRET` is set, MCP requires authentication:
 ```
 
 Create an API key:
+
 ```bash
 sibyl auth api-key create --name "Claude Code" --scopes mcp
 ```
@@ -94,9 +98,7 @@ Disable auth for local development:
 SIBYL_MCP_AUTH_MODE=off
 ```
 
-::: warning Production Use
-Always enable authentication in production environments.
-:::
+::: warning Production Use Always enable authentication in production environments. :::
 
 ## The Agent Workflow
 
@@ -231,7 +233,8 @@ manage("crawl", data={"url": "https://docs.example.com", "depth": 3})
 
 ### What are Skills?
 
-Skills are Claude Code's knowledge injection system. Sibyl provides skills that teach Claude how to use the knowledge graph effectively.
+Skills are Claude Code's knowledge injection system. Sibyl provides skills that teach Claude how to
+use the knowledge graph effectively.
 
 ### Installing Skills
 
@@ -250,6 +253,7 @@ Invoke skills via slash commands:
 ```
 
 The skill teaches Claude:
+
 - CLI commands
 - Workflow patterns
 - Best practices

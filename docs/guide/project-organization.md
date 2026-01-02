@@ -5,7 +5,8 @@ description: Projects, epics, and directory linking
 
 # Project Organization
 
-Sibyl organizes work hierarchically: **Projects** contain **Epics**, which contain **Tasks**. This guide explains how to structure and navigate your work.
+Sibyl organizes work hierarchically: **Projects** contain **Epics**, which contain **Tasks**. This
+guide explains how to structure and navigate your work.
 
 ## Hierarchy Overview
 
@@ -41,13 +42,13 @@ sibyl project create \
 
 ### Project Status
 
-| Status | Description |
-|--------|-------------|
-| `planning` | Not started yet |
-| `active` | Active development |
-| `on_hold` | Paused |
-| `completed` | Finished |
-| `archived` | Historical record |
+| Status      | Description        |
+| ----------- | ------------------ |
+| `planning`  | Not started yet    |
+| `active`    | Active development |
+| `on_hold`   | Paused             |
+| `completed` | Finished           |
+| `archived`  | Historical record  |
 
 ### Listing Projects
 
@@ -96,13 +97,13 @@ sibyl epic create \
 
 ### Epic Status
 
-| Status | Description |
-|--------|-------------|
-| `planning` | Scoping, not started |
-| `in_progress` | Active development |
-| `blocked` | Waiting on something |
-| `completed` | All work done |
-| `archived` | Historical record |
+| Status        | Description          |
+| ------------- | -------------------- |
+| `planning`    | Scoping, not started |
+| `in_progress` | Active development   |
+| `blocked`     | Waiting on something |
+| `completed`   | All work done        |
+| `archived`    | Historical record    |
 
 ### Listing Epics
 

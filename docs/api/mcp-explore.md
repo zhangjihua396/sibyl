@@ -1,16 +1,17 @@
 # MCP Tool: explore
 
-Navigate and browse the Sibyl knowledge graph structure without semantic search. Ideal for listing entities, graph traversal, and understanding relationships.
+Navigate and browse the Sibyl knowledge graph structure without semantic search. Ideal for listing
+entities, graph traversal, and understanding relationships.
 
 ## Overview
 
 The `explore` tool provides four modes:
 
-| Mode | Purpose |
-|------|---------|
-| `list` | Browse entities by type with filters |
-| `related` | Find directly connected entities |
-| `traverse` | Multi-hop graph traversal |
+| Mode           | Purpose                                     |
+| -------------- | ------------------------------------------- |
+| `list`         | Browse entities by type with filters        |
+| `related`      | Find directly connected entities            |
+| `traverse`     | Multi-hop graph traversal                   |
 | `dependencies` | Task dependency chains in topological order |
 
 ## Input Schema
@@ -21,29 +22,29 @@ interface ExploreInput {
   mode: "list" | "related" | "traverse" | "dependencies";
 
   // Entity Filtering (for list mode)
-  types?: string[];           // Entity types to include
-  language?: string;          // Programming language filter
-  category?: string;          // Category/domain filter
+  types?: string[]; // Entity types to include
+  language?: string; // Programming language filter
+  category?: string; // Category/domain filter
 
   // Task-Specific Filters
-  project?: string;           // Project ID filter
-  epic?: string;              // Epic ID filter
-  no_epic?: boolean;          // Tasks without epic
-  status?: string;            // Comma-separated statuses
-  priority?: string;          // Comma-separated priorities
-  complexity?: string;        // Comma-separated complexities
-  feature?: string;           // Feature area filter
-  tags?: string;              // Comma-separated tags (matches ANY)
+  project?: string; // Project ID filter
+  epic?: string; // Epic ID filter
+  no_epic?: boolean; // Tasks without epic
+  status?: string; // Comma-separated statuses
+  priority?: string; // Comma-separated priorities
+  complexity?: string; // Comma-separated complexities
+  feature?: string; // Feature area filter
+  tags?: string; // Comma-separated tags (matches ANY)
   include_archived?: boolean; // Include archived projects
 
   // Graph Traversal (for related/traverse/dependencies)
-  entity_id?: string;         // Starting entity ID
+  entity_id?: string; // Starting entity ID
   relationship_types?: string[]; // Filter edge types
-  depth?: number;             // Traversal depth (1-3)
+  depth?: number; // Traversal depth (1-3)
 
   // Pagination
-  limit?: number;             // 1-200, default 50
-  offset?: number;            // Default 0
+  limit?: number; // 1-200, default 50
+  offset?: number; // Default 0
 }
 ```
 
@@ -61,11 +62,11 @@ DEPENDS_ON, BELONGS_TO, RELATED_TO, REFERENCES, IMPLEMENTS
 
 ### Task Filters
 
-| Filter | Values |
-|--------|--------|
-| `status` | `backlog`, `todo`, `doing`, `blocked`, `review`, `done`, `archived` |
-| `priority` | `critical`, `high`, `medium`, `low`, `someday` |
-| `complexity` | `trivial`, `simple`, `medium`, `complex`, `epic` |
+| Filter       | Values                                                              |
+| ------------ | ------------------------------------------------------------------- |
+| `status`     | `backlog`, `todo`, `doing`, `blocked`, `review`, `done`, `archived` |
+| `priority`   | `critical`, `high`, `medium`, `low`, `someday`                      |
+| `complexity` | `trivial`, `simple`, `medium`, `complex`, `epic`                    |
 
 ## Response Schema
 
@@ -73,19 +74,19 @@ DEPENDS_ON, BELONGS_TO, RELATED_TO, REFERENCES, IMPLEMENTS
 interface ExploreResponse {
   mode: string;
   entities: EntitySummary[] | RelatedEntity[];
-  total: number;              // Count in this response
+  total: number; // Count in this response
   filters: Record<string, any>;
   limit: number;
   offset: number;
   has_more: boolean;
-  actual_total?: number;      // Total matching (for pagination)
+  actual_total?: number; // Total matching (for pagination)
 }
 
 interface EntitySummary {
   id: string;
   type: string;
   name: string;
-  description: string;        // Truncated to 200 chars
+  description: string; // Truncated to 200 chars
   metadata: Record<string, any>;
 }
 
@@ -395,11 +396,11 @@ Always start with project discovery:
 
 ## Error Handling
 
-| Error | Cause | Resolution |
-|-------|-------|------------|
-| `entity_id required` | Missing ID for related/traverse/dependencies | Provide valid entity_id |
-| `organization_id required` | No org context | Ensure valid JWT with org claim |
-| `Entity not found` | Invalid entity_id | Verify entity exists |
+| Error                      | Cause                                        | Resolution                      |
+| -------------------------- | -------------------------------------------- | ------------------------------- |
+| `entity_id required`       | Missing ID for related/traverse/dependencies | Provide valid entity_id         |
+| `organization_id required` | No org context                               | Ensure valid JWT with org claim |
+| `Entity not found`         | Invalid entity_id                            | Verify entity exists            |
 
 ## Related
 

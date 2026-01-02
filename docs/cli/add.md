@@ -10,31 +10,31 @@ sibyl add <title> <content> [options]
 
 ## Arguments
 
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `title` | Yes | Title/name of the knowledge |
-| `content` | Yes | Content/description |
+| Argument  | Required | Description                 |
+| --------- | -------- | --------------------------- |
+| `title`   | Yes      | Title/name of the knowledge |
+| `content` | Yes      | Content/description         |
 
 ## Options
 
-| Option | Short | Default | Description |
-|--------|-------|---------|-------------|
-| `--type` | `-t` | `episode` | Entity type to create |
-| `--category` | `-c` | (none) | Category for organization |
-| `--language` | `-l` | (none) | Programming language |
-| `--tags` | | (none) | Comma-separated tags |
-| `--json` | `-j` | false | Output as JSON |
+| Option       | Short | Default   | Description               |
+| ------------ | ----- | --------- | ------------------------- |
+| `--type`     | `-t`  | `episode` | Entity type to create     |
+| `--category` | `-c`  | (none)    | Category for organization |
+| `--language` | `-l`  | (none)    | Programming language      |
+| `--tags`     |       | (none)    | Comma-separated tags      |
+| `--json`     | `-j`  | false     | Output as JSON            |
 
 ## Entity Types
 
-| Type | Use Case |
-|------|----------|
-| `episode` | General knowledge, learnings, notes (default) |
-| `pattern` | Reusable code patterns, best practices |
-| `error_pattern` | Error patterns and solutions |
-| `convention` | Team conventions, coding standards |
-| `rule` | Rules and constraints |
-| `template` | Code templates |
+| Type            | Use Case                                      |
+| --------------- | --------------------------------------------- |
+| `episode`       | General knowledge, learnings, notes (default) |
+| `pattern`       | Reusable code patterns, best practices        |
+| `error_pattern` | Error patterns and solutions                  |
+| `convention`    | Team conventions, coding standards            |
+| `rule`          | Rules and constraints                         |
+| `template`      | Code templates                                |
 
 ## Examples
 
@@ -45,6 +45,7 @@ sibyl add "JWT Refresh Bug Fix" "Token refresh was failing silently when Redis T
 ```
 
 Output:
+
 ```
 Added episode: JWT Refresh Bug Fix
   ID: ent_abc123def456

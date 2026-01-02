@@ -5,7 +5,8 @@ description: Task lifecycle and workflow in Sibyl
 
 # Task Management
 
-Sibyl provides full task lifecycle management with workflow states, priorities, dependencies, and learning capture. This guide covers how to use tasks effectively.
+Sibyl provides full task lifecycle management with workflow states, priorities, dependencies, and
+learning capture. This guide covers how to use tasks effectively.
 
 ## Task Workflow
 
@@ -18,15 +19,15 @@ backlog <-> todo <-> doing <-> blocked <-> review <-> done -> archived
            ^_______________________________|
 ```
 
-| Status | Description |
-|--------|-------------|
-| `backlog` | Future work, not yet committed |
-| `todo` | Committed to sprint/milestone |
-| `doing` | Active development |
-| `blocked` | Waiting on something |
-| `review` | In code review |
-| `done` | Completed and merged |
-| `archived` | Closed without completion |
+| Status     | Description                    |
+| ---------- | ------------------------------ |
+| `backlog`  | Future work, not yet committed |
+| `todo`     | Committed to sprint/milestone  |
+| `doing`    | Active development             |
+| `blocked`  | Waiting on something           |
+| `review`   | In code review                 |
+| `done`     | Completed and merged           |
+| `archived` | Closed without completion      |
 
 ### State Transitions
 
@@ -82,19 +83,18 @@ add(
 )
 ```
 
-::: warning Project Required
-Tasks **must** have a project. Use `sibyl project list` to find available projects.
-:::
+::: warning Project Required Tasks **must** have a project. Use `sibyl project list` to find
+available projects. :::
 
 ## Priority Levels
 
-| Priority | When to Use |
-|----------|-------------|
+| Priority   | When to Use                                           |
+| ---------- | ----------------------------------------------------- |
 | `critical` | Production bugs, security issues, blocking everything |
-| `high` | Important features, blocking other work |
-| `medium` | Normal priority (default) |
-| `low` | Nice to have, polish |
-| `someday` | Future consideration, parking lot |
+| `high`     | Important features, blocking other work               |
+| `medium`   | Normal priority (default)                             |
+| `low`      | Nice to have, polish                                  |
+| `someday`  | Future consideration, parking lot                     |
 
 ```bash
 # Set priority
@@ -108,13 +108,13 @@ sibyl task update task_xyz --priority critical
 
 Estimate effort with complexity levels:
 
-| Complexity | Time Estimate |
-|------------|---------------|
-| `trivial` | < 30 minutes |
-| `simple` | 30m - 2 hours |
-| `medium` | 2 - 8 hours (1 day) |
-| `complex` | 1 - 3 days |
-| `epic` | > 3 days (should be broken down) |
+| Complexity | Time Estimate                    |
+| ---------- | -------------------------------- |
+| `trivial`  | < 30 minutes                     |
+| `simple`   | 30m - 2 hours                    |
+| `medium`   | 2 - 8 hours (1 day)              |
+| `complex`  | 1 - 3 days                       |
+| `epic`     | > 3 days (should be broken down) |
 
 ## Listing Tasks
 
@@ -166,6 +166,7 @@ sibyl task start task_xyz --assignee alice
 ```
 
 This:
+
 - Sets status to `doing`
 - Records `started_at` timestamp
 - Can generate suggested branch name
@@ -203,9 +204,8 @@ sibyl task complete task_xyz --learnings "OAuth redirect URIs must match exactly
 sibyl task complete task_xyz --hours 4.5 --learnings "..."
 ```
 
-::: tip Always Include Learnings
-The `--learnings` flag is where value accumulates. Be specific about what you learned.
-:::
+::: tip Always Include Learnings The `--learnings` flag is where value accumulates. Be specific
+about what you learned. :::
 
 ### Archiving
 
@@ -308,6 +308,7 @@ sibyl task create --title "Fix OAuth redirect bug" --project proj_abc
 ```
 
 Tags are derived from:
+
 - Title keywords
 - Description content
 - Technologies specified
@@ -317,11 +318,11 @@ Tags are derived from:
 
 Tasks can track Git integration:
 
-| Field | Description |
-|-------|-------------|
-| `branch_name` | Associated Git branch |
+| Field         | Description                   |
+| ------------- | ----------------------------- |
+| `branch_name` | Associated Git branch         |
 | `commit_shas` | Commits implementing the task |
-| `pr_url` | Pull request URL |
+| `pr_url`      | Pull request URL              |
 
 ```bash
 sibyl task review task_xyz --pr "https://github.com/..."
@@ -339,11 +340,13 @@ before expiry, not after. The 'exp' claim is in seconds, not milliseconds."
 ### What Makes Good Learnings
 
 **Bad:**
+
 ```
 "Fixed the bug"
 ```
 
 **Good:**
+
 ```
 "JWT refresh fails when Redis TTL expires. Root cause: token service doesn't
 handle WRONGTYPE error. Fix: Add try/except with token regeneration fallback."
@@ -413,6 +416,7 @@ sibyl task update task_xyz --status doing  # Retry
 ### 1. Work in Task Context
 
 Never do significant work without a task. Tasks provide:
+
 - Traceability
 - Progress tracking
 - Knowledge linking

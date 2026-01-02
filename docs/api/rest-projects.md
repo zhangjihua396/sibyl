@@ -4,9 +4,11 @@ Project management via the unified entities endpoint.
 
 ## Overview
 
-Projects are managed through the `/api/entities` endpoint with `entity_type: "project"`. Projects serve as containers for epics and tasks.
+Projects are managed through the `/api/entities` endpoint with `entity_type: "project"`. Projects
+serve as containers for epics and tasks.
 
-**Note:** Projects use the general entities API. See [rest-entities.md](./rest-entities.md) for full endpoint documentation.
+**Note:** Projects use the general entities API. See [rest-entities.md](./rest-entities.md) for full
+endpoint documentation.
 
 ## Project Model
 
@@ -14,12 +16,12 @@ Projects are managed through the `/api/entities` endpoint with `entity_type: "pr
 interface Project {
   id: string;
   entity_type: "project";
-  name: string;                    // Project title
-  description: string;             // Project description
-  content: string;                 // Extended content/documentation
-  category?: string;               // Optional category
-  languages: string[];             // Programming languages (tech stack)
-  tags: string[];                  // Searchable tags
+  name: string; // Project title
+  description: string; // Project description
+  content: string; // Extended content/documentation
+  category?: string; // Optional category
+  languages: string[]; // Programming languages (tech stack)
+  tags: string[]; // Searchable tags
   metadata: {
     status: ProjectStatus;
     repository_url?: string;
@@ -32,12 +34,12 @@ interface Project {
 
 ### Project Status Values
 
-| Status | Description |
-|--------|-------------|
-| `active` | Currently active (default) |
-| `on_hold` | Paused |
-| `completed` | Finished |
-| `archived` | Archived |
+| Status      | Description                |
+| ----------- | -------------------------- |
+| `active`    | Currently active (default) |
+| `on_hold`   | Paused                     |
+| `completed` | Finished                   |
+| `archived`  | Archived                   |
 
 ## Endpoints
 
@@ -49,14 +51,14 @@ GET /api/entities?entity_type=project
 
 **Query Parameters:**
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `entity_type` | string | - | Set to `project` |
-| `search` | string | - | Search in name/description |
-| `page` | integer | 1 | Page number |
-| `page_size` | integer | 50 | Items per page |
-| `sort_by` | string | `updated_at` | Sort field |
-| `sort_order` | string | `desc` | Sort direction |
+| Parameter     | Type    | Default      | Description                |
+| ------------- | ------- | ------------ | -------------------------- |
+| `entity_type` | string  | -            | Set to `project`           |
+| `search`      | string  | -            | Search in name/description |
+| `page`        | integer | 1            | Page number                |
+| `page_size`   | integer | 50           | Items per page             |
+| `sort_by`     | string  | `updated_at` | Sort field                 |
+| `sort_order`  | string  | `desc`       | Sort direction             |
 
 **Example Request:**
 
@@ -269,14 +271,12 @@ GET /api/metrics/project/{project_id}
       "someday": 2
     },
     "completion_rate": 28.6,
-    "assignees": [
-      {"name": "alice", "total": 15, "completed": 5, "in_progress": 3}
-    ],
+    "assignees": [{ "name": "alice", "total": 15, "completed": 5, "in_progress": 3 }],
     "tasks_created_last_7d": 8,
     "tasks_completed_last_7d": 5,
     "velocity_trend": [
-      {"date": "2024-12-24", "value": 2},
-      {"date": "2024-12-25", "value": 1}
+      { "date": "2024-12-24", "value": 2 },
+      { "date": "2024-12-25", "value": 1 }
     ]
   }
 }
@@ -320,6 +320,7 @@ Project operations are logged for compliance:
 - `project.delete` - Project deletion
 
 Audit logs include:
+
 - User ID
 - Organization ID
 - Timestamp

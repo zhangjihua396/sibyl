@@ -15,11 +15,11 @@ API keys provide:
 
 ## Key Scopes
 
-| Scope | Description |
-|-------|-------------|
-| `mcp` | Access to `/mcp` MCP endpoints |
-| `api:read` | Read operations on `/api/*` (GET, HEAD, OPTIONS) |
-| `api:write` | All operations on `/api/*` (implies read) |
+| Scope       | Description                                      |
+| ----------- | ------------------------------------------------ |
+| `mcp`       | Access to `/mcp` MCP endpoints                   |
+| `api:read`  | Read operations on `/api/*` (GET, HEAD, OPTIONS) |
+| `api:write` | All operations on `/api/*` (implies read)        |
 
 ## Creating API Keys
 
@@ -136,10 +136,10 @@ Revoked keys immediately stop working.
 
 ### REST API Scopes
 
-| HTTP Method | Required Scope |
-|-------------|----------------|
-| GET, HEAD, OPTIONS | `api:read` OR `api:write` |
-| POST, PUT, PATCH, DELETE | `api:write` |
+| HTTP Method              | Required Scope            |
+| ------------------------ | ------------------------- |
+| GET, HEAD, OPTIONS       | `api:read` OR `api:write` |
+| POST, PUT, PATCH, DELETE | `api:write`               |
 
 ### MCP Scope
 
@@ -177,6 +177,7 @@ For full access:
 ## Organization Binding
 
 API keys are bound to:
+
 - **User** who created them
 - **Organization** active at creation time
 
@@ -202,10 +203,10 @@ Expired keys return 401:
 
 ## Error Responses
 
-| Status | Cause |
-|--------|-------|
-| 401 | Invalid, expired, or revoked key |
-| 403 | Insufficient scope for operation |
+| Status | Cause                            |
+| ------ | -------------------------------- |
+| 401    | Invalid, expired, or revoked key |
+| 403    | Insufficient scope for operation |
 
 **Invalid Key:**
 
