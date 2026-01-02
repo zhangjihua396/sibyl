@@ -6,9 +6,10 @@
 
 import { useMemo, useRef, useState } from 'react';
 import { ChevronDown } from '@/components/ui/icons';
-import { getToolIcon, getToolStatus, stripAnsi } from './chat-constants';
+import { stripAnsi } from './chat-constants';
 import type { ToolMessageProps } from './chat-types';
 import { ToolContentRenderer } from './tool-renderers';
+import { getToolIcon, getToolStatus, hasCustomRenderer } from './tool-registry';
 
 // =============================================================================
 // ToolMessage
@@ -20,7 +21,7 @@ export function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolM
   const contentRef = useRef<HTMLDivElement>(null);
 
   const { name: toolName, icon: iconName, input } = message.tool;
-  const Icon = getToolIcon(iconName);
+  const Icon = getToolIcon(toolName, iconName);
 
   // Memoize Tier 2 playful status so it doesn't change on re-render
   const playfulStatus = useMemo(
@@ -118,8 +119,8 @@ export function ToolMessage({ message, result, isNew = false, tier3Hint }: ToolM
         }`}
       >
         <div className="border-t border-sc-fg-subtle/10 p-2">
-          {/* Use smart renderer for code tools, fallback to simple display */}
-          {toolName && ['Read', 'Edit', 'Write', 'Bash', 'Grep', 'Glob'].includes(toolName) ? (
+          {/* Use smart renderer for tools with custom renderers, fallback to simple display */}
+          {toolName && hasCustomRenderer(toolName) ? (
             <ToolContentRenderer
               toolName={toolName}
               input={input}

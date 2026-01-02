@@ -8,15 +8,18 @@ export {
   ApprovalRequestMessage,
   type ApprovalRequestMessageProps,
 } from './approval-request-message';
+export { formatDuration, pickRandomPhrase, stripAnsi, THINKING_PHRASES } from './chat-constants';
+// Tool registry - single source of truth for tool metadata
 export {
-  formatDuration,
+  getToolEntry,
   getToolIcon,
   getToolStatus,
-  pickRandomPhrase,
-  THINKING_PHRASES,
-  TOOL_ICONS,
-  TOOL_STATUS_TEMPLATES,
-} from './chat-constants';
+  hasCustomRenderer,
+  isKnownTool,
+  TOOL_REGISTRY,
+  TOOLS,
+  type ToolName,
+} from './tool-registry';
 // Chat utilities (for testing or custom implementations)
 export { buildResultsMap, groupMessages } from './chat-grouping';
 // Chat sub-components (for advanced customization)

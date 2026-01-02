@@ -268,7 +268,9 @@ class EntityManager:
             try:
                 episodic = await EpisodicNode.get_by_uuid(self._driver, entity_id)
                 if episodic and episodic.group_id == self._group_id:
-                    entity = self._episodic_to_entity(episodic)
+                    # Query for entity_type property (not hydrated by Graphiti's dataclass)
+                    entity_type_override = await self._get_node_entity_type(entity_id)
+                    entity = self._episodic_to_entity(episodic, entity_type_override)
                     log.debug(
                         "Entity retrieved via EpisodicNode",
                         entity_id=entity_id,
@@ -1245,12 +1247,13 @@ class EntityManager:
             entity_type = EntityType.EPISODE
 
         # Build entity kwargs, only including datetime fields if present
+        # Use `or ""` to convert None to empty string for required string fields
         entity_kwargs: dict[str, Any] = {
-            "id": node_data.get("uuid", ""),
-            "name": node_data.get("name", ""),
+            "id": node_data.get("uuid") or "",
+            "name": node_data.get("name") or "",
             "entity_type": entity_type,
-            "description": node_data.get("description") or node_data.get("summary", ""),
-            "content": node_data.get("content", ""),
+            "description": node_data.get("description") or node_data.get("summary") or "",
+            "content": node_data.get("content") or "",
             "organization_id": node_data.get("group_id") or metadata.get("organization_id"),
             "created_by": metadata.get("created_by"),
             "modified_by": metadata.get("modified_by"),
@@ -1783,7 +1786,38 @@ class EntityManager:
             embedding=node.name_embedding if node.name_embedding else None,
         )
 
-    def _episodic_to_entity(self, node: EpisodicNode) -> Entity:
+    async def _get_node_entity_type(self, entity_id: str) -> EntityType | None:
+        """Query for entity_type property directly from graph node.
+
+        Graphiti's dataclass hydration doesn't include custom properties like
+        entity_type that we persist via _persist_entity_attributes. This method
+        directly queries the graph to retrieve it.
+
+        Args:
+            entity_id: The node's UUID.
+
+        Returns:
+            EntityType if found and valid, None otherwise.
+        """
+        try:
+            result = await self._driver.execute_query(
+                "MATCH (n {uuid: $id}) RETURN n.entity_type AS entity_type",
+                id=entity_id,
+            )
+            # FalkorDB returns (rows, columns, stats) where rows is list of dicts
+            if result and result[0]:
+                rows = result[0]
+                if rows and isinstance(rows[0], dict):
+                    raw_type = rows[0].get("entity_type")
+                    if raw_type:
+                        return EntityType(raw_type)
+        except (ValueError, IndexError, TypeError, KeyError):
+            pass
+        return None
+
+    def _episodic_to_entity(
+        self, node: EpisodicNode, entity_type_override: EntityType | None = None
+    ) -> Entity:
         """Convert a Graphiti EpisodicNode to our Entity model.
 
         EpisodicNodes are created via add_episode() and have different structure
@@ -1791,6 +1825,9 @@ class EntityManager:
 
         Args:
             node: The EpisodicNode to convert.
+            entity_type_override: Optional entity type from graph property lookup.
+                Used when the node's Python object doesn't have the entity_type
+                attribute (Graphiti dataclass doesn't hydrate custom properties).
 
         Returns:
             Converted Entity.
@@ -1798,12 +1835,16 @@ class EntityManager:
 
         # EpisodicNode has: uuid, name, group_id, content, created_at, valid_at, source_description
 
-        # First, try to get entity_type from node attribute (set by _persist_entity_attributes)
-        # This is the authoritative source when available
-        entity_type: EntityType = EntityType.EPISODE
+        # Priority for entity_type:
+        # 1. entity_type_override (from direct graph property query)
+        # 2. node.entity_type attribute (if Graphiti ever hydrates it)
+        # 3. Parse from name prefix (format: "type:name")
+        # 4. Default to EPISODE
+        entity_type: EntityType = entity_type_override or EntityType.EPISODE
         name = node.name
 
-        if node_entity_type := getattr(node, "entity_type", None):
+        # Try node attribute as fallback (may not be hydrated by Graphiti)
+        if entity_type == EntityType.EPISODE and (node_entity_type := getattr(node, "entity_type", None)):
             with contextlib.suppress(ValueError):
                 entity_type = EntityType(node_entity_type)
 

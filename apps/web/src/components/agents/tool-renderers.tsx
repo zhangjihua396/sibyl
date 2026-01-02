@@ -1,9 +1,11 @@
 'use client';
 
+import type React from 'react';
 import { useEffect, useState } from 'react';
 import { codeToHtml } from 'shiki';
 import { Code, EditPencil, Folder, Page, Search } from '@/components/ui/icons';
 import { stripAnsi } from './chat-constants';
+import { TOOLS, type ToolName, isKnownTool } from './tool-registry';
 
 // SilkCircuit theme (shared with markdown.tsx)
 const silkCircuitTheme = {
@@ -418,7 +420,83 @@ export function GlobToolRenderer({
   );
 }
 
-// Main dispatcher - picks the right renderer based on tool name
+// =============================================================================
+// Renderer Registry
+// =============================================================================
+
+/**
+ * Maps tool names to their renderer components.
+ * Only tools with custom renderers are included.
+ */
+const TOOL_RENDERERS: Partial<
+  Record<
+    ToolName,
+    (props: {
+      input: Record<string, unknown>;
+      result?: string;
+      isError?: boolean;
+    }) => React.ReactElement
+  >
+> = {
+  [TOOLS.READ]: ({ input, result, isError }) => (
+    <ReadToolRenderer
+      input={input as { file_path?: string; offset?: number; limit?: number }}
+      result={result}
+      isError={isError}
+    />
+  ),
+  [TOOLS.EDIT]: ({ input, result, isError }) => (
+    <EditToolRenderer
+      input={
+        input as {
+          file_path?: string;
+          old_string?: string;
+          new_string?: string;
+          replace_all?: boolean;
+        }
+      }
+      result={result}
+      isError={isError}
+    />
+  ),
+  [TOOLS.WRITE]: ({ input, result, isError }) => (
+    <WriteToolRenderer
+      input={input as { file_path?: string; content?: string }}
+      result={result}
+      isError={isError}
+    />
+  ),
+  [TOOLS.BASH]: ({ input, result, isError }) => (
+    <BashToolRenderer
+      input={input as { command?: string; description?: string }}
+      result={result}
+      isError={isError}
+    />
+  ),
+  [TOOLS.GREP]: ({ input, result, isError }) => (
+    <GrepToolRenderer
+      input={input as { pattern?: string; path?: string; type?: string }}
+      result={result}
+      isError={isError}
+    />
+  ),
+  [TOOLS.GLOB]: ({ input, result, isError }) => (
+    <GlobToolRenderer
+      input={input as { pattern?: string; path?: string }}
+      result={result}
+      isError={isError}
+    />
+  ),
+};
+
+// =============================================================================
+// Main Dispatcher
+// =============================================================================
+
+/**
+ * Picks the right renderer based on tool name.
+ * Uses registry lookup instead of switch statement.
+ */
 export function ToolContentRenderer({
   toolName,
   input,
@@ -432,69 +510,19 @@ export function ToolContentRenderer({
 }) {
   const safeInput = input || {};
 
-  switch (toolName) {
-    case 'Read':
-      return (
-        <ReadToolRenderer
-          input={safeInput as { file_path?: string; offset?: number; limit?: number }}
-          result={result}
-          isError={isError}
-        />
-      );
-    case 'Edit':
-      return (
-        <EditToolRenderer
-          input={
-            safeInput as {
-              file_path?: string;
-              old_string?: string;
-              new_string?: string;
-              replace_all?: boolean;
-            }
-          }
-          result={result}
-          isError={isError}
-        />
-      );
-    case 'Write':
-      return (
-        <WriteToolRenderer
-          input={safeInput as { file_path?: string; content?: string }}
-          result={result}
-          isError={isError}
-        />
-      );
-    case 'Bash':
-      return (
-        <BashToolRenderer
-          input={safeInput as { command?: string; description?: string }}
-          result={result}
-          isError={isError}
-        />
-      );
-    case 'Grep':
-      return (
-        <GrepToolRenderer
-          input={safeInput as { pattern?: string; path?: string; type?: string }}
-          result={result}
-          isError={isError}
-        />
-      );
-    case 'Glob':
-      return (
-        <GlobToolRenderer
-          input={safeInput as { pattern?: string; path?: string }}
-          result={result}
-          isError={isError}
-        />
-      );
-    default:
-      // Fallback - just show raw content
-      if (!result) return null;
-      return (
-        <pre className="px-3 py-2 text-xs font-mono overflow-auto max-h-64 bg-sc-bg-dark text-sc-fg-primary rounded-lg">
-          {result}
-        </pre>
-      );
+  // Check if we have a custom renderer for this tool
+  if (isKnownTool(toolName)) {
+    const Renderer = TOOL_RENDERERS[toolName];
+    if (Renderer) {
+      return <Renderer input={safeInput} result={result} isError={isError} />;
+    }
   }
+
+  // Fallback - just show raw content
+  if (!result) return null;
+  return (
+    <pre className="px-3 py-2 text-xs font-mono overflow-auto max-h-64 bg-sc-bg-dark text-sc-fg-primary rounded-lg">
+      {result}
+    </pre>
+  );
 }

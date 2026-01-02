@@ -55,7 +55,7 @@ async def create_entity(  # noqa: PLR0915
         Relationship,
         RelationshipType,
     )
-    from sibyl_core.models.tasks import Project, Task
+    from sibyl_core.models.tasks import Epic, Project, Task
 
     relationships = relationships or []
 
@@ -76,6 +76,8 @@ async def create_entity(  # noqa: PLR0915
             entity = Task.model_validate(entity_data)
         elif entity_type == "project":
             entity = Project.model_validate(entity_data)
+        elif entity_type == "epic":
+            entity = Epic.model_validate(entity_data)
         elif entity_type == "pattern":
             entity = Pattern.model_validate(entity_data)
         else:
@@ -83,7 +85,7 @@ async def create_entity(  # noqa: PLR0915
 
         # Use create_direct() for structured entities (faster, generates embeddings)
         # Use create() for episodes (LLM extraction may add value)
-        if entity_type in ("task", "project", "pattern"):
+        if entity_type in ("task", "project", "epic", "pattern"):
             created_id = await entity_manager.create_direct(entity)
         else:
             created_id = await entity_manager.create(entity)

@@ -7,7 +7,8 @@
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown, Code, Xmark } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
-import { formatDuration, getToolIcon } from './chat-constants';
+import { formatDuration } from './chat-constants';
+import { getToolIcon } from './tool-registry';
 import { ToolMessage } from './chat-tool-message';
 import type {
   ParallelAgentsBlockProps,
@@ -357,7 +358,7 @@ const LivePreview = forwardRef<HTMLDivElement, LivePreviewProps>(
     >
       {calls.map(call => {
         const pairedResult = resultsByToolId.get(call.tool.id);
-        const Icon = getToolIcon(call.tool.icon);
+        const Icon = getToolIcon(call.tool.name, call.tool.icon);
         const hasCallResult = !!pairedResult;
         const callError = pairedResult?.isError;
         const statusClass = !hasCallResult

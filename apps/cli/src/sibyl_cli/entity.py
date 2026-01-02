@@ -23,6 +23,7 @@ from sibyl_cli.common import (
     success,
     truncate,
 )
+from sibyl_core.models.entities import EntityType
 
 app = typer.Typer(
     name="entity",
@@ -30,28 +31,8 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-# Valid entity types
-ENTITY_TYPES = [
-    "pattern",
-    "rule",
-    "template",
-    "convention",
-    "tool",
-    "language",
-    "topic",
-    "episode",
-    "knowledge_source",
-    "config_file",
-    "slash_command",
-    "task",
-    "project",
-    "team",
-    "error_pattern",
-    "milestone",
-    "source",
-    "document",
-    "community",
-]
+# Valid entity types - derived from canonical EntityType enum
+ENTITY_TYPES = [e.value for e in EntityType]
 
 
 def _handle_client_error(e: SibylClientError) -> None:
