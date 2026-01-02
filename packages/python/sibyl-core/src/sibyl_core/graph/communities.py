@@ -572,13 +572,22 @@ def _build_cluster_metadata(
             cluster_type_counts[cluster_id].get(entity_type, 0) + 1
         )
 
-    # Enrich clusters with type distribution
+    # Enrich clusters with type distribution (only include clusters with displayed nodes)
     enriched_clusters = []
     for cluster in clusters_meta:
         type_dist = cluster_type_counts.get(cluster["id"], {})
-        dominant = max(type_dist.items(), key=lambda x: x[1])[0] if type_dist else "unknown"
+        if not type_dist:
+            # Skip clusters with no nodes in the current filtered view
+            continue
+        displayed_count = sum(type_dist.values())
+        dominant = max(type_dist.items(), key=lambda x: x[1])[0]
         enriched_clusters.append(
-            {**cluster, "type_distribution": type_dist, "dominant_type": dominant}
+            {
+                **cluster,
+                "type_distribution": type_dist,
+                "dominant_type": dominant,
+                "member_count": displayed_count,  # Override with actual displayed count
+            }
         )
 
     # Add unclustered pseudo-cluster if needed
