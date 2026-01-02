@@ -16,16 +16,20 @@ from sibyl.agents.checkpoints import (
     create_checkpoint_from_instance,
     restore_from_checkpoint,
 )
+from sibyl.agents.orchestrator import AgentMessage, AgentOrchestrator, OrchestratorError
 from sibyl.agents.runner import AgentInstance, AgentRunner, AgentRunnerError
 from sibyl.agents.worktree import WorktreeError, WorktreeManager
 
 __all__ = [
     "AgentInstance",
+    "AgentMessage",
+    "AgentOrchestrator",
     "AgentRunner",
     "AgentRunnerError",
     "ApprovalService",
     "CheckpointManager",
     "CheckpointRestoreError",
+    "OrchestratorError",
     "RestoreResult",
     "WorktreeError",
     "WorktreeManager",
