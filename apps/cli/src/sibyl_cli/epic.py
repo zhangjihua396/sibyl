@@ -332,12 +332,12 @@ def start_epic(
         try:
             resolved_id = _validate_epic_id(epic_id)
 
-            # Build update data
-            updates: dict = {"status": "in_progress"}
+            # Build update data - status/assignees go in metadata
+            metadata: dict = {"status": "in_progress"}
             if assignee:
-                updates["assignees"] = [assignee]
+                metadata["assignees"] = [assignee]
 
-            response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, metadata=metadata)
 
             if json_out:
                 print_json(response)
@@ -373,12 +373,12 @@ def complete_epic(
         try:
             resolved_id = _validate_epic_id(epic_id)
 
-            # Build update data
-            updates: dict = {"status": "completed"}
+            # Build update data - status/learnings go in metadata
+            metadata: dict = {"status": "completed"}
             if learnings:
-                updates["learnings"] = learnings
+                metadata["learnings"] = learnings
 
-            response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, metadata=metadata)
 
             if json_out:
                 print_json(response)
@@ -415,12 +415,12 @@ def archive_epic(
         try:
             resolved_id = _validate_epic_id(epic_id)
 
-            # Build update data
-            updates: dict = {"status": "archived"}
+            # Build update data - status/learnings go in metadata
+            metadata: dict = {"status": "archived"}
             if reason:
-                updates["learnings"] = f"Archived: {reason}"
+                metadata["learnings"] = f"Archived: {reason}"
 
-            response = await client.update_entity(resolved_id, **updates)
+            response = await client.update_entity(resolved_id, metadata=metadata)
 
             if json_out:
                 print_json(response)
@@ -471,18 +471,24 @@ def update_epic(
 
             resolved_id = _validate_epic_id(epic_id)
 
-            # Build update data
+            # Build update data - status/priority/assignees go in metadata
             updates: dict = {}
+            metadata: dict = {}
+
             if status:
-                updates["status"] = status
+                metadata["status"] = status
             if priority:
-                updates["priority"] = priority
+                metadata["priority"] = priority
+            if assignee:
+                metadata["assignees"] = [assignee]
+
+            # Top-level fields supported by EntityUpdate schema
             if title:
                 updates["name"] = title
-            if assignee:
-                updates["assignees"] = [assignee]
             if tags:
                 updates["tags"] = [t.strip() for t in tags.split(",")]
+            if metadata:
+                updates["metadata"] = metadata
 
             response = await client.update_entity(resolved_id, **updates)
 
