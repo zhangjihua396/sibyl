@@ -43,13 +43,13 @@
 
 ## The Problem
 
-Your AI agents have amnesia. Every session starts fresh—no memory of what worked, what failed, or what you learned yesterday. You're the bottleneck, repeating context endlessly.
+Your AI agents have amnesia. Every session starts fresh—no memory of what worked, what failed, or what you learned yesterday. And when you're running multiple agents across different features? Chaos. No visibility. No coordination.
 
-**What if your agents could remember?**
+**What if your agents could remember—and you could orchestrate them?**
 
-Sibyl gives your AI agents **persistent memory** through a knowledge graph. Spawn a team of Claude agents that work autonomously on your codebase—each one building on shared learnings, coordinated through a task system, with you approving the important decisions.
+Sibyl gives your AI agents **persistent memory** through a knowledge graph. Plan work as epics and tasks. Spawn agents that execute autonomously—each building on shared learnings, each tracked in one place. You stay in control: approving decisions, seeing progress across all parallel efforts, keeping the whole project moving forward.
 
-Solo dev? Your agents become your team. Actual team? Everyone's insights compound. Either way: **search by meaning, capture what you learn, never solve the same problem twice.**
+Solo dev? Your agents become your team. Actual team? Everyone's insights compound. Either way: **search by meaning, capture what you learn, orchestrate work across all your agents.**
 
 ## What You Get
 
@@ -58,7 +58,7 @@ Solo dev? Your agents become your team. Actual team? Everyone's insights compoun
 | **Semantic Search**     | Find knowledge by meaning—"authentication patterns" finds OAuth solutions even if "OAuth" isn't in the text |
 | **Persistent Memory**   | What you learn today helps tomorrow. AI agents remember across sessions                                     |
 | **Agent Orchestration** | Spawn Claude agents that work autonomously with human-in-the-loop approvals                                 |
-| **Task Workflow**       | Full lifecycle tracking with blockers, learnings, and automatic knowledge linking                           |
+| **Task Workflow**       | Plan with epics and tasks. Track parallel work across agents. See everything in one place                   |
 | **Doc Ingestion**       | Crawl and index external documentation into your graph                                                      |
 | **Multi-Tenancy**       | Isolated graphs per organization. Enterprise-ready from day one                                             |
 | **Graph Visualization** | Interactive D3 visualization of your knowledge connections                                                  |
