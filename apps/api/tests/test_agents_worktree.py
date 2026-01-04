@@ -74,6 +74,7 @@ def worktree_manager(git_repo: Path, entity_manager: "MockEntityManager") -> Wor
     return WorktreeManager(
         entity_manager=entity_manager,  # type: ignore[arg-type]
         org_id="test_org",
+        project_id="test_project",
         repo_path=git_repo,
     )
 
@@ -122,6 +123,7 @@ class TestWorktreeCreate:
         manager = WorktreeManager(
             entity_manager=entity_manager,  # type: ignore[arg-type]
             org_id="test_org",
+            project_id="test_project",
             repo_path=git_repo,
             worktree_base=custom_base,
         )

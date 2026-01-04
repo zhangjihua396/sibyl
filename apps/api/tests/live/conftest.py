@@ -201,6 +201,7 @@ async def agent_runner(
     worktree_manager = WorktreeManager(
         entity_manager=entity_manager,  # type: ignore[arg-type]
         org_id="test_org",
+        project_id="test_project",
         repo_path=tmp_git_repo,
     )
 
