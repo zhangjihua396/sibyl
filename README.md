@@ -90,25 +90,19 @@ with persistent memory. Search by meaning, not keywords. Never lose an insight a
 ### Docker (Fastest)
 
 ```bash
-# Clone and configure
+# Clone and start (no config needed!)
 git clone https://github.com/hyperb1iss/sibyl.git
 cd sibyl
-cp .env.quickstart.example .env
+docker compose -f docker-compose.quickstart.yml up -d
 
-# Add your API keys to .env
-# SIBYL_OPENAI_API_KEY=sk-...     (required - for embeddings)
-# SIBYL_ANTHROPIC_API_KEY=sk-... (optional - for agents)
-
-# Start everything
-docker compose -f docker-compose.prod.yml up -d
-
-# Verify it's working
-curl http://localhost:3334/api/health
-# → {"status": "healthy", ...}
-
-# Open the web UI
+# Open the web UI and complete onboarding
 open http://localhost:3337
+# → Enter your API keys in the setup wizard
+# → Keys are saved securely to the database
 ```
+
+**Zero-config approach:** No `.env` file required! API keys are entered during onboarding and
+stored encrypted in the database. For advanced setup, see `.env.quickstart.example`.
 
 ### Development Setup
 
@@ -261,8 +255,6 @@ A full admin interface at `http://localhost:3337`:
 
 Connect Claude Code, Cursor, or any MCP client to Sibyl:
 
-### HTTP Mode (Recommended)
-
 ```json
 {
   "mcpServers": {
@@ -272,20 +264,6 @@ Connect Claude Code, Cursor, or any MCP client to Sibyl:
       "headers": {
         "Authorization": "Bearer sk_your_api_key"
       }
-    }
-  }
-}
-```
-
-### Subprocess Mode
-
-```json
-{
-  "mcpServers": {
-    "sibyl": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/sibyl/apps/api", "run", "sibyld", "serve", "-t", "stdio"],
-      "env": { "SIBYL_OPENAI_API_KEY": "sk-..." }
     }
   }
 }
