@@ -1,21 +1,24 @@
 # ============================================================================
-# Sibyl Quickstart - For Individual Developers
+# Sibyl Quickstart - Zero-Config for Individual Developers
 # ============================================================================
 #
-# Get running in 5 minutes with pre-built Docker images.
+# Get running in 5 minutes with pre-built Docker images. No .env file required!
 #
 # Quick Start:
-#   1. curl -fsSL https://get.sibyl.dev | bash
-#   Or manually:
-#   2. Copy this file and create .env with your API keys
-#   3. docker compose -f docker-compose.quickstart.yml up -d
-#   4. Open http://localhost:3337
+#   docker compose -f docker-compose.quickstart.yml up -d
+#   Open http://localhost:3337
+#   Complete onboarding (API keys entered via UI)
 #
-# Required Environment Variables:
-#   SIBYL_OPENAI_API_KEY      - For embeddings/semantic search
-#   SIBYL_ANTHROPIC_API_KEY   - For entity extraction and agents
+# All configuration happens through the web UI:
+#   - API keys saved to encrypted database storage
+#   - JWT secret auto-generated if not set
+#   - Default passwords suitable for local development
 #
-# The JWT secret is auto-generated if not provided.
+# Optional environment variables for advanced setup:
+#   SIBYL_OPENAI_API_KEY      - Pre-configure via env (or enter in UI)
+#   SIBYL_ANTHROPIC_API_KEY   - Pre-configure via env (or enter in UI)
+#   SIBYL_SETTINGS_KEY        - Fernet key for settings encryption (auto-generated)
+#   SIBYL_JWT_SECRET          - JWT signing key (auto-generated)
 #
 # ============================================================================
 
@@ -45,10 +48,11 @@ services:
       SIBYL_FALKORDB_PASSWORD: ${SIBYL_FALKORDB_PASSWORD:-sibyl_quickstart}
       # Auth - auto-generate if not provided
       SIBYL_JWT_SECRET: ${SIBYL_JWT_SECRET:-}
+      SIBYL_SETTINGS_KEY: ${SIBYL_SETTINGS_KEY:-}
       SIBYL_PUBLIC_URL: http://localhost:3337
-      # AI Providers (REQUIRED)
-      SIBYL_OPENAI_API_KEY: ${SIBYL_OPENAI_API_KEY:?Set SIBYL_OPENAI_API_KEY}
-      SIBYL_ANTHROPIC_API_KEY: ${SIBYL_ANTHROPIC_API_KEY:?Set SIBYL_ANTHROPIC_API_KEY}
+      # AI Providers (optional - can be configured via UI during onboarding)
+      SIBYL_OPENAI_API_KEY: ${SIBYL_OPENAI_API_KEY:-}
+      SIBYL_ANTHROPIC_API_KEY: ${SIBYL_ANTHROPIC_API_KEY:-}
       SIBYL_LLM_PROVIDER: anthropic
       SIBYL_LLM_MODEL: claude-haiku-4-5
       # Server config
@@ -82,8 +86,9 @@ services:
       SIBYL_FALKORDB_HOST: falkordb
       SIBYL_FALKORDB_PORT: 6379
       SIBYL_FALKORDB_PASSWORD: ${SIBYL_FALKORDB_PASSWORD:-sibyl_quickstart}
-      SIBYL_OPENAI_API_KEY: ${SIBYL_OPENAI_API_KEY:?Set SIBYL_OPENAI_API_KEY}
-      SIBYL_ANTHROPIC_API_KEY: ${SIBYL_ANTHROPIC_API_KEY:?Set SIBYL_ANTHROPIC_API_KEY}
+      SIBYL_SETTINGS_KEY: ${SIBYL_SETTINGS_KEY:-}
+      SIBYL_OPENAI_API_KEY: ${SIBYL_OPENAI_API_KEY:-}
+      SIBYL_ANTHROPIC_API_KEY: ${SIBYL_ANTHROPIC_API_KEY:-}
       SIBYL_LLM_PROVIDER: anthropic
       SIBYL_LLM_MODEL: claude-haiku-4-5
     restart: unless-stopped
