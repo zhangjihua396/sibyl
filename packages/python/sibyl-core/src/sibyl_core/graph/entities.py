@@ -189,6 +189,10 @@ class EntityManager:
             async with self._client.write_lock:
                 await node.save(self._driver)
 
+                # Persist structured properties (project_id, status, etc.) for graph filtering
+                # This ensures create_direct() nodes are queryable the same as create() nodes
+                await self._persist_entity_attributes(entity.id, entity)
+
             # Generate embedding for semantic search (name + summary combined)
             if generate_embedding:
                 try:
