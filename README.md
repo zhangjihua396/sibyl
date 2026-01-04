@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Persistent Memory & Agent Orchestration for Teams</strong>
+  <strong>Build With Agents That Remember</strong>
 </p>
 
 <p align="center">
@@ -43,15 +43,13 @@
 
 ## The Problem
 
-Your team's knowledge is scattered. Solutions live in Slack threads. Learnings die in commit
-messages. Every new team member repeats old mistakes. Your AI agents have amnesia—starting fresh
-every session, unable to build on what came before.
+Your AI agents have amnesia. Every session starts fresh—no memory of what worked, what failed, or what you learned yesterday. You're the bottleneck, repeating context endlessly.
 
-**Sibyl fixes this.**
+**What if your agents could remember?**
 
-Sibyl is a **knowledge graph** that connects everything your team learns. A **task system** that
-tracks progress and captures insights. An **agent orchestrator** that lets AI work alongside you
-with persistent memory. Search by meaning, not keywords. Never lose an insight again.
+Sibyl gives your AI agents **persistent memory** through a knowledge graph. Spawn a team of Claude agents that work autonomously on your codebase—each one building on shared learnings, coordinated through a task system, with you approving the important decisions.
+
+Solo dev? Your agents become your team. Actual team? Everyone's insights compound. Either way: **search by meaning, capture what you learn, never solve the same problem twice.**
 
 ## What You Get
 
@@ -385,13 +383,11 @@ moon run docker-down      # Stop databases
 
 ### Who is Sibyl for?
 
-**Teams** who want persistent, searchable knowledge. **Solo developers** building with AI who want
-agents that remember. **Anyone** tired of re-solving the same problems.
+**Solo developers** who want a team of AI agents working on their codebase—with memory that persists. **Teams** who want shared knowledge that compounds. **Anyone** building with AI who's tired of repeating context every session.
 
-### Is this just for AI agents?
+### Do I need AI agents to use Sibyl?
 
-No. Sibyl is a knowledge management system first. AI agents are a powerful use case, but teams use
-it for documentation, task tracking, and collaborative learning without any AI involvement.
+No. The knowledge graph and task system work great standalone—for documentation, task tracking, and capturing learnings. But agents are where Sibyl really shines: autonomous workers that share memory and coordinate through your graph.
 
 ### How does it compare to Mem0 / LangMem / similar?
 
