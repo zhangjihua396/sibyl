@@ -481,6 +481,44 @@ export function useUpdatePreferences() {
   });
 }
 
+/**
+ * Hook for tracking onboarding checklist progress.
+ * Returns current state and methods to mark items complete.
+ */
+export function useOnboardingProgress() {
+  const { data: prefsData, isLoading } = usePreferences();
+  const updatePrefs = useUpdatePreferences();
+
+  const checklist = prefsData?.preferences?.onboarding_checklist ?? {};
+
+  const markComplete = (
+    item: keyof import('./api').OnboardingChecklist
+  ) => {
+    if (checklist[item]) return; // Already complete
+    updatePrefs.mutate({
+      onboarding_checklist: {
+        ...checklist,
+        [item]: true,
+      },
+    });
+  };
+
+  const isAllComplete =
+    checklist.connected_claude &&
+    checklist.added_source &&
+    checklist.tried_search;
+
+  return {
+    checklist,
+    isLoading,
+    isAllComplete,
+    markComplete,
+    markConnectedClaude: () => markComplete('connected_claude'),
+    markAddedSource: () => markComplete('added_source'),
+    markTriedSearch: () => markComplete('tried_search'),
+  };
+}
+
 // =============================================================================
 // Entity Hooks
 // =============================================================================

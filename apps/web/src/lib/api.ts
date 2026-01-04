@@ -545,6 +545,13 @@ export interface PasswordChangeRequest {
   new_password: string;
 }
 
+// Onboarding checklist state
+export interface OnboardingChecklist {
+  connected_claude?: boolean;
+  added_source?: boolean;
+  tried_search?: boolean;
+}
+
 // User Preferences (flexible dict stored on user)
 export interface UserPreferences {
   theme?: 'light' | 'dark' | 'system';
@@ -556,6 +563,7 @@ export interface UserPreferences {
   notifyOnTaskAssigned?: boolean;
   notifyOnMention?: boolean;
   is_onboarded?: boolean; // Has user completed onboarding wizard
+  onboarding_checklist?: OnboardingChecklist;
   [key: string]: unknown; // Allow additional preferences
 }
 
