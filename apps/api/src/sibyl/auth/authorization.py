@@ -202,7 +202,7 @@ async def get_effective_project_role(
 async def list_accessible_project_graph_ids(
     session: AsyncSession,
     ctx: AuthContext,
-) -> set[str]:
+) -> set[str] | None:
     """Get all graph project IDs the user can access.
 
     Used for filtering graph queries. Returns graph_project_id strings.
@@ -212,7 +212,8 @@ async def list_accessible_project_graph_ids(
         ctx: Auth context with user and org info
 
     Returns:
-        Set of accessible graph_project_id strings
+        Set of accessible graph_project_id strings, or None to skip filtering
+        (during migration period when no projects are registered in Postgres)
     """
     if ctx.organization is None:
         return set()
@@ -220,6 +221,18 @@ async def list_accessible_project_graph_ids(
     org_id = ctx.organization.id
     user_id = ctx.user.id
     org_role = ctx.org_role
+
+    # Check if ANY projects exist in Postgres for this org
+    # If not, we're in migration period - skip filtering for org members
+    count_result = await session.execute(
+        select(Project.id).where(Project.organization_id == org_id).limit(1)
+    )
+    if count_result.first() is None:
+        # No projects registered yet - allow org members to access everything
+        if ctx.org_role is not None:
+            log.debug("project_rbac_migration_mode", org_id=str(org_id))
+            return None  # None means "skip filtering"
+        return set()
 
     # Org owner/admin can access all projects in org
     if org_role in ORG_ADMIN_ROLES:
