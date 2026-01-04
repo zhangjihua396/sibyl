@@ -1,9 +1,10 @@
 'use client';
 
 import Image from 'next/image';
-import { useSearchParams } from 'next/navigation';
-import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
+import { useSetupStatus } from '@/lib/hooks';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -36,12 +37,36 @@ function LoginSkeleton() {
 }
 
 function LoginContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const rawNext = searchParams.get('next');
   const error = searchParams.get('error');
+  const setupComplete = searchParams.get('setup') === 'complete';
   const next = getSafeRedirect(rawNext);
 
   const [mode, setMode] = useState<AuthMode>('signin');
+
+  // Check if setup is needed (no users exist)
+  const { data: setupStatus, isLoading: isCheckingSetup } = useSetupStatus();
+
+  // Redirect to /setup if this is a fresh install
+  useEffect(() => {
+    if (setupStatus?.needs_setup) {
+      router.replace('/setup');
+    }
+  }, [setupStatus, router]);
+
+  // Show loading while checking setup status
+  if (isCheckingSetup || setupStatus?.needs_setup) {
+    return (
+      <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-12 bg-sc-bg-dark">
+        <Spinner size="lg" color="purple" />
+        <p className="mt-4 text-sc-fg-muted text-sm">
+          {setupStatus?.needs_setup ? 'Redirecting to setup...' : 'Loading...'}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-12 bg-sc-bg-dark">
@@ -106,6 +131,11 @@ function LoginContent() {
 
           {/* Form Content - Fixed height container to prevent layout shift */}
           <div className="p-6">
+            {setupComplete && (
+              <div className="mb-4 text-sm px-3 py-2 rounded-lg border border-sc-green/30 bg-sc-green/10 text-sc-green">
+                Setup complete! Sign in to get started.
+              </div>
+            )}
             {error && (
               <div className="mb-4 text-sm px-3 py-2 rounded-lg border border-sc-red/30 bg-sc-red/10 text-sc-red animate-shake">
                 {error === 'invalid_credentials' ? 'Invalid email or password.' : error}

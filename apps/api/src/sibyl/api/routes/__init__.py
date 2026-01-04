@@ -16,6 +16,7 @@ from sibyl.api.routes.orgs import router as orgs_router
 from sibyl.api.routes.rag import router as rag_router
 from sibyl.api.routes.search import router as search_router
 from sibyl.api.routes.tasks import router as tasks_router
+from sibyl.api.routes.setup import router as setup_router
 from sibyl.api.routes.users import router as users_router
 
 __all__ = [
@@ -35,6 +36,7 @@ __all__ = [
     "orgs_router",
     "rag_router",
     "search_router",
+    "setup_router",
     "tasks_router",
     "users_router",
 ]

@@ -318,6 +318,33 @@ export interface StatsResponse {
 }
 
 // =============================================================================
+// Setup Wizard Types
+// =============================================================================
+
+export interface SetupStatus {
+  needs_setup: boolean;
+  has_users: boolean;
+  has_orgs: boolean;
+  openai_configured: boolean;
+  anthropic_configured: boolean;
+  openai_valid: boolean | null;
+  anthropic_valid: boolean | null;
+}
+
+export interface ApiKeyValidation {
+  openai_valid: boolean;
+  anthropic_valid: boolean;
+  openai_error: string | null;
+  anthropic_error: string | null;
+}
+
+export interface McpCommandResponse {
+  command: string;
+  server_url: string;
+  description: string;
+}
+
+// =============================================================================
 // Metrics Types
 // =============================================================================
 
@@ -2080,5 +2107,17 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(request),
       }),
+  },
+
+  // Setup wizard (no auth required - runs before first user exists)
+  setup: {
+    status: (validateKeys?: boolean) => {
+      const query = validateKeys ? '?validate_keys=true' : '';
+      return fetchApi<SetupStatus>(`/setup/status${query}`);
+    },
+
+    validateKeys: () => fetchApi<ApiKeyValidation>('/setup/validate-keys'),
+
+    mcpCommand: () => fetchApi<McpCommandResponse>('/setup/mcp-command'),
   },
 };

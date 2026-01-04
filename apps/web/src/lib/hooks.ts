@@ -83,6 +83,11 @@ export const queryKeys = {
     health: ['admin', 'health'] as const,
     stats: ['admin', 'stats'] as const,
   },
+  setup: {
+    status: ['setup', 'status'] as const,
+    validation: ['setup', 'validation'] as const,
+    mcpCommand: ['setup', 'mcp-command'] as const,
+  },
   tasks: {
     all: ['tasks'] as const,
     list: (params?: { project?: string; status?: TaskStatus }) => {
@@ -1805,5 +1810,48 @@ export function useHealthOverview(project_id?: string) {
     queryFn: () => api.agents.getHealthOverview(project_id ? { project_id } : undefined),
     // Only poll when WebSocket is disconnected (WS handles real-time updates)
     refetchInterval: isWsConnected ? false : 15000,
+  });
+}
+
+// =============================================================================
+// Setup Wizard Hooks
+// =============================================================================
+
+/**
+ * Check setup status - whether this is a fresh install needing configuration.
+ * This is a public endpoint that works before any users exist.
+ */
+export function useSetupStatus(options?: { validateKeys?: boolean; enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.setup.status,
+    queryFn: () => api.setup.status(options?.validateKeys),
+    enabled: options?.enabled ?? true,
+    staleTime: 30000, // Cache for 30 seconds
+    retry: false, // Don't retry on failure (server might be down)
+  });
+}
+
+/**
+ * Validate API keys are configured and working.
+ */
+export function useValidateApiKeys(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.setup.validation,
+    queryFn: () => api.setup.validateKeys(),
+    enabled: options?.enabled ?? true,
+    staleTime: 60000, // Cache for 1 minute
+    retry: 1, // One retry on timeout
+  });
+}
+
+/**
+ * Get the Claude Code MCP command for this server.
+ */
+export function useMcpCommand(options?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: queryKeys.setup.mcpCommand,
+    queryFn: () => api.setup.mcpCommand(),
+    enabled: options?.enabled ?? true,
+    staleTime: Infinity, // Never stale (URL doesn't change)
   });
 }
