@@ -412,3 +412,107 @@ def require_project_admin(project_id_param: str = "project_id", use_graph_id: bo
         project_id_param=project_id_param,
         use_graph_id=use_graph_id,
     )
+
+
+# =============================================================================
+# Entity-Based Authorization (for tasks, agents, etc.)
+# =============================================================================
+
+
+async def verify_entity_project_access(
+    session: AsyncSession,
+    ctx: AuthContext,
+    entity_project_id: str | None,
+    *,
+    required_role: ProjectRole = ProjectRole.VIEWER,
+) -> ProjectRole | None:
+    """Verify access to an entity's project.
+
+    For entities (tasks, agents, etc.) that have a project_id in their metadata,
+    this checks if the current user has access to that project.
+
+    Args:
+        session: Database session
+        ctx: Auth context
+        entity_project_id: The project_id from the entity's metadata (graph_project_id)
+        required_role: Minimum role required for access
+
+    Returns:
+        The effective role if access granted, None otherwise
+
+    Raises:
+        ProjectAuthorizationError: If user lacks required access
+    """
+    if ctx.organization is None:
+        raise ProjectAuthorizationError(
+            project_id=entity_project_id or "unknown",
+            required_role=required_role,
+            actual_role=None,
+        )
+
+    # If entity has no project, org members can access (unassigned entities)
+    if entity_project_id is None:
+        # Org members can access unassigned entities
+        if ctx.org_role is not None:
+            return ProjectRole.VIEWER
+        return None
+
+    # Resolve project and check access
+    try:
+        project = await resolve_project_by_graph_id(
+            session, ctx.organization.id, entity_project_id
+        )
+    except HTTPException:
+        # Project not registered in Postgres yet - allow org members
+        # This handles the migration period before all projects are synced
+        if ctx.org_role is not None:
+            return ProjectRole.VIEWER
+        return None
+
+    effective_role = await get_effective_project_role(session, ctx, project)
+
+    if effective_role is None:
+        raise ProjectAuthorizationError(
+            project_id=entity_project_id,
+            required_role=required_role,
+            actual_role=None,
+        )
+
+    min_required_level = PROJECT_ROLE_LEVELS[required_role]
+    if PROJECT_ROLE_LEVELS[effective_role] < min_required_level:
+        raise ProjectAuthorizationError(
+            project_id=entity_project_id,
+            required_role=required_role,
+            actual_role=effective_role,
+        )
+
+    return effective_role
+
+
+async def filter_accessible_entities(
+    session: AsyncSession,
+    ctx: AuthContext,
+    entities: list[Any],
+    project_id_getter: Callable[[Any], str | None] = lambda e: getattr(e, "project_id", None),
+) -> list[Any]:
+    """Filter a list of entities to only those the user can access.
+
+    Args:
+        session: Database session
+        ctx: Auth context
+        entities: List of entities to filter
+        project_id_getter: Function to extract project_id from an entity
+
+    Returns:
+        Filtered list of accessible entities
+    """
+    accessible_graph_ids = await list_accessible_project_graph_ids(session, ctx)
+
+    result = []
+    for entity in entities:
+        project_id = project_id_getter(entity)
+        # Include if: no project (unassigned), or project is accessible
+        if project_id is None or project_id in accessible_graph_ids:
+            result.append(entity)
+
+    return result

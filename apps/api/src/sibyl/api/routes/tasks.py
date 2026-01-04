@@ -9,9 +9,18 @@ from typing import Any
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sibyl.api.websocket import broadcast_event
-from sibyl.auth.dependencies import get_current_organization, get_current_user, require_org_role
+from sibyl.auth.authorization import ProjectRole, verify_entity_project_access
+from sibyl.auth.context import AuthContext
+from sibyl.auth.dependencies import (
+    get_auth_context,
+    get_current_organization,
+    get_current_user,
+    require_org_role,
+)
+from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationRole, User
 from sibyl_core.errors import EntityNotFoundError, InvalidTransitionError
 from sibyl_core.graph.client import get_graph_client
@@ -26,6 +35,28 @@ _WRITE_ROLES = (
     OrganizationRole.ADMIN,
     OrganizationRole.MEMBER,
 )
+
+
+async def _verify_task_access(
+    task_id: str,
+    org: Organization,
+    ctx: AuthContext,
+    session: AsyncSession,
+    required_role: ProjectRole = ProjectRole.CONTRIBUTOR,
+) -> None:
+    """Fetch a task and verify project access.
+
+    Raises ProjectAuthorizationError if user lacks required access.
+    """
+    client = await get_graph_client()
+    entity_manager = EntityManager(client, group_id=str(org.id))
+    entity = await entity_manager.get(task_id)
+    if not entity:
+        raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
+
+    # Extract project_id from entity metadata
+    project_id = entity.metadata.get("project_id") if entity.metadata else None
+    await verify_entity_project_access(session, ctx, project_id, required_role=required_role)
 
 router = APIRouter(
     prefix="/tasks",
@@ -123,10 +154,17 @@ async def create_task(
     request: CreateTaskRequest,
     org: Organization = Depends(get_current_organization),
     user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> TaskActionResponse:
     """Create a new task."""
     from sibyl_core.models.entities import Relationship, RelationshipType
     from sibyl_core.models.tasks import Task, TaskComplexity, TaskPriority, TaskStatus
+
+    # Verify user has write access to the target project
+    await verify_entity_project_access(
+        session, ctx, request.project_id, required_role=ProjectRole.CONTRIBUTOR
+    )
 
     try:
         client = await get_graph_client()
@@ -234,9 +272,14 @@ async def _broadcast_task_update(
 async def start_task(
     task_id: str,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
     request: StartTaskRequest | None = None,
 ) -> TaskActionResponse:
     """Start working on a task (moves to 'doing' status)."""
+    # Verify project access before modifying
+    await _verify_task_access(task_id, org, ctx, session)
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
@@ -278,8 +321,12 @@ async def block_task(
     task_id: str,
     request: BlockTaskRequest,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> TaskActionResponse:
     """Mark a task as blocked with a reason."""
+    await _verify_task_access(task_id, org, ctx, session)
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
@@ -319,8 +366,12 @@ async def block_task(
 async def unblock_task(
     task_id: str,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> TaskActionResponse:
     """Resume a blocked task (moves back to 'doing')."""
+    await _verify_task_access(task_id, org, ctx, session)
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
@@ -359,10 +410,14 @@ async def unblock_task(
 @router.post("/{task_id}/review", response_model=TaskActionResponse)
 async def submit_review(
     task_id: str,
-    request: ReviewTaskRequest | None = None,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
+    request: ReviewTaskRequest | None = None,
 ) -> TaskActionResponse:
     """Submit a task for review."""
+    await _verify_task_access(task_id, org, ctx, session)
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
@@ -403,11 +458,15 @@ async def submit_review(
 @router.post("/{task_id}/complete", response_model=TaskActionResponse)
 async def complete_task(
     task_id: str,
-    request: CompleteTaskRequest | None = None,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
+    request: CompleteTaskRequest | None = None,
 ) -> TaskActionResponse:
     """Complete a task and optionally capture learnings."""
     from sibyl.jobs.queue import enqueue_create_learning_episode
+
+    await _verify_task_access(task_id, org, ctx, session)
 
     try:
         group_id = str(org.id)
@@ -460,10 +519,14 @@ async def complete_task(
 @router.post("/{task_id}/archive", response_model=TaskActionResponse)
 async def archive_task(
     task_id: str,
-    request: ArchiveTaskRequest | None = None,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
+    request: ArchiveTaskRequest | None = None,
 ) -> TaskActionResponse:
     """Archive a task (terminal state)."""
+    await _verify_task_access(task_id, org, ctx, session)
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
@@ -506,10 +569,14 @@ async def update_task(
     request: UpdateTaskRequest,
     org: Organization = Depends(get_current_organization),
     user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> TaskActionResponse:
     """Update task fields directly."""
     from sibyl.locks import LockAcquisitionError, entity_lock
     from sibyl_core.models.entities import Relationship, RelationshipType
+
+    await _verify_task_access(task_id, org, ctx, session)
 
     group_id = str(org.id)
 
@@ -638,11 +705,15 @@ async def create_note(
     request: CreateNoteRequest,
     org: Organization = Depends(get_current_organization),
     user: User = Depends(get_current_user),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> NoteResponse:
     """Create a note on a task."""
     from datetime import UTC, datetime
 
     from sibyl_core.models.entities import Relationship, RelationshipType
+
+    await _verify_task_access(task_id, org, ctx, session)
 
     try:
         group_id = str(org.id)
@@ -717,8 +788,13 @@ async def list_notes(
     task_id: str,
     limit: int = 50,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> NotesListResponse:
     """List all notes for a task."""
+    # Read access is sufficient for listing notes
+    await _verify_task_access(task_id, org, ctx, session, required_role=ProjectRole.VIEWER)
+
     try:
         group_id = str(org.id)
         client = await get_graph_client()
