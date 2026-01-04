@@ -645,6 +645,215 @@ class TeamMember(TimestampMixin, table=True):
 
 
 # =============================================================================
+# Projects - Project-level RBAC
+# =============================================================================
+
+
+class ProjectRole(StrEnum):
+    """Role of a user within a project."""
+
+    OWNER = "project_owner"
+    MAINTAINER = "project_maintainer"
+    CONTRIBUTOR = "project_contributor"
+    VIEWER = "project_viewer"
+
+
+class ProjectVisibility(StrEnum):
+    """Visibility level for a project."""
+
+    PRIVATE = "private"  # Only explicit grants (plus org owner/admin override)
+    PROJECT = "project"  # Explicit grants via direct membership or teams
+    ORG = "org"  # All org members get default role
+
+
+class Project(TimestampMixin, table=True):
+    """A project within an organization.
+
+    Links Postgres (auth source of truth) to graph entities (graph_project_id).
+    Project RBAC is enforced here; graph queries filter by allowed projects.
+    """
+
+    __tablename__ = "projects"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_projects_org_slug_unique", "organization_id", "slug", unique=True),
+        Index("ix_projects_org_graph_id_unique", "organization_id", "graph_project_id", unique=True),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(foreign_key="organizations.id", index=True)
+
+    # Identity
+    name: str = Field(max_length=255, description="Project display name")
+    slug: str = Field(max_length=64, description="URL-safe slug (unique per org)")
+    description: str | None = Field(default=None, sa_type=Text, description="Project description")
+
+    # Graph linkage
+    graph_project_id: str = Field(
+        max_length=64,
+        description="Entity ID in knowledge graph (e.g. project_abc123)",
+    )
+
+    # Access control
+    visibility: ProjectVisibility = Field(
+        default=ProjectVisibility.ORG,
+        sa_column=Column(
+            Enum(
+                ProjectVisibility,
+                name="projectvisibility",
+                values_callable=lambda enum: [e.value for e in enum],
+            ),
+            nullable=False,
+            server_default=text("'org'"),
+        ),
+        description="Project visibility level",
+    )
+    default_role: ProjectRole = Field(
+        default=ProjectRole.VIEWER,
+        sa_column=Column(
+            Enum(
+                ProjectRole,
+                name="projectrole",
+                values_callable=lambda enum: [e.value for e in enum],
+            ),
+            nullable=False,
+            server_default=text("'project_viewer'"),
+        ),
+        description="Default role for org members when visibility=org",
+    )
+    owner_user_id: UUID = Field(
+        foreign_key="users.id",
+        index=True,
+        description="Project owner (can transfer ownership)",
+    )
+
+    # Settings
+    settings: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False, server_default=text("'{}'::jsonb")),
+        description="Project settings",
+    )
+
+    # Relationships
+    organization: Organization = Relationship()
+    owner: User = Relationship()
+    members: list["ProjectMember"] = Relationship(
+        back_populates="project",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+    team_grants: list["TeamProject"] = Relationship(
+        back_populates="project",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
+
+    def __repr__(self) -> str:
+        return f"<Project {self.slug} org={self.organization_id}>"
+
+
+class ProjectMember(TimestampMixin, table=True):
+    """Direct membership linking a user to a project."""
+
+    __tablename__ = "project_members"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_project_members_project_user_unique", "project_id", "user_id", unique=True),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(
+        foreign_key="organizations.id",
+        index=True,
+        description="Denormalized for RLS policies",
+    )
+    project_id: UUID = Field(foreign_key="projects.id", index=True)
+    user_id: UUID = Field(foreign_key="users.id", index=True)
+
+    role: ProjectRole = Field(
+        default=ProjectRole.CONTRIBUTOR,
+        sa_column=Column(
+            Enum(
+                ProjectRole,
+                name="projectrole",
+                values_callable=lambda enum: [e.value for e in enum],
+                create_type=False,  # Already created by Project
+            ),
+            nullable=False,
+            server_default=text("'project_contributor'"),
+        ),
+        description="Project membership role",
+    )
+
+    # Timestamps
+    joined_at: datetime = Field(default_factory=utcnow_naive, description="When user joined project")
+
+    project: Project = Relationship(back_populates="members")
+    user: User = Relationship()
+
+    def __repr__(self) -> str:
+        return f"<ProjectMember project={self.project_id} user={self.user_id} role={self.role}>"
+
+
+class TeamProject(TimestampMixin, table=True):
+    """Team-level grant to a project (all team members inherit this role)."""
+
+    __tablename__ = "team_projects"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_team_projects_team_project_unique", "team_id", "project_id", unique=True),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    organization_id: UUID = Field(
+        foreign_key="organizations.id",
+        index=True,
+        description="Denormalized for RLS policies",
+    )
+    team_id: UUID = Field(foreign_key="teams.id", index=True)
+    project_id: UUID = Field(foreign_key="projects.id", index=True)
+
+    role: ProjectRole = Field(
+        default=ProjectRole.CONTRIBUTOR,
+        sa_column=Column(
+            Enum(
+                ProjectRole,
+                name="projectrole",
+                values_callable=lambda enum: [e.value for e in enum],
+                create_type=False,
+            ),
+            nullable=False,
+            server_default=text("'project_contributor'"),
+        ),
+        description="Role granted to all team members for this project",
+    )
+
+    project: Project = Relationship(back_populates="team_grants")
+    team: Team = Relationship()
+
+    def __repr__(self) -> str:
+        return f"<TeamProject team={self.team_id} project={self.project_id} role={self.role}>"
+
+
+class ApiKeyProjectScope(TimestampMixin, table=True):
+    """Restrict an API key to specific projects (optional least-privilege)."""
+
+    __tablename__ = "api_key_project_scopes"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_api_key_project_scopes_key_project_unique", "api_key_id", "project_id", unique=True),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    api_key_id: UUID = Field(foreign_key="api_keys.id", index=True)
+    project_id: UUID = Field(foreign_key="projects.id", index=True)
+
+    # Optional: further restrict operations on this project
+    allowed_operations: list[str] = Field(
+        default_factory=list,
+        sa_type=ARRAY(String),
+        description="Allowed operations (empty = all allowed by key scopes)",
+    )
+
+    def __repr__(self) -> str:
+        return f"<ApiKeyProjectScope key={self.api_key_id} project={self.project_id}>"
+
+
+# =============================================================================
 # CrawlSource - Documentation sources to crawl
 # =============================================================================
 
