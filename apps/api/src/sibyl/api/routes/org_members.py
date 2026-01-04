@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from sibyl.api.websocket import broadcast_event
 from sibyl.auth.audit import AuditLogger
 from sibyl.auth.dependencies import get_current_user
 from sibyl.auth.memberships import OrganizationMembershipManager
@@ -78,6 +79,7 @@ async def add_member(
     request: Request,
     slug: str,
     body: MemberAddRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session_dependency),
 ):
@@ -97,6 +99,19 @@ async def add_member(
         request=request,
         details={"target_user_id": str(membership.user_id), "role": membership.role.value},
     )
+
+    # Broadcast permission change to affected user
+    background_tasks.add_task(
+        broadcast_event,
+        "permission_changed",
+        {
+            "user_id": str(body.user_id),
+            "change_type": "org_member_added",
+            "org_role": membership.role.value,
+        },
+        org_id=str(org_id),
+    )
+
     return {"user_id": str(membership.user_id), "role": membership.role.value}
 
 
@@ -106,6 +121,7 @@ async def update_member_role(
     slug: str,
     user_id: UUID,
     body: MemberRoleUpdateRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session_dependency),
 ):
@@ -125,6 +141,19 @@ async def update_member_role(
         request=request,
         details={"target_user_id": str(membership.user_id), "role": membership.role.value},
     )
+
+    # Broadcast permission change to affected user
+    background_tasks.add_task(
+        broadcast_event,
+        "permission_changed",
+        {
+            "user_id": str(user_id),
+            "change_type": "org_role_changed",
+            "org_role": membership.role.value,
+        },
+        org_id=str(org_id),
+    )
+
     return {"user_id": str(membership.user_id), "role": membership.role.value}
 
 
@@ -133,6 +162,7 @@ async def remove_member(
     request: Request,
     slug: str,
     user_id: UUID,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session_dependency),
 ):
@@ -157,4 +187,16 @@ async def remove_member(
         request=request,
         details={"target_user_id": str(user_id)},
     )
+
+    # Broadcast permission change to affected user
+    background_tasks.add_task(
+        broadcast_event,
+        "permission_changed",
+        {
+            "user_id": str(user_id),
+            "change_type": "org_member_removed",
+        },
+        org_id=str(org_id),
+    )
+
     return {"success": True}

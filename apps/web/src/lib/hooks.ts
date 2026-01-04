@@ -798,6 +798,14 @@ export function useRealtimeUpdates(isAuthenticated = false) {
       queryClient.invalidateQueries({ queryKey: queryKeys.search.all });
     });
 
+    // Permission changed - refresh auth data
+    const unsubPermission = wsClient.on('permission_changed', () => {
+      // Invalidate auth/me to refresh current user's permissions
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.me });
+      // Also invalidate org data in case role affects what's visible
+      queryClient.invalidateQueries({ queryKey: queryKeys.orgs.list });
+    });
+
     // Crawl started - refresh source to show crawling status
     const unsubCrawlStarted = wsClient.on('crawl_started', data => {
       queryClient.invalidateQueries({ queryKey: queryKeys.sources.detail(data.source_id) });
@@ -875,6 +883,7 @@ export function useRealtimeUpdates(isAuthenticated = false) {
       unsubDelete();
       unsubHealth();
       unsubSearch();
+      unsubPermission();
       unsubCrawlStarted();
       unsubCrawlProgress();
       unsubCrawlComplete();

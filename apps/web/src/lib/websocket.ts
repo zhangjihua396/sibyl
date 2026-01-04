@@ -90,6 +90,13 @@ export interface StatusHintPayload {
   hint: string;
 }
 
+/** Permission changed payload */
+export interface PermissionChangedPayload {
+  user_id: string;
+  change_type: 'org_member_added' | 'org_role_changed' | 'org_member_removed';
+  org_role?: string;
+}
+
 /** Map event types to their payload types */
 export interface WebSocketEventPayloadMap {
   entity_created: EntityEventPayload;
@@ -107,6 +114,7 @@ export interface WebSocketEventPayloadMap {
   agent_workspace: AgentWorkspacePayload;
   approval_response: ApprovalResponsePayload;
   status_hint: StatusHintPayload;
+  permission_changed: PermissionChangedPayload;
 }
 
 export type WebSocketEventType = keyof WebSocketEventPayloadMap;
