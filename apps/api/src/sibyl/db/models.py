@@ -1096,6 +1096,50 @@ class DocumentChunk(TimestampMixin, table=True):
 
 
 # =============================================================================
+# SystemSettings - System-wide configuration stored in database
+# =============================================================================
+
+
+class SystemSetting(TimestampMixin, table=True):
+    """System-wide configuration settings stored in the database.
+
+    Used for storing API keys and other configuration that should persist
+    in the database rather than environment variables. Supports encryption
+    for sensitive values.
+
+    Priority order for settings lookup:
+    1. Database (this table)
+    2. Environment variable
+    3. Default value
+    """
+
+    __tablename__ = "system_settings"  # type: ignore[assignment]
+
+    key: str = Field(
+        primary_key=True,
+        max_length=128,
+        description="Setting key (e.g., 'openai_api_key')",
+    )
+    value: str = Field(
+        sa_type=Text,
+        description="Setting value (encrypted if is_secret=True)",
+    )
+    is_secret: bool = Field(
+        default=False,
+        description="Whether this value is encrypted and should be masked in responses",
+    )
+    description: str | None = Field(
+        default=None,
+        max_length=512,
+        description="Human-readable description of the setting",
+    )
+
+    def __repr__(self) -> str:
+        masked = "***" if self.is_secret else self.value[:20]
+        return f"<SystemSetting key={self.key!r} value={masked!r}>"
+
+
+# =============================================================================
 # AgentMessage - Chat history for agent sessions
 # =============================================================================
 
