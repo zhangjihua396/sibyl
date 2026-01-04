@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { WelcomeBanner } from '@/components/dashboard';
 import { VelocityLineChart } from '@/components/metrics/charts';
 import {
   Activity,
@@ -154,6 +155,9 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
           <span>Dashboard</span>
         </span>
       </nav>
+
+      {/* Welcome Banner - Shows for new users with few entities */}
+      <WelcomeBanner totalEntities={stats?.total_entities ?? 0} />
 
       {/* Hero Section - System Overview */}
       <div className="bg-gradient-to-br from-sc-bg-base via-sc-bg-elevated to-sc-purple/5 border border-sc-fg-subtle/20 rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl shadow-black/10">
