@@ -31,8 +31,13 @@ class TestRoleHierarchy:
 
     def test_role_levels_order(self) -> None:
         """Verify role levels are correctly ordered."""
-        assert PROJECT_ROLE_LEVELS[ProjectRole.VIEWER] < PROJECT_ROLE_LEVELS[ProjectRole.CONTRIBUTOR]
-        assert PROJECT_ROLE_LEVELS[ProjectRole.CONTRIBUTOR] < PROJECT_ROLE_LEVELS[ProjectRole.MAINTAINER]
+        assert (
+            PROJECT_ROLE_LEVELS[ProjectRole.VIEWER] < PROJECT_ROLE_LEVELS[ProjectRole.CONTRIBUTOR]
+        )
+        assert (
+            PROJECT_ROLE_LEVELS[ProjectRole.CONTRIBUTOR]
+            < PROJECT_ROLE_LEVELS[ProjectRole.MAINTAINER]
+        )
         assert PROJECT_ROLE_LEVELS[ProjectRole.MAINTAINER] < PROJECT_ROLE_LEVELS[ProjectRole.OWNER]
 
     def test_max_role_single(self) -> None:
@@ -48,13 +53,16 @@ class TestRoleHierarchy:
             == ProjectRole.MAINTAINER
         )
         assert (
-            _max_role(ProjectRole.OWNER, ProjectRole.VIEWER, ProjectRole.CONTRIBUTOR) == ProjectRole.OWNER
+            _max_role(ProjectRole.OWNER, ProjectRole.VIEWER, ProjectRole.CONTRIBUTOR)
+            == ProjectRole.OWNER
         )
 
     def test_max_role_with_none(self) -> None:
         """_max_role ignores None values."""
         assert _max_role(None, ProjectRole.VIEWER) == ProjectRole.VIEWER
-        assert _max_role(ProjectRole.CONTRIBUTOR, None, ProjectRole.VIEWER) == ProjectRole.CONTRIBUTOR
+        assert (
+            _max_role(ProjectRole.CONTRIBUTOR, None, ProjectRole.VIEWER) == ProjectRole.CONTRIBUTOR
+        )
         assert _max_role(None, None, ProjectRole.OWNER) == ProjectRole.OWNER
 
     def test_max_role_all_none(self) -> None:
@@ -163,7 +171,9 @@ class TestGetEffectiveProjectRole:
         return user
 
     @pytest.mark.asyncio
-    async def test_org_owner_gets_project_owner(self, mock_project: MagicMock, mock_user: MagicMock) -> None:
+    async def test_org_owner_gets_project_owner(
+        self, mock_project: MagicMock, mock_user: MagicMock
+    ) -> None:
         """Org owner gets implicit project_owner."""
         ctx = MagicMock()
         ctx.user = mock_user
@@ -178,7 +188,9 @@ class TestGetEffectiveProjectRole:
         mock_session.execute.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_org_admin_gets_project_owner(self, mock_project: MagicMock, mock_user: MagicMock) -> None:
+    async def test_org_admin_gets_project_owner(
+        self, mock_project: MagicMock, mock_user: MagicMock
+    ) -> None:
         """Org admin gets implicit project_owner."""
         ctx = MagicMock()
         ctx.user = mock_user
@@ -236,7 +248,9 @@ class TestGetEffectiveProjectRole:
         assert result == ProjectRole.MAINTAINER
 
     @pytest.mark.asyncio
-    async def test_org_visibility_default(self, mock_project: MagicMock, mock_user: MagicMock) -> None:
+    async def test_org_visibility_default(
+        self, mock_project: MagicMock, mock_user: MagicMock
+    ) -> None:
         """Org visibility grants default role."""
         mock_project.visibility = ProjectVisibility.ORG
         mock_project.default_role = ProjectRole.VIEWER
@@ -354,7 +368,12 @@ class TestListAccessibleProjectGraphIds:
         team_result.all.return_value = [("proj_team",), ("proj_org1",)]  # overlap with org
 
         mock_session = AsyncMock()
-        mock_session.execute.side_effect = [migration_result, org_result, direct_result, team_result]
+        mock_session.execute.side_effect = [
+            migration_result,
+            org_result,
+            direct_result,
+            team_result,
+        ]
 
         result = await list_accessible_project_graph_ids(mock_session, ctx)
 
@@ -420,9 +439,10 @@ class TestProjectAuthorizationError:
 
         assert error.status_code == 403
         assert error.detail["error"] == "project_access_denied"
-        assert error.detail["project_id"] == "proj_123"
-        assert error.detail["required_role"] == "project_contributor"
-        assert error.detail["actual_role"] == "project_viewer"
+        # Fields are nested under "details"
+        assert error.detail["details"]["project_id"] == "proj_123"
+        assert error.detail["details"]["required_role"] == "project_contributor"
+        assert error.detail["details"]["actual_role"] == "project_viewer"
 
     def test_no_access(self) -> None:
         """Error handles None actual_role."""
@@ -432,7 +452,8 @@ class TestProjectAuthorizationError:
             actual_role=None,
         )
 
-        assert error.detail["actual_role"] is None
+        # actual_role is set to None when no access
+        assert error.detail["details"]["actual_role"] is None
 
 
 class TestRequireProjectRole:
