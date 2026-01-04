@@ -1,7 +1,7 @@
 'use client';
 
 import { memo } from 'react';
-import { AlertTriangle, Calendar, Clock, Pause, Zap } from '@/components/ui/icons';
+import { AlertTriangle, Calendar, Clock, LightBulb, Pause, Zap } from '@/components/ui/icons';
 import type { TaskPriority, TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG } from '@/lib/constants';
 
@@ -124,6 +124,9 @@ export const TaskCard = memo(function TaskCard({
   const feature = task.metadata.feature as string | undefined;
   const tags = (task.metadata.tags as string[]) ?? [];
 
+  const learnings = task.metadata.learnings as string | undefined;
+  const hasLearnings = Boolean(learnings?.trim());
+
   const isOverdue = dueDate && status !== 'done' && new Date(dueDate) < new Date();
   const isBlocked = status === 'blocked';
   const isDoing = status === 'doing';
@@ -212,11 +215,21 @@ export const TaskCard = memo(function TaskCard({
             {feature && <span className="text-[10px] text-sc-fg-subtle truncate">{feature}</span>}
           </div>
 
-          {/* Status indicator */}
-          <div className={`shrink-0 flex items-center gap-1 text-xs ${statusConfig?.textClass}`}>
-            {isBlocked && <Pause width={12} height={12} className="text-sc-yellow" />}
-            {isDoing && <Clock width={12} height={12} className="text-sc-purple animate-pulse" />}
-            {!isBlocked && !isDoing && <span className="opacity-60">{statusConfig?.icon}</span>}
+          {/* Learnings indicator + Status indicator */}
+          <div className="shrink-0 flex items-center gap-1.5">
+            {hasLearnings && (
+              <div
+                className="flex items-center justify-center w-5 h-5 rounded-full bg-sc-green/20"
+                title="Has learnings"
+              >
+                <LightBulb width={12} height={12} className="text-sc-green" />
+              </div>
+            )}
+            <div className={`flex items-center gap-1 text-xs ${statusConfig?.textClass}`}>
+              {isBlocked && <Pause width={12} height={12} className="text-sc-yellow" />}
+              {isDoing && <Clock width={12} height={12} className="text-sc-purple animate-pulse" />}
+              {!isBlocked && !isDoing && <span className="opacity-60">{statusConfig?.icon}</span>}
+            </div>
           </div>
         </div>
 
@@ -236,6 +249,13 @@ export const TaskCard = memo(function TaskCard({
         {/* Description preview */}
         {task.description && (
           <p className="text-xs text-sc-fg-subtle line-clamp-1 mt-1.5">{task.description}</p>
+        )}
+
+        {/* Learnings preview - show snippet for completed tasks with learnings */}
+        {hasLearnings && (
+          <div className="mt-2 px-2 py-1.5 rounded-lg bg-sc-green/10 border border-sc-green/20">
+            <p className="text-[11px] text-sc-green line-clamp-2 leading-relaxed">💡 {learnings}</p>
+          </div>
         )}
 
         {/* Tags */}
