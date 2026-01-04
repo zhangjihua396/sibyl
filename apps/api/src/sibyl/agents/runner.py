@@ -305,6 +305,7 @@ For comprehensive guidance, run `/sibyl` to access the full skill documentation.
         agent_type: AgentType,
         task: Task | None = None,
         custom_instructions: str | None = None,
+        cwd: str | None = None,
     ) -> str:
         """Build the system prompt for an agent.
 
@@ -312,11 +313,16 @@ For comprehensive guidance, run `/sibyl` to access the full skill documentation.
             agent_type: Type of agent being created
             task: Optional task for context
             custom_instructions: Additional instructions
+            cwd: Working directory for the agent
 
         Returns:
             Complete system prompt string
         """
         parts = [self.SYSTEM_PROMPT_PREAMBLE]
+
+        # Add working directory context if provided
+        if cwd:
+            parts.append(f"\n## Working Directory\n\nYour working directory is: `{cwd}`\n\nCreate and modify files in this directory. Use relative paths or paths within this directory.")
 
         # Add agent-type-specific instructions
         type_prompt = self.AGENT_TYPE_PROMPTS.get(agent_type, "")
@@ -439,11 +445,15 @@ Priority: {task.priority}
             record.worktree_path = worktree.path
             record.worktree_branch = worktree.branch
 
+        # Determine working directory
+        cwd = str(worktree_path) if worktree_path else None
+
         # Build system prompt
         system_prompt = self._build_system_prompt(
             agent_type=agent_type,
             task=task,
             custom_instructions=custom_instructions,
+            cwd=cwd,
         )
 
         # Create approval service if enabled
@@ -466,7 +476,6 @@ Priority: {task.priority}
         )
 
         # Build hooks: load user's Claude Code hooks + merge with Sibyl hooks
-        cwd = str(worktree_path) if worktree_path else None
         user_hooks = load_user_hooks(cwd=cwd)
         sibyl_hooks = create_sibyl_hooks(
             approval_service=approval_service,

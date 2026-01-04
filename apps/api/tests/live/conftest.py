@@ -73,10 +73,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 class LiveModelConfig:
     """Configuration for live model tests."""
 
-    model: str = field(default_factory=lambda: os.getenv("SIBYL_TEST_MODEL", "claude-sonnet-4-20250514"))
+    model: str = field(
+        default_factory=lambda: os.getenv("SIBYL_TEST_MODEL", "claude-sonnet-4-20250514")
+    )
     max_tokens: int = field(default_factory=lambda: int(os.getenv("SIBYL_TEST_MAX_TOKENS", "1024")))
     max_turns: int = field(default_factory=lambda: int(os.getenv("SIBYL_TEST_MAX_TURNS", "5")))
-    timeout_seconds: int = field(default_factory=lambda: int(os.getenv("SIBYL_TEST_TIMEOUT", "120")))
+    timeout_seconds: int = field(
+        default_factory=lambda: int(os.getenv("SIBYL_TEST_TIMEOUT", "120"))
+    )
 
 
 @dataclass
@@ -185,6 +189,7 @@ async def worktree_manager(tmp_git_repo: Path) -> AsyncGenerator[WorktreeManager
 @pytest.fixture
 async def agent_runner(
     tmp_git_repo: Path,
+    tmp_path: Path,
     live_model_config: LiveModelConfig,
     cost_tracker: CostTracker,
 ) -> AsyncGenerator[AgentRunner]:
@@ -198,12 +203,17 @@ async def agent_runner(
     from sibyl.agents.worktree import WorktreeManager
     from tests.test_agents import MockEntityManager, MockLockManager
 
+    # Use temp path for worktrees so agent sandbox can access them
+    worktree_base = tmp_path / "worktrees"
+    worktree_base.mkdir(parents=True, exist_ok=True)
+
     entity_manager = MockEntityManager()
     worktree_manager = WorktreeManager(
         entity_manager=entity_manager,  # type: ignore[arg-type]
         org_id="test_org",
         project_id="test_project",
         repo_path=tmp_git_repo,
+        worktree_base=worktree_base,
     )
 
     with patch("sibyl.agents.runner.EntityLockManager", return_value=MockLockManager()):
@@ -212,7 +222,7 @@ async def agent_runner(
             worktree_manager=worktree_manager,
             org_id="test_org",
             project_id="test_project",
-            add_dirs=[tempfile.gettempdir()],  # Allow temp dirs for test files
+            add_dirs=[str(tmp_path)],  # Allow temp dirs for test files and worktrees
             permission_mode="bypassPermissions",  # Auto-accept all tool usage in tests
         )
 

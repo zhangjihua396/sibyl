@@ -54,11 +54,18 @@ def get_commit_messages(repo: Path, count: int = 5) -> list[str]:
     return result.stdout.strip().split("\n")
 
 
-async def collect_messages(async_gen) -> list:
+async def collect_messages(async_gen, debug: bool = False) -> list:
     """Collect all messages from an async generator."""
     messages = []
     async for msg in async_gen:
         messages.append(msg)
+        if debug:
+            # Log message for debugging
+            msg_type = getattr(msg, "type", type(msg).__name__)
+            content = getattr(msg, "content", "")
+            if content:
+                preview = str(content)[:200] if isinstance(content, str) else str(content)[:200]
+                print(f"MSG[{msg_type}]: {preview}")  # noqa: T201
     return messages
 
 

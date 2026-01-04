@@ -49,7 +49,7 @@ class MockEntityManager:
     _entities: dict[str, Any] = field(default_factory=dict)
     _updates: list[tuple[str, dict]] = field(default_factory=list)
 
-    async def create_direct(self, entity: Any) -> None:
+    async def create_direct(self, entity: Any, **kwargs: Any) -> None:
         """Store entity without LLM extraction."""
         self._entities[entity.id] = entity
 
@@ -62,6 +62,14 @@ class MockEntityManager:
     async def get(self, entity_id: str) -> Any | None:
         """Get entity by ID."""
         return self._entities.get(entity_id)
+
+    async def search(self, query: str, **kwargs: Any) -> list[Any]:
+        """Mock search - returns empty results."""
+        return []
+
+    async def add_episode(self, *args: Any, **kwargs: Any) -> None:
+        """Mock episode creation."""
+        pass
 
 
 @dataclass
