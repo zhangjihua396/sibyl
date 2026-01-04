@@ -540,7 +540,10 @@ class TestRemoveMember:
         request = MagicMock()
         background = MagicMock()
 
-        with patch("sibyl.api.routes.project_members.AuditLogger"):
+        mock_audit_logger = MagicMock()
+        mock_audit_logger.return_value.log = AsyncMock()
+
+        with patch("sibyl.api.routes.project_members.AuditLogger", mock_audit_logger):
             result = await remove_member(
                 request=request,
                 project_id=uuid4(),
