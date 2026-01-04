@@ -164,6 +164,7 @@ async def search(
     category: str | None = None,
     status: str | None = None,
     project: str | None = None,
+    accessible_projects: set[str] | None = None,
     source: str | None = None,
     source_id: str | None = None,
     source_name: str | None = None,
@@ -385,6 +386,13 @@ async def search(
 
                 if project and _get_field(entity, "project_id") != project:
                     continue
+
+                # Filter by accessible projects (RBAC)
+                # Include entities that: have no project_id OR project_id is in accessible set
+                if accessible_projects is not None:
+                    entity_project = _get_field(entity, "project_id")
+                    if entity_project is not None and entity_project not in accessible_projects:
+                        continue
 
                 if source and _get_field(entity, "source_id") != source:
                     continue

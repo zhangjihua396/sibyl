@@ -39,6 +39,7 @@ async def explore(
     language: str | None = None,
     category: str | None = None,
     project: str | None = None,
+    accessible_projects: set[str] | None = None,
     epic: str | None = None,
     no_epic: bool = False,
     status: str | None = None,
@@ -174,12 +175,14 @@ async def explore(
                 filters=filters,
                 mode=mode,
                 group_id=organization_id,
+                accessible_projects=accessible_projects,
             )
         return await _explore_list(
             types=types,
             language=language,
             category=category,
             project=project,
+            accessible_projects=accessible_projects,
             epic=epic,
             no_epic=no_epic,
             status=status,
@@ -204,6 +207,7 @@ def _passes_entity_filters(
     language: str | None,
     category: str | None,
     project: str | None,
+    accessible_projects: set[str] | None,
     epic: str | None,
     status: str | None,
     priority: str | None,
@@ -213,6 +217,13 @@ def _passes_entity_filters(
     include_archived: bool,
 ) -> bool:
     """Check if an entity passes all specified filters."""
+    # RBAC: Filter by accessible projects
+    # Include entities that: have no project_id OR project_id is in accessible set
+    if accessible_projects is not None:
+        entity_project = _get_field(entity, "project_id")
+        if entity_project is not None and entity_project not in accessible_projects:
+            return False
+
     # Language filter
     if language:
         entity_langs = _get_field(entity, "languages", [])
@@ -295,6 +306,7 @@ async def _explore_list(
     language: str | None,
     category: str | None,
     project: str | None,
+    accessible_projects: set[str] | None,
     epic: str | None,
     no_epic: bool,
     status: str | None,
@@ -348,12 +360,23 @@ async def _explore_list(
         )
         all_entities.extend(entities)
 
-    # Apply remaining filters not handled by DB (language, category)
+    # Apply remaining filters not handled by DB (language, category, accessible_projects)
     filtered_entities = [
         entity
         for entity in all_entities
         if _passes_entity_filters(
-            entity, language, category, None, None, None, None, None, None, None, include_archived
+            entity,
+            language,
+            category,
+            None,  # project already filtered by DB
+            accessible_projects,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            include_archived,
         )
     ]
 
@@ -512,6 +535,7 @@ async def _explore_related(
     filters: dict[str, Any],
     mode: str,
     group_id: str,
+    accessible_projects: set[str] | None = None,
 ) -> ExploreResponse:
     """Find related entities via graph traversal."""
     if not entity_id:
@@ -545,6 +569,12 @@ async def _explore_related(
 
     results = []
     for entity, relationship in raw_results:
+        # RBAC: Filter by accessible projects
+        if accessible_projects is not None:
+            entity_project = _get_field(entity, "project_id")
+            if entity_project is not None and entity_project not in accessible_projects:
+                continue
+
         direction: Literal["outgoing", "incoming"] = (
             "outgoing" if relationship.source_id == entity_id else "incoming"
         )

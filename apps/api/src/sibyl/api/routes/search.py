@@ -8,9 +8,13 @@ from dataclasses import asdict
 
 import structlog
 from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from sibyl.api.schemas import ExploreRequest, ExploreResponse, SearchRequest, SearchResponse
-from sibyl.auth.dependencies import get_current_organization, require_org_role
+from sibyl.auth.authorization import list_accessible_project_graph_ids
+from sibyl.auth.context import AuthContext
+from sibyl.auth.dependencies import get_auth_context, get_current_organization, require_org_role
+from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationRole
 
 log = structlog.get_logger()
@@ -32,12 +36,17 @@ router = APIRouter(
 async def search(
     request: SearchRequest,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> SearchResponse:
     """Unified semantic search across knowledge graph AND documentation.
 
     Searches both Sibyl's knowledge graph (patterns, rules, episodes, tasks)
     and crawled documentation (via pgvector). Results are merged and ranked
     by relevance score.
+
+    Results are filtered to only include entities from projects the user
+    can access, plus unassigned entities.
 
     Use filters to narrow scope:
     - types: Limit to specific entity types (include 'document' for docs)
@@ -48,13 +57,28 @@ async def search(
         from sibyl_core.tools.core import search as core_search
 
         group_id = str(org.id)
+
+        # Get accessible project IDs for filtering
+        accessible_projects = await list_accessible_project_graph_ids(session, ctx)
+
+        # If user specified a project, validate they have access
+        project_filter = request.project
+        if project_filter and project_filter not in accessible_projects:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied to project: {project_filter}",
+            )
+
+        # Pass accessible projects to filter results
+        # If a specific project is requested, use that; otherwise use all accessible
         result = await core_search(
             query=request.query,
             types=request.types,
             language=request.language,
             category=request.category,
             status=request.status,
-            project=request.project,
+            project=project_filter,
+            accessible_projects=accessible_projects if not project_filter else None,
             source=request.source,
             source_id=request.source_id,
             source_name=request.source_name,
@@ -72,6 +96,8 @@ async def search(
 
         return SearchResponse(**asdict(result))
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception("search_failed", query=request.query, error=str(e))
         raise HTTPException(status_code=500, detail="Search failed. Please try again.") from e
@@ -81,12 +107,30 @@ async def search(
 async def explore(
     request: ExploreRequest,
     org: Organization = Depends(get_current_organization),
+    ctx: AuthContext = Depends(get_auth_context),
+    session: AsyncSession = Depends(get_session_dependency),
 ) -> ExploreResponse:
-    """Explore and traverse the knowledge graph."""
+    """Explore and traverse the knowledge graph.
+
+    Results are filtered to only include entities from projects the user
+    can access, plus unassigned entities.
+    """
     try:
         from sibyl_core.tools.core import explore as core_explore
 
         group_id = str(org.id)
+
+        # Get accessible project IDs for filtering
+        accessible_projects = await list_accessible_project_graph_ids(session, ctx)
+
+        # If user specified a project, validate they have access
+        project_filter = request.project
+        if project_filter and project_filter not in accessible_projects:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Access denied to project: {project_filter}",
+            )
+
         result = await core_explore(
             mode=request.mode,
             types=request.types,
@@ -95,7 +139,8 @@ async def explore(
             depth=request.depth,
             language=request.language,
             category=request.category,
-            project=request.project,
+            project=project_filter,
+            accessible_projects=accessible_projects if not project_filter else None,
             epic=request.epic,
             no_epic=request.no_epic,
             status=request.status,
@@ -128,6 +173,8 @@ async def explore(
             actual_total=getattr(result, "actual_total", None),
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         log.exception("explore_failed", mode=request.mode, error=str(e))
         raise HTTPException(status_code=500, detail="Explore failed. Please try again.") from e
