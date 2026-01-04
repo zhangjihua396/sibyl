@@ -483,14 +483,14 @@ SIBYL_MOCK_LLM=true moon run api:test -- -k agent
 # Infrastructure only
 SIBYL_MOCK_LLM=true uv run pytest apps/api/tests/test_agents_infra.py -v
 
-# Live tests (requires API key) - must explicitly include live directory
-uv run pytest apps/api/tests/live/ -v --live-models --no-cov
+# Live tests via moon (requires ANTHROPIC_API_KEY in .env)
+moon run api:test-live
 
-# Live tests with cost cap
-uv run pytest apps/api/tests/live/ -v --live-models --cost-limit=0.50 --no-cov
+# Live tests with custom cost cap
+moon run api:test-live -- --cost-limit=0.50
 
-# Specific scenario
-uv run pytest apps/api/tests/live/test_agents_live.py::test_agent_basic_response -v --live-models --no-cov
+# Specific live test scenario
+uv run pytest tests/live/test_agents_live.py::test_agent_basic_response -v --live-models --no-cov
 ```
 
-**Important:** When running live tests, use `--no-cov` to avoid coverage overhead on API calls.
+**Important:** Live tests use `--no-cov` to avoid coverage overhead on API calls.

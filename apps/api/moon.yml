@@ -78,6 +78,18 @@ tasks:
     options:
       envFile: ".env"
 
+  # Live model tests (requires ANTHROPIC_API_KEY)
+  test-live:
+    command: "uv run pytest tests/live/ --live-models --cost-limit=1.0 --no-cov -v"
+    deps:
+      - "root:sync"
+    inputs:
+      - "@group(sources)"
+      - "tests/live/**/*"
+    local: true  # Not cacheable - makes real API calls
+    options:
+      envFile: ".env"
+
   # Server
   serve:
     command: "uv run sibyld serve"
