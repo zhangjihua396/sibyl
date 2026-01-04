@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING
 
 import structlog
 
-from sibyl.config import settings
 from sibyl.db import DocumentChunk, get_session
+from sibyl.services.settings import get_settings_service
 from sibyl_core.graph.client import GraphClient
 
 if TYPE_CHECKING:
@@ -121,32 +121,25 @@ Do not infer entities that aren't explicitly present."""
         """
         self.model = model or "claude-haiku-4-5"
         self._client = None
-
-        # Validate API key on init (fail fast)
-        if not EntityExtractor._api_key_validated:
-            api_key = settings.anthropic_api_key.get_secret_value()
-            if not api_key:
-                log.error(
-                    "Anthropic API key not configured",
-                    hint="Set ANTHROPIC_API_KEY or SIBYL_ANTHROPIC_API_KEY environment variable",
-                )
-                raise ValueError(
-                    "Anthropic API key not configured. "
-                    "Set ANTHROPIC_API_KEY or SIBYL_ANTHROPIC_API_KEY."
-                )
-            EntityExtractor._api_key_validated = True
-            log.info("Entity extractor initialized", model=self.model)
+        # API key validation happens lazily in _get_client()
+        log.debug("Entity extractor initialized", model=self.model)
 
     async def _get_client(self):
         """Lazily initialize Anthropic client."""
         if self._client is None:
             from anthropic import AsyncAnthropic
 
-            api_key = settings.anthropic_api_key.get_secret_value()
+            service = get_settings_service()
+            api_key = await service.get_anthropic_key()
             if not api_key:
-                raise ValueError("Anthropic API key not configured")
+                raise ValueError(
+                    "Anthropic API key not configured (set via UI or SIBYL_ANTHROPIC_API_KEY)"
+                )
 
             self._client = AsyncAnthropic(api_key=api_key)
+            if not EntityExtractor._api_key_validated:
+                EntityExtractor._api_key_validated = True
+                log.info("Entity extractor API key validated", model=self.model)
 
         return self._client
 

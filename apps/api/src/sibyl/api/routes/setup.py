@@ -17,6 +17,7 @@ from sqlmodel import select
 from sibyl.config import settings
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, User
+from sibyl.services.settings import get_settings_service
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 log = structlog.get_logger()
@@ -49,16 +50,24 @@ class ApiKeyValidation(BaseModel):
     )
 
 
-async def _check_openai_key() -> tuple[bool, str | None]:
-    """Validate OpenAI API key by calling models endpoint."""
-    if not settings.openai_api_key:
+async def _check_openai_key(key: str | None = None) -> tuple[bool, str | None]:
+    """Validate OpenAI API key by calling models endpoint.
+
+    Args:
+        key: API key to validate. If None, fetches from SettingsService.
+    """
+    if key is None:
+        service = get_settings_service()
+        key = await service.get_openai_key()
+
+    if not key:
         return False, "No API key configured"
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(
                 "https://api.openai.com/v1/models",
-                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                headers={"Authorization": f"Bearer {key}"},
             )
             if response.status_code == 200:
                 return True, None
@@ -72,9 +81,17 @@ async def _check_openai_key() -> tuple[bool, str | None]:
         return False, str(e)
 
 
-async def _check_anthropic_key() -> tuple[bool, str | None]:
-    """Validate Anthropic API key by calling messages endpoint with minimal request."""
-    if not settings.anthropic_api_key:
+async def _check_anthropic_key(key: str | None = None) -> tuple[bool, str | None]:
+    """Validate Anthropic API key by calling messages endpoint with minimal request.
+
+    Args:
+        key: API key to validate. If None, fetches from SettingsService.
+    """
+    if key is None:
+        service = get_settings_service()
+        key = await service.get_anthropic_key()
+
+    if not key:
         return False, "No API key configured"
 
     try:
@@ -85,7 +102,7 @@ async def _check_anthropic_key() -> tuple[bool, str | None]:
             response = await client.post(
                 "https://api.anthropic.com/v1/messages",
                 headers={
-                    "x-api-key": settings.anthropic_api_key,
+                    "x-api-key": key,
                     "anthropic-version": "2023-06-01",
                     "content-type": "application/json",
                 },
@@ -130,8 +147,11 @@ async def get_setup_status(
     org_count = org_result.scalar() or 0
 
     # Check if API keys are configured (non-empty)
-    openai_configured = bool(settings.openai_api_key)
-    anthropic_configured = bool(settings.anthropic_api_key)
+    service = get_settings_service()
+    openai_key = await service.get_openai_key()
+    anthropic_key = await service.get_anthropic_key()
+    openai_configured = bool(openai_key)
+    anthropic_configured = bool(anthropic_key)
 
     # Optionally validate keys work
     openai_valid: bool | None = None
@@ -139,9 +159,9 @@ async def get_setup_status(
 
     if validate_keys:
         if openai_configured:
-            openai_valid, _ = await _check_openai_key()
+            openai_valid, _ = await _check_openai_key(openai_key)
         if anthropic_configured:
-            anthropic_valid, _ = await _check_anthropic_key()
+            anthropic_valid, _ = await _check_anthropic_key(anthropic_key)
 
     return SetupStatus(
         needs_setup=user_count == 0,
