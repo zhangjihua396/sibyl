@@ -1,4 +1,8 @@
-"""Project membership endpoints."""
+"""Project membership endpoints.
+
+Accepts both graph project IDs (project_abc123) and Postgres UUIDs.
+Graph IDs are resolved to Postgres projects internally.
+"""
 
 from __future__ import annotations
 
@@ -27,18 +31,60 @@ class MemberRoleUpdateRequest(BaseModel):
     role: ProjectRole
 
 
+async def _resolve_project(
+    project_id: str,
+    org: Organization,
+    session: AsyncSession,
+) -> Project:
+    """Resolve project by graph ID or Postgres UUID.
+
+    Args:
+        project_id: Either a graph ID (project_abc123) or Postgres UUID
+        org: Organization context
+        session: Database session
+
+    Returns:
+        Project model
+
+    Raises:
+        HTTPException: 404 if project not found or doesn't belong to org
+    """
+    project: Project | None = None
+
+    # Try as graph ID first (most common from frontend)
+    if project_id.startswith("project_"):
+        result = await session.execute(
+            select(Project).where(
+                Project.organization_id == org.id,
+                Project.graph_project_id == project_id,
+            )
+        )
+        project = result.scalar_one_or_none()
+    else:
+        # Try as UUID
+        try:
+            uuid_id = UUID(project_id)
+            project = await session.get(Project, uuid_id)
+            if project and project.organization_id != org.id:
+                project = None
+        except ValueError:
+            pass  # Not a valid UUID
+
+    if project is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+    return project
+
+
 async def _get_project_and_user_role(
     *,
-    project_id: UUID,
+    project_id: str,
     user: User,
     org: Organization,
     session: AsyncSession,
 ) -> tuple[Project, ProjectRole | None]:
     """Get project and current user's role in it."""
-    # Verify project exists and belongs to org
-    project = await session.get(Project, project_id)
-    if project is None or project.organization_id != org.id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+    project = await _resolve_project(project_id, org, session)
 
     # Check if user is project owner
     if project.owner_user_id == user.id:
@@ -69,21 +115,24 @@ def _can_manage_members(role: ProjectRole | None, project: Project, user: User) 
 
 @router.get("")
 async def list_members(
-    project_id: UUID,
+    project_id: str,
     user: User = Depends(get_current_user),
     org: Organization = Depends(get_current_organization),
     session: AsyncSession = Depends(get_session_dependency),
 ):
-    """List all members of a project."""
+    """List all members of a project.
+
+    Accepts graph project ID (project_abc123) or Postgres UUID.
+    """
     project, user_role = await _get_project_and_user_role(
         project_id=project_id, user=user, org=org, session=session
     )
 
-    # Get all direct members
+    # Get all direct members (use resolved project.id)
     result = await session.execute(
         select(ProjectMember, User)
         .join(User, User.id == ProjectMember.user_id)
-        .where(ProjectMember.project_id == project_id)
+        .where(ProjectMember.project_id == project.id)
     )
 
     members = []
@@ -134,14 +183,17 @@ async def list_members(
 @router.post("")
 async def add_member(
     request: Request,
-    project_id: UUID,
+    project_id: str,
     body: MemberAddRequest,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     org: Organization = Depends(get_current_organization),
     session: AsyncSession = Depends(get_session_dependency),
 ):
-    """Add a member to a project."""
+    """Add a member to a project.
+
+    Accepts graph project ID (project_abc123) or Postgres UUID.
+    """
     project, user_role = await _get_project_and_user_role(
         project_id=project_id, user=user, org=org, session=session
     )
@@ -154,20 +206,20 @@ async def add_member(
     if target_user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Check if already a member
+    # Check if already a member (use resolved project.id)
     existing = await session.execute(
         select(ProjectMember).where(
-            ProjectMember.project_id == project_id,
+            ProjectMember.project_id == project.id,
             ProjectMember.user_id == body.user_id,
         )
     )
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="User is already a member")
 
-    # Create membership
+    # Create membership (use resolved project.id)
     membership = ProjectMember(
         organization_id=org.id,
-        project_id=project_id,
+        project_id=project.id,
         user_id=body.user_id,
         role=body.role,
     )
@@ -206,7 +258,7 @@ async def add_member(
 @router.patch("/{user_id}")
 async def update_member_role(
     request: Request,
-    project_id: UUID,
+    project_id: str,
     user_id: UUID,
     body: MemberRoleUpdateRequest,
     background_tasks: BackgroundTasks,
@@ -214,7 +266,10 @@ async def update_member_role(
     org: Organization = Depends(get_current_organization),
     session: AsyncSession = Depends(get_session_dependency),
 ):
-    """Update a member's role in a project."""
+    """Update a member's role in a project.
+
+    Accepts graph project ID (project_abc123) or Postgres UUID.
+    """
     project, user_role = await _get_project_and_user_role(
         project_id=project_id, user=user, org=org, session=session
     )
@@ -229,10 +284,10 @@ async def update_member_role(
             detail="Cannot change project owner's role",
         )
 
-    # Find and update membership
+    # Find and update membership (use resolved project.id)
     result = await session.execute(
         select(ProjectMember).where(
-            ProjectMember.project_id == project_id,
+            ProjectMember.project_id == project.id,
             ProjectMember.user_id == user_id,
         )
     )
@@ -276,14 +331,17 @@ async def update_member_role(
 @router.delete("/{user_id}")
 async def remove_member(
     request: Request,
-    project_id: UUID,
+    project_id: str,
     user_id: UUID,
     background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     org: Organization = Depends(get_current_organization),
     session: AsyncSession = Depends(get_session_dependency),
 ):
-    """Remove a member from a project."""
+    """Remove a member from a project.
+
+    Accepts graph project ID (project_abc123) or Postgres UUID.
+    """
     project, user_role = await _get_project_and_user_role(
         project_id=project_id, user=user, org=org, session=session
     )
@@ -299,10 +357,10 @@ async def remove_member(
     if user.id != user_id and not _can_manage_members(user_role, project, user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
 
-    # Find and delete membership
+    # Find and delete membership (use resolved project.id)
     result = await session.execute(
         select(ProjectMember).where(
-            ProjectMember.project_id == project_id,
+            ProjectMember.project_id == project.id,
             ProjectMember.user_id == user_id,
         )
     )

@@ -82,6 +82,35 @@ class TestGetProjectAndUserRole:
     """Tests for _get_project_and_user_role helper."""
 
     @pytest.mark.asyncio
+    async def test_resolves_graph_id(self) -> None:
+        """Resolves project by graph ID (project_xxx)."""
+        user = MagicMock()
+        user.id = uuid4()
+        org = MagicMock()
+        org.id = uuid4()
+
+        project = MagicMock()
+        project.organization_id = org.id
+        project.owner_user_id = user.id
+
+        # Mock graph ID lookup returning project
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = project
+
+        session = AsyncMock()
+        session.execute.return_value = mock_result
+
+        result_project, role = await _get_project_and_user_role(
+            project_id="project_abc123",  # Graph ID format
+            user=user,
+            org=org,
+            session=session,
+        )
+
+        assert result_project == project
+        assert role == ProjectRole.OWNER
+
+    @pytest.mark.asyncio
     async def test_project_not_found(self) -> None:
         """Raises 404 when project not found."""
         user = MagicMock()
@@ -90,9 +119,14 @@ class TestGetProjectAndUserRole:
         session = AsyncMock()
         session.get.return_value = None
 
+        # Mock execute for graph ID check
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        session.execute.return_value = mock_result
+
         with pytest.raises(HTTPException) as exc_info:
             await _get_project_and_user_role(
-                project_id=uuid4(), user=user, org=org, session=session
+                project_id=str(uuid4()), user=user, org=org, session=session
             )
 
         assert exc_info.value.status_code == 404
@@ -110,9 +144,14 @@ class TestGetProjectAndUserRole:
         session = AsyncMock()
         session.get.return_value = project
 
+        # Mock execute for graph ID check (returns None, falls through to UUID lookup)
+        mock_result = MagicMock()
+        mock_result.scalar_one_or_none.return_value = None
+        session.execute.return_value = mock_result
+
         with pytest.raises(HTTPException) as exc_info:
             await _get_project_and_user_role(
-                project_id=uuid4(), user=user, org=org, session=session
+                project_id=str(uuid4()), user=user, org=org, session=session
             )
 
         assert exc_info.value.status_code == 404
@@ -133,7 +172,7 @@ class TestGetProjectAndUserRole:
         session.get.return_value = project
 
         result_project, role = await _get_project_and_user_role(
-            project_id=uuid4(), user=user, org=org, session=session
+            project_id=str(uuid4()), user=user, org=org, session=session
         )
 
         assert result_project == project
@@ -162,7 +201,7 @@ class TestGetProjectAndUserRole:
         session.execute.return_value = mock_result
 
         result_project, role = await _get_project_and_user_role(
-            project_id=uuid4(), user=user, org=org, session=session
+            project_id=str(uuid4()), user=user, org=org, session=session
         )
 
         assert result_project == project
@@ -188,7 +227,7 @@ class TestGetProjectAndUserRole:
         session.execute.return_value = mock_result
 
         result_project, role = await _get_project_and_user_role(
-            project_id=uuid4(), user=user, org=org, session=session
+            project_id=str(uuid4()), user=user, org=org, session=session
         )
 
         assert result_project == project
@@ -226,11 +265,13 @@ class TestListMembers:
         role_result.scalar_one_or_none.return_value = MagicMock(role=ProjectRole.MAINTAINER)
 
         session = AsyncMock()
-        session.get.side_effect = lambda model, pk: project if model.__name__ == "Project" else owner
+        session.get.side_effect = (
+            lambda model, pk: project if model.__name__ == "Project" else owner
+        )
         session.execute.side_effect = [role_result, member_result]
 
         result = await list_members(
-            project_id=project.id,
+            project_id=str(uuid4()),  # Pass string, not MagicMock
             user=user,
             org=org,
             session=session,
@@ -261,7 +302,7 @@ class TestListMembers:
         session.execute.return_value = member_result
 
         result = await list_members(
-            project_id=project.id,
+            project_id=str(uuid4()),  # Pass string, not MagicMock
             user=user,
             org=org,
             session=session,
@@ -299,7 +340,7 @@ class TestAddMember:
         with pytest.raises(HTTPException) as exc_info:
             await add_member(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 body=body,
                 background_tasks=background,
                 user=user,
@@ -332,7 +373,7 @@ class TestAddMember:
         with pytest.raises(HTTPException) as exc_info:
             await add_member(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 body=body,
                 background_tasks=background,
                 user=user,
@@ -375,7 +416,7 @@ class TestAddMember:
         with pytest.raises(HTTPException) as exc_info:
             await add_member(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 body=body,
                 background_tasks=background,
                 user=user,
@@ -418,7 +459,7 @@ class TestUpdateMemberRole:
         with pytest.raises(HTTPException) as exc_info:
             await update_member_role(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 user_id=owner_id,  # Trying to change owner
                 body=body,
                 background_tasks=background,
@@ -458,7 +499,7 @@ class TestUpdateMemberRole:
         with pytest.raises(HTTPException) as exc_info:
             await update_member_role(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 user_id=target_user_id,
                 body=body,
                 background_tasks=background,
@@ -500,7 +541,7 @@ class TestRemoveMember:
         with pytest.raises(HTTPException) as exc_info:
             await remove_member(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 user_id=owner_id,  # Trying to remove owner
                 background_tasks=background,
                 user=user,
@@ -546,7 +587,7 @@ class TestRemoveMember:
         with patch("sibyl.api.routes.project_members.AuditLogger", mock_audit_logger):
             result = await remove_member(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 user_id=user.id,  # Removing self
                 background_tasks=background,
                 user=user,
@@ -583,7 +624,7 @@ class TestRemoveMember:
         with pytest.raises(HTTPException) as exc_info:
             await remove_member(
                 request=request,
-                project_id=uuid4(),
+                project_id=str(uuid4()),
                 user_id=other_user_id,  # Removing someone else
                 background_tasks=background,
                 user=user,
