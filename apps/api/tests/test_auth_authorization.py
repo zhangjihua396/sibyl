@@ -310,17 +310,22 @@ class TestListAccessibleProjectGraphIds:
         ctx.user.id = uuid4()
         ctx.org_role = OrganizationRole.OWNER
 
-        mock_result = MagicMock()
-        mock_result.all.return_value = [("proj_1",), ("proj_2",), ("proj_3",)]
+        # First query: migration check (returns a project to indicate not in migration mode)
+        migration_result = MagicMock()
+        migration_result.first.return_value = (uuid4(),)  # Project exists
+
+        # Second query: get all projects
+        projects_result = MagicMock()
+        projects_result.all.return_value = [("proj_1",), ("proj_2",), ("proj_3",)]
 
         mock_session = AsyncMock()
-        mock_session.execute.return_value = mock_result
+        mock_session.execute.side_effect = [migration_result, projects_result]
 
         result = await list_accessible_project_graph_ids(mock_session, ctx)
 
         assert result == {"proj_1", "proj_2", "proj_3"}
-        # Should only query once for all projects
-        assert mock_session.execute.call_count == 1
+        # Migration check + project list query
+        assert mock_session.execute.call_count == 2
 
     @pytest.mark.asyncio
     async def test_member_gets_accessible(self) -> None:
@@ -331,6 +336,10 @@ class TestListAccessibleProjectGraphIds:
         ctx.user = MagicMock()
         ctx.user.id = uuid4()
         ctx.org_role = OrganizationRole.MEMBER
+
+        # First query: migration check (returns a project to indicate not in migration mode)
+        migration_result = MagicMock()
+        migration_result.first.return_value = (uuid4(),)  # Project exists
 
         # Org-visible projects
         org_result = MagicMock()
@@ -345,11 +354,57 @@ class TestListAccessibleProjectGraphIds:
         team_result.all.return_value = [("proj_team",), ("proj_org1",)]  # overlap with org
 
         mock_session = AsyncMock()
-        mock_session.execute.side_effect = [org_result, direct_result, team_result]
+        mock_session.execute.side_effect = [migration_result, org_result, direct_result, team_result]
 
         result = await list_accessible_project_graph_ids(mock_session, ctx)
 
         assert result == {"proj_org1", "proj_org2", "proj_direct", "proj_team"}
+
+    @pytest.mark.asyncio
+    async def test_migration_mode_returns_none(self) -> None:
+        """Returns None when no projects exist in Postgres (migration mode)."""
+        ctx = MagicMock()
+        ctx.organization = MagicMock()
+        ctx.organization.id = uuid4()
+        ctx.user = MagicMock()
+        ctx.user.id = uuid4()
+        ctx.org_role = OrganizationRole.MEMBER
+
+        # Migration check returns None (no projects in Postgres)
+        migration_result = MagicMock()
+        migration_result.first.return_value = None
+
+        mock_session = AsyncMock()
+        mock_session.execute.return_value = migration_result
+
+        result = await list_accessible_project_graph_ids(mock_session, ctx)
+
+        # Should return None to indicate skip filtering
+        assert result is None
+        # Should only do the migration check query
+        assert mock_session.execute.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_migration_mode_no_org_role_returns_empty(self) -> None:
+        """Returns empty set in migration mode when user has no org role."""
+        ctx = MagicMock()
+        ctx.organization = MagicMock()
+        ctx.organization.id = uuid4()
+        ctx.user = MagicMock()
+        ctx.user.id = uuid4()
+        ctx.org_role = None  # User has no org role
+
+        # Migration check returns None (no projects in Postgres)
+        migration_result = MagicMock()
+        migration_result.first.return_value = None
+
+        mock_session = AsyncMock()
+        mock_session.execute.return_value = migration_result
+
+        result = await list_accessible_project_graph_ids(mock_session, ctx)
+
+        # Should return empty set (no access without org membership)
+        assert result == set()
 
 
 class TestProjectAuthorizationError:
