@@ -1,12 +1,10 @@
 """Pytest configuration and fixtures."""
 
-import os
 import subprocess
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 import pytest
-
 
 # =============================================================================
 # pytest hooks
@@ -26,7 +24,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     """Auto-skip tests based on environment."""
     # Skip worktree tests if git not available
     try:
-        subprocess.run(["git", "--version"], check=True, capture_output=True)
+        subprocess.run(["git", "--version"], check=True, capture_output=True)  # noqa: S607
     except (subprocess.CalledProcessError, FileNotFoundError):
         skip_git = pytest.mark.skip(reason="git not available")
         for item in items:
@@ -40,7 +38,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 
 @pytest.fixture
-def tmp_git_repo(tmp_path: Path) -> Generator[Path, None, None]:
+def tmp_git_repo(tmp_path: Path) -> Generator[Path]:
     """Create a temporary git repository.
 
     Yields:
@@ -50,15 +48,15 @@ def tmp_git_repo(tmp_path: Path) -> Generator[Path, None, None]:
     repo_path.mkdir()
 
     # Initialize
-    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)  # noqa: S607
     subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "user.email", "test@example.com"],  # noqa: S607
         cwd=repo_path,
         check=True,
         capture_output=True,
     )
     subprocess.run(
-        ["git", "config", "user.name", "Test User"],
+        ["git", "config", "user.name", "Test User"],  # noqa: S607
         cwd=repo_path,
         check=True,
         capture_output=True,
@@ -66,15 +64,15 @@ def tmp_git_repo(tmp_path: Path) -> Generator[Path, None, None]:
 
     # Initial commit
     (repo_path / "README.md").write_text("# Test Repository\n")
-    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)  # noqa: S607
     subprocess.run(
-        ["git", "commit", "-m", "Initial commit"],
+        ["git", "commit", "-m", "Initial commit"],  # noqa: S607
         cwd=repo_path,
         check=True,
         capture_output=True,
     )
 
-    yield repo_path
+    return repo_path
 
 
 # =============================================================================

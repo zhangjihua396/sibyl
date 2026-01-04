@@ -39,15 +39,15 @@ def git_repo(tmp_path: Path) -> Path:
     repo.mkdir()
 
     # Initialize
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)  # noqa: S607
     subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "user.email", "test@example.com"],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,
     )
     subprocess.run(
-        ["git", "config", "user.name", "Test User"],
+        ["git", "config", "user.name", "Test User"],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,
@@ -56,9 +56,9 @@ def git_repo(tmp_path: Path) -> Path:
     # Initial commit
     (repo / "README.md").write_text("# Test Project\n")
     (repo / "main.py").write_text("print('hello')\n")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)  # noqa: S607
     subprocess.run(
-        ["git", "commit", "-m", "Initial commit"],
+        ["git", "commit", "-m", "Initial commit"],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,
@@ -68,7 +68,7 @@ def git_repo(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def entity_manager() -> "MockEntityManager":
+def entity_manager() -> MockEntityManager:
     """Create mock entity manager."""
     from tests.test_agents import MockEntityManager
 
@@ -76,7 +76,7 @@ def entity_manager() -> "MockEntityManager":
 
 
 @pytest.fixture
-def worktree_manager(git_repo: Path, entity_manager: "MockEntityManager") -> WorktreeManager:
+def worktree_manager(git_repo: Path, entity_manager: MockEntityManager) -> WorktreeManager:
     """Create WorktreeManager with test repo."""
     return WorktreeManager(
         entity_manager=entity_manager,  # type: ignore[arg-type]
@@ -90,7 +90,7 @@ def worktree_manager(git_repo: Path, entity_manager: "MockEntityManager") -> Wor
 def integration_manager(
     git_repo: Path,
     worktree_manager: WorktreeManager,
-    entity_manager: "MockEntityManager",
+    entity_manager: MockEntityManager,
 ) -> IntegrationManager:
     """Create IntegrationManager."""
     return IntegrationManager(
@@ -107,8 +107,8 @@ def integration_manager(
 
 def run_git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """Run git command in repo."""
-    return subprocess.run(
-        ["git", *args],
+    return subprocess.run(  # noqa: S603
+        ["git", *args],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,

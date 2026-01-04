@@ -33,15 +33,15 @@ def git_repo(tmp_path: Path) -> Path:
     repo.mkdir()
 
     # Initialize
-    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)  # noqa: S607
     subprocess.run(
-        ["git", "config", "user.email", "test@example.com"],
+        ["git", "config", "user.email", "test@example.com"],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,
     )
     subprocess.run(
-        ["git", "config", "user.name", "Test User"],
+        ["git", "config", "user.name", "Test User"],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,
@@ -49,9 +49,9 @@ def git_repo(tmp_path: Path) -> Path:
 
     # Initial commit
     (repo / "README.md").write_text("# Test\n")
-    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)  # noqa: S607
     subprocess.run(
-        ["git", "commit", "-m", "Initial"],
+        ["git", "commit", "-m", "Initial"],  # noqa: S607
         cwd=repo,
         check=True,
         capture_output=True,
@@ -61,7 +61,7 @@ def git_repo(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def entity_manager() -> "MockEntityManager":
+def entity_manager() -> MockEntityManager:
     """Create mock entity manager."""
     from tests.test_agents import MockEntityManager
 
@@ -69,7 +69,7 @@ def entity_manager() -> "MockEntityManager":
 
 
 @pytest.fixture
-def worktree_manager(git_repo: Path, entity_manager: "MockEntityManager") -> WorktreeManager:
+def worktree_manager(git_repo: Path, entity_manager: MockEntityManager) -> WorktreeManager:
     """Create WorktreeManager with test repo."""
     return WorktreeManager(
         entity_manager=entity_manager,  # type: ignore[arg-type]
@@ -113,7 +113,7 @@ class TestWorktreeCreate:
     async def test_create_worktree_custom_base(
         self,
         git_repo: Path,
-        entity_manager: "MockEntityManager",
+        entity_manager: MockEntityManager,
         tmp_path: Path,
     ) -> None:
         """Creates worktree in custom base directory."""
