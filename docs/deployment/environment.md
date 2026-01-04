@@ -265,6 +265,65 @@ stringData:
   SIBYL_FALKORDB_PASSWORD: "<falkordb-password>"
 ```
 
+## Running Multiple Instances
+
+You can run multiple Sibyl instances on the same machine (e.g., dev + test environments) by
+configuring different ports and container names.
+
+### Port Configuration
+
+| Variable                      | Default | Description             |
+| ----------------------------- | ------- | ----------------------- |
+| `SIBYL_SERVER_PORT`           | `3334`  | API/MCP server port     |
+| `SIBYL_WEB_PORT`              | `3337`  | Web frontend port       |
+| `SIBYL_FALKORDB_PORT`         | `6380`  | FalkorDB port           |
+| `SIBYL_FALKORDB_BROWSER_PORT` | `3335`  | FalkorDB Browser UI     |
+| `SIBYL_POSTGRES_PORT`         | `5433`  | PostgreSQL port         |
+| `SIBYL_BACKEND_URL`           | (auto)  | Backend URL for web app |
+
+### Quick Setup: Test Instance
+
+1. Create `.env.test` with offset ports (copy from `.env.test.example`):
+
+```bash
+COMPOSE_PROJECT_NAME=sibyl-test
+SIBYL_SERVER_PORT=3344
+SIBYL_WEB_PORT=3347
+SIBYL_FALKORDB_PORT=6390
+SIBYL_POSTGRES_PORT=5443
+SIBYL_POSTGRES_DB=sibyl_test
+```
+
+2. Start databases with isolated containers and volumes:
+
+```bash
+docker compose -p sibyl-test --env-file .env.test up -d
+```
+
+3. Start API pointing to test databases:
+
+```bash
+env $(cat .env.test | xargs) sibyld serve
+```
+
+4. Start web frontend:
+
+```bash
+SIBYL_WEB_PORT=3347 SIBYL_BACKEND_URL=http://localhost:3344 pnpm -C apps/web dev
+```
+
+### How It Works
+
+- `COMPOSE_PROJECT_NAME` isolates Docker containers and volumes (e.g., `sibyl-test-falkordb`)
+- Each port variable controls the corresponding service
+- `SIBYL_BACKEND_URL` tells the web frontend where to proxy API requests
+
+### Tips
+
+- Use `docker compose -p sibyl-test ps` to see test instance containers
+- Volumes are namespaced by project: `sibyl-test_falkordb_data` vs `sibyl_falkordb_data`
+- CLI contexts let you switch between instances: `sibyl context use test`
+
 ## Computed Properties
 
 The Settings class provides computed connection URLs:

@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3337",
+    "dev": "next dev --port ${SIBYL_WEB_PORT:-3337}",
     "build": "next build",
-    "start": "next start --port 3337",
+    "start": "next start --port ${SIBYL_WEB_PORT:-3337}",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "lint:all": "biome check --write --unsafe .",
@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
-    "generate:types": "openapi-typescript http://localhost:3334/api/openapi.json -o src/lib/api-types.ts",
+    "generate:types": "openapi-typescript http://localhost:${SIBYL_SERVER_PORT:-3334}/api/openapi.json -o src/lib/api-types.ts",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
