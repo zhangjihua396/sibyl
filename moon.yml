@@ -113,11 +113,13 @@ tasks:
       shell: true
 
   quickstart-test-stop:
-    command: "docker compose -f docker-compose.quickstart.yml -f docker-compose.quickstart.test.yml down"
+    command:
+      "docker compose -f docker-compose.quickstart.yml -f docker-compose.quickstart.test.yml down"
     local: true
 
   quickstart-test-logs:
-    command: "docker compose -f docker-compose.quickstart.yml -f docker-compose.quickstart.test.yml logs -f"
+    command:
+      "docker compose -f docker-compose.quickstart.yml -f docker-compose.quickstart.test.yml logs -f"
     local: true
     options:
       persistent: true

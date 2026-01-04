@@ -20,6 +20,7 @@ Location: `apps/api/tests/test_agents.py`
 - Fire-and-forget helpers
 
 **Run with:**
+
 ```bash
 SIBYL_MOCK_LLM=true uv run pytest apps/api/tests/test_agents.py
 ```
@@ -37,6 +38,7 @@ Tests that need real services (FalkorDB, Redis) but mock the LLM:
 - Lock contention scenarios
 
 **Run with:**
+
 ```bash
 SIBYL_MOCK_LLM=true uv run pytest apps/api/tests/test_agents_infra.py
 ```
@@ -55,6 +57,7 @@ Tests with real Claude API calls:
 - Cost tracking accuracy
 
 **Run with:**
+
 ```bash
 # Requires ANTHROPIC_API_KEY
 uv run pytest apps/api/tests/live/ -v --live-models
@@ -403,11 +406,11 @@ name: Agent Tests
 on:
   pull_request:
     paths:
-      - 'apps/api/src/sibyl/agents/**'
-      - 'apps/api/tests/test_agents*.py'
-      - 'apps/api/tests/live/**'
+      - "apps/api/src/sibyl/agents/**"
+      - "apps/api/tests/test_agents*.py"
+      - "apps/api/tests/live/**"
   schedule:
-    - cron: '0 6 * * *'  # Daily at 6am UTC
+    - cron: "0 6 * * *" # Daily at 6am UTC
 
 jobs:
   unit-tests:
@@ -423,10 +426,10 @@ jobs:
     services:
       falkordb:
         image: falkordb/falkordb:latest
-        ports: ['6380:6379']
+        ports: ["6380:6379"]
       redis:
         image: redis:7
-        ports: ['6379:6379']
+        ports: ["6379:6379"]
     steps:
       - uses: actions/checkout@v4
       - name: Run infrastructure tests
@@ -435,7 +438,9 @@ jobs:
 
   live-model-tests:
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name, 'run-live-tests')
+    if:
+      github.event_name == 'schedule' || contains(github.event.pull_request.labels.*.name,
+      'run-live-tests')
     steps:
       - uses: actions/checkout@v4
       - name: Run live model tests
@@ -470,8 +475,8 @@ apps/api/tests/
 
 ## Running Tests
 
-**Live tests are excluded from normal test runs by default** via `--ignore=tests/live` in
-pytest config. This ensures builds don't accidentally incur API costs.
+**Live tests are excluded from normal test runs by default** via `--ignore=tests/live` in pytest
+config. This ensures builds don't accidentally incur API costs.
 
 ```bash
 # Normal test run (excludes live tests)
