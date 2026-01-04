@@ -224,34 +224,18 @@ sibyl project create --name "Auth System" --description "OAuth and JWT implement
 Epics group related tasks into larger features or initiatives.
 
 ```bash
-# List epics in current project
-sibyl epic list
-
-# Create an epic
-sibyl epic create --title "User Authentication" --project proj_a1b2c3d4e5f6
-
-# Show epic with progress
-sibyl epic show epic_a1b2c3d4e5f6
-
-# Start working on an epic
-sibyl epic start epic_a1b2c3d4e5f6
-
-# List tasks in an epic
-sibyl epic tasks epic_a1b2c3d4e5f6
-
-# Complete an epic
-sibyl epic complete epic_a1b2c3d4e5f6
-
-# Update epic
-sibyl epic update epic_a1b2c3d4e5f6 --priority high --description "..."
+sibyl epic list                                    # List epics
+sibyl epic create --title "Auth System"            # Create epic
+sibyl epic show epic_abc123                        # Show with progress
+sibyl epic start epic_abc123                       # Start epic
+sibyl epic tasks epic_abc123                       # List tasks in epic
+sibyl epic complete epic_abc123                    # Complete epic
+sibyl epic roadmap                                 # Generate markdown summary
+sibyl epic roadmap -o roadmap.md --include-done   # Save to file with done tasks
 ```
 
-**Epic workflow:**
-
-1. Create epic for a feature initiative
-2. Create tasks under the epic (`sibyl task create --title "..." --epic epic_a1b2c3d4e5f6`)
-3. Work through tasks, epic progress updates automatically
-4. Complete epic when all tasks done
+**Workflow:** Create epic → create tasks with `--epic` flag → work tasks → `epic roadmap` to review
+→ complete
 
 ---
 

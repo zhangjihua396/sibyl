@@ -23,6 +23,7 @@ any -> archived
 - `sibyl epic archive` - Archive an epic
 - `sibyl epic update` - Update epic fields
 - `sibyl epic tasks` - List tasks in an epic
+- `sibyl epic roadmap` - Generate markdown roadmap document
 
 ---
 
@@ -417,6 +418,94 @@ sibyl task list --no-epic
 # Assign to epic
 sibyl task update task_xyz --epic epic_abc123
 ```
+
+## epic roadmap
+
+Generate a markdown roadmap document from epics and tasks.
+
+### Synopsis
+
+```bash
+sibyl epic roadmap [options]
+```
+
+### Options
+
+| Option           | Short | Default | Description                                    |
+| ---------------- | ----- | ------- | ---------------------------------------------- |
+| `--project`      | `-p`  | (auto)  | Project ID                                     |
+| `--status`       | `-s`  | (all)   | Filter epics: planning, in_progress, completed |
+| `--include-done` |       | false   | Include completed tasks in output              |
+| `--output`       | `-o`  | stdout  | Output file path                               |
+
+### Output Includes
+
+- **Overview table**: Epic counts by status
+- **Each epic**: Title, priority badge, status, description, progress bar
+- **Tasks by status**: To Do, In Progress, Blocked, Review, Done
+- **Priority markers**: 🔴 critical, 🟠 high on task names
+- **Key Learnings**: Aggregated learnings from completed tasks
+
+### Examples
+
+```bash
+# Generate roadmap to stdout
+sibyl epic roadmap
+
+# Save to file
+sibyl epic roadmap -o roadmap.md
+
+# Include completed tasks
+sibyl epic roadmap --include-done
+
+# Only in-progress epics
+sibyl epic roadmap --status in_progress
+
+# Specific project
+sibyl epic roadmap --project proj_abc123
+```
+
+### Example Output
+
+```markdown
+# Sibyl Roadmap
+
+_Generated: 2026-01-04 11:08_
+
+## Overview
+
+| Status      | Count  |
+| ----------- | ------ |
+| Planning    | 11     |
+| In Progress | 0      |
+| Completed   | 2      |
+| **Total**   | **13** |
+
+## Epics
+
+### 📋 Server Setup Wizard
+
+**ID:** `epic_b3145...` | **Priority:** 🔴 critical | **Status:** planning
+
+> Web-based first-run wizard that guides users through setup...
+
+**Progress:** `[████████████████░░░░]` 9/11 (82%)
+
+#### 📝 To Do
+
+- [ ] 🔴Backend: First-user-is-admin logic (`task_daab...`)
+
+**Done:** 8 task(s) _(use --include-done to show)_
+
+---
+
+## Key Learnings
+
+- **Replace inline SVGs** (Server Setup Wizard)
+  > Iconoir icons are already exported from @/components/ui/icons.tsx...
+```
+
+---
 
 ## Related Commands
 

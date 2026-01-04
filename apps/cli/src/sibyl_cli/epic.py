@@ -508,6 +508,274 @@ def update_epic(
     _update()
 
 
+@app.command("roadmap")
+def roadmap(
+    project: Annotated[str | None, typer.Option("-p", "--project", help="Project ID")] = None,
+    status: Annotated[
+        str | None,
+        typer.Option("-s", "--status", help="Filter epics: planning|in_progress|blocked|completed"),
+    ] = None,
+    include_done: Annotated[
+        bool, typer.Option("--include-done", help="Include completed tasks in output")
+    ] = False,
+    output: Annotated[
+        str | None, typer.Option("-o", "--output", help="Output file (default: stdout)")
+    ] = None,
+) -> None:
+    """Generate a markdown roadmap document from epics and tasks.
+
+    Creates a comprehensive summary including:
+    - Project overview with epic counts
+    - Each epic with progress bars and status
+    - Tasks grouped by status (todo, doing, blocked, review, done)
+    - Learnings extracted from completed tasks
+
+    Example:
+        sibyl epic roadmap                    # Current project roadmap
+        sibyl epic roadmap -o roadmap.md      # Save to file
+        sibyl epic roadmap --include-done     # Include completed tasks
+    """
+    from datetime import datetime
+
+    # Auto-resolve project from context if not explicitly set
+    effective_project = project
+    if not project:
+        effective_project = resolve_project_from_cwd()
+
+    @run_async
+    async def _roadmap() -> None:
+        client = get_client()
+
+        try:
+            # Get project info if we have one
+            project_name = effective_project or "All Projects"
+            if effective_project:
+                try:
+                    proj = await client.get_entity(effective_project)
+                    project_name = proj.get("name", effective_project)
+                except Exception:
+                    pass
+
+            # Get all epics
+            response = await client.explore(
+                mode="list",
+                types=["epic"],
+                status=status,
+                project=effective_project,
+                limit=100,
+            )
+            epics = response.get("entities", [])
+
+            # Filter by project if needed
+            if effective_project:
+                epics = [
+                    e for e in epics if e.get("metadata", {}).get("project_id") == effective_project
+                ]
+
+            # Sort by priority: critical > high > medium > low > someday
+            priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3, "someday": 4}
+            epics.sort(
+                key=lambda e: priority_order.get(e.get("metadata", {}).get("priority", "medium"), 2)
+            )
+
+            # Build markdown document
+            lines: list[str] = []
+            lines.append(f"# {project_name} Roadmap")
+            lines.append("")
+            lines.append(f"*Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}*")
+            lines.append("")
+
+            # Summary stats
+            total_epics = len(epics)
+            planning = sum(1 for e in epics if e.get("metadata", {}).get("status") == "planning")
+            in_progress = sum(
+                1 for e in epics if e.get("metadata", {}).get("status") == "in_progress"
+            )
+            completed = sum(1 for e in epics if e.get("metadata", {}).get("status") == "completed")
+
+            lines.append("## Overview")
+            lines.append("")
+            lines.append("| Status | Count |")
+            lines.append("|--------|-------|")
+            lines.append(f"| Planning | {planning} |")
+            lines.append(f"| In Progress | {in_progress} |")
+            lines.append(f"| Completed | {completed} |")
+            lines.append(f"| **Total** | **{total_epics}** |")
+            lines.append("")
+
+            if not epics:
+                lines.append("*No epics found.*")
+            else:
+                lines.append("## Epics")
+                lines.append("")
+
+                for epic in epics:
+                    epic_id = epic.get("id", "")
+                    epic_name = epic.get("name", "Untitled")
+                    epic_desc = epic.get("description", "")
+                    meta = epic.get("metadata", {})
+                    epic_status = meta.get("status", "planning")
+                    epic_priority = meta.get("priority", "medium")
+                    total_tasks = meta.get("total_tasks", 0)
+                    completed_tasks = meta.get("completed_tasks", 0)
+                    pct = round((completed_tasks / total_tasks * 100) if total_tasks > 0 else 0)
+
+                    # Epic header with status badge
+                    status_emoji = {
+                        "planning": "📋",
+                        "in_progress": "🚧",
+                        "blocked": "🚫",
+                        "completed": "✅",
+                        "archived": "📦",
+                    }.get(epic_status, "📋")
+
+                    priority_badge = {
+                        "critical": "🔴",
+                        "high": "🟠",
+                        "medium": "🟡",
+                        "low": "🟢",
+                        "someday": "⚪",
+                    }.get(epic_priority, "🟡")
+
+                    lines.append(f"### {status_emoji} {epic_name}")
+                    lines.append("")
+                    lines.append(
+                        f"**ID:** `{epic_id}` | **Priority:** {priority_badge} {epic_priority} | **Status:** {epic_status}"
+                    )
+                    lines.append("")
+
+                    if epic_desc:
+                        lines.append(f"> {epic_desc}")
+                        lines.append("")
+
+                    # Progress bar
+                    if total_tasks > 0:
+                        filled = int(pct / 5)  # 20 chars = 100%
+                        bar = "█" * filled + "░" * (20 - filled)
+                        lines.append(
+                            f"**Progress:** `[{bar}]` {completed_tasks}/{total_tasks} ({pct}%)"
+                        )
+                        lines.append("")
+
+                    # Get tasks for this epic
+                    tasks_response = await client.explore(
+                        mode="list",
+                        types=["task"],
+                        epic=epic_id,
+                        limit=100,
+                    )
+                    tasks = tasks_response.get("entities", [])
+
+                    if tasks:
+                        # Group by status
+                        by_status: dict[str, list] = {
+                            "todo": [],
+                            "doing": [],
+                            "blocked": [],
+                            "review": [],
+                            "done": [],
+                        }
+                        for t in tasks:
+                            t_status = t.get("metadata", {}).get("status", "todo")
+                            if t_status in by_status:
+                                by_status[t_status].append(t)
+                            else:
+                                by_status["todo"].append(t)
+
+                        # Output tasks by status
+                        for task_status, task_list in by_status.items():
+                            if not task_list:
+                                continue
+                            if task_status == "done" and not include_done:
+                                lines.append(
+                                    f"**Done:** {len(task_list)} task(s) *(use --include-done to show)*"
+                                )
+                                continue
+
+                            status_label = {
+                                "todo": "📝 To Do",
+                                "doing": "🔨 In Progress",
+                                "blocked": "🚫 Blocked",
+                                "review": "👀 In Review",
+                                "done": "✅ Completed",
+                            }.get(task_status, task_status)
+
+                            lines.append(f"#### {status_label}")
+                            lines.append("")
+
+                            for t in task_list:
+                                t_name = t.get("name", "Untitled")
+                                t_id = t.get("id", "")
+                                t_meta = t.get("metadata", {})
+                                t_priority = t_meta.get("priority", "medium")
+
+                                priority_marker = {
+                                    "critical": "🔴",
+                                    "high": "🟠",
+                                    "medium": "",
+                                    "low": "",
+                                    "someday": "",
+                                }.get(t_priority, "")
+
+                                checkbox = "x" if task_status == "done" else " "
+                                lines.append(f"- [{checkbox}] {priority_marker}{t_name} (`{t_id}`)")
+
+                                # Include learnings for completed tasks
+                                if task_status == "done" and t_meta.get("learnings"):
+                                    learnings = t_meta["learnings"]
+                                    # Truncate long learnings
+                                    if len(learnings) > 200:
+                                        learnings = learnings[:200] + "..."
+                                    lines.append(f"  - 💡 *{learnings}*")
+
+                            lines.append("")
+
+                    lines.append("---")
+                    lines.append("")
+
+            # Aggregate learnings section
+            lines.append("## Key Learnings")
+            lines.append("")
+
+            all_learnings: list[tuple[str, str, str]] = []  # (epic_name, task_name, learning)
+            for epic in epics:
+                epic_name = epic.get("name", "")
+                tasks_response = await client.explore(
+                    mode="list",
+                    types=["task"],
+                    epic=epic.get("id", ""),
+                    limit=100,
+                )
+                for t in tasks_response.get("entities", []):
+                    t_meta = t.get("metadata", {})
+                    if t_meta.get("learnings") and t_meta.get("status") == "done":
+                        all_learnings.append((epic_name, t.get("name", ""), t_meta["learnings"]))
+
+            if all_learnings:
+                for epic_name, task_name, learning in all_learnings[:20]:  # Limit to 20
+                    lines.append(f"- **{task_name}** ({epic_name})")
+                    lines.append(f"  > {learning}")
+                    lines.append("")
+            else:
+                lines.append("*No learnings captured yet.*")
+                lines.append("")
+
+            # Join and output
+            content = "\n".join(lines)
+
+            if output:
+                with open(output, "w") as f:
+                    f.write(content)
+                success(f"Roadmap written to {output}")
+            else:
+                console.print(content)
+
+        except SibylClientError as e:
+            _handle_client_error(e)
+
+    _roadmap()
+
+
 @app.command("tasks")
 def list_epic_tasks(
     epic_id: Annotated[str, typer.Argument(help="Epic ID to list tasks for")],
