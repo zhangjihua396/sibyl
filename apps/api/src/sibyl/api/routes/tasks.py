@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from sibyl.api.websocket import broadcast_event
-from sibyl.auth.dependencies import get_current_organization, require_org_role
-from sibyl.db.models import Organization, OrganizationRole
+from sibyl.auth.dependencies import get_current_organization, get_current_user, require_org_role
+from sibyl.db.models import Organization, OrganizationRole, User
 from sibyl_core.errors import EntityNotFoundError, InvalidTransitionError
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
@@ -122,6 +122,7 @@ class CreateTaskRequest(BaseModel):
 async def create_task(
     request: CreateTaskRequest,
     org: Organization = Depends(get_current_organization),
+    user: User = Depends(get_current_user),
 ) -> TaskActionResponse:
     """Create a new task."""
     from sibyl_core.models.entities import Relationship, RelationshipType
@@ -132,7 +133,7 @@ async def create_task(
         entity_manager = EntityManager(client, group_id=str(org.id))
         relationship_manager = RelationshipManager(client, group_id=str(org.id))
 
-        # Create task entity
+        # Create task entity with actor attribution
         task = Task(  # type: ignore[call-arg]  # model_validator sets name from title
             id=str(uuid.uuid4()),
             title=request.title,
@@ -146,6 +147,7 @@ async def create_task(
             feature=request.feature,
             tags=request.tags,
             technologies=request.technologies,
+            created_by=str(user.id),
         )
 
         # Create in graph
@@ -503,6 +505,7 @@ async def update_task(
     task_id: str,
     request: UpdateTaskRequest,
     org: Organization = Depends(get_current_organization),
+    user: User = Depends(get_current_user),
 ) -> TaskActionResponse:
     """Update task fields directly."""
     from sibyl.locks import LockAcquisitionError, entity_lock
@@ -527,8 +530,8 @@ async def update_task(
             if not existing:
                 raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
 
-            # Build update dict
-            update_data: dict[str, Any] = {}
+            # Build update dict with actor attribution
+            update_data: dict[str, Any] = {"modified_by": str(user.id)}
             if request.status is not None:
                 update_data["status"] = request.status
             if request.priority is not None:
@@ -634,6 +637,7 @@ async def create_note(
     task_id: str,
     request: CreateNoteRequest,
     org: Organization = Depends(get_current_organization),
+    user: User = Depends(get_current_user),
 ) -> NoteResponse:
     """Create a note on a task."""
     from datetime import UTC, datetime
@@ -651,7 +655,7 @@ async def create_note(
         if not task:
             raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
 
-        # Create note entity
+        # Create note entity with actor attribution
         note_id = f"note_{uuid.uuid4()}"
         created_at = datetime.now(UTC)
 
@@ -662,6 +666,7 @@ async def create_note(
             author_type=request.author_type,
             author_name=request.author_name,
             created_at=created_at,
+            created_by=str(user.id),
         )
 
         # Create in graph
