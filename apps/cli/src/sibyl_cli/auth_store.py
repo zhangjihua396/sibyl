@@ -2,12 +2,20 @@
 
 All tokens are stored per-server under `servers[api_url]` in ~/.sibyl/auth.json.
 The context system determines which server URL to use.
+
+Security:
+- File permissions are enforced at 0600 (user read/write only)
+- Directory permissions are enforced at 0700 (user only)
+- Atomic writes prevent partial file corruption
+- Token values are redacted in any logging
 """
 
 from __future__ import annotations
 
 import json
 import os
+import stat
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -16,6 +24,72 @@ from urllib.parse import urlsplit, urlunsplit
 
 def auth_path() -> Path:
     return Path.home() / ".sibyl" / "auth.json"
+
+
+def _ensure_secure_dir(path: Path) -> None:
+    """Ensure directory exists with secure permissions (0700).
+
+    Creates parent directories if needed, all with 0700 permissions.
+    On Windows, this is best-effort (no chmod equivalent).
+    """
+    if path.exists():
+        # Verify and fix permissions if needed
+        if os.name != "nt":
+            try:
+                current_mode = stat.S_IMODE(os.stat(path).st_mode)
+                if current_mode != 0o700:
+                    os.chmod(path, 0o700)
+            except OSError:
+                pass
+        return
+
+    # Create with secure permissions
+    if os.name != "nt":
+        # Create with umask to ensure 0700
+        old_umask = os.umask(0o077)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        finally:
+            os.umask(old_umask)
+    else:
+        path.mkdir(parents=True, exist_ok=True)
+
+
+def _secure_write(path: Path, content: str) -> None:
+    """Write file atomically with secure permissions (0600).
+
+    Uses atomic write pattern: write to temp file, then rename.
+    This prevents partial writes and race conditions.
+    """
+    _ensure_secure_dir(path.parent)
+
+    if os.name != "nt":
+        # Unix: use atomic write with secure permissions
+        fd = None
+        tmp_path = None
+        try:
+            # Create temp file in same directory (for atomic rename)
+            fd, tmp_path = tempfile.mkstemp(
+                dir=path.parent,
+                prefix=".auth_",
+                suffix=".tmp",
+            )
+            # Set permissions before writing content
+            os.fchmod(fd, 0o600)
+            os.write(fd, content.encode("utf-8"))
+            os.close(fd)
+            fd = None
+            # Atomic rename
+            os.rename(tmp_path, path)
+            tmp_path = None
+        finally:
+            if fd is not None:
+                os.close(fd)
+            if tmp_path is not None and os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+    else:
+        # Windows: best-effort (no atomic rename guarantee)
+        path.write_text(content, encoding="utf-8")
 
 
 def read_auth_data(path: Path | None = None) -> dict[str, Any]:
@@ -30,15 +104,8 @@ def read_auth_data(path: Path | None = None) -> dict[str, Any]:
 
 def write_auth_data(data: dict[str, Any], path: Path | None = None) -> None:
     p = path or auth_path()
-    p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    # Best-effort hardening: keep tokens readable only by the current user.
-    if os.name != "nt":
-        try:
-            os.chmod(p, 0o600)
-            os.chmod(p.parent, 0o700)
-        except Exception:
-            pass
+    content = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    _secure_write(p, content)
 
 
 def normalize_api_url(api_url: str) -> str:
