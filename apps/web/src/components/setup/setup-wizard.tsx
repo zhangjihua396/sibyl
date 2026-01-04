@@ -19,7 +19,6 @@ const STEPS: SetupStep[] = ['welcome', 'api-keys', 'admin', 'connect'];
 
 export function SetupWizard({ initialStatus, onComplete }: SetupWizardProps) {
   const [step, setStep] = useState<SetupStep>('welcome');
-  const [_apiKeysValid, setApiKeysValid] = useState(false);
 
   const currentIndex = STEPS.indexOf(step);
   const isLastStep = step === 'connect';
@@ -40,7 +39,6 @@ export function SetupWizard({ initialStatus, onComplete }: SetupWizardProps) {
 
   const handleApiKeysValidated = useCallback(
     (valid: boolean) => {
-      setApiKeysValid(valid);
       if (valid) {
         handleNext();
       }

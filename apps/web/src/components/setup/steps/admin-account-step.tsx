@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { Spinner } from '@/components/ui/spinner';
 
@@ -10,7 +9,6 @@ interface AdminAccountStepProps {
 }
 
 export function AdminAccountStep({ onBack, onAccountCreated }: AdminAccountStepProps) {
-  const _router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
