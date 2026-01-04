@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  ClipboardCheck,
-  Code,
-  LightBulb,
-  Page,
-} from '@/components/ui/icons';
+import { ClipboardCheck, Code, LightBulb, Page } from '@/components/ui/icons';
 
 interface WelcomeStepProps {
   onNext: () => void;

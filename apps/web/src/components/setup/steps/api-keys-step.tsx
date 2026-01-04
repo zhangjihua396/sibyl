@@ -1,13 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Check,
-  HelpCircle,
-  Key,
-  WarningTriangle,
-  Xmark,
-} from '@/components/ui/icons';
+import { Check, HelpCircle, Key, WarningTriangle, Xmark } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
 import type { SetupStatus } from '@/lib/api';
 import { useValidateApiKeys } from '@/lib/hooks';

@@ -1,14 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Check,
-  CheckCircle,
-  ClipboardCheck,
-  Copy,
-  Plus,
-  Search,
-} from '@/components/ui/icons';
+import { Check, CheckCircle, ClipboardCheck, Copy, Plus, Search } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
 import { useMcpCommand } from '@/lib/hooks';
 
@@ -49,7 +42,7 @@ export function ConnectClaudeStep({ onFinish }: ConnectClaudeStepProps) {
       {/* MCP Command */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <label className="text-sm font-medium text-sc-fg-secondary">Connect Claude Code</label>
+          <span className="text-sm font-medium text-sc-fg-secondary">Connect Claude Code</span>
           <span className="text-xs text-sc-fg-subtle">Run this in your terminal</span>
         </div>
 

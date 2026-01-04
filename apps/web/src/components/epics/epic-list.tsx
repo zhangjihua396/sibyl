@@ -1,8 +1,8 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import type { EpicSummary } from '@/lib/api';
 import { EpicsEmptyState } from '@/components/ui/empty-state';
+import type { EpicSummary } from '@/lib/api';
 import { EpicCard, EpicCardSkeleton } from './epic-card';
 
 interface EpicListProps {

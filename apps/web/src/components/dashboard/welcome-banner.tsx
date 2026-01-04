@@ -9,8 +9,8 @@ import {
   Check,
   Network,
   Search,
-  Sparks,
   Sparkles,
+  Sparks,
   Xmark,
 } from '@/components/ui/icons';
 import { useOnboardingProgress, useSetupStatus } from '@/lib/hooks';

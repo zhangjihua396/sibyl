@@ -57,9 +57,7 @@ export function ConnectClaudeModal({ open, onOpenChange }: ConnectClaudeModalPro
               1
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-sc-fg-primary mb-1">
-                Open your terminal
-              </p>
+              <p className="text-sm font-medium text-sc-fg-primary mb-1">Open your terminal</p>
               <p className="text-xs text-sc-fg-muted">
                 Make sure you have Claude Code CLI installed
               </p>
@@ -72,9 +70,7 @@ export function ConnectClaudeModal({ open, onOpenChange }: ConnectClaudeModalPro
               2
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-sc-fg-primary mb-2">
-                Run this command
-              </p>
+              <p className="text-sm font-medium text-sc-fg-primary mb-2">Run this command</p>
               {isLoading ? (
                 <div className="flex items-center justify-center py-3 bg-sc-bg-elevated rounded-lg border border-sc-fg-subtle/10">
                   <Spinner size="sm" color="purple" />
@@ -108,11 +104,10 @@ export function ConnectClaudeModal({ open, onOpenChange }: ConnectClaudeModalPro
               3
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-sc-fg-primary mb-1">
-                Start using Sibyl
-              </p>
+              <p className="text-sm font-medium text-sc-fg-primary mb-1">Start using Sibyl</p>
               <p className="text-xs text-sc-fg-muted">
-                Claude Code will now have access to your knowledge graph. Try asking it to search or add knowledge!
+                Claude Code will now have access to your knowledge graph. Try asking it to search or
+                add knowledge!
               </p>
             </div>
           </div>

@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { AgentsEmptyState } from '@/components/ui/empty-state';
 import {
   Archive,
   ChevronDown,
@@ -26,7 +27,6 @@ import {
   Plus,
   StopCircle,
 } from '@/components/ui/icons';
-import { AgentsEmptyState } from '@/components/ui/empty-state';
 import { LoadingState } from '@/components/ui/spinner';
 import { FilterChip } from '@/components/ui/toggle';
 import { ErrorState } from '@/components/ui/tooltip';
