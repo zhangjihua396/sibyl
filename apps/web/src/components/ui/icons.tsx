@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Circle,
   Clock,
+  ClipboardCheck,
   Code,
   Collapse,
   Combine,
@@ -39,10 +40,13 @@ import {
   GraphUp,
   Group,
   Hashtag,
+  HelpCircle,
   InfoCircle,
   KanbanBoard,
+  Key,
   KeyCommand,
   Label,
+  LightBulb,
   Link,
   List,
   Menu as MenuIcon,
@@ -210,6 +214,11 @@ export {
   SortUp,
   Square,
   Combine,
+  // Setup wizard icons
+  Key,
+  LightBulb,
+  ClipboardCheck,
+  HelpCircle,
 };
 
 // =============================================================================

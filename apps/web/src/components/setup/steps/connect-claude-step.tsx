@@ -1,6 +1,14 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Check,
+  CheckCircle,
+  ClipboardCheck,
+  Copy,
+  Plus,
+  Search,
+} from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
 import { useMcpCommand } from '@/lib/hooks';
 
@@ -24,19 +32,7 @@ export function ConnectClaudeStep({ onFinish }: ConnectClaudeStepProps) {
     <div className="p-8">
       {/* Success Icon */}
       <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-gradient-to-br from-sc-green/20 to-sc-cyan/20 flex items-center justify-center">
-        <svg
-          className="w-10 h-10 text-sc-green"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-          />
-        </svg>
+        <CheckCircle aria-hidden="true" width={40} height={40} className="text-sc-green" />
       </div>
 
       {/* Content */}
@@ -71,34 +67,9 @@ export function ConnectClaudeStep({ onFinish }: ConnectClaudeStepProps) {
               title="Copy to clipboard"
             >
               {copied ? (
-                <svg
-                  className="w-5 h-5 text-sc-green"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 13l4 4L19 7"
-                  />
-                </svg>
+                <Check aria-hidden="true" width={20} height={20} className="text-sc-green" />
               ) : (
-                <svg
-                  aria-hidden="true"
-                  className="w-5 h-5"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
-                  />
-                </svg>
+                <Copy aria-hidden="true" width={20} height={20} />
               )}
             </button>
           </div>
@@ -109,60 +80,15 @@ export function ConnectClaudeStep({ onFinish }: ConnectClaudeStepProps) {
       <div className="mb-8 space-y-3">
         <h3 className="text-sm font-medium text-sc-fg-secondary mb-2">Quick Tips</h3>
         <Tip
-          icon={
-            <svg
-              aria-hidden="true"
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-          }
+          icon={<Search aria-hidden="true" width={16} height={16} />}
           text="Search your knowledge with 'sibyl search <query>'"
         />
         <Tip
-          icon={
-            <svg
-              aria-hidden="true"
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-              />
-            </svg>
-          }
+          icon={<Plus aria-hidden="true" width={16} height={16} />}
           text='Add learnings with: sibyl add "Title" "What you learned"'
         />
         <Tip
-          icon={
-            <svg
-              aria-hidden="true"
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-              />
-            </svg>
-          }
+          icon={<ClipboardCheck aria-hidden="true" width={16} height={16} />}
           text='Track tasks with: sibyl task create --title "My task"'
         />
       </div>

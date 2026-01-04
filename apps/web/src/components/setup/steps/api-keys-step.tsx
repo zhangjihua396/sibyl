@@ -1,6 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import {
+  Check,
+  HelpCircle,
+  Key,
+  WarningTriangle,
+  Xmark,
+} from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
 import type { SetupStatus } from '@/lib/api';
 import { useValidateApiKeys } from '@/lib/hooks';
@@ -46,19 +53,7 @@ export function ApiKeysStep({ initialStatus, onBack, onValidated }: ApiKeysStepP
       {/* Header */}
       <div className="text-center mb-8">
         <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-sc-cyan/20 to-sc-purple/20 flex items-center justify-center">
-          <svg
-            className="w-7 h-7 text-sc-cyan"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-            />
-          </svg>
+          <Key width={28} height={28} className="text-sc-cyan" />
         </div>
         <h2 className="text-xl font-semibold text-sc-fg-primary mb-2">Verify API Keys</h2>
         <p className="text-sc-fg-muted text-sm max-w-md mx-auto">
@@ -91,19 +86,11 @@ export function ApiKeysStep({ initialStatus, onBack, onValidated }: ApiKeysStepP
       {!bothConfigured && (
         <div className="mb-6 p-4 rounded-xl bg-sc-yellow/10 border border-sc-yellow/20">
           <div className="flex gap-3">
-            <svg
-              className="w-5 h-5 text-sc-yellow flex-shrink-0 mt-0.5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+            <WarningTriangle
+              width={20}
+              height={20}
+              className="text-sc-yellow flex-shrink-0 mt-0.5"
+            />
             <div>
               <p className="text-sm font-medium text-sc-yellow mb-1">API Keys Not Configured</p>
               <p className="text-sm text-sc-fg-muted">
@@ -187,22 +174,7 @@ function ApiKeyStatus({
   let statusText: string;
 
   if (!configured) {
-    statusIcon = (
-      <svg
-        aria-hidden="true"
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M6 18L18 6M6 6l12 12"
-        />
-      </svg>
-    );
+    statusIcon = <Xmark aria-hidden="true" width={20} height={20} />;
     statusColor = 'text-sc-red';
     statusText = 'Not configured';
   } else if (isValidating) {
@@ -210,55 +182,15 @@ function ApiKeyStatus({
     statusColor = 'text-sc-cyan';
     statusText = 'Validating...';
   } else if (valid === true) {
-    statusIcon = (
-      <svg
-        aria-hidden="true"
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-      </svg>
-    );
+    statusIcon = <Check aria-hidden="true" width={20} height={20} />;
     statusColor = 'text-sc-green';
     statusText = 'Valid';
   } else if (valid === false) {
-    statusIcon = (
-      <svg
-        aria-hidden="true"
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
-    );
+    statusIcon = <WarningTriangle aria-hidden="true" width={20} height={20} />;
     statusColor = 'text-sc-red';
     statusText = error || 'Invalid';
   } else {
-    statusIcon = (
-      <svg
-        aria-hidden="true"
-        className="w-5 h-5"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    );
+    statusIcon = <HelpCircle aria-hidden="true" width={20} height={20} />;
     statusColor = 'text-sc-fg-muted';
     statusText = 'Not validated';
   }
