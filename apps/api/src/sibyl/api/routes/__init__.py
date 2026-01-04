@@ -15,8 +15,8 @@ from sibyl.api.routes.org_members import router as org_members_router
 from sibyl.api.routes.orgs import router as orgs_router
 from sibyl.api.routes.rag import router as rag_router
 from sibyl.api.routes.search import router as search_router
-from sibyl.api.routes.tasks import router as tasks_router
 from sibyl.api.routes.setup import router as setup_router
+from sibyl.api.routes.tasks import router as tasks_router
 from sibyl.api.routes.users import router as users_router
 
 __all__ = [

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import httpx
 import structlog
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -60,10 +60,9 @@ async def _check_openai_key() -> tuple[bool, str | None]:
             )
             if response.status_code == 200:
                 return True, None
-            elif response.status_code == 401:
+            if response.status_code == 401:
                 return False, "Invalid API key"
-            else:
-                return False, f"API error: {response.status_code}"
+            return False, f"API error: {response.status_code}"
     except httpx.TimeoutException:
         return False, "Connection timeout"
     except Exception as e:
@@ -95,10 +94,9 @@ async def _check_anthropic_key() -> tuple[bool, str | None]:
             # 200 = somehow worked (shouldn't happen with empty messages)
             if response.status_code in (200, 400):
                 return True, None
-            elif response.status_code == 401:
+            if response.status_code == 401:
                 return False, "Invalid API key"
-            else:
-                return False, f"API error: {response.status_code}"
+            return False, f"API error: {response.status_code}"
     except httpx.TimeoutException:
         return False, "Connection timeout"
     except Exception as e:
