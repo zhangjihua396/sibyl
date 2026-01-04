@@ -12,11 +12,13 @@ amnesiacs into knowledge-building collaborators.
 
 This guide teaches you how to:
 
-1. **Set up Sibyl** for your development workflow
-2. **Configure skills and hooks** that teach your agents how to work
-3. **Manage knowledge** through the web UI and CLI
-4. **Ingest external documentation** to augment your knowledge graph
-5. **Coordinate multiple agents** through shared memory
+1. **Work with AI agents** — The human guide to agent collaboration
+2. **Set up your prompts** — Configure CLAUDE.md for effective workflows
+3. **Use skills and hooks** — Automatic context injection
+4. **Build a conventions repo** — Centralize team patterns
+5. **Manage knowledge** — Through the web UI and CLI
+6. **Orchestrate agents** — Spawn autonomous agents with the harness
+7. **Coordinate teams** — Multi-agent patterns with shared memory
 
 ## The Philosophy
 
@@ -174,9 +176,21 @@ and uses fewer tokens than MCP tool calls.
 
 ## Next Steps
 
+### Getting Started
+
 1. **[Installation](./installation)** — Get Sibyl running locally
 2. **[Quick Start](./quick-start)** — Create your first knowledge entries
-3. **[Skills & Hooks](./skills)** — Configure agent workflows
-4. **[Knowledge Graph](./knowledge-graph)** — Understand the data model
-5. **[Task Management](./task-management)** — Track work across sessions
-6. **[Sources](./capturing-knowledge)** — Ingest external documentation
+
+### Working with Agents
+
+3. **[The Human Guide](./working-with-agents)** — How YOU work with AI agents
+4. **[Setting Up Prompts](./setting-up-prompts)** — Configure your CLAUDE.md
+5. **[Skills & Hooks](./skills)** — Automatic context injection
+6. **[Conventions Repository](./conventions-repository)** — Centralize team patterns
+
+### Core Concepts
+
+7. **[Knowledge Graph](./knowledge-graph)** — Understand the data model
+8. **[Task Management](./task-management)** — Track work across sessions
+9. **[Agent Harness](./agent-harness)** — Autonomous agent orchestration
+10. **[Sources](./capturing-knowledge)** — Ingest external documentation

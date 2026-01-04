@@ -59,6 +59,15 @@ export default defineConfig({
                     ],
                 },
                 {
+                    text: 'Working with Agents',
+                    items: [
+                        { text: 'The Human Guide', link: '/guide/working-with-agents' },
+                        { text: 'Setting Up Prompts', link: '/guide/setting-up-prompts' },
+                        { text: 'Skills & Hooks', link: '/guide/skills' },
+                        { text: 'Conventions Repository', link: '/guide/conventions-repository' },
+                    ],
+                },
+                {
                     text: 'Core Concepts',
                     items: [
                         { text: 'Knowledge Graph', link: '/guide/knowledge-graph' },
@@ -77,11 +86,11 @@ export default defineConfig({
                     ],
                 },
                 {
-                    text: 'Integrations',
+                    text: 'Agent Orchestration',
                     items: [
+                        { text: 'Agent Harness', link: '/guide/agent-harness' },
                         { text: 'Claude Code', link: '/guide/claude-code' },
                         { text: 'MCP Configuration', link: '/guide/mcp-configuration' },
-                        { text: 'Skills & Hooks', link: '/guide/skills' },
                         { text: 'Agent Collaboration', link: '/guide/agent-collaboration' },
                     ],
                 },
