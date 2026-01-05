@@ -467,7 +467,19 @@ Apache 2.0 — See [LICENSE](LICENSE)
 ---
 
 <p align="center">
+  <a href="https://github.com/hyperb1iss/sibyl">
+    <img src="https://img.shields.io/github/stars/hyperb1iss/sibyl?style=social" alt="Star on GitHub">
+  </a>
+  &nbsp;&nbsp;
+  <a href="https://ko-fi.com/hyperb1iss">
+    <img src="https://img.shields.io/badge/Ko--fi-Support%20Development-ff5e5b?logo=ko-fi&logoColor=white" alt="Ko-fi">
+  </a>
+</p>
+
+<p align="center">
   <sub>
+    If Sibyl helps your agents remember, give us a ⭐ or <a href="https://ko-fi.com/hyperb1iss">support the project</a>
+    <br><br>
     ✦ Built with obsession by <a href="https://hyperbliss.tech"><strong>Hyperbliss Technologies</strong></a> ✦
   </sub>
 </p>
