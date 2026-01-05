@@ -183,16 +183,17 @@ sibyl task unblock task_a1b2c3d4e5f6
 # Submit for review
 sibyl task review task_a1b2c3d4e5f6 --pr "github.com/.../pull/42"
 
-# Complete with learnings (IMPORTANT: capture what you learned!)
+# ⚠️ COMPLETE WITH LEARNINGS - always use this to finish tasks!
+# This marks done AND creates a searchable episode in the knowledge graph
 sibyl task complete task_a1b2c3d4e5f6 --hours 4.5 --learnings "Token refresh needs..."
 
 # Archive single task
 sibyl task archive task_a1b2c3d4e5f6 --reason "Superseded by new approach"
 
-# Direct update
+# Direct update (use sparingly - prefer `complete --learnings` for finishing work)
 sibyl task update task_a1b2c3d4e5f6 --status done --priority high
 
-# Add a note to a task
+# Add a note DURING work (progress breadcrumbs, NOT for completion)
 sibyl task note task_a1b2c3d4e5f6 "Found the root cause"
 sibyl task note task_a1b2c3d4e5f6 "Implemented fix" --agent
 
@@ -472,11 +473,34 @@ sibyl task list --all              # Bypass context to see all
 
 ## Common Pitfalls
 
-| Wrong                        | Correct                               |
-| ---------------------------- | ------------------------------------- |
-| `sibyl task add "..."`       | `sibyl task create --title "..."`     |
-| `sibyl task list --todo`     | `sibyl task list --status todo`       |
-| `sibyl task create -t "..."` | `sibyl task create --title "..."` (!) |
+| Wrong                            | Correct                               |
+| -------------------------------- | ------------------------------------- |
+| `sibyl task add "..."`           | `sibyl task create --title "..."`     |
+| `sibyl task list --todo`         | `sibyl task list --status todo`       |
+| `sibyl task create -t "..."`     | `sibyl task create --title "..."` (!) |
+| `sibyl task update --learnings`  | `sibyl task complete --learnings` (!) |
+| `sibyl task note` for completion | `sibyl task complete --learnings` (!) |
+
+### Notes vs Learnings
+
+These are **different things** with different purposes:
+
+| Command                                      | When          | Purpose              | Creates                        |
+| -------------------------------------------- | ------------- | -------------------- | ------------------------------ |
+| `sibyl task note <id> "..."`                 | During work   | Progress breadcrumbs | Note (task metadata)           |
+| `sibyl task complete <id> --learnings "..."` | At completion | Capture insights     | Episode (searchable knowledge) |
+
+**Wrong:** Using `task note` when completing a task **Right:** Using `task complete --learnings` -
+this marks done AND creates a searchable episode
+
+```bash
+# WRONG - notes are for ongoing work, not completion
+sibyl task update task_xxx --status done
+sibyl task note task_xxx "What I learned..."
+
+# RIGHT - complete with learnings does both
+sibyl task complete task_xxx --learnings "What I learned..."
+```
 
 **Full task IDs are required** - always use the complete ID returned by list/search commands:
 
