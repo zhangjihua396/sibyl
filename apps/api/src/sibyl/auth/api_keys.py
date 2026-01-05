@@ -7,15 +7,13 @@ import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import pbkdf2_hmac
-from typing import TYPE_CHECKING, Self
+from typing import Self
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
-from sibyl.db.models import ApiKey
-
-if TYPE_CHECKING:
-    from uuid import UUID
+from sibyl.db.models import ApiKey, ApiKeyProjectScope
 
 
 class ApiKeyError(ValueError):
@@ -56,10 +54,14 @@ def verify_api_key(key: str, *, salt_hex: str, hash_hex: str, iterations: int = 
 
 @dataclass(frozen=True)
 class ApiKeyAuth:
+    """Result of API key authentication."""
+
     api_key_id: UUID
     user_id: UUID
     organization_id: UUID
     scopes: list[str]
+    # Project restrictions - None means all accessible projects, empty list means no access
+    project_ids: list[UUID] | None = None
 
 
 class ApiKeyManager:
@@ -102,6 +104,7 @@ class ApiKeyManager:
         return record, raw
 
     async def authenticate(self, raw_key: str) -> ApiKeyAuth | None:
+        """Authenticate an API key and load project restrictions."""
         prefix = api_key_prefix(raw_key)
         result = await self._session.execute(select(ApiKey).where(ApiKey.key_prefix == prefix))
         candidates = list(result.scalars().all())
@@ -114,13 +117,36 @@ class ApiKeyManager:
             if verify_api_key(raw_key, salt_hex=key.key_salt, hash_hex=key.key_hash):
                 key.last_used_at = datetime.now(UTC).replace(tzinfo=None)
                 self._session.add(key)
+
+                # Load project scope restrictions
+                project_ids = await self._load_project_restrictions(key.id)
+
                 return ApiKeyAuth(
                     api_key_id=key.id,
                     user_id=key.user_id,
                     organization_id=key.organization_id,
                     scopes=list(key.scopes or []),
+                    project_ids=project_ids,
                 )
         return None
+
+    async def _load_project_restrictions(self, api_key_id: UUID) -> list[UUID] | None:
+        """Load project restrictions for an API key.
+
+        Returns:
+            None: No restrictions (all accessible projects allowed)
+            list[UUID]: Only these projects are allowed (empty = no access)
+        """
+        result = await self._session.execute(
+            select(ApiKeyProjectScope.project_id).where(
+                ApiKeyProjectScope.api_key_id == api_key_id
+            )
+        )
+        project_ids = list(result.scalars().all())
+
+        # No rows means no restrictions (all projects allowed)
+        # Rows means restricted to only those projects
+        return project_ids if project_ids else None
 
     async def list_for_org(self, organization_id: UUID, *, limit: int = 100) -> list[ApiKey]:
         result = await self._session.execute(

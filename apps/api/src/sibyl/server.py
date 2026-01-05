@@ -25,6 +25,8 @@ class McpContext:
     org_id: str
     user_id: str | None = None
     scopes: list[str] | None = None
+    # API key project restrictions (None = all, list = only these)
+    api_key_project_ids: list[str] | None = None
 
 
 async def _get_mcp_context() -> McpContext | None:
@@ -49,10 +51,17 @@ async def _get_mcp_context() -> McpContext | None:
         async with get_session() as session:
             auth = await ApiKeyManager.from_session(session).authenticate(raw)
         if auth:
+            # Convert project UUIDs to graph IDs (strings)
+            project_ids = (
+                [str(pid) for pid in auth.project_ids]
+                if auth.project_ids is not None
+                else None
+            )
             return McpContext(
                 org_id=str(auth.organization_id),
                 user_id=str(auth.user_id),
                 scopes=auth.scopes,
+                api_key_project_ids=project_ids,
             )
         return None
 
@@ -105,11 +114,16 @@ async def _require_mcp_context() -> McpContext:
 async def _get_accessible_projects(ctx: McpContext) -> set[str] | None:
     """Get project IDs the user can access based on their permissions.
 
+    Combines user permissions with API key project restrictions (if any).
+
     Returns:
         Set of accessible project graph IDs, or None if no filtering needed (admin).
     """
     if not ctx.user_id:
         # No user context - can't filter by user permissions
+        # But still enforce API key restrictions if present
+        if ctx.api_key_project_ids is not None:
+            return set(ctx.api_key_project_ids)
         return None
 
     from sibyl.auth.context import AuthContext
@@ -155,10 +169,21 @@ async def _get_accessible_projects(ctx: McpContext) -> set[str] | None:
             scopes=ctx.scopes or [],
         )
 
-        # Get accessible projects
+        # Get accessible projects based on user permissions
         from sibyl.auth.authorization import list_accessible_project_graph_ids
 
-        return await list_accessible_project_graph_ids(session, auth_ctx)
+        user_accessible = await list_accessible_project_graph_ids(session, auth_ctx)
+
+        # Intersect with API key project restrictions if present
+        if ctx.api_key_project_ids is not None:
+            api_key_allowed = set(ctx.api_key_project_ids)
+            if user_accessible is None:
+                # User has admin access but API key is restricted
+                return api_key_allowed
+            # Intersect: user must have access AND API key must allow it
+            return user_accessible & api_key_allowed
+
+        return user_accessible
 
 
 async def _require_org_id() -> str:
