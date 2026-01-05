@@ -20,6 +20,7 @@ from sibyl.auth.dependencies import (
     get_current_user,
     require_org_role,
 )
+from sibyl.auth.rls import AuthSession, get_auth_session
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, OrganizationRole, User
 from sibyl_core.errors import EntityNotFoundError, InvalidTransitionError
@@ -155,16 +156,16 @@ async def create_task(
     request: CreateTaskRequest,
     org: Organization = Depends(get_current_organization),
     user: User = Depends(get_current_user),
-    ctx: AuthContext = Depends(get_auth_context),
-    session: AsyncSession = Depends(get_session_dependency),
+    auth: AuthSession = Depends(get_auth_session),
 ) -> TaskActionResponse:
     """Create a new task."""
     from sibyl_core.models.entities import Relationship, RelationshipType
     from sibyl_core.models.tasks import Task, TaskComplexity, TaskPriority, TaskStatus
 
     # Verify user has write access to the target project
+    # auth.session has RLS context set for tenant isolation
     await verify_entity_project_access(
-        session, ctx, request.project_id, required_role=ProjectRole.CONTRIBUTOR
+        auth.session, auth.ctx, request.project_id, required_role=ProjectRole.CONTRIBUTOR
     )
 
     try:
@@ -273,13 +274,13 @@ async def _broadcast_task_update(
 async def start_task(
     task_id: str,
     org: Organization = Depends(get_current_organization),
-    ctx: AuthContext = Depends(get_auth_context),
-    session: AsyncSession = Depends(get_session_dependency),
+    auth: AuthSession = Depends(get_auth_session),
     request: StartTaskRequest | None = None,
 ) -> TaskActionResponse:
     """Start working on a task (moves to 'doing' status)."""
     # Verify project access before modifying
-    await _verify_task_access(task_id, org, ctx, session)
+    # auth.session has RLS context set for tenant isolation
+    await _verify_task_access(task_id, org, auth.ctx, auth.session)
 
     try:
         group_id = str(org.id)

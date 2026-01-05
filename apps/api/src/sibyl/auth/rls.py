@@ -15,6 +15,7 @@ Usage:
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 import structlog
@@ -27,6 +28,9 @@ from sibyl.auth.http import select_access_token
 from sibyl.auth.jwt import JwtError, verify_access_token
 from sibyl.config import settings
 from sibyl.db.connection import get_session
+
+if TYPE_CHECKING:
+    from sibyl.auth.context import AuthContext
 
 log = structlog.get_logger()
 
@@ -187,3 +191,98 @@ async def require_rls_session(request: Request) -> AsyncGenerator[AsyncSession]:
             ) from e
 
         yield session
+
+
+async def apply_rls_from_auth_context(
+    session: AsyncSession,
+    ctx: AuthContext,
+) -> None:
+    """Apply RLS context from an existing AuthContext.
+
+    This is useful when you already have an AuthContext from get_auth_context()
+    and want to set RLS on a session. Call this at the start of route handlers
+    that need RLS protection.
+
+    Args:
+        session: Database session to configure
+        ctx: AuthContext with user and organization info
+
+    Example:
+        async def protected_route(
+            ctx: AuthContext = Depends(get_auth_context),
+            session: AsyncSession = Depends(get_session_dependency),
+        ):
+            await apply_rls_from_auth_context(session, ctx)
+            # Now RLS is active for this session
+            ...
+    """
+    from sibyl.config import settings as app_settings
+
+    if app_settings.disable_auth:
+        return
+
+    user_id = ctx.user.id if ctx.user else None
+    org_id = ctx.organization.id if ctx.organization else None
+
+    if user_id or org_id:
+        try:
+            await set_rls_context(session, user_id=user_id, org_id=org_id)
+        except Exception as e:
+            log.warning("Failed to set RLS context from AuthContext", error=str(e))
+
+
+class AuthSession:
+    """Container for authenticated session with RLS context.
+
+    Provides both AuthContext and a database session with RLS variables set.
+    Use as a single dependency instead of separate auth + session dependencies.
+    """
+
+    __slots__ = ("ctx", "session")
+
+    def __init__(self, ctx: AuthContext, session: AsyncSession) -> None:
+        self.ctx = ctx
+        self.session = session
+
+
+async def get_auth_session(request: Request) -> AsyncGenerator[AuthSession]:
+    """FastAPI dependency providing AuthContext + RLS-enabled session.
+
+    This combines authentication, authorization context, and RLS setup
+    into a single dependency. Use this when you need both auth context
+    for permission checks AND database access with tenant isolation.
+
+    Usage:
+        @router.get("/items")
+        async def list_items(auth: AuthSession = Depends(get_auth_session)):
+            # auth.ctx has user, org, scopes for permission checks
+            # auth.session has RLS context set for tenant isolation
+            await verify_entity_project_access(auth.ctx, ...)
+            result = await auth.session.execute(select(Item))
+            return result.scalars().all()
+
+    Raises:
+        HTTPException 401: If not authenticated
+        HTTPException 500: If RLS context setup fails
+    """
+    from sibyl.auth.context import get_auth_context
+
+    # Get auth context (raises 401 if not authenticated)
+    ctx = await get_auth_context(request)
+
+    async with get_session() as session:
+        if not settings.disable_auth:
+            user_id = ctx.user.id if ctx.user else None
+            org_id = ctx.organization.id if ctx.organization else None
+
+            if user_id or org_id:
+                try:
+                    await set_rls_context(session, user_id=user_id, org_id=org_id)
+                except Exception as e:
+                    log.exception("Failed to set RLS context", error=str(e))
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="Failed to initialize security context",
+                    ) from e
+
+        yield AuthSession(ctx, session)
