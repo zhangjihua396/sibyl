@@ -167,6 +167,12 @@ class GraphClient:
                 database="default",
             )
 
+            # Inject optimized search interface to avoid O(n²) edge lookups
+            # See search_interface.py for details on the performance issue
+            from sibyl_core.graph.search_interface import FalkorDBSearchInterface
+
+            driver.search_interface = FalkorDBSearchInterface()
+
             # Create LLM client based on provider setting
             llm_client = self._create_llm_client()
 
