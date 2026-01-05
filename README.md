@@ -95,22 +95,34 @@ agents become your team. Actual team? Everyone's insights compound.
 
 ## ⚡ Quickstart
 
-### Docker (Fastest)
+### Install via UV (Recommended)
 
 ```bash
-# Clone and start (no config needed!)
-git clone https://github.com/hyperb1iss/sibyl.git
-cd sibyl
-docker compose -f docker-compose.quickstart.yml up -d
+# Install the CLI
+uv tool install sibyl-cli
 
-# Open the web UI and complete onboarding
-open http://localhost:3337
-# → Enter your API keys in the setup wizard
-# → Keys are saved securely to the database
+# Start Sibyl (pulls Docker images, prompts for API keys)
+sibyl local start
 ```
 
-**Zero-config approach:** No `.env` file required! API keys are entered during onboarding and stored
-encrypted in the database. For advanced setup, see `.env.quickstart.example`.
+That's it. Opens http://localhost:3337 automatically.
+
+### Alternative: pipx
+
+```bash
+pipx install sibyl-cli
+sibyl local start
+```
+
+### CLI Commands
+
+```bash
+sibyl local start    # Start all services
+sibyl local stop     # Stop services
+sibyl local status   # Show running services
+sibyl local logs     # Follow logs
+sibyl local reset    # Nuke and start fresh
+```
 
 ### Development Setup
 
