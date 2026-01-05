@@ -86,28 +86,24 @@ async def set_rls_context(
     The second parameter (true) makes it return NULL if not set,
     rather than raising an error.
 
+    Uses set_config() instead of SET LOCAL because SET doesn't support
+    parameterized queries (asyncpg sends $1 which causes syntax error).
+
     Args:
         session: Database session to configure
         user_id: Current user's UUID
         org_id: Current organization's UUID
     """
-    # Use local variables (transaction-scoped, reset on commit/rollback)
-    if user_id:
-        await session.execute(
-            text("SET LOCAL app.user_id = :user_id"),
-            {"user_id": str(user_id)},
-        )
-    else:
-        # Reset to empty string if no user (RLS should deny)
-        await session.execute(text("RESET app.user_id"))
-
-    if org_id:
-        await session.execute(
-            text("SET LOCAL app.org_id = :org_id"),
-            {"org_id": str(org_id)},
-        )
-    else:
-        await session.execute(text("RESET app.org_id"))
+    # Use set_config() for transaction-scoped variables (3rd param = true)
+    # This works with bind parameters unlike SET LOCAL
+    await session.execute(
+        text("SELECT set_config('app.user_id', :user_id, true)"),
+        {"user_id": str(user_id) if user_id else ""},
+    )
+    await session.execute(
+        text("SELECT set_config('app.org_id', :org_id, true)"),
+        {"org_id": str(org_id) if org_id else ""},
+    )
 
 
 async def get_rls_session(request: Request) -> AsyncGenerator[AsyncSession]:
