@@ -5,8 +5,9 @@ Exposes 4 tools and 2 resources:
 - Resources: sibyl://health, sibyl://stats
 """
 
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any, Literal
+from uuid import UUID
 
 import structlog
 from mcp.server.auth.middleware.auth_context import get_access_token
@@ -17,15 +18,20 @@ from sibyl.config import settings
 log = structlog.get_logger()
 
 
-async def _get_org_id_from_context() -> str | None:
-    """Extract organization ID from the authenticated MCP context.
+@dataclass(frozen=True)
+class McpContext:
+    """Context extracted from MCP authentication token."""
 
-    FastMCP exposes an AccessToken object, but it does not include decoded JWT
-    claims. To avoid trusting unverified data (and to support API keys), we
-    validate the raw token and extract the 'org' claim.
+    org_id: str
+    user_id: str | None = None
+    scopes: list[str] | None = None
+
+
+async def _get_mcp_context() -> McpContext | None:
+    """Extract full context (org_id, user_id, scopes) from MCP token.
 
     Returns:
-        The organization ID string if authenticated and org-scoped, None otherwise.
+        McpContext if authenticated, None otherwise.
     """
     token = get_access_token()
     if token is None:
@@ -35,14 +41,22 @@ async def _get_org_id_from_context() -> str | None:
     if not raw:
         return None
 
+    # API Key authentication
     if raw.startswith("sk_"):
         from sibyl.auth.api_keys import ApiKeyManager
         from sibyl.db.connection import get_session
 
         async with get_session() as session:
             auth = await ApiKeyManager.from_session(session).authenticate(raw)
-        return str(auth.organization_id) if auth else None
+        if auth:
+            return McpContext(
+                org_id=str(auth.organization_id),
+                user_id=str(auth.user_id),
+                scopes=auth.scopes,
+            )
+        return None
 
+    # JWT authentication
     from sibyl.auth.jwt import JwtError, verify_access_token
 
     try:
@@ -51,9 +65,100 @@ async def _get_org_id_from_context() -> str | None:
         return None
 
     org_id = claims.get("org")
+    user_id = claims.get("sub")
+
     if org_id:
-        log.debug("mcp_org_context", org_id=org_id)
-    return str(org_id) if org_id else None
+        log.debug("mcp_context", org_id=org_id, user_id=user_id)
+        return McpContext(
+            org_id=str(org_id),
+            user_id=str(user_id) if user_id else None,
+            scopes=claims.get("scopes"),
+        )
+    return None
+
+
+async def _get_org_id_from_context() -> str | None:
+    """Extract organization ID from the authenticated MCP context.
+
+    Returns:
+        The organization ID string if authenticated and org-scoped, None otherwise.
+    """
+    ctx = await _get_mcp_context()
+    return ctx.org_id if ctx else None
+
+
+async def _require_mcp_context() -> McpContext:
+    """Require full MCP context including user_id.
+
+    Raises:
+        ValueError: If no context is available.
+
+    Returns:
+        McpContext with org_id and user_id.
+    """
+    ctx = await _get_mcp_context()
+    if not ctx:
+        raise ValueError("Organization context required. Authenticate with an org-scoped token.")
+    return ctx
+
+
+async def _get_accessible_projects(ctx: McpContext) -> set[str] | None:
+    """Get project IDs the user can access based on their permissions.
+
+    Returns:
+        Set of accessible project graph IDs, or None if no filtering needed (admin).
+    """
+    if not ctx.user_id:
+        # No user context - can't filter by user permissions
+        return None
+
+    from sibyl.auth.context import AuthContext
+    from sibyl.db.connection import get_session
+
+    async with get_session() as session:
+        # Build a minimal AuthContext for authorization lookup
+        from sqlmodel import select
+
+        from sibyl.db.models import Organization, OrganizationMember, User
+
+        # Get user
+        user_result = await session.execute(
+            select(User).where(User.id == UUID(ctx.user_id))
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+            return set()  # User not found - no access
+
+        # Get organization
+        org_result = await session.execute(
+            select(Organization).where(Organization.id == UUID(ctx.org_id))
+        )
+        org = org_result.scalar_one_or_none()
+        if not org:
+            return set()  # Org not found - no access
+
+        # Get org role
+        member_result = await session.execute(
+            select(OrganizationMember).where(
+                OrganizationMember.organization_id == org.id,
+                OrganizationMember.user_id == user.id,
+            )
+        )
+        member = member_result.scalar_one_or_none()
+        org_role = member.role if member else None
+
+        # Build AuthContext
+        auth_ctx = AuthContext(
+            user=user,
+            organization=org,
+            org_role=org_role,
+            scopes=ctx.scopes or [],
+        )
+
+        # Get accessible projects
+        from sibyl.auth.authorization import list_accessible_project_graph_ids
+
+        return await list_accessible_project_graph_ids(session, auth_ctx)
 
 
 async def _require_org_id() -> str:
@@ -254,8 +359,9 @@ def _register_tools(mcp: FastMCP) -> None:
         """
         from sibyl_core.tools.core import search as _search
 
-        # Get org context from authenticated MCP session
-        org_id = await _require_org_id()
+        # Get full context from authenticated MCP session
+        ctx = await _require_mcp_context()
+        accessible_projects = await _get_accessible_projects(ctx)
 
         result = await _search(
             query=query,
@@ -264,6 +370,7 @@ def _register_tools(mcp: FastMCP) -> None:
             category=category,
             status=status,
             project=project,
+            accessible_projects=accessible_projects,
             source=source,
             source_id=source_id,
             source_name=source_name,
@@ -275,7 +382,7 @@ def _register_tools(mcp: FastMCP) -> None:
             include_graph=include_graph,
             use_enhanced=use_enhanced,
             boost_recent=boost_recent,
-            organization_id=org_id,
+            organization_id=ctx.org_id,
         )
         return _to_dict(result)
 
@@ -331,8 +438,9 @@ def _register_tools(mcp: FastMCP) -> None:
         """
         from sibyl_core.tools.core import explore as _explore
 
-        # Get org context from authenticated MCP session
-        org_id = await _require_org_id()
+        # Get full context from authenticated MCP session
+        ctx = await _require_mcp_context()
+        accessible_projects = await _get_accessible_projects(ctx)
 
         result = await _explore(
             mode=mode,
@@ -343,9 +451,10 @@ def _register_tools(mcp: FastMCP) -> None:
             language=language,
             category=category,
             project=project,
+            accessible_projects=accessible_projects,
             status=status,
             limit=limit,
-            organization_id=org_id,
+            organization_id=ctx.org_id,
         )
         return _to_dict(result)
 
@@ -419,12 +528,14 @@ def _register_tools(mcp: FastMCP) -> None:
         """
         from sibyl_core.tools.core import add as _add
 
-        # Get org context from authenticated MCP session
-        org_id = await _require_org_id()
+        # Get full context from authenticated MCP session
+        ctx = await _require_mcp_context()
 
-        # Inject org context into metadata
+        # Inject org and user context into metadata
         full_metadata = metadata or {}
-        full_metadata["organization_id"] = org_id
+        full_metadata["organization_id"] = ctx.org_id
+        if ctx.user_id:
+            full_metadata["created_by"] = ctx.user_id
 
         result = await _add(
             title=title,
@@ -508,12 +619,14 @@ def _register_tools(mcp: FastMCP) -> None:
         """
         from sibyl_core.tools.manage import manage as _manage
 
-        # Get org context from authenticated MCP session
-        org_id = await _require_org_id()
+        # Get full context from authenticated MCP session
+        ctx = await _require_mcp_context()
 
-        # Inject org context into data
+        # Inject org and user context into data
         full_data = data or {}
-        full_data["organization_id"] = org_id
+        full_data["organization_id"] = ctx.org_id
+        if ctx.user_id:
+            full_data["user_id"] = ctx.user_id
 
         result = await _manage(
             action=action,
