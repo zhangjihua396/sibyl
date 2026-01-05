@@ -27,13 +27,13 @@ async def test_list_sessions_marks_current_from_sibyl_access_token_cookie() -> N
     request.headers = {}
     request.cookies = {"sibyl_access_token": token}
 
+    # AuthSession contains both ctx and session
     auth = MagicMock()
-    auth.user.id = session_row.user_id
-
-    db_session = AsyncMock()
+    auth.ctx.user.id = session_row.user_id
+    auth.session = AsyncMock()
 
     with patch.object(SessionManager, "list_user_sessions", AsyncMock(return_value=[session_row])):
-        rows = await users_routes.list_sessions(request=request, auth=auth, session=db_session)
+        rows = await users_routes.list_sessions(request=request, auth=auth)
 
     assert len(rows) == 1
     assert rows[0].is_current is True
