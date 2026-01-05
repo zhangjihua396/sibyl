@@ -95,17 +95,20 @@ agents become your team. Actual team? Everyone's insights compound.
 
 ## ⚡ Quickstart
 
-### Install via UV (Recommended)
+### One-Liner Install
 
 ```bash
-# Install the CLI
-uv tool install sibyl-cli
-
-# Start Sibyl (pulls Docker images, prompts for API keys)
-sibyl local start
+curl -fsSL https://raw.githubusercontent.com/hyperb1iss/sibyl/main/install.sh | sh
 ```
 
-That's it. Opens http://localhost:3337 automatically.
+Installs uv (if needed), installs sibyl-cli, starts Sibyl. Done.
+
+### Manual Install (UV)
+
+```bash
+uv tool install sibyl-cli
+sibyl local start
+```
 
 ### Alternative: pipx
 
