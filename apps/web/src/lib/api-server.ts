@@ -77,16 +77,24 @@ interface NextFetchRequestConfig {
 
 /**
  * Cache strategies for different data types.
- * - 'force-cache': Use cached data if available (static data)
- * - 'no-store': Always fetch fresh (real-time data)
- * - revalidate: Time-based revalidation in seconds
+ *
+ * IMPORTANT: User-specific data MUST use 'no-store' to prevent cross-user
+ * data leakage. Next.js data cache keys don't automatically include auth
+ * context, so cached responses could be served to the wrong user.
+ *
+ * - 'force-cache': Use cached data if available (static data only)
+ * - 'no-store': Always fetch fresh (user-specific or real-time data)
  */
 const CACHE_CONFIG = {
-  /** Static data that rarely changes */
+  /** Static data that rarely changes and is not user-specific */
   static: { cache: 'force-cache' as const },
 
-  /** Data that changes occasionally (revalidate every 60s) */
-  dynamic: { next: { revalidate: 60 } },
+  /**
+   * User-specific data - MUST NOT BE CACHED.
+   * Even with cookies passed, Next.js cache keys don't include cookie values,
+   * so cached data could leak between users/orgs.
+   */
+  userScoped: { cache: 'no-store' as const },
 
   /** Real-time data (no caching) */
   realtime: { cache: 'no-store' as const },
@@ -98,13 +106,10 @@ const CACHE_CONFIG = {
 
 /**
  * Fetch stats (entity counts).
- * Cached for 60 seconds since it doesn't change frequently.
+ * User-scoped: stats are filtered by org, so no caching.
  */
 export async function fetchStats(): Promise<StatsResponse> {
-  return serverFetch<StatsResponse>('/admin/stats', {
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['stats'] },
-  });
+  return serverFetch<StatsResponse>('/admin/stats', CACHE_CONFIG.userScoped);
 }
 
 /**
@@ -125,7 +130,7 @@ export async function fetchHealth(): Promise<HealthResponse> {
 
 /**
  * Fetch paginated entity list.
- * Short cache for initial load, client will take over for interactions.
+ * User-scoped: entities are filtered by org/project access.
  */
 export async function fetchEntities(params?: {
   entity_type?: string;
@@ -148,21 +153,18 @@ export async function fetchEntities(params?: {
   if (params?.sort_order) searchParams.set('sort_order', params.sort_order);
 
   const query = searchParams.toString();
-  return serverFetch<EntityListResponse>(`/entities${query ? `?${query}` : ''}`, {
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['entities'] },
-  });
+  return serverFetch<EntityListResponse>(
+    `/entities${query ? `?${query}` : ''}`,
+    CACHE_CONFIG.userScoped
+  );
 }
 
 /**
  * Fetch single entity by ID.
- * Cached with entity-specific tag for targeted invalidation.
+ * User-scoped: entity access is filtered by org/project permissions.
  */
 export async function fetchEntity(id: string): Promise<Entity> {
-  return serverFetch<Entity>(`/entities/${id}`, {
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['entities', `entity-${id}`] },
-  });
+  return serverFetch<Entity>(`/entities/${id}`, CACHE_CONFIG.userScoped);
 }
 
 /**
@@ -186,7 +188,7 @@ export async function fetchSearchResults(params: {
 
 /**
  * Fetch tasks list.
- * Short cache for initial load.
+ * User-scoped: tasks are filtered by org/project access.
  */
 export async function fetchTasks(params?: {
   project?: string;
@@ -201,14 +203,13 @@ export async function fetchTasks(params?: {
       status: params?.status,
       limit: 200,
     }),
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['tasks'] },
+    ...CACHE_CONFIG.userScoped,
   });
 }
 
 /**
  * Fetch projects list.
- * Cached since projects don't change frequently.
+ * User-scoped: projects are filtered by org membership.
  */
 export async function fetchProjects(): Promise<TaskListResponse> {
   return serverFetch<TaskListResponse>('/search/explore', {
@@ -218,14 +219,13 @@ export async function fetchProjects(): Promise<TaskListResponse> {
       types: ['project'],
       limit: 100,
     }),
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['projects'] },
+    ...CACHE_CONFIG.userScoped,
   });
 }
 
 /**
  * Fetch full graph data.
- * Cached with graph tag.
+ * User-scoped: graph data is filtered by org.
  */
 export async function fetchGraphData(params?: {
   types?: string[];
@@ -240,14 +240,12 @@ export async function fetchGraphData(params?: {
   if (params?.max_edges) searchParams.set('max_edges', params.max_edges.toString());
 
   const query = searchParams.toString();
-  return serverFetch<GraphData>(`/graph/full${query ? `?${query}` : ''}`, {
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['graph'] },
-  });
+  return serverFetch<GraphData>(`/graph/full${query ? `?${query}` : ''}`, CACHE_CONFIG.userScoped);
 }
 
 /**
  * Fetch related entities for a given entity.
+ * User-scoped: related entities filtered by org/project access.
  */
 export async function fetchRelatedEntities(
   entityId: string,
@@ -261,8 +259,7 @@ export async function fetchRelatedEntities(
       depth,
       limit: 20,
     }),
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, tags: ['entities', `related-${entityId}`] },
+    ...CACHE_CONFIG.userScoped,
   });
 }
 
@@ -270,50 +267,42 @@ export async function fetchRelatedEntities(
 // Metrics
 // =============================================================================
 
+/**
+ * Fetch org-level metrics.
+ * User-scoped: metrics are filtered by org membership.
+ */
 export async function fetchOrgMetrics(): Promise<import('./api').OrgMetricsResponse> {
-  return serverFetch<import('./api').OrgMetricsResponse>('/metrics', {
-    ...CACHE_CONFIG.dynamic,
-    next: { ...CACHE_CONFIG.dynamic.next, revalidate: 60, tags: ['metrics'] },
-  });
+  return serverFetch<import('./api').OrgMetricsResponse>('/metrics', CACHE_CONFIG.userScoped);
 }
 
+/**
+ * Fetch project-level metrics.
+ * User-scoped: requires project access.
+ */
 export async function fetchProjectMetrics(
   projectId: string
 ): Promise<import('./api').ProjectMetricsResponse> {
-  return serverFetch<import('./api').ProjectMetricsResponse>(`/metrics/projects/${projectId}`, {
-    ...CACHE_CONFIG.dynamic,
-    next: {
-      ...CACHE_CONFIG.dynamic.next,
-      revalidate: 60,
-      tags: ['metrics', `project-${projectId}`],
-    },
-  });
+  return serverFetch<import('./api').ProjectMetricsResponse>(
+    `/metrics/projects/${projectId}`,
+    CACHE_CONFIG.userScoped
+  );
 }
 
 // =============================================================================
-// Cache Revalidation Helpers
+// Notes on Caching
 // =============================================================================
 
 /**
- * Revalidate cache tags from Server Actions.
- * Import and call these from your Server Actions after mutations.
+ * Server-side data fetching uses 'no-store' for all user-specific data
+ * to prevent cross-user cache leakage. Next.js data cache keys don't
+ * automatically include cookie/auth context, so time-based caching
+ * (revalidate) could serve cached data from one user to another.
  *
- * @example
- * // In a Server Action
- * 'use server'
- * import { revalidateTag } from 'next/cache';
- * import { CACHE_TAGS } from '@/lib/api-server';
+ * Client-side caching (React Query) handles data freshness appropriately
+ * since it's per-session and doesn't share data between users.
  *
- * async function createEntity(data) {
- *   await api.create(data);
- *   revalidateTag(CACHE_TAGS.entities);
- *   revalidateTag(CACHE_TAGS.stats);
- * }
+ * If you need server-side caching for performance, you would need to:
+ * 1. Include user/org ID in the cache key (custom cache)
+ * 2. Use a user-scoped cache store (Redis with user key prefix)
+ * 3. Implement cache-per-user at the CDN/edge level
  */
-export const CACHE_TAGS = {
-  entities: 'entities',
-  stats: 'stats',
-  tasks: 'tasks',
-  projects: 'projects',
-  graph: 'graph',
-} as const;
