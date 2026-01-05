@@ -1,19 +1,22 @@
 """Setup wizard endpoints.
 
 Public endpoints for detecting fresh installs and guiding first-time setup.
-No authentication required - these run before any users exist.
+Status endpoint is always public. Other endpoints require authentication
+once initial setup is complete (users exist).
 """
 
 from __future__ import annotations
 
 import httpx
 import structlog
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel, Field
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from sibyl.auth.http import select_access_token
+from sibyl.auth.jwt import JwtError, verify_access_token
 from sibyl.config import settings
 from sibyl.db.connection import get_session_dependency
 from sibyl.db.models import Organization, User
@@ -21,6 +24,50 @@ from sibyl.services.settings import get_settings_service
 
 router = APIRouter(prefix="/setup", tags=["setup"])
 log = structlog.get_logger()
+
+
+async def _is_setup_complete(session: AsyncSession) -> bool:
+    """Check if initial setup is complete (users exist)."""
+    result = await session.execute(select(func.count(User.id)))
+    return (result.scalar() or 0) > 0
+
+
+async def require_setup_mode_or_auth(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> None:
+    """Gate endpoint: allow if in setup mode (no users) OR authenticated.
+
+    This protects sensitive setup endpoints after initial setup is complete.
+    During setup (no users exist), allows unrestricted access.
+    After setup, requires valid authentication.
+
+    Raises:
+        HTTPException 401: If setup is complete and not authenticated
+    """
+    if not await _is_setup_complete(session):
+        # Setup mode - allow access
+        return
+
+    # Setup complete - require authentication
+    token = select_access_token(
+        authorization=request.headers.get("authorization"),
+        cookie_token=request.cookies.get("sibyl_access_token"),
+    )
+
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Setup is complete. Authentication required.",
+        )
+
+    try:
+        verify_access_token(token)
+    except JwtError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Invalid token: {e}",
+        ) from e
 
 
 class SetupStatus(BaseModel):
@@ -174,15 +221,19 @@ async def get_setup_status(
     )
 
 
-@router.get("/validate-keys", response_model=ApiKeyValidation)
+@router.get(
+    "/validate-keys",
+    response_model=ApiKeyValidation,
+    dependencies=[Depends(require_setup_mode_or_auth)],
+)
 async def validate_api_keys() -> ApiKeyValidation:
     """Validate that configured API keys work.
 
     Makes test requests to OpenAI and Anthropic APIs to verify
     the configured keys are valid and have appropriate permissions.
 
-    This endpoint requires no authentication since it must work
-    during initial setup.
+    During initial setup (no users): accessible without auth.
+    After setup: requires authentication.
     """
     openai_valid, openai_error = await _check_openai_key()
     anthropic_valid, anthropic_error = await _check_anthropic_key()
@@ -195,12 +246,15 @@ async def validate_api_keys() -> ApiKeyValidation:
     )
 
 
-@router.get("/mcp-command")
+@router.get("/mcp-command", dependencies=[Depends(require_setup_mode_or_auth)])
 async def get_mcp_command() -> dict[str, str]:
     """Get the Claude Code command to connect to this Sibyl instance.
 
     Returns the command users should run to add this Sibyl server
     to their Claude Code configuration.
+
+    During initial setup (no users): accessible without auth.
+    After setup: requires authentication.
     """
     # Use the configured server URL or fall back to localhost
     server_url = settings.server_url.rstrip("/")
