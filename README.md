@@ -459,6 +459,19 @@ Sibyl is in active development (v0.1.x). The core features work well, but expect
 use Sibyl to build Sibyl**—every feature, task, and learning you see here was tracked and
 orchestrated through the system itself.
 
+## 🗺️ Roadmap
+
+**Where we're headed:**
+
+- **Multi-vendor agents** — Orchestrate Claude, Codex, Gemini, and future models from one place
+- **Meta-orchestrator** — A higher-order agent that manages your fleet: distributing tasks, monitoring
+  progress, responding to your plans
+- **Brainstorming spaces** — Dedicated areas for ideation before execution
+- **External data connectors** — Feed more sources into the collective intelligence
+- **Deeper reasoning** — Multi-hop graph traversal, community-based retrieval, agentic reflection
+
+The collective gets smarter. The orchestration gets deeper.
+
 ## 💜 Philosophy
 
 ### Search Before Implementing
