@@ -158,16 +158,40 @@ def require_org_role(*allowed: OrganizationRole):
     return _check_role
 
 
-async def get_auth_context(
+async def build_auth_context(
     request: Request,
-    user: User = Depends(get_current_user),
-    session: AsyncSession = Depends(get_session_dependency),
+    session: AsyncSession,
 ) -> AuthContext:
+    """Build AuthContext from request. Standalone function for direct calls.
+
+    This is the core implementation used by both FastAPI dependency injection
+    and direct calls from other auth modules (e.g., rls.py).
+    """
     claims = await resolve_claims(request, session)
+    if not claims:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+
+    # Get user
+    try:
+        user_id = UUID(str(claims.get("sub", "")))
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        ) from e
+
+    user = await session.get(User, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
+
+    # Get org and role
     org = None
     role = None
 
-    if claims and claims.get("org"):
+    if claims.get("org"):
         try:
             org_id = UUID(str(claims["org"]))
         except ValueError:
@@ -187,6 +211,14 @@ async def get_auth_context(
 
     scopes = frozenset(str(s) for s in (claims.get("scopes", []) if claims else []))
     return AuthContext(user=user, organization=org, org_role=role, scopes=scopes)
+
+
+async def get_auth_context(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> AuthContext:
+    """FastAPI dependency wrapper for build_auth_context."""
+    return await build_auth_context(request, session)
 
 
 def require_org_admin():
