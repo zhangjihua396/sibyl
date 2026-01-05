@@ -64,7 +64,7 @@ async def collect_messages(async_gen, debug: bool = False) -> list:
             msg_type = getattr(msg, "type", type(msg).__name__)
             content = getattr(msg, "content", "")
             if content:
-                preview = str(content)[:200] if isinstance(content, str) else str(content)[:200]
+                preview = str(content)[:200]
                 print(f"MSG[{msg_type}]: {preview}")  # noqa: T201
     return messages
 

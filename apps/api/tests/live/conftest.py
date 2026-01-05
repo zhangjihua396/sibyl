@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import subprocess
-import tempfile
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from pathlib import Path

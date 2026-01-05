@@ -69,7 +69,6 @@ class MockEntityManager:
 
     async def add_episode(self, *args: Any, **kwargs: Any) -> None:
         """Mock episode creation."""
-        pass
 
     async def list_by_type(
         self,

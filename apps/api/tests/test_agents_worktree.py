@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 
 import pytest
 
-from sibyl.agents.worktree import SetupConfig, WorktreeError, WorktreeManager
+from sibyl.agents.worktree import SetupConfig, WorktreeManager
 from sibyl_core.models import WorktreeStatus
 
 if TYPE_CHECKING:
