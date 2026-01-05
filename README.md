@@ -40,22 +40,22 @@
 
 ---
 
-## 🔮 The Problem
+## 🔮 The Vision
 
-Your AI agents have amnesia. Every session starts fresh—no memory of what worked, what failed, or
-what you learned yesterday. And when you're running multiple agents across different features?
-Chaos. No visibility. No coordination.
+AI agents that remember everything. A collective intelligence that compounds with every session.
+Orchestration that lets you manage a fleet of autonomous agents—all building on shared knowledge,
+all tracked in one place.
 
-**What if your agents could remember—and you could orchestrate them?**
+Today's agents have amnesia. Every session starts fresh. No memory of what worked, what failed, what
+you learned yesterday. Multiple agents across different features? Chaos.
 
-Sibyl gives your AI agents **persistent memory** through a knowledge graph. Plan work as epics and
-tasks. Spawn agents that execute autonomously—each building on shared learnings, each tracked in one
-place. You stay in control: approving decisions, seeing progress across all parallel efforts,
-keeping the whole project moving forward.
+**Sibyl changes that.**
 
-Solo dev? Your agents become your team—a collective that gets smarter with every session. Actual
-team? Everyone's insights compound. Either way: **the whole becomes greater than the sum of its
-parts.**
+A knowledge graph gives your agents persistent memory. Epics and tasks structure your work. Spawn
+agents that execute autonomously while you approve decisions and track progress. Solo dev? Your
+agents become your team. Actual team? Everyone's insights compound.
+
+**The whole becomes greater than the sum of its parts.**
 
 ## ✦ What You Get
 
