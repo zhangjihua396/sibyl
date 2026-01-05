@@ -223,10 +223,76 @@ def remove_path_mapping(path: str) -> bool:
     return False
 
 
+def _resolve_worktree_main_repo(start_path: Path) -> Path | None:
+    """Detect if path is inside a git worktree and resolve to main repo.
+
+    Git worktrees have a .git file (not directory) containing:
+        gitdir: /path/to/main/repo/.git/worktrees/<worktree-name>
+
+    Args:
+        start_path: Path to check (typically cwd)
+
+    Returns:
+        Main repo path if in a worktree, None otherwise
+    """
+    # Walk up to find .git file/directory
+    current = start_path
+    while current != current.parent:
+        git_path = current / ".git"
+        if git_path.exists():
+            if git_path.is_file():
+                # Worktree detected - parse gitdir
+                try:
+                    content = git_path.read_text().strip()
+                    if content.startswith("gitdir:"):
+                        gitdir = content[7:].strip()
+                        # gitdir looks like: /main/repo/.git/worktrees/branch-name
+                        # Walk up from gitdir to find the main .git, then its parent
+                        gitdir_path = Path(gitdir).resolve()
+                        # Should be under .git/worktrees/, go up to .git then to repo root
+                        if "worktrees" in gitdir_path.parts:
+                            # Find the .git directory (parent of worktrees)
+                            worktrees_idx = gitdir_path.parts.index("worktrees")
+                            main_git = Path(*gitdir_path.parts[: worktrees_idx])
+                            if main_git.name == ".git":
+                                return main_git.parent
+                except (OSError, ValueError):
+                    pass
+            # Regular repo or failed to parse - stop searching
+            return None
+        current = current.parent
+    return None
+
+
+def _find_project_in_mappings(
+    search_path: Path, mappings: dict[str, str]
+) -> tuple[str | None, int]:
+    """Find best matching project for a path in mappings.
+
+    Returns:
+        Tuple of (project_id, match_length) or (None, 0) if not found
+    """
+    best_match: str | None = None
+    best_length = 0
+
+    for mapped_path, project_id in mappings.items():
+        mapped = Path(mapped_path)
+        try:
+            search_path.relative_to(mapped)
+            if len(mapped_path) > best_length:
+                best_match = project_id
+                best_length = len(mapped_path)
+        except ValueError:
+            continue
+
+    return best_match, best_length
+
+
 def resolve_project_from_cwd() -> str | None:
     """Resolve project ID from current working directory.
 
     Walks up from cwd looking for longest matching path prefix.
+    If in a git worktree, also checks the main repo's path.
 
     Returns:
         Project ID if found, None otherwise
@@ -239,28 +305,50 @@ def resolve_project_from_cwd() -> str | None:
     if not mappings:
         return None
 
-    # Find longest matching prefix
+    # First try direct cwd match
+    best_match, best_length = _find_project_in_mappings(cwd, mappings)
+
+    # If in a worktree, also check the main repo path
+    main_repo = _resolve_worktree_main_repo(cwd)
+    if main_repo:
+        repo_match, repo_length = _find_project_in_mappings(main_repo, mappings)
+        # Use main repo match if it's better (or only match)
+        if repo_match and repo_length > best_length:
+            best_match = repo_match
+
+    return best_match
+
+
+def _find_project_with_path(
+    search_path: Path, mappings: dict[str, str]
+) -> tuple[str | None, str | None, int]:
+    """Find best matching project for a path, returning both ID and matched path.
+
+    Returns:
+        Tuple of (project_id, matched_path, match_length)
+    """
     best_match: str | None = None
+    best_path: str | None = None
     best_length = 0
 
     for mapped_path, project_id in mappings.items():
         mapped = Path(mapped_path)
         try:
-            # Check if cwd is under mapped_path
-            cwd.relative_to(mapped)
-            # It's a match - check if it's the longest
+            search_path.relative_to(mapped)
             if len(mapped_path) > best_length:
                 best_match = project_id
+                best_path = mapped_path
                 best_length = len(mapped_path)
         except ValueError:
-            # Not a parent path
             continue
 
-    return best_match
+    return best_match, best_path, best_length
 
 
 def get_current_context() -> tuple[str | None, str | None]:
     """Get current project context.
+
+    If in a git worktree, also checks the main repo's path.
 
     Returns:
         Tuple of (project_id, matched_path) or (None, None) if no context
@@ -273,20 +361,17 @@ def get_current_context() -> tuple[str | None, str | None]:
     if not mappings:
         return None, None
 
-    best_match: str | None = None
-    best_path: str | None = None
-    best_length = 0
+    # First try direct cwd match
+    best_match, best_path, best_length = _find_project_with_path(cwd, mappings)
 
-    for mapped_path, project_id in mappings.items():
-        mapped = Path(mapped_path)
-        try:
-            cwd.relative_to(mapped)
-            if len(mapped_path) > best_length:
-                best_match = project_id
-                best_path = mapped_path
-                best_length = len(mapped_path)
-        except ValueError:
-            continue
+    # If in a worktree, also check the main repo path
+    main_repo = _resolve_worktree_main_repo(cwd)
+    if main_repo:
+        repo_match, repo_path, repo_length = _find_project_with_path(main_repo, mappings)
+        # Use main repo match if it's better (or only match)
+        if repo_match and repo_length > best_length:
+            best_match = repo_match
+            best_path = repo_path
 
     return best_match, best_path
 

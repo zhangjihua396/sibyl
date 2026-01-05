@@ -1,5 +1,6 @@
 """Tests for CLI config store."""
 
+from pathlib import Path
 from unittest.mock import patch
 
 from sibyl_cli import config_store
@@ -121,3 +122,147 @@ class TestPathMappings:
             project, path = config_store.get_current_context()
             assert project is None
             assert path is None
+
+
+class TestWorktreeResolution:
+    """Test git worktree detection and resolution."""
+
+    def test_resolve_worktree_regular_repo(self, tmp_path: Path) -> None:
+        """Regular repo (directory .git) returns None."""
+        # Create a regular git repo structure
+        git_dir = tmp_path / ".git"
+        git_dir.mkdir()
+
+        result = config_store._resolve_worktree_main_repo(tmp_path)
+        assert result is None
+
+    def test_resolve_worktree_no_git(self, tmp_path: Path) -> None:
+        """Directory without .git returns None."""
+        result = config_store._resolve_worktree_main_repo(tmp_path)
+        assert result is None
+
+    def test_resolve_worktree_detects_worktree(self, tmp_path: Path) -> None:
+        """Worktree with .git file resolves to main repo."""
+        # Set up main repo structure
+        main_repo = tmp_path / "main-repo"
+        main_repo.mkdir()
+        main_git = main_repo / ".git"
+        main_git.mkdir()
+        worktrees_dir = main_git / "worktrees" / "feature-branch"
+        worktrees_dir.mkdir(parents=True)
+
+        # Set up worktree
+        worktree = tmp_path / "worktree-feature"
+        worktree.mkdir()
+        git_file = worktree / ".git"
+        git_file.write_text(f"gitdir: {worktrees_dir}")
+
+        result = config_store._resolve_worktree_main_repo(worktree)
+        assert result == main_repo
+
+    def test_resolve_worktree_nested_path(self, tmp_path: Path) -> None:
+        """Worktree resolution works from nested subdirectory."""
+        # Set up main repo structure
+        main_repo = tmp_path / "main-repo"
+        main_repo.mkdir()
+        main_git = main_repo / ".git"
+        main_git.mkdir()
+        worktrees_dir = main_git / "worktrees" / "feature-branch"
+        worktrees_dir.mkdir(parents=True)
+
+        # Set up worktree with nested dir
+        worktree = tmp_path / "worktree-feature"
+        worktree.mkdir()
+        git_file = worktree / ".git"
+        git_file.write_text(f"gitdir: {worktrees_dir}")
+        nested = worktree / "src" / "deep" / "path"
+        nested.mkdir(parents=True)
+
+        result = config_store._resolve_worktree_main_repo(nested)
+        assert result == main_repo
+
+    def test_resolve_project_from_worktree(self, tmp_path: Path) -> None:
+        """resolve_project_from_cwd uses main repo link when in worktree."""
+        # Set up main repo structure
+        main_repo = tmp_path / "main-repo"
+        main_repo.mkdir()
+        main_git = main_repo / ".git"
+        main_git.mkdir()
+        worktrees_dir = main_git / "worktrees" / "feature-branch"
+        worktrees_dir.mkdir(parents=True)
+
+        # Set up worktree
+        worktree = tmp_path / "worktree-feature"
+        worktree.mkdir()
+        git_file = worktree / ".git"
+        git_file.write_text(f"gitdir: {worktrees_dir}")
+
+        # Mock mappings - only main repo is linked
+        mappings = {str(main_repo): "project_abc123"}
+
+        with (
+            patch.object(config_store, "get_path_mappings", return_value=mappings),
+            patch("os.getcwd", return_value=str(worktree)),
+        ):
+            result = config_store.resolve_project_from_cwd()
+            assert result == "project_abc123"
+
+    def test_get_current_context_from_worktree(self, tmp_path: Path) -> None:
+        """get_current_context returns main repo path when in worktree."""
+        # Set up main repo structure
+        main_repo = tmp_path / "main-repo"
+        main_repo.mkdir()
+        main_git = main_repo / ".git"
+        main_git.mkdir()
+        worktrees_dir = main_git / "worktrees" / "feature-branch"
+        worktrees_dir.mkdir(parents=True)
+
+        # Set up worktree
+        worktree = tmp_path / "worktree-feature"
+        worktree.mkdir()
+        git_file = worktree / ".git"
+        git_file.write_text(f"gitdir: {worktrees_dir}")
+
+        # Mock mappings - only main repo is linked
+        mappings = {str(main_repo): "project_abc123"}
+
+        with (
+            patch.object(config_store, "get_path_mappings", return_value=mappings),
+            patch("os.getcwd", return_value=str(worktree)),
+        ):
+            project_id, matched_path = config_store.get_current_context()
+            assert project_id == "project_abc123"
+            assert matched_path == str(main_repo)
+
+    def test_direct_match_preferred_over_worktree(self, tmp_path: Path) -> None:
+        """Direct cwd match takes precedence if longer than worktree match."""
+        # Set up main repo structure
+        main_repo = tmp_path / "main-repo"
+        main_repo.mkdir()
+        main_git = main_repo / ".git"
+        main_git.mkdir()
+        worktrees_dir = main_git / "worktrees" / "feature-branch"
+        worktrees_dir.mkdir(parents=True)
+
+        # Set up worktree with specific subpath linked
+        worktree = tmp_path / "worktree-feature"
+        worktree.mkdir()
+        git_file = worktree / ".git"
+        git_file.write_text(f"gitdir: {worktrees_dir}")
+        subdir = worktree / "specific-subdir"
+        subdir.mkdir()
+
+        # Both main repo AND the worktree subdir are linked
+        # The more specific (longer) path should win
+        mappings = {
+            str(main_repo): "project_main",
+            str(subdir): "project_subdir",
+        }
+
+        with (
+            patch.object(config_store, "get_path_mappings", return_value=mappings),
+            patch("os.getcwd", return_value=str(subdir)),
+        ):
+            result = config_store.resolve_project_from_cwd()
+            # Direct match to subdir is longer, so it wins
+            assert result == "project_subdir"
