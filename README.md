@@ -3,7 +3,8 @@
 </p>
 
 <p align="center">
-  <strong>Build With Agents That Remember</strong>
+  <strong>Build With Agents That Remember</strong><br>
+  <sub>✦ A Collective Intelligence Runtime ✦</sub>
 </p>
 
 <p align="center">
@@ -37,7 +38,7 @@
 
 ---
 
-## The Problem
+## 🔮 The Problem
 
 Your AI agents have amnesia. Every session starts fresh—no memory of what worked, what failed, or
 what you learned yesterday. And when you're running multiple agents across different features?
@@ -50,20 +51,22 @@ tasks. Spawn agents that execute autonomously—each building on shared learning
 place. You stay in control: approving decisions, seeing progress across all parallel efforts,
 keeping the whole project moving forward.
 
-Solo dev? Your agents become your team. Actual team? Everyone's insights compound. Either way:
-**search by meaning, capture what you learn, orchestrate work across all your agents.**
+Solo dev? Your agents become your team—a collective that gets smarter with every session. Actual
+team? Everyone's insights compound. Either way: **the whole becomes greater than the sum of its
+parts.**
 
-## What You Get
+## ✦ What You Get
 
-| Capability              | What It Means                                                                                               |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **Semantic Search**     | Find knowledge by meaning—"authentication patterns" finds OAuth solutions even if "OAuth" isn't in the text |
-| **Persistent Memory**   | What you learn today helps tomorrow. AI agents remember across sessions                                     |
-| **Agent Orchestration** | Spawn Claude agents that work autonomously with human-in-the-loop approvals                                 |
-| **Task Workflow**       | Plan with epics and tasks. Track parallel work across agents. See everything in one place                   |
-| **Doc Ingestion**       | Crawl and index external documentation into your graph                                                      |
-| **Multi-Tenancy**       | Isolated graphs per organization. Enterprise-ready from day one                                             |
-| **Graph Visualization** | Interactive D3 visualization of your knowledge connections                                                  |
+| Capability                     | What It Means                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| 🔮 **Collective Intelligence** | Every agent contributes. Every session compounds. The graph gets smarter over time                          |
+| 🎯 **Semantic Search**         | Find knowledge by meaning—"authentication patterns" finds OAuth solutions even if "OAuth" isn't in the text |
+| 🧠 **Persistent Memory**       | What you learn today helps tomorrow. AI agents remember across sessions                                     |
+| ⚡ **Agent Orchestration**     | Spawn Claude agents that work autonomously with human-in-the-loop approvals                                 |
+| 🦋 **Task Workflow**           | Plan with epics and tasks. Track parallel work across agents. See everything in one place                   |
+| 📚 **Doc Ingestion**           | Crawl and index external documentation into your graph                                                      |
+| 🏢 **Multi-Tenancy**           | Isolated graphs per organization. Enterprise-ready from day one                                             |
+| 🌐 **Graph Visualization**     | Interactive D3 visualization of your knowledge connections                                                  |
 
 <table>
   <tr>
@@ -88,7 +91,7 @@ Solo dev? Your agents become your team. Actual team? Everyone's insights compoun
   </tr>
 </table>
 
-## Quickstart
+## ⚡ Quickstart
 
 ### Docker (Fastest)
 
@@ -138,7 +141,7 @@ curl http://localhost:3334/api/health
 | Web UI    | 3337 | http://localhost:3337 |
 | FalkorDB  | 6380 | —                     |
 
-## Agent Orchestration
+## 🤖 Agent Orchestration
 
 Sibyl's flagship feature: **spawn AI agents that work autonomously** while you review and approve
 their actions.
@@ -280,6 +283,38 @@ Connect Claude Code, Cursor, or any MCP client to Sibyl:
 | `explore` | Navigate structure | List entities, traverse relationships |
 | `add`     | Create knowledge   | Episodes, patterns, tasks             |
 | `manage`  | Lifecycle & admin  | Task workflow, crawling, health       |
+
+### Claude Code Skills & Hooks
+
+Sibyl ships with [skills](https://docs.anthropic.com/en/docs/claude-code/skills) and
+[hooks](https://docs.anthropic.com/en/docs/claude-code/hooks) for seamless Claude Code integration.
+
+**Install:**
+
+```bash
+moon run skills:install    # Install /sibyl skill
+moon run hooks:install     # Install context hooks
+```
+
+**`/sibyl` skill** — Full CLI access from Claude Code:
+
+```bash
+/sibyl search "authentication patterns"
+/sibyl task list --status doing
+/sibyl add "OAuth insight" "Token refresh needs..."
+```
+
+**Hooks** — Automatic context injection:
+
+| Hook                 | Trigger        | Action                                           |
+| -------------------- | -------------- | ------------------------------------------------ |
+| **SessionStart**     | Session begins | Shows active tasks, reminds to capture learnings |
+| **UserPromptSubmit** | Every prompt   | Searches graph, injects relevant patterns        |
+
+The `UserPromptSubmit` hook extracts keywords from your prompt, searches Sibyl, and injects matching
+patterns as context—so Claude always knows what you've learned before.
+
+See [`skills/`](skills/) and [`hooks/`](hooks/) for implementation details.
 
 ## Architecture
 
@@ -424,7 +459,7 @@ Sibyl is in active development (v0.1.x). The core features work well, but expect
 use Sibyl to build Sibyl**—every feature, task, and learning you see here was tracked and
 orchestrated through the system itself.
 
-## Philosophy
+## 💜 Philosophy
 
 ### Search Before Implementing
 
