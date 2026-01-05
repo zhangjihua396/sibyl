@@ -1,6 +1,7 @@
 # ============================================================================
 # Sibyl Frontend Dockerfile
 # Multi-stage build for Next.js 16 with pnpm
+# NOTE: Build from repo root context: docker build -f apps/web/Dockerfile .
 # ============================================================================
 
 # Stage 1: Dependencies
@@ -10,12 +11,13 @@ RUN corepack enable pnpm
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json pnpm-lock.yaml ./
+# Copy package files from monorepo root
+COPY pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
 
-# Install dependencies
+# Install dependencies for web app only
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --filter @sibyl/web
 
 
 # Stage 2: Builder
@@ -23,11 +25,15 @@ FROM node:22-alpine AS builder
 
 RUN corepack enable pnpm
 
-WORKDIR /app
+WORKDIR /app/apps/web
 
-# Copy deps from previous stage
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copy workspace structure needed for pnpm
+COPY --from=deps /app/pnpm-lock.yaml /app/pnpm-workspace.yaml /app/
+COPY --from=deps /app/node_modules /app/node_modules
+COPY --from=deps /app/apps/web/node_modules ./node_modules
+
+# Copy app source
+COPY apps/web .
 
 # Set production env for build
 ENV NODE_ENV=production \
@@ -53,9 +59,9 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0
 
 # Copy standalone output (most efficient)
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder /app/apps/web/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
 
 # Switch to non-root user
 USER nextjs
