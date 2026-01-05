@@ -39,7 +39,7 @@ async def _generate_unique_slug(
     suffix = 1
 
     while suffix <= 100:
-        query = select(Project.id).where(
+        query = select(Project.id).where(  # type: ignore[call-overload]
             Project.organization_id == organization_id,
             Project.slug == slug,
         )
