@@ -19,7 +19,7 @@ from sibyl.auth.authorization import (
 from sibyl.auth.context import AuthContext
 from sibyl.auth.dependencies import require_org_role
 from sibyl.auth.rls import AuthSession, get_auth_session
-from sibyl.db.models import AgentMessage, OrganizationRole, ProjectRole
+from sibyl.db.models import AgentMessage, Organization, OrganizationRole, ProjectRole
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
 from sibyl_core.models import ApprovalStatus, ApprovalType, EntityType
@@ -29,6 +29,17 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger()
 _WRITE_ROLES = (OrganizationRole.OWNER, OrganizationRole.ADMIN, OrganizationRole.MEMBER)
+
+
+def _require_org(ctx: AuthContext) -> Organization:
+    """Require organization context for multi-tenant routes.
+
+    Raises:
+        HTTPException 403: If no organization in context
+    """
+    if not ctx.organization:
+        raise HTTPException(status_code=403, detail="Organization context required")
+    return ctx.organization
 
 
 async def _check_approval_view_permission(
@@ -206,8 +217,9 @@ async def list_approvals(
     (own agent approvals + projects with VIEWER+).
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Get accessible project IDs for permission filtering
     is_admin = ctx.org_role in (OrganizationRole.OWNER, OrganizationRole.ADMIN)
@@ -291,8 +303,9 @@ async def get_approval(
 ) -> ApprovalResponse:
     """Get a specific approval by ID."""
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(approval_id)
     if not entity or entity.entity_type != EntityType.APPROVAL:
@@ -315,8 +328,9 @@ async def dismiss_approval(
     Uses EntityManager.delete() which handles both Entity and Episodic nodes.
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Check permission before deleting
     entity = await manager.get(approval_id)
@@ -352,8 +366,9 @@ async def respond_to_approval(
 ) -> RespondToApprovalResponse:
     """Respond to an approval request (approve, deny, or edit)."""
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(approval_id)
     if not entity or entity.entity_type != EntityType.APPROVAL:
@@ -452,7 +467,7 @@ async def respond_to_approval(
             "status": new_status,
             "response_by": str(ctx.user.id),
         },
-        org_id=str(ctx.organization.id),
+        org_id=str(org.id),
     )
 
     # Also broadcast agent status change to UI
@@ -460,7 +475,7 @@ async def respond_to_approval(
         await publish_event(
             "agent_status",
             {"agent_id": agent_id, "status": "working"},
-            org_id=str(ctx.organization.id),
+            org_id=str(org.id),
         )
 
     log.info(
@@ -511,6 +526,8 @@ async def answer_question(
     Authorization: Any org member can answer questions (enforced at router level).
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
+
     # Update the stored AgentMessage's status
     try:
         stmt = (
@@ -552,7 +569,7 @@ async def answer_question(
             "answers": request.answers,
             "answered_by": str(ctx.user.id),
         },
-        org_id=str(ctx.organization.id),
+        org_id=str(org.id),
     )
 
     log.info(

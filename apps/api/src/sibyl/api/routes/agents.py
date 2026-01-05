@@ -24,7 +24,7 @@ from sibyl.auth.context import AuthContext
 from sibyl.auth.dependencies import require_org_role
 from sibyl.auth.rls import AuthSession, get_auth_session
 from sibyl.db import AgentMessage as DbAgentMessage
-from sibyl.db.models import OrganizationRole, ProjectRole
+from sibyl.db.models import Organization, OrganizationRole, ProjectRole
 from sibyl_core.errors import EntityNotFoundError
 from sibyl_core.graph.client import get_graph_client
 from sibyl_core.graph.entities import EntityManager
@@ -40,6 +40,17 @@ if TYPE_CHECKING:
     from sibyl_core.models.entities import Entity
 
 log = structlog.get_logger()
+
+
+def _require_org(ctx: AuthContext) -> Organization:
+    """Require organization context for multi-tenant routes.
+
+    Raises:
+        HTTPException 403: If no organization in context
+    """
+    if not ctx.organization:
+        raise HTTPException(status_code=403, detail="Organization context required")
+    return ctx.organization
 
 
 def _is_valid_uuid(value: str | None) -> bool:
@@ -316,8 +327,9 @@ async def list_agents(
     Results are filtered to agents the user can access (own agents + projects with VIEWER+).
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Get accessible project IDs for permission filtering
     is_admin = ctx.org_role in (OrganizationRole.OWNER, OrganizationRole.ADMIN)
@@ -391,8 +403,9 @@ async def get_agent(
 ) -> AgentResponse:
     """Get a specific agent by ID."""
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     try:
         entity = await manager.get(agent_id)
@@ -505,11 +518,10 @@ async def pause_agent(
     Requires ownership or CONTRIBUTOR+ project access.
     """
     ctx = auth.ctx
-    if ctx.organization is None:
-        raise HTTPException(status_code=403, detail="No organization context")
+    org = _require_org(ctx)
 
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:
@@ -556,11 +568,10 @@ async def resume_agent(
     from sibyl.jobs.queue import enqueue_agent_resume
 
     ctx = auth.ctx
-    if ctx.organization is None:
-        raise HTTPException(status_code=403, detail="No organization context")
+    org = _require_org(ctx)
 
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:
@@ -596,7 +607,7 @@ async def resume_agent(
     )
 
     # Enqueue resume job for worker
-    await enqueue_agent_resume(agent_id, str(ctx.organization.id))
+    await enqueue_agent_resume(agent_id, str(org.id))
 
     return AgentActionResponse(
         success=True,
@@ -626,11 +637,10 @@ async def terminate_agent(
     from sibyl.api.pubsub import publish_event, request_agent_stop
 
     ctx = auth.ctx
-    if ctx.organization is None:
-        raise HTTPException(status_code=403, detail="No organization context")
+    org = _require_org(ctx)
 
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:
@@ -667,7 +677,7 @@ async def terminate_agent(
     await publish_event(
         "agent_status",
         {"agent_id": agent_id, "status": "terminated"},
-        org_id=str(ctx.organization.id),
+        org_id=str(org.id),
     )
 
     return AgentActionResponse(
@@ -691,8 +701,9 @@ async def get_agent_messages(
     are only available via real-time WebSocket streaming.
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Verify agent exists
     entity = await manager.get(agent_id)
@@ -707,7 +718,7 @@ async def get_agent_messages(
     result = await auth.session.execute(
         select(DbAgentMessage)
         .where(col(DbAgentMessage.agent_id) == agent_id)
-        .where(col(DbAgentMessage.organization_id) == ctx.organization.id)
+        .where(col(DbAgentMessage.organization_id) == org.id)
         .order_by(col(DbAgentMessage.message_num))
         .limit(limit)
     )
@@ -757,11 +768,10 @@ async def send_agent_message(
     Requires ownership or CONTRIBUTOR+ project access.
     """
     ctx = auth.ctx
-    if ctx.organization is None:
-        raise HTTPException(status_code=403, detail="No organization context")
+    org = _require_org(ctx)
 
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Verify agent exists and has a session_id
     entity = await manager.get(agent_id)
@@ -815,7 +825,7 @@ async def send_agent_message(
 
     db_message = AgentMessage(
         agent_id=agent_id,
-        organization_id=ctx.organization.id,
+        organization_id=org.id,
         message_num=next_num,
         role=AgentMessageRole.user,
         type=AgentMessageType.text,
@@ -846,7 +856,7 @@ async def send_agent_message(
         from sibyl.jobs.queue import enqueue_agent_resume
 
         # Pass the message directly - Claude handles conversation history
-        await enqueue_agent_resume(agent_id, str(ctx.organization.id), prompt=request.content)
+        await enqueue_agent_resume(agent_id, str(org.id), prompt=request.content)
 
         log.info(
             "Agent resume enqueued",
@@ -870,8 +880,9 @@ async def get_agent_workspace(
     Returns file changes and progress information from the latest checkpoint.
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Verify agent exists
     entity = await manager.get(agent_id)
@@ -982,8 +993,9 @@ async def record_heartbeat(
     Called periodically by running agents to indicate liveness.
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:
@@ -1041,8 +1053,9 @@ async def get_health_overview(
     Results are filtered to agents the user can access (own agents + projects with VIEWER+).
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     # Get accessible project IDs for permission filtering
     is_admin = ctx.org_role in (OrganizationRole.OWNER, OrganizationRole.ADMIN)
@@ -1192,6 +1205,7 @@ async def get_activity_feed(
     Results are filtered to agents the user can access (own agents + projects with VIEWER+).
     """
     ctx = auth.ctx
+    org = _require_org(ctx)
     events: list[ActivityEvent] = []
 
     # Get accessible project IDs and agents for permission filtering
@@ -1204,7 +1218,7 @@ async def get_activity_feed(
 
     # Get recent agent status changes from graph (need this first to filter messages)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     agents = await manager.list_by_type(entity_type=EntityType.AGENT, limit=100)
 
@@ -1240,7 +1254,7 @@ async def get_activity_feed(
         # Build agent filter - use IN clause for accessible agents
         stmt = (
             select(DbAgentMessage)
-            .where(col(DbAgentMessage.organization_id) == ctx.organization.id)
+            .where(col(DbAgentMessage.organization_id) == org.id)
             .where(col(DbAgentMessage.agent_id).in_(accessible_agent_ids))
             .order_by(col(DbAgentMessage.created_at).desc())
             .limit(limit)
@@ -1341,8 +1355,9 @@ async def rename_agent(
     from sibyl.api.pubsub import publish_event
 
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:
@@ -1387,8 +1402,9 @@ async def archive_agent(
     from sibyl.api.pubsub import publish_event
 
     ctx = auth.ctx
+    org = _require_org(ctx)
     client = await get_graph_client()
-    manager = EntityManager(client, group_id=str(ctx.organization.id))
+    manager = EntityManager(client, group_id=str(org.id))
 
     entity = await manager.get(agent_id)
     if not entity or entity.entity_type != EntityType.AGENT:

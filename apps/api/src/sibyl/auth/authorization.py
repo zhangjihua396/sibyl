@@ -570,8 +570,8 @@ async def filter_accessible_entities(
     result = []
     for entity in entities:
         project_id = project_id_getter(entity)
-        # Include if: no project (unassigned), or project is accessible
-        if project_id is None or project_id in accessible_graph_ids:
+        # Include if: no project (unassigned), skip filtering (None), or project is accessible
+        if project_id is None or accessible_graph_ids is None or project_id in accessible_graph_ids:
             result.append(entity)
 
     return result
