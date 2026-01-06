@@ -23,6 +23,7 @@ import { ErrorState } from '@/components/ui/tooltip';
 import type { EntityListResponse, EntitySortField, SortOrder, StatsResponse } from '@/lib/api';
 import { useDeleteEntity, useEntities, useStats } from '@/lib/hooks';
 import { useProjectContext } from '@/lib/project-context';
+import { readStorage, writeStorage } from '@/lib/storage';
 
 interface EntitiesContentProps {
   initialEntities: EntityListResponse;
@@ -100,6 +101,36 @@ export function EntitiesContent({
       }
     };
   }, []);
+
+  // Restore sort preference from localStorage on mount (if URL has no sort params)
+  const [hasRestoredSort, setHasRestoredSort] = useState(false);
+  useEffect(() => {
+    if (hasRestoredSort) return;
+    setHasRestoredSort(true);
+
+    // If URL already has sort params, don't override
+    if (searchParams.get('sort_by') || searchParams.get('sort_order')) return;
+
+    const stored = readStorage<{ sortBy: EntitySortField; sortOrder: SortOrder }>('entities:sort');
+    if (stored && (stored.sortBy !== 'updated_at' || stored.sortOrder !== 'desc')) {
+      // Restore from storage (only if different from defaults)
+      const params = new URLSearchParams(searchParams);
+      params.set('sort_by', stored.sortBy);
+      params.set('sort_order', stored.sortOrder);
+      router.replace(`/entities?${params.toString()}`);
+    }
+  }, [hasRestoredSort, router, searchParams]);
+
+  // Save sort preference when it changes
+  useEffect(() => {
+    if (!hasRestoredSort) return;
+    // Only persist if different from defaults
+    if (sortBy !== 'updated_at' || sortOrder !== 'desc') {
+      writeStorage('entities:sort', { sortBy, sortOrder });
+    } else {
+      writeStorage('entities:sort', undefined);
+    }
+  }, [hasRestoredSort, sortBy, sortOrder]);
 
   // Hydrate from server data, then use client cache
   const { data, isLoading, error } = useEntities(

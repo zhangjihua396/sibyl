@@ -43,6 +43,7 @@ import {
   useUpdateEntity,
   useUpdateProjectMemberRole,
 } from '@/lib/hooks';
+import { useClientPrefs } from '@/lib/storage';
 
 interface ProjectsContentProps {
   initialProjects: TaskListResponse;
@@ -120,11 +121,23 @@ function calculateProjectStats(tasks: TaskSummary[]): ProjectStats {
   return stats;
 }
 
+interface ProjectsPrefs {
+  sortBy: ProjectSortOption;
+  showArchived: boolean;
+}
+
 export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [sortBy, setSortBy] = useState<ProjectSortOption>('active');
-  const [showArchived, setShowArchived] = useState(false);
+
+  // Persisted preferences
+  const [prefs, setPrefs] = useClientPrefs<ProjectsPrefs>({
+    key: 'projects:prefs',
+    defaultValue: { sortBy: 'active', showArchived: false },
+  });
+  const { sortBy, showArchived } = prefs;
+  const setSortBy = (v: ProjectSortOption) => setPrefs(p => ({ ...p, sortBy: v }));
+  const setShowArchived = (v: boolean) => setPrefs(p => ({ ...p, showArchived: v }));
 
   const selectedProjectId = searchParams.get('id');
 

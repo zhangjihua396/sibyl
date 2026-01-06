@@ -50,6 +50,7 @@ import {
   useTerminateAgent,
 } from '@/lib/hooks';
 import { useProjectFilter } from '@/lib/project-context';
+import { readStorage, writeStorage } from '@/lib/storage';
 
 // =============================================================================
 // Agent Card Styling
@@ -511,13 +512,11 @@ const SummaryBar = memo(function SummaryBar({ agents }: { agents: Agent[] }) {
 
 type ViewMode = 'dashboard' | 'list' | 'planning';
 
-const VIEW_MODE_KEY = 'agents-view-mode';
-
 function AgentsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Initialize view mode from URL or localStorage
+  // Initialize view mode from URL or storage
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     // Check URL param first (for redirects from /planning)
     if (typeof window !== 'undefined') {
@@ -525,14 +524,14 @@ function AgentsPageContent() {
       if (urlView && ['dashboard', 'list', 'planning'].includes(urlView)) {
         return urlView;
       }
-      return (localStorage.getItem(VIEW_MODE_KEY) as ViewMode) || 'dashboard';
+      return readStorage<ViewMode>('agents:viewMode') || 'dashboard';
     }
     return 'dashboard';
   });
 
-  // Persist view mode preference (but don't persist URL-driven views)
+  // Persist view mode preference
   useEffect(() => {
-    localStorage.setItem(VIEW_MODE_KEY, viewMode);
+    writeStorage('agents:viewMode', viewMode);
   }, [viewMode]);
 
   // Handle URL param changes (e.g., redirect from /planning)

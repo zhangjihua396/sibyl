@@ -35,12 +35,27 @@ import {
   useSources,
   useSyncSource,
 } from '@/lib/hooks';
+import { useClientPrefs } from '@/lib/storage';
 import { wsClient } from '@/lib/websocket';
 
 type ViewMode = 'grid' | 'list';
 type SortBy = 'name' | 'updated' | 'documents';
 type FilterStatus = 'all' | CrawlStatusType;
 type FilterType = 'all' | SourceTypeValue;
+
+interface SourcesPrefs {
+  viewMode: ViewMode;
+  sortBy: SortBy;
+  filterStatus: FilterStatus;
+  filterType: FilterType;
+}
+
+const DEFAULT_PREFS: SourcesPrefs = {
+  viewMode: 'grid',
+  sortBy: 'updated',
+  filterStatus: 'all',
+  filterType: 'all',
+};
 
 export default function SourcesPage() {
   const { data: sourcesData, isLoading, error, refetch } = useSources();
@@ -51,14 +66,23 @@ export default function SourcesPage() {
   const cancelCrawl = useCancelCrawl();
   const crawlProgressMap = useAllCrawlProgress();
 
-  // UI State
+  // Persisted preferences
+  const [prefs, setPrefs] = useClientPrefs<SourcesPrefs>({
+    key: 'sources:prefs',
+    defaultValue: DEFAULT_PREFS,
+  });
+
+  // UI State (not persisted)
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<FilterStatus>('all');
-  const [filterType, setFilterType] = useState<FilterType>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('updated');
   const [showFilters, setShowFilters] = useState(false);
+
+  // Destructure for easier access
+  const { viewMode, sortBy, filterStatus, filterType } = prefs;
+  const setViewMode = (v: ViewMode) => setPrefs(p => ({ ...p, viewMode: v }));
+  const setSortBy = (v: SortBy) => setPrefs(p => ({ ...p, sortBy: v }));
+  const setFilterStatus = (v: FilterStatus) => setPrefs(p => ({ ...p, filterStatus: v }));
+  const setFilterType = (v: FilterType) => setPrefs(p => ({ ...p, filterType: v }));
 
   // Track which sources have active crawl operations
   const [crawlingSourceIds, setCrawlingSourceIds] = useState<Set<string>>(new Set());
