@@ -1211,6 +1211,133 @@ class AgentMessage(SQLModel, table=True):
 
 
 # =============================================================================
+# Planning Studio - Multi-agent brainstorming
+# =============================================================================
+
+
+class PlanningPhase(StrEnum):
+    """Planning session lifecycle phases."""
+
+    # Names must be lowercase to match Postgres enum values
+    created = "created"
+    brainstorming = "brainstorming"
+    synthesizing = "synthesizing"
+    drafting = "drafting"
+    ready = "ready"
+    materialized = "materialized"
+    discarded = "discarded"
+
+
+class BrainstormThreadStatus(StrEnum):
+    """Brainstorm agent thread status."""
+
+    # Names must be lowercase to match Postgres enum values
+    pending = "pending"
+    running = "running"
+    completed = "completed"
+    failed = "failed"
+
+
+class PlanningSession(TimestampMixin, table=True):
+    """Multi-agent planning/brainstorming session."""
+
+    __tablename__ = "planning_sessions"  # type: ignore[assignment]
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    org_id: UUID = Field(foreign_key="organizations.id", index=True)
+    project_id: UUID | None = Field(
+        default=None, foreign_key="projects.id", index=True
+    )
+    created_by: UUID = Field(foreign_key="users.id")
+
+    title: str | None = Field(default=None, max_length=255)
+    prompt: str = Field(sa_type=Text)
+    phase: PlanningPhase = Field(default=PlanningPhase.created)
+
+    # Generated content (JSONB)
+    personas: list[dict[str, Any]] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+        description="Generated personas for brainstorming",
+    )
+    synthesis: str | None = Field(
+        default=None, sa_type=Text, description="Merged insights from brainstorming"
+    )
+    spec_draft: str | None = Field(
+        default=None, sa_type=Text, description="Draft specification document"
+    )
+    task_drafts: list[dict[str, Any]] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+        description="Extracted task drafts",
+    )
+
+    # Materialization results
+    materialized_at: datetime | None = Field(default=None)
+    epic_id: str | None = Field(default=None, max_length=50, description="Sibyl epic ID")
+    task_ids: list[str] | None = Field(
+        default=None,
+        sa_column=Column(JSONB, nullable=True),
+        description="Sibyl task IDs",
+    )
+    document_id: str | None = Field(
+        default=None, max_length=50, description="Sibyl document ID"
+    )
+    episode_id: str | None = Field(
+        default=None, max_length=50, description="Brainstorm summary episode ID"
+    )
+
+    # Relationships
+    threads: list["BrainstormThread"] = Relationship(back_populates="session")
+
+
+class BrainstormThread(SQLModel, table=True):
+    """Individual agent perspective in a brainstorm session."""
+
+    __tablename__ = "brainstorm_threads"  # type: ignore[assignment]
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    session_id: UUID = Field(foreign_key="planning_sessions.id", index=True)
+
+    persona_role: str = Field(max_length=100)
+    persona_name: str | None = Field(default=None, max_length=100)
+    persona_focus: str | None = Field(default=None, sa_type=Text)
+    persona_system_prompt: str | None = Field(default=None, sa_type=Text)
+
+    agent_id: str | None = Field(default=None, max_length=50)
+    status: BrainstormThreadStatus = Field(default=BrainstormThreadStatus.pending)
+
+    started_at: datetime | None = Field(default=None)
+    completed_at: datetime | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow_naive)
+
+    # Relationships
+    session: PlanningSession = Relationship(back_populates="threads")
+    messages: list["BrainstormMessage"] = Relationship(back_populates="thread")
+
+
+class BrainstormMessage(SQLModel, table=True):
+    """Message in a brainstorm thread."""
+
+    __tablename__ = "brainstorm_messages"  # type: ignore[assignment]
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    thread_id: UUID = Field(foreign_key="brainstorm_threads.id", index=True)
+
+    role: str = Field(max_length=20)  # user, assistant, system
+    content: str = Field(sa_type=Text)
+    thinking: str | None = Field(default=None, sa_type=Text)
+
+    created_at: datetime = Field(
+        default_factory=utcnow_naive,
+        sa_column=Column(DateTime, nullable=False, server_default=text("now()"), index=True),
+    )
+
+    # Relationships
+    thread: BrainstormThread = Relationship(back_populates="messages")
+
+
+# =============================================================================
 # Utility functions
 # =============================================================================
 
