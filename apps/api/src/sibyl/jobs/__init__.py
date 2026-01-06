@@ -4,6 +4,7 @@ Provides background job processing for:
 - Documentation crawling (crawl.py)
 - Entity operations (entities.py)
 - Agent execution (agents.py)
+- Pending entity registry (pending.py)
 
 Job queue client is in queue.py, worker settings in worker.py.
 """
@@ -15,6 +16,15 @@ from sibyl.jobs.agents import (
 )
 from sibyl.jobs.crawl import crawl_source, sync_all_sources, sync_source
 from sibyl.jobs.entities import create_entity, create_learning_episode, update_entity
+from sibyl.jobs.pending import (
+    clear_pending,
+    clear_pending_operations,
+    get_pending_operations,
+    is_pending,
+    mark_pending,
+    process_pending_operations,
+    queue_pending_operation,
+)
 from sibyl.jobs.queue import (
     JobStatus,
     enqueue_agent_execution,
@@ -46,6 +56,14 @@ __all__ = [
     "enqueue_create_learning_episode",
     "enqueue_update_entity",
     "enqueue_update_task",
+    # Pending entity registry
+    "mark_pending",
+    "is_pending",
+    "clear_pending",
+    "queue_pending_operation",
+    "get_pending_operations",
+    "clear_pending_operations",
+    "process_pending_operations",
     # Agent queue
     "enqueue_agent_execution",
     "enqueue_agent_resume",

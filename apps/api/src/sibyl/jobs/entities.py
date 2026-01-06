@@ -184,11 +184,18 @@ async def create_entity(  # noqa: PLR0915
             except Exception as e:
                 log.warning("create_entity_auto_link_search_failed", error=str(e))
 
+        # Clear pending status and process any queued operations
+        from sibyl.jobs.pending import clear_pending, process_pending_operations
+
+        await clear_pending(created_id)
+        pending_results = await process_pending_operations(created_id, group_id)
+
         result = {
             "entity_id": created_id,
             "entity_type": entity_type,
             "relationships_created": relationships_created,
             "auto_links_created": auto_links_created,
+            "pending_ops_processed": len(pending_results),
         }
 
         # Broadcast entity creation event

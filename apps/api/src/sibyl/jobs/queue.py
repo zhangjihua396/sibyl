@@ -179,7 +179,8 @@ async def enqueue_create_entity(
     """Enqueue an entity creation job.
 
     Creates entity asynchronously via Graphiti for LLM-powered
-    relationship discovery.
+    relationship discovery. Marks entity as pending so operations
+    targeting it can queue until it materializes.
 
     Args:
         entity_id: Pre-generated entity ID
@@ -192,6 +193,8 @@ async def enqueue_create_entity(
     Returns:
         Job ID for tracking
     """
+    from sibyl.jobs.pending import mark_pending
+
     pool = await get_pool()
 
     # Deterministic job ID based on entity ID
@@ -210,6 +213,9 @@ async def enqueue_create_entity(
     if job is None:
         log.info("Create entity job already exists", job_id=job_id, entity_id=entity_id)
         return job_id
+
+    # Mark entity as pending so operations can queue against it
+    await mark_pending(entity_id, job_id, entity_type, group_id)
 
     log.info(
         "Enqueued create_entity job",

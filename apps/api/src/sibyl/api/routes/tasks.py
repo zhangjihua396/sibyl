@@ -684,6 +684,7 @@ class NoteResponse(BaseModel):
     author_type: str
     author_name: str
     created_at: str
+    status: str | None = None  # None = created, "pending" = queued for async creation
 
 
 class NotesListResponse(BaseModel):
@@ -701,27 +702,73 @@ async def create_note(
     user: User = Depends(get_current_user),
     auth: AuthSession = Depends(get_auth_session),
 ) -> NoteResponse:
-    """Create a note on a task."""
+    """Create a note on a task.
+
+    If the task is still being created asynchronously, the note will be queued
+    and processed when the task materializes. The response will have status="pending".
+    """
     from datetime import UTC, datetime
 
+    from sibyl.jobs.pending import is_pending, queue_pending_operation
     from sibyl_core.models.entities import Relationship, RelationshipType
 
     await _verify_task_access(task_id, org, auth.ctx, auth.session)
 
     try:
         group_id = str(org.id)
+        note_id = f"note_{uuid.uuid4()}"
+        created_at = datetime.now(UTC)
+
+        # Check if task is still being created asynchronously
+        pending = await is_pending(task_id)
+        if pending:
+            # Queue the note operation to run when task materializes
+            op_id = await queue_pending_operation(
+                entity_id=task_id,
+                operation="add_note",
+                payload={
+                    "note_id": note_id,
+                    "content": request.content,
+                    "author_type": request.author_type.value,
+                    "author_name": request.author_name,
+                    "created_at": created_at.isoformat(),
+                    "user_id": str(user.id),
+                },
+                user_id=str(user.id),
+            )
+
+            log.info(
+                "create_note_queued",
+                note_id=note_id,
+                task_id=task_id,
+                op_id=op_id,
+            )
+
+            await broadcast_event(
+                "note_pending",
+                {"id": note_id, "task_id": task_id, "op_id": op_id},
+                org_id=group_id,
+            )
+
+            return NoteResponse(
+                id=note_id,
+                task_id=task_id,
+                content=request.content,
+                author_type=request.author_type.value,
+                author_name=request.author_name,
+                created_at=created_at.isoformat(),
+                status="pending",
+            )
+
+        # Task exists - create note synchronously
         client = await get_graph_client()
         entity_manager = EntityManager(client, group_id=group_id)
         relationship_manager = RelationshipManager(client, group_id=group_id)
 
-        # Verify task exists
+        # Verify task exists in graph
         task = await entity_manager.get(task_id)
         if not task:
             raise HTTPException(status_code=404, detail=f"Task not found: {task_id}")
-
-        # Create note entity with actor attribution
-        note_id = f"note_{uuid.uuid4()}"
-        created_at = datetime.now(UTC)
 
         note = Note(  # type: ignore[call-arg]  # model_validator sets name from content
             id=note_id,
