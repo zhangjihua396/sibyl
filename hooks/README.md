@@ -10,6 +10,19 @@ moon run install-hooks
 
 Then restart Claude Code.
 
+### Enhanced Query Generation (Optional)
+
+For smarter semantic search queries, set your Anthropic API key:
+
+```bash
+export ANTHROPIC_API_KEY=sk-...
+```
+
+With this enabled, the hook uses Haiku 4.5 to generate contextual search queries
+based on the conversation history. Falls back to keyword extraction without it.
+
+No SDK needed - uses raw HTTP requests.
+
 ## What It Does
 
 | Hook | Trigger | Action |
