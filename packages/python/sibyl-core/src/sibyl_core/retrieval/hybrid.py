@@ -39,6 +39,9 @@ class HybridConfig:
         graph_depth: Maximum depth for graph traversal.
         apply_temporal: Whether to apply temporal boosting.
         temporal_decay_days: Decay half-life for temporal boosting.
+        apply_reranking: Whether to apply cross-encoder reranking after RRF.
+        rerank_top_k: Number of top results to rerank (rest pass through).
+        rerank_model: Cross-encoder model for reranking.
     """
 
     vector_weight: float = 1.0
@@ -48,6 +51,10 @@ class HybridConfig:
     graph_depth: int = 2
     apply_temporal: bool = True
     temporal_decay_days: float = 365.0
+    # Cross-encoder reranking (disabled by default for performance)
+    apply_reranking: bool = False
+    rerank_top_k: int = 20
+    rerank_model: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 
 @dataclass
@@ -300,7 +307,30 @@ async def hybrid_search(
         )
         source_metadata = {}
 
-    # Phase 4: Apply temporal boosting
+    # Phase 4: Apply cross-encoder reranking (optional)
+    reranking_applied = False
+    if config.apply_reranking and merged:
+        try:
+            from sibyl_core.retrieval.reranking import CrossEncoderConfig, rerank_results
+
+            rerank_config = CrossEncoderConfig(
+                enabled=True,
+                model_name=config.rerank_model,
+                top_k=config.rerank_top_k,
+                fallback_on_error=True,
+            )
+            rerank_result = await rerank_results(query, merged, rerank_config)
+            merged = rerank_result.results
+            reranking_applied = rerank_result.reranked_count > 0
+            log.debug(
+                "reranking_complete",
+                reranked_count=rerank_result.reranked_count,
+                model=rerank_result.model_name,
+            )
+        except Exception as e:
+            log.warning("reranking_failed_continuing", error=str(e))
+
+    # Phase 5: Apply temporal boosting
     if config.apply_temporal and merged:
         merged = temporal_boost(
             merged,
@@ -316,6 +346,7 @@ async def hybrid_search(
         "vector_count": len(vector_results),
         "graph_count": len(graph_results),
         "merged_count": len(merged),
+        "reranking_applied": reranking_applied,
         "temporal_applied": config.apply_temporal,
     }
 

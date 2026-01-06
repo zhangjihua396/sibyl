@@ -6,6 +6,7 @@ This module provides advanced retrieval strategies:
 - bm25: Keyword-based BM25 search
 - hybrid: Combined vector + graph traversal
 - dedup: Entity deduplication via embeddings
+- reranking: Cross-encoder reranking for improved relevance
 """
 
 from sibyl_core.retrieval.bm25 import BM25Config, BM25Index, bm25_search, get_bm25_index
@@ -29,6 +30,12 @@ from sibyl_core.retrieval.hybrid import (
     hybrid_search,
     simple_hybrid_search,
 )
+from sibyl_core.retrieval.reranking import (
+    CrossEncoderConfig,
+    RerankResult,
+    cross_encoder_rerank,
+    rerank_results,
+)
 from sibyl_core.retrieval.temporal import (
     TemporalConfig,
     calculate_boost,
@@ -40,6 +47,8 @@ __all__ = [
     # BM25
     "BM25Config",
     "BM25Index",
+    # Reranking
+    "CrossEncoderConfig",
     # Dedup
     "DedupConfig",
     "DuplicatePair",
@@ -49,15 +58,19 @@ __all__ = [
     # Hybrid
     "HybridConfig",
     "HybridResult",
+    # Reranking
+    "RerankResult",
     # Temporal
     "TemporalConfig",
     "bm25_search",
     "calculate_boost",
     "cosine_similarity",
+    "cross_encoder_rerank",
     "find_duplicates",
     "get_bm25_index",
     "get_deduplicator",
     "hybrid_search",
+    "rerank_results",
     "rrf_merge",
     "rrf_merge_with_metadata",
     "simple_hybrid_search",
