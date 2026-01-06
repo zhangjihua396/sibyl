@@ -24,7 +24,6 @@ from sibyl.jobs.agents import (
 )
 from sibyl.jobs.crawl import crawl_source, sync_all_sources, sync_source
 from sibyl.jobs.entities import create_entity, create_learning_episode, update_entity
-from sibyl.jobs.planning import run_brainstorming, run_materialization, run_synthesis
 
 log = structlog.get_logger()
 
@@ -76,10 +75,6 @@ class WorkerSettings:
         run_agent_execution,
         resume_agent_execution,
         generate_status_hint,
-        # Planning jobs
-        run_brainstorming,
-        run_synthesis,
-        run_materialization,
     ]
 
     # Lifecycle hooks
