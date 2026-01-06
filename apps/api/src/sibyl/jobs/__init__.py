@@ -25,14 +25,18 @@ from sibyl.jobs.pending import (
     process_pending_operations,
     queue_pending_operation,
 )
+from sibyl.jobs.planning import run_brainstorming, run_materialization, run_synthesis
 from sibyl.jobs.queue import (
     JobStatus,
     enqueue_agent_execution,
     enqueue_agent_resume,
+    enqueue_brainstorming,
     enqueue_crawl,
     enqueue_create_entity,
     enqueue_create_learning_episode,
+    enqueue_materialization,
     enqueue_sync,
+    enqueue_synthesis,
     enqueue_update_entity,
     enqueue_update_task,
     get_job_status,
@@ -67,6 +71,10 @@ __all__ = [
     # Agent queue
     "enqueue_agent_execution",
     "enqueue_agent_resume",
+    # Planning queue
+    "enqueue_brainstorming",
+    "enqueue_synthesis",
+    "enqueue_materialization",
     # Job functions (for direct testing)
     "crawl_source",
     "sync_source",
@@ -77,4 +85,7 @@ __all__ = [
     "run_agent_execution",
     "resume_agent_execution",
     "generate_status_hint",
+    "run_brainstorming",
+    "run_synthesis",
+    "run_materialization",
 ]

@@ -408,6 +408,99 @@ async def discard_session(
 # =============================================================================
 
 
+class RunBrainstormingRequest(BaseModel):
+    """Request to run brainstorming (auto-generate personas or use provided)."""
+
+    personas: list[PersonaSchema] | None = Field(
+        None, description="Custom personas (optional - generates if not provided)"
+    )
+    persona_count: int = Field(4, ge=2, le=6, description="Number of personas to generate")
+
+
+class RunBrainstormingResponse(BaseModel):
+    """Response from running brainstorming."""
+
+    session: SessionResponse
+    threads: list[ThreadResponse]
+    job_id: str
+
+
+@router.post("/{session_id}/run-brainstorming", response_model=RunBrainstormingResponse)
+@log_operation("run_brainstorming")
+async def run_brainstorming(
+    session_id: str,
+    request: RunBrainstormingRequest,
+    auth: AuthSession = Depends(get_auth_session),
+) -> RunBrainstormingResponse:
+    """Run brainstorming - generates personas and executes agents.
+
+    This endpoint:
+    1. Generates personas using Claude (if not provided)
+    2. Creates threads for each persona
+    3. Enqueues background job to run persona agents in parallel
+
+    Clients should subscribe to WebSocket for real-time updates.
+    """
+    ctx = auth.ctx
+    org = _require_org(ctx)
+
+    service = PlanningSessionService(auth.session)
+
+    # Validate session exists and is in correct phase
+    session = await service.get_session(UUID(session_id), org.id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    if session.phase != PlanningPhase.created:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot start brainstorming from {session.phase.value} phase",
+        )
+
+    # Generate or use provided personas
+    if request.personas:
+        personas_data = [p.model_dump() for p in request.personas]
+    else:
+        from sibyl.planning.personas import generate_personas
+
+        personas_data = await generate_personas(session.prompt, count=request.persona_count)
+
+    # Start brainstorming (creates threads, updates phase)
+    updated_session = await service.start_brainstorming(UUID(session_id), org.id, personas_data)
+
+    if not updated_session:
+        raise HTTPException(status_code=500, detail="Failed to start brainstorming")
+
+    # Get created threads
+    threads = await service.list_threads(UUID(session_id))
+
+    # Enqueue background job to run the agents
+    from sibyl.jobs import enqueue_brainstorming
+
+    job_id = await enqueue_brainstorming(session_id, str(org.id), round_number=1)
+
+    # Broadcast brainstorming started event
+    from sibyl.api.pubsub import publish_event
+
+    await publish_event(
+        "planning_brainstorm_started",
+        {
+            "session_id": session_id,
+            "phase": "brainstorming",
+            "thread_count": len(threads),
+            "thread_ids": [str(t.id) for t in threads],
+            "job_id": job_id,
+        },
+        org_id=str(org.id),
+    )
+
+    return RunBrainstormingResponse(
+        session=SessionResponse.from_model(updated_session),
+        threads=[ThreadResponse.from_model(t) for t in threads],
+        job_id=job_id,
+    )
+
+
 @router.post("/{session_id}/start-brainstorming", response_model=StartBrainstormingResponse)
 @log_operation("start_brainstorming")
 async def start_brainstorming(
@@ -415,9 +508,10 @@ async def start_brainstorming(
     request: StartBrainstormingRequest,
     auth: AuthSession = Depends(get_auth_session),
 ) -> StartBrainstormingResponse:
-    """Start brainstorming with the provided personas.
+    """Start brainstorming with the provided personas (manual mode).
 
     Creates threads for each persona and transitions to 'brainstorming' phase.
+    Does NOT automatically run agents - use /run-brainstorming for that.
     """
     ctx = auth.ctx
     org = _require_org(ctx)
@@ -687,6 +781,52 @@ async def fail_thread(
 # =============================================================================
 
 
+class RunSynthesisResponse(BaseModel):
+    """Response from running synthesis."""
+
+    job_id: str
+    session_id: str
+    message: str
+
+
+@router.post("/{session_id}/run-synthesis", response_model=RunSynthesisResponse)
+@log_operation("run_synthesis")
+async def run_synthesis(
+    session_id: str,
+    auth: AuthSession = Depends(get_auth_session),
+) -> RunSynthesisResponse:
+    """Run synthesis on brainstorm outputs.
+
+    Enqueues a background job to synthesize all persona outputs
+    into a cohesive summary. Listen to WebSocket for completion.
+    """
+    ctx = auth.ctx
+    org = _require_org(ctx)
+
+    service = PlanningSessionService(auth.session)
+
+    session = await service.get_session(UUID(session_id), org.id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    if session.phase != PlanningPhase.synthesizing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot run synthesis in {session.phase.value} phase (must be 'synthesizing')",
+        )
+
+    # Enqueue synthesis job
+    from sibyl.jobs import enqueue_synthesis
+
+    job_id = await enqueue_synthesis(session_id, str(org.id))
+
+    return RunSynthesisResponse(
+        job_id=job_id,
+        session_id=session_id,
+        message="Synthesis job enqueued",
+    )
+
+
 class SynthesisRequest(BaseModel):
     """Request to save synthesis results."""
 
@@ -709,7 +849,7 @@ async def save_synthesis(
     request: SynthesisRequest,
     auth: AuthSession = Depends(get_auth_session),
 ) -> SessionResponse:
-    """Save synthesis and transition to drafting phase."""
+    """Save synthesis and transition to drafting phase (manual mode)."""
     ctx = auth.ctx
     org = _require_org(ctx)
 
@@ -773,3 +913,87 @@ async def save_spec_draft(
         raise HTTPException(status_code=500, detail="Failed to save spec")
 
     return SessionResponse.from_model(updated)
+
+
+# =============================================================================
+# Materialization Endpoints
+# =============================================================================
+
+
+class MaterializeRequest(BaseModel):
+    """Request to materialize a planning session."""
+
+    project_id: str | None = Field(None, description="Project to assign entities to")
+    epic_title: str | None = Field(None, max_length=255, description="Override epic title")
+    epic_priority: str = Field("medium", description="Epic priority (low/medium/high/critical)")
+
+
+class MaterializeResponse(BaseModel):
+    """Response from materialization."""
+
+    job_id: str
+    session_id: str
+    message: str
+
+
+@router.post("/{session_id}/materialize", response_model=MaterializeResponse)
+@log_operation("materialize_planning_session")
+async def materialize_session(
+    session_id: str,
+    request: MaterializeRequest,
+    auth: AuthSession = Depends(get_auth_session),
+) -> MaterializeResponse:
+    """Materialize a planning session into Sibyl entities.
+
+    Creates:
+    - Epic for the overall feature/initiative
+    - Tasks from task_drafts, linked to the epic
+    - Document with the spec_draft
+    - Episode with the synthesis
+
+    The session must be in the 'ready' phase.
+    Listen to WebSocket for completion events.
+    """
+    ctx = auth.ctx
+    org = _require_org(ctx)
+
+    service = PlanningSessionService(auth.session)
+
+    session = await service.get_session(UUID(session_id), org.id)
+    if not session:
+        raise HTTPException(status_code=404, detail=f"Session not found: {session_id}")
+
+    if session.phase != PlanningPhase.ready:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot materialize in {session.phase.value} phase (must be 'ready')",
+        )
+
+    # Validate project access if specified
+    project_id_str: str | None = None
+    if request.project_id:
+        from sibyl.auth.authorization import verify_entity_project_access
+
+        await verify_entity_project_access(
+            auth.session, ctx, request.project_id, required_role=ProjectRole.CONTRIBUTOR
+        )
+        project_id_str = request.project_id
+    elif session.project_id:
+        project_id_str = str(session.project_id)
+
+    # Enqueue materialization job
+    from sibyl.jobs import enqueue_materialization
+
+    job_id = await enqueue_materialization(
+        session_id,
+        str(org.id),
+        project_id=project_id_str,
+        epic_title=request.epic_title,
+        epic_priority=request.epic_priority,
+    )
+
+    return MaterializeResponse(
+        job_id=job_id,
+        session_id=session_id,
+        message="Materialization job enqueued",
+    )

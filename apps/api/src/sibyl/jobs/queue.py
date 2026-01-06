@@ -551,3 +551,147 @@ async def enqueue_agent_resume(
     )
 
     return job.job_id
+
+
+async def enqueue_brainstorming(
+    session_id: str | UUID,
+    org_id: str | UUID,
+    round_number: int = 1,
+) -> str:
+    """Enqueue a brainstorming job.
+
+    Runs multiple persona agents in parallel to brainstorm on a topic.
+    Uses deterministic job ID to prevent duplicate executions.
+
+    Args:
+        session_id: Planning session UUID
+        org_id: Organization UUID
+        round_number: Which brainstorming round (1, 2, etc.)
+
+    Returns:
+        Job ID for tracking
+    """
+    pool = await get_pool()
+
+    # Deterministic job ID based on session and round
+    job_id = f"brainstorm:{session_id}:r{round_number}"
+
+    job = await pool.enqueue_job(
+        "run_brainstorming",
+        str(session_id),
+        str(org_id),
+        round_number,
+        _job_id=job_id,
+    )
+
+    if job is None:
+        log.info(
+            "Brainstorming job already exists",
+            job_id=job_id,
+            session_id=str(session_id),
+        )
+        return job_id
+
+    log.info(
+        "Enqueued brainstorming job",
+        job_id=job.job_id,
+        session_id=str(session_id),
+        round=round_number,
+    )
+
+    return job.job_id
+
+
+async def enqueue_synthesis(
+    session_id: str | UUID,
+    org_id: str | UUID,
+) -> str:
+    """Enqueue a synthesis job.
+
+    Synthesizes brainstorm outputs into a cohesive summary.
+
+    Args:
+        session_id: Planning session UUID
+        org_id: Organization UUID
+
+    Returns:
+        Job ID for tracking
+    """
+    pool = await get_pool()
+
+    job_id = f"synthesis:{session_id}"
+
+    job = await pool.enqueue_job(
+        "run_synthesis",
+        str(session_id),
+        str(org_id),
+        _job_id=job_id,
+    )
+
+    if job is None:
+        log.info(
+            "Synthesis job already exists",
+            job_id=job_id,
+            session_id=str(session_id),
+        )
+        return job_id
+
+    log.info(
+        "Enqueued synthesis job",
+        job_id=job.job_id,
+        session_id=str(session_id),
+    )
+
+    return job.job_id
+
+
+async def enqueue_materialization(
+    session_id: str | UUID,
+    org_id: str | UUID,
+    project_id: str | UUID | None = None,
+    epic_title: str | None = None,
+    epic_priority: str = "medium",
+) -> str:
+    """Enqueue a materialization job.
+
+    Materializes a planning session into Sibyl entities (epic, tasks, doc, episode).
+
+    Args:
+        session_id: Planning session UUID
+        org_id: Organization UUID
+        project_id: Optional project to assign entities to
+        epic_title: Override title for the epic
+        epic_priority: Priority for the epic
+
+    Returns:
+        Job ID for tracking
+    """
+    pool = await get_pool()
+
+    job_id = f"materialize:{session_id}"
+
+    job = await pool.enqueue_job(
+        "run_materialization",
+        str(session_id),
+        str(org_id),
+        str(project_id) if project_id else None,
+        epic_title,
+        epic_priority,
+        _job_id=job_id,
+    )
+
+    if job is None:
+        log.info(
+            "Materialization job already exists",
+            job_id=job_id,
+            session_id=str(session_id),
+        )
+        return job_id
+
+    log.info(
+        "Enqueued materialization job",
+        job_id=job.job_id,
+        session_id=str(session_id),
+    )
+
+    return job.job_id
