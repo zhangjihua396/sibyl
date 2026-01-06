@@ -112,11 +112,16 @@ class BrainstormAgent:
                 if isinstance(message, AssistantMessage):
                     if message.content:
                         # Extract text from content blocks
-                        response_parts.extend(
-                            block.text
-                            for block in message.content
-                            if isinstance(block, TextBlock)
-                        )
+                        for block in message.content:
+                            if isinstance(block, TextBlock):
+                                if isinstance(block.text, str):
+                                    response_parts.append(block.text)
+                                else:
+                                    log.warning(
+                                        "Unexpected block.text type",
+                                        type=type(block.text).__name__,
+                                        value=str(block.text)[:200],
+                                    )
 
                 elif isinstance(message, ResultMessage):
                     # Track usage
