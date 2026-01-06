@@ -1043,6 +1043,105 @@ def migrate(
         raise typer.Exit(code=1) from None
 
 
+@app.command("backfill-shared-projects")
+def backfill_shared_projects(
+    org_id: Annotated[
+        str,
+        typer.Option("--org-id", help="Organization UUID (required for graph operations)"),
+    ] = "",
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Preview what would be done without making changes"),
+    ] = False,
+) -> None:
+    """Backfill shared project in graph for orphan entities.
+
+    After running the Alembic migration (0008_add_shared_project), run this
+    command to:
+    1. Create the shared project graph entity
+    2. Update all entities with NULL project_id to use the shared project
+
+    This is part of the shared project migration. Run with --dry-run first
+    to see what would be changed.
+
+    Example:
+        sibyld db migrate -y
+        sibyld db backfill-shared-projects --org-id UUID --dry-run
+        sibyld db backfill-shared-projects --org-id UUID
+    """
+    if not org_id:
+        error("--org-id is required for graph operations")
+        raise typer.Exit(code=1)
+
+    @run_async
+    async def _backfill() -> None:
+        from uuid import UUID
+
+        from sqlalchemy import select
+
+        from sibyl.db.connection import get_session
+        from sibyl.db.models import Project
+        from sibyl_core.tools.admin import backfill_shared_project
+
+        try:
+            if dry_run:
+                warn("DRY RUN - no changes will be made")
+
+            # Look up the shared project from Postgres to get its graph_project_id
+            async with get_session() as session:
+                result = await session.execute(
+                    select(Project).where(
+                        Project.organization_id == UUID(org_id),
+                        Project.is_shared == True,  # noqa: E712
+                    )
+                )
+                shared_project = result.scalar_one_or_none()
+
+            if not shared_project:
+                error("No shared project found in Postgres. Run `sibyld db migrate` first.")
+                raise typer.Exit(code=1)
+
+            info(f"Found shared project: {shared_project.name}")
+            info(f"  Graph ID: {shared_project.graph_project_id}")
+            info(f"  Postgres ID: {shared_project.id}")
+
+            result = await backfill_shared_project(
+                organization_id=org_id,
+                shared_project_graph_id=shared_project.graph_project_id,
+                dry_run=dry_run,
+            )
+
+            if result.success:
+                if result.graph_entity_created:
+                    if dry_run:
+                        info("Would create shared project graph entity")
+                    else:
+                        success("Created shared project graph entity")
+
+                if dry_run:
+                    info(f"Would update {result.entities_updated} orphan entities")
+                else:
+                    success(f"Updated {result.entities_updated} orphan entities")
+            else:
+                warn("Backfill completed with errors")
+
+            info(f"Entities already with project_id: {result.entities_already_set}")
+            info(f"Duration: {result.duration_seconds:.2f}s")
+
+            if result.errors:
+                warn(f"Errors: {len(result.errors)}")
+                for err in result.errors[:5]:
+                    console.print(f"  [dim]{err}[/dim]")
+                if len(result.errors) > 5:
+                    console.print(f"  [dim]...and {len(result.errors) - 5} more[/dim]")
+
+        except Exception as e:
+            error(f"Backfill failed: {e}")
+            print_db_hint()
+
+    _backfill()
+
+
 @app.command("sync-projects")
 def sync_projects(  # noqa: PLR0915
     org_id: Annotated[

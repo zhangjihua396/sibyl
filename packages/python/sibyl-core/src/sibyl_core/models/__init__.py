@@ -28,6 +28,12 @@ from sibyl_core.models.entities import (
     Tool,
     Topic,
 )
+from sibyl_core.models.projects import (
+    SHARED_PROJECT_DESCRIPTION,
+    SHARED_PROJECT_NAME,
+    SHARED_PROJECT_SLUG,
+    is_shared_project_slug,
+)
 from sibyl_core.models.responses import (
     EntityResponse,
     GraphStatsResponse,
@@ -73,6 +79,10 @@ from sibyl_core.models.tools import (
 )
 
 __all__ = [
+    # Shared project constants
+    "SHARED_PROJECT_DESCRIPTION",
+    "SHARED_PROJECT_NAME",
+    "SHARED_PROJECT_SLUG",
     # Tool inputs
     "AddLearningInput",
     # Agent Harness
@@ -140,4 +150,5 @@ __all__ = [
     # Agent Harness (worktree)
     "WorktreeRecord",
     "WorktreeStatus",
+    "is_shared_project_slug",
 ]

@@ -735,6 +735,12 @@ class Project(TimestampMixin, table=True):
         description="Project settings",
     )
 
+    # Shared project marker
+    is_shared: bool = Field(
+        default=False,
+        description="True if this is the org's shared project for org-wide knowledge",
+    )
+
     # Relationships
     organization: Organization = Relationship()
     owner: User = Relationship()

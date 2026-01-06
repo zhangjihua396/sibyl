@@ -55,6 +55,10 @@ class Task(Entity):
     task_order: int = Field(default=0, description="Order within project (higher = more important)")
 
     # Project organization
+    # NOTE: project_id is optional during transition to shared project pattern.
+    # After running migration 0008_add_shared_project + backfill-shared-projects,
+    # all entities will have a project_id (using shared project for org-wide knowledge).
+    # TODO: Make this required after migration completes across all deployments.
     project_id: str | None = Field(default=None, description="Parent project UUID (optional)")
     epic_id: str | None = Field(default=None, description="Parent epic UUID (optional)")
     feature: str | None = Field(default=None, description="Feature area (lightweight grouping)")

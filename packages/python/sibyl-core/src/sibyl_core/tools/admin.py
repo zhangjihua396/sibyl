@@ -1171,3 +1171,215 @@ async def backfill_episode_task_relationships(
             errors=[str(e), *errors[:49]],
             duration_seconds=time.time() - start_time,
         )
+
+
+@dataclass
+class SharedProjectBackfillResult:
+    """Result of shared project backfill operation."""
+
+    success: bool
+    graph_entity_created: bool
+    graph_entity_id: str
+    entities_updated: int
+    entities_already_set: int
+    errors: list[str]
+    duration_seconds: float
+
+
+async def backfill_shared_project(
+    *,
+    organization_id: str,
+    shared_project_graph_id: str,
+    dry_run: bool = False,
+) -> SharedProjectBackfillResult:
+    """Create shared project graph entity and reassign orphan entities.
+
+    This is part of the shared project migration. It:
+    1. Creates the graph entity for the shared project if it doesn't exist
+    2. Updates all Episodic/Entity nodes with NULL project_id to use the shared project
+
+    Args:
+        organization_id: Organization UUID.
+        shared_project_graph_id: The graph ID for the shared project (from Postgres).
+        dry_run: If True, only report what would be done.
+
+    Returns:
+        SharedProjectBackfillResult with statistics.
+    """
+    from sibyl_core.models.projects import SHARED_PROJECT_DESCRIPTION, SHARED_PROJECT_NAME
+
+    log.info(
+        "backfill_shared_project_start",
+        organization_id=organization_id,
+        shared_project_id=shared_project_graph_id,
+        dry_run=dry_run,
+    )
+    start_time = time.time()
+
+    errors: list[str] = []
+    graph_entity_created = False
+    entities_updated = 0
+    entities_already_set = 0
+
+    try:
+        client = await get_graph_client()
+        entity_manager = EntityManager(client, group_id=organization_id)
+
+        # Step 1: Create or get the shared project graph entity
+        existing_project = await entity_manager.get(shared_project_graph_id)
+
+        if existing_project:
+            log.info(
+                "shared_project_entity_exists",
+                id=shared_project_graph_id,
+            )
+        else:
+            if dry_run:
+                log.info(
+                    "would_create_shared_project_entity",
+                    id=shared_project_graph_id,
+                )
+                graph_entity_created = True
+            else:
+                # Create the shared project entity
+                project_entity = Entity(
+                    id=shared_project_graph_id,
+                    name=SHARED_PROJECT_NAME,
+                    entity_type=EntityType.PROJECT,
+                    summary=SHARED_PROJECT_DESCRIPTION,
+                    content=SHARED_PROJECT_DESCRIPTION,
+                    metadata={
+                        "is_shared": True,
+                        "organization_id": organization_id,
+                    },
+                )
+                await entity_manager.create_direct(project_entity)
+                graph_entity_created = True
+                log.info(
+                    "shared_project_entity_created",
+                    id=shared_project_graph_id,
+                )
+
+        # Step 2: Find all entities with NULL project_id
+        # We need to query both Episodic and Entity labels
+        orphan_query = """
+        MATCH (n)
+        WHERE (n:Episodic OR n:Entity)
+          AND n.group_id = $org_id
+          AND (n.project_id IS NULL OR n.project_id = '')
+          AND n.entity_type <> 'project'
+        RETURN n.uuid AS id, n.entity_type AS type
+        """
+
+        orphan_rows = await client.execute_read_org(
+            organization_id, orphan_query, org_id=organization_id
+        )
+        log.info("orphan_entities_found", count=len(orphan_rows))
+
+        # Step 3: Update orphan entities to use shared project
+        for row in orphan_rows:
+            entity_id = row[0]
+            entity_type = row[1]
+
+            if dry_run:
+                log.debug(
+                    "would_set_project_id",
+                    entity_id=entity_id,
+                    entity_type=entity_type,
+                    project_id=shared_project_graph_id,
+                )
+                entities_updated += 1
+            else:
+                try:
+                    # Update the node's project_id property
+                    update_query = """
+                    MATCH (n)
+                    WHERE n.uuid = $entity_id AND n.group_id = $org_id
+                    SET n.project_id = $project_id
+                    """
+                    await client.execute_write_org(
+                        organization_id,
+                        update_query,
+                        entity_id=entity_id,
+                        org_id=organization_id,
+                        project_id=shared_project_graph_id,
+                    )
+
+                    # Also create BELONGS_TO relationship if entity type warrants it
+                    if entity_type in {"task", "epic", "milestone"}:
+                        rel_query = """
+                        MATCH (n), (p)
+                        WHERE n.uuid = $entity_id AND p.uuid = $project_id
+                          AND n.group_id = $org_id AND p.group_id = $org_id
+                        MERGE (n)-[:BELONGS_TO]->(p)
+                        """
+                        await client.execute_write_org(
+                            organization_id,
+                            rel_query,
+                            entity_id=entity_id,
+                            project_id=shared_project_graph_id,
+                            org_id=organization_id,
+                        )
+
+                    entities_updated += 1
+                    log.debug(
+                        "entity_project_id_set",
+                        entity_id=entity_id,
+                        project_id=shared_project_graph_id,
+                    )
+
+                except Exception as e:
+                    errors.append(f"Failed to update {entity_id}: {e}")
+                    log.warning(
+                        "entity_update_failed",
+                        entity_id=entity_id,
+                        error=str(e),
+                    )
+
+        # Count entities that already had a project_id
+        count_query = """
+        MATCH (n)
+        WHERE (n:Episodic OR n:Entity)
+          AND n.group_id = $org_id
+          AND n.project_id IS NOT NULL
+          AND n.project_id <> ''
+          AND n.entity_type <> 'project'
+        RETURN count(n) AS count
+        """
+        count_rows = await client.execute_read_org(
+            organization_id, count_query, org_id=organization_id
+        )
+        entities_already_set = count_rows[0][0] if count_rows else 0
+
+        duration = time.time() - start_time
+        log.info(
+            "backfill_shared_project_complete",
+            graph_entity_created=graph_entity_created,
+            entities_updated=entities_updated,
+            entities_already_set=entities_already_set,
+            errors=len(errors),
+            duration=duration,
+            dry_run=dry_run,
+        )
+
+        return SharedProjectBackfillResult(
+            success=True,
+            graph_entity_created=graph_entity_created,
+            graph_entity_id=shared_project_graph_id,
+            entities_updated=entities_updated,
+            entities_already_set=entities_already_set,
+            errors=errors[:50],
+            duration_seconds=duration,
+        )
+
+    except Exception as e:
+        log.exception("backfill_shared_project_failed", error=str(e))
+        return SharedProjectBackfillResult(
+            success=False,
+            graph_entity_created=graph_entity_created,
+            graph_entity_id=shared_project_graph_id,
+            entities_updated=entities_updated,
+            entities_already_set=entities_already_set,
+            errors=[str(e), *errors[:49]],
+            duration_seconds=time.time() - start_time,
+        )

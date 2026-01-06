@@ -218,3 +218,80 @@ async def get_postgres_project_by_graph_id(
         )
     )
     return result.scalar_one_or_none()
+
+
+async def get_shared_project(
+    session: AsyncSession,
+    organization_id: UUID,
+) -> Project | None:
+    """Get the shared project for an organization.
+
+    Each org has exactly one shared project (is_shared=True) that holds
+    org-wide knowledge like conventions, crawled docs, and shared learnings.
+
+    Returns:
+        The shared project, or None if not yet created.
+    """
+    result = await session.execute(
+        select(Project).where(
+            Project.organization_id == organization_id,
+            Project.is_shared == True,  # noqa: E712
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def ensure_shared_project_postgres(
+    session: AsyncSession,
+    *,
+    organization_id: UUID,
+    owner_user_id: UUID,
+    graph_project_id: str,
+) -> Project:
+    """Ensure the shared project Postgres row exists.
+
+    Called after the graph entity is created. Idempotent - returns existing
+    if already created.
+
+    Args:
+        session: Database session
+        organization_id: Organization UUID
+        owner_user_id: User who owns the shared project (typically org owner)
+        graph_project_id: Graph entity ID for the shared project
+
+    Returns:
+        The shared project (created or existing)
+    """
+    from sibyl_core.models.projects import (
+        SHARED_PROJECT_DESCRIPTION,
+        SHARED_PROJECT_NAME,
+        SHARED_PROJECT_SLUG,
+    )
+
+    # Check if shared project already exists
+    existing = await get_shared_project(session, organization_id)
+    if existing:
+        log.debug("shared_project_already_exists", org_id=str(organization_id))
+        return existing
+
+    # Create shared project
+    project = Project(
+        organization_id=organization_id,
+        owner_user_id=owner_user_id,
+        name=SHARED_PROJECT_NAME,
+        slug=SHARED_PROJECT_SLUG,
+        description=SHARED_PROJECT_DESCRIPTION,
+        graph_project_id=graph_project_id,
+        visibility=ProjectVisibility.ORG,
+        is_shared=True,
+    )
+    session.add(project)
+    await session.flush()
+
+    log.info(
+        "shared_project_created",
+        org_id=str(organization_id),
+        graph_id=graph_project_id,
+        postgres_id=str(project.id),
+    )
+    return project
