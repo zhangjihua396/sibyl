@@ -5,7 +5,7 @@ import { EntityBreadcrumb } from '@/components/layout/breadcrumb';
 import { PlanningSessionPanel } from '@/components/planning/planning-session-panel';
 import { LoadingState } from '@/components/ui/spinner';
 import { ErrorState } from '@/components/ui/tooltip';
-import { usePlanningSession, useProjects } from '@/lib/hooks';
+import { usePlanningSession, usePlanningSubscription, useProjects } from '@/lib/hooks';
 
 interface PlanningSessionDetailPageProps {
   params: Promise<{ id: string }>;
@@ -14,8 +14,10 @@ interface PlanningSessionDetailPageProps {
 export default function PlanningSessionDetailPage({ params }: PlanningSessionDetailPageProps) {
   const { id } = use(params);
 
-  // Fetch session - auto-polls during active phases
+  // Fetch session with real-time WebSocket updates
   const { data: session, isLoading, error } = usePlanningSession(id);
+  usePlanningSubscription(id);
+
   const { data: projectsData } = useProjects();
 
   // Find parent project for breadcrumb

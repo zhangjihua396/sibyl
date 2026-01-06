@@ -2059,31 +2059,15 @@ export function usePlanningSessions(params?: { project?: string; phase?: Plannin
   });
 }
 
-// Phases that should auto-poll for updates
-const PLANNING_ACTIVE_PHASES: PlanningPhase[] = [
-  'created',
-  'brainstorming',
-  'synthesizing',
-  'drafting',
-];
-
 /**
  * Fetch a single planning session by ID.
- * Automatically polls every 2s while session is in an active phase.
+ * Use with usePlanningSubscription() for real-time updates.
  */
 export function usePlanningSession(id: string) {
   return useQuery({
     queryKey: queryKeys.planning.detail(id),
     queryFn: () => api.planning.get(id),
     enabled: !!id,
-    // Auto-poll during active phases, stop when complete
-    refetchInterval: query => {
-      const session = query.state.data;
-      if (session && PLANNING_ACTIVE_PHASES.includes(session.phase)) {
-        return 2000; // Poll every 2s during active phases
-      }
-      return false;
-    },
   });
 }
 
@@ -2187,14 +2171,6 @@ export function usePlanningThreads(sessionId: string, status?: 'active' | 'compl
     queryKey: queryKeys.planning.threads(sessionId, status),
     queryFn: () => api.planning.getThreads(sessionId, status),
     enabled: !!sessionId,
-    // Poll while any thread is still running
-    refetchInterval: query => {
-      const threads = query.state.data;
-      if (threads?.some(t => t.status === 'pending' || t.status === 'running')) {
-        return 2000;
-      }
-      return false;
-    },
   });
 }
 
@@ -2223,4 +2199,63 @@ export function useActivePlanningCount() {
   ];
 
   return data?.sessions.filter(s => activePhases.includes(s.phase)).length ?? 0;
+}
+
+/**
+ * Subscribe to real-time planning session updates via WebSocket.
+ * Automatically updates React Query cache when events arrive.
+ */
+export function usePlanningSubscription(sessionId: string | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!sessionId) return;
+
+    wsClient.connect();
+
+    // Brainstorming started - threads are being created
+    const unsubStarted = wsClient.on('planning_brainstorming_started', data => {
+      if (data.session_id === sessionId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.detail(sessionId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.threads(sessionId) });
+      }
+    });
+
+    // Individual thread completed
+    const unsubThread = wsClient.on('planning_thread_completed', _data => {
+      // Thread completed - refresh threads list (thread_id doesn't have session_id, so refresh all)
+      queryClient.invalidateQueries({ queryKey: queryKeys.planning.threads(sessionId) });
+    });
+
+    // All brainstorming completed
+    const unsubCompleted = wsClient.on('planning_brainstorming_completed', data => {
+      if (data.session_id === sessionId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.detail(sessionId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.threads(sessionId) });
+      }
+    });
+
+    // Synthesis completed
+    const unsubSynthesis = wsClient.on('planning_synthesis_completed', data => {
+      if (data.session_id === sessionId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.detail(sessionId) });
+      }
+    });
+
+    // Session materialized
+    const unsubMaterialized = wsClient.on('planning_session_materialized', data => {
+      if (data.session_id === sessionId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.detail(sessionId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.planning.all });
+      }
+    });
+
+    return () => {
+      unsubStarted();
+      unsubThread();
+      unsubCompleted();
+      unsubSynthesis();
+      unsubMaterialized();
+    };
+  }, [sessionId, queryClient]);
 }

@@ -97,6 +97,41 @@ export interface PermissionChangedPayload {
   org_role?: string;
 }
 
+/** Planning event payloads */
+export interface PlanningBrainstormingStartedPayload {
+  session_id: string;
+  org_id: string;
+  round: number;
+  agent_count: number;
+}
+
+export interface PlanningBrainstormingCompletedPayload {
+  session_id: string;
+  org_id: string;
+  round: number;
+  persona_count: number;
+  error_count: number;
+}
+
+export interface PlanningThreadCompletedPayload {
+  thread_id: string;
+  persona_name: string;
+  tokens: number;
+}
+
+export interface PlanningSynthesisCompletedPayload {
+  session_id: string;
+  org_id: string;
+  synthesis_length: number;
+}
+
+export interface PlanningMaterializedPayload {
+  session_id: string;
+  org_id: string;
+  epic_id: string;
+  task_count: number;
+}
+
 /** Map event types to their payload types */
 export interface WebSocketEventPayloadMap {
   entity_created: EntityEventPayload;
@@ -115,6 +150,12 @@ export interface WebSocketEventPayloadMap {
   approval_response: ApprovalResponsePayload;
   status_hint: StatusHintPayload;
   permission_changed: PermissionChangedPayload;
+  // Planning events
+  planning_brainstorming_started: PlanningBrainstormingStartedPayload;
+  planning_brainstorming_completed: PlanningBrainstormingCompletedPayload;
+  planning_thread_completed: PlanningThreadCompletedPayload;
+  planning_synthesis_completed: PlanningSynthesisCompletedPayload;
+  planning_session_materialized: PlanningMaterializedPayload;
 }
 
 export type WebSocketEventType = keyof WebSocketEventPayloadMap;
