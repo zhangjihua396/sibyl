@@ -72,7 +72,11 @@ class FalkorDBSearchInterface(SearchInterface):
             rel.created_at AS created_at,
             rel.name AS name,
             rel.fact AS fact,
-            split(rel.episodes, ",") AS episodes,
+            CASE
+                WHEN rel.episodes IS NULL THEN []
+                WHEN typeOf(rel.episodes) = 'LIST' THEN rel.episodes
+                ELSE split(rel.episodes, ",")
+            END AS episodes,
             rel.expired_at AS expired_at,
             rel.valid_at AS valid_at,
             rel.invalid_at AS invalid_at,
