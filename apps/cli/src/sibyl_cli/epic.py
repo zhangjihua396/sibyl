@@ -302,48 +302,80 @@ def show_epic(
                         console.print(_format_task_line(t))
 
             # ══════════════════════════════════════════════════════════════════
-            # RELATED ENTITIES - From graph traversal
+            # RELATED KNOWLEDGE - Patterns, rules, and learnings from the graph
             # ══════════════════════════════════════════════════════════════════
             try:
                 related_response = await client.explore(
                     mode="related",
                     entity_id=resolved_id,
-                    depth=1,
-                    limit=50,
+                    depth=2,  # Go deeper to find meaningful connections
+                    limit=100,
                 )
                 related = related_response.get("entities", [])
 
-                # Filter out tasks (already shown) and the epic itself
+                # Only show entities with our ID prefixes (skip Graphiti's internal UUIDs)
+                # Also filter out noise: episodes, tasks (already shown), projects, the epic itself
+                valid_prefixes = ("pattern_", "rule_", "document_", "source_", "template_", "tool_")
                 task_ids = {t.get("id") for t in tasks}
-                related = [
-                    r for r in related
-                    if r.get("id") != resolved_id
-                    and r.get("id") not in task_ids
-                    and r.get("type") != "task"
-                ]
+                project_id = meta.get("project_id")
 
-                if related:
+                filtered = []
+                for r in related:
+                    r_id = r.get("id", "")
+                    r_type = r.get("type", "")
+
+                    # Skip if no valid prefix (Graphiti internal entities have UUIDs)
+                    if not any(r_id.startswith(p) for p in valid_prefixes):
+                        continue
+
+                    # Skip tasks, episodes, projects, epics, and self
+                    if r_type in ("task", "episode", "project", "epic"):
+                        continue
+                    if r_id == resolved_id or r_id in task_ids:
+                        continue
+
+                    # If we have project context, prefer same-project entities
+                    # (but still show others - they might be cross-project patterns)
+                    r_project = r.get("metadata", {}).get("project_id")
+                    r["_same_project"] = r_project == project_id if project_id else True
+
+                    filtered.append(r)
+
+                # Sort: same-project first, then by type
+                filtered.sort(key=lambda r: (not r.get("_same_project", True), r.get("type", "")))
+
+                if filtered:
                     console.print()
-                    console.print(f"[bold {ELECTRIC_PURPLE}]═══ Related Entities ═══[/bold {ELECTRIC_PURPLE}]")
+                    console.print(f"[bold {ELECTRIC_PURPLE}]═══ Related Knowledge ═══[/bold {ELECTRIC_PURPLE}]")
 
                     # Group by type
                     by_type: dict[str, list] = {}
-                    for r in related:
+                    for r in filtered:
                         r_type = r.get("type", "unknown")
                         if r_type not in by_type:
                             by_type[r_type] = []
                         by_type[r_type].append(r)
 
-                    for r_type, entities in sorted(by_type.items()):
+                    # Display order: patterns and rules first (most actionable)
+                    type_order = ["pattern", "rule", "template", "tool", "document", "source"]
+                    for r_type in type_order:
+                        entities = by_type.get(r_type, [])
+                        if not entities:
+                            continue
+
                         console.print()
-                        console.print(f"[{CORAL}]{r_type.upper()}[/{CORAL}]")
-                        for e in entities:
+                        type_label = r_type.upper() + ("S" if len(entities) > 1 else "")
+                        console.print(f"[{CORAL}]{type_label}[/{CORAL}]")
+
+                        for e in entities[:10]:  # Cap at 10 per type
                             e_id = e.get("id", "")
                             e_name = e.get("name", "")
-                            relationship = e.get("relationship", "")
-                            direction = e.get("direction", "")
-                            rel_info = f" [dim]({relationship} {direction})[/dim]" if relationship else ""
-                            console.print(f"  [{NEON_CYAN}]{e_id}[/{NEON_CYAN}]  {e_name}{rel_info}")
+                            # Show cross-project indicator if relevant
+                            cross_proj = "" if e.get("_same_project", True) else " [dim](other project)[/dim]"
+                            console.print(f"  [{NEON_CYAN}]{e_id}[/{NEON_CYAN}]  {e_name}{cross_proj}")
+
+                        if len(entities) > 10:
+                            console.print(f"  [dim]... and {len(entities) - 10} more[/dim]")
 
             except Exception:
                 # Related lookup failed - not critical
