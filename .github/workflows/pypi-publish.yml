@@ -37,7 +37,7 @@ jobs:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
   publish-cli:
-    name: Publish sibyl-cli
+    name: Publish sibyl-dev
     runs-on: ubuntu-latest
     needs: publish-core  # CLI depends on core being published first
     permissions:
@@ -64,10 +64,10 @@ jobs:
             sleep 10
           done
 
-      - name: Build sibyl-cli
+      - name: Build sibyl-dev
         run: uv build apps/cli
 
-      - name: Publish sibyl-cli
+      - name: Publish sibyl-dev
         if: ${{ !inputs.dry_run }}
         run: uv publish apps/cli/dist/*
         env:
@@ -89,12 +89,12 @@ jobs:
 
             ## Install via UV (Recommended)
             ```bash
-            uv tool install sibyl-cli
+            uv tool install sibyl-dev
             sibyl local start
             ```
 
             ## Install via pipx
             ```bash
-            pipx install sibyl-cli
+            pipx install sibyl-dev
             sibyl local start
             ```

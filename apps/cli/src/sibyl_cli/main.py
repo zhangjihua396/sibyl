@@ -1,6 +1,6 @@
 """Main CLI application - client-side commands for Sibyl.
 
-This is the entry point for the sibyl-cli package.
+This is the entry point for the sibyl-dev package.
 All commands communicate with the REST API.
 
 Server commands (serve, dev, db, generate, etc.) are in sibyl-server.
@@ -328,7 +328,7 @@ def version() -> None:
     """Show version information."""
     from sibyl_cli import __version__
 
-    console.print(f"sibyl-cli version {__version__}")
+    console.print(f"sibyl-dev version {__version__}")
 
 
 @app.command()
@@ -342,7 +342,7 @@ def upgrade(
         typer.Option("--check", "-c", help="Check for updates without installing"),
     ] = False,
 ) -> None:
-    """Upgrade sibyl-cli to the latest version.
+    """Upgrade sibyl-dev to the latest version.
 
     Automatically detects installation method (uv, pipx, or pip) and uses
     the appropriate upgrade command.
@@ -366,9 +366,9 @@ def upgrade(
             text=True,
             check=False,
         )
-        if "sibyl-cli" in result.stdout:
+        if "sibyl-dev" in result.stdout:
             install_method = "uv"
-            upgrade_cmd = ["uv", "tool", "upgrade", "sibyl-cli"]
+            upgrade_cmd = ["uv", "tool", "upgrade", "sibyl-dev"]
 
     if not install_method and shutil.which("pipx"):
         # Check if installed via pipx
@@ -378,14 +378,14 @@ def upgrade(
             text=True,
             check=False,
         )
-        if "sibyl-cli" in result.stdout:
+        if "sibyl-dev" in result.stdout:
             install_method = "pipx"
-            upgrade_cmd = ["pipx", "upgrade", "sibyl-cli"]
+            upgrade_cmd = ["pipx", "upgrade", "sibyl-dev"]
 
     if not install_method:
         # Fall back to pip
         install_method = "pip"
-        upgrade_cmd = ["pip", "install", "--upgrade", "sibyl-cli"]
+        upgrade_cmd = ["pip", "install", "--upgrade", "sibyl-dev"]
 
     console.print(f"[dim]Detected installation method: {install_method}[/dim]")
 
@@ -394,7 +394,7 @@ def upgrade(
         import httpx
 
         try:
-            resp = httpx.get("https://pypi.org/pypi/sibyl-cli/json", timeout=10)
+            resp = httpx.get("https://pypi.org/pypi/sibyl-dev/json", timeout=10)
             if resp.status_code == 200:
                 latest = resp.json().get("info", {}).get("version", "unknown")
                 if latest != __version__:

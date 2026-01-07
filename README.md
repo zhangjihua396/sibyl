@@ -101,19 +101,19 @@ agents become your team. Actual team? Everyone's insights compound.
 curl -fsSL https://raw.githubusercontent.com/hyperb1iss/sibyl/main/install.sh | sh
 ```
 
-Installs uv (if needed), installs sibyl-cli, starts Sibyl. Done.
+Installs uv (if needed), installs sibyl-dev, starts Sibyl. Done.
 
 ### Manual Install (UV)
 
 ```bash
-uv tool install sibyl-cli
+uv tool install sibyl-dev
 sibyl local start
 ```
 
 ### Alternative: pipx
 
 ```bash
-pipx install sibyl-cli
+pipx install sibyl-dev
 sibyl local start
 ```
 

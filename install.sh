@@ -90,22 +90,22 @@ install_uv() {
 }
 
 install_sibyl() {
-    info "Installing sibyl-cli..."
+    info "Installing sibyl-dev..."
 
-    if uv tool list 2>/dev/null | grep -q "sibyl-cli"; then
-        warn "sibyl-cli is already installed, upgrading..."
-        uv tool upgrade sibyl-cli
+    if uv tool list 2>/dev/null | grep -q "sibyl-dev"; then
+        warn "sibyl-dev is already installed, upgrading..."
+        uv tool upgrade sibyl-dev
     else
-        uv tool install sibyl-cli
+        uv tool install sibyl-dev
     fi
 
     # Ensure tool bin is in PATH
     export PATH="$HOME/.local/bin:$PATH"
 
     if command -v sibyl &> /dev/null; then
-        success "sibyl-cli installed successfully"
+        success "sibyl-dev installed successfully"
     else
-        error "Failed to install sibyl-cli"
+        error "Failed to install sibyl-dev"
     fi
 }
 
