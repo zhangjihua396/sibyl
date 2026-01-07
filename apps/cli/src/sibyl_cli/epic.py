@@ -27,7 +27,6 @@ from sibyl_cli.common import (
     print_json,
     run_async,
     success,
-    truncate,
 )
 from sibyl_cli.config_store import resolve_project_from_cwd
 
@@ -228,6 +227,48 @@ def show_epic(
 
             if meta.get("learnings"):
                 lines.append(f"\n[{CORAL}]Learnings:[/{CORAL}] {meta['learnings']}")
+
+            # Fetch tasks for this epic
+            tasks_response = await client.explore(
+                mode="list",
+                types=["task"],
+                epic=resolved_id,
+                limit=100,
+            )
+            tasks = tasks_response.get("entities", [])
+
+            if tasks:
+                # Group by status
+                by_status: dict[str, list] = {}
+                for t in tasks:
+                    t_status = t.get("metadata", {}).get("status", "todo")
+                    if t_status not in by_status:
+                        by_status[t_status] = []
+                    by_status[t_status].append(t)
+
+                # Status order for display
+                status_order = ["doing", "blocked", "review", "todo", "done", "archived"]
+                status_labels = {
+                    "doing": "🔨 In Progress",
+                    "blocked": "🚫 Blocked",
+                    "review": "👀 Review",
+                    "todo": "📝 Todo",
+                    "done": "✅ Done",
+                    "archived": "📦 Archived",
+                }
+
+                lines.append(f"\n[{NEON_CYAN}]Tasks:[/{NEON_CYAN}]")
+                for status in status_order:
+                    if status in by_status:
+                        task_list = by_status[status]
+                        label = status_labels.get(status, status)
+                        lines.append(f"  {label}: {len(task_list)}")
+                        # Show up to 3 task titles for active statuses
+                        if status in ("doing", "blocked", "review"):
+                            for t in task_list[:3]:
+                                lines.append(f"    • {t.get('name', '')}")
+                            if len(task_list) > 3:
+                                lines.append(f"    [dim]... and {len(task_list) - 3} more[/dim]")
 
             panel = create_panel("\n".join(lines), title=f"Epic {entity.get('id', '')}")
             console.print(panel)
@@ -825,11 +866,18 @@ def list_epic_tasks(
             from sibyl_cli.common import format_status
 
             table = create_table("Tasks", "ID", "Title", "Status", "Priority", "Assignees")
+            # ID, Status, Priority, Assignees are fixed-width; Title gets the rest
+            table.columns[0].no_wrap = True  # ID
+            table.columns[2].no_wrap = True  # Status
+            table.columns[3].no_wrap = True  # Priority
+            table.columns[4].no_wrap = True  # Assignees
+            # Title column auto-sizes and can wrap if needed
+
             for e in entities:
                 meta = e.get("metadata", {})
                 table.add_row(
                     e.get("id", ""),
-                    truncate(e.get("name", ""), 40),
+                    e.get("name", ""),  # Full title, no truncation
                     format_status(meta.get("status", "unknown")),
                     format_priority(meta.get("priority", "medium")),
                     ", ".join(meta.get("assignees", []))[:20] or "-",

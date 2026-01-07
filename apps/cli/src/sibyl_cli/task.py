@@ -28,7 +28,6 @@ from sibyl_cli.common import (
     print_json,
     run_async,
     success,
-    truncate,
 )
 from sibyl_cli.config_store import resolve_project_from_cwd
 
@@ -188,11 +187,18 @@ def _output_tasks_table(
         return
 
     table = create_table("Tasks", "ID", "Title", "Status", "Priority", "Assignees")
+    # ID, Status, Priority, Assignees are fixed-width; Title gets the rest
+    table.columns[0].no_wrap = True  # ID
+    table.columns[2].no_wrap = True  # Status
+    table.columns[3].no_wrap = True  # Priority
+    table.columns[4].no_wrap = True  # Assignees
+    # Title column auto-sizes and can wrap if needed
+
     for e in entities:
         meta = e.get("metadata", {})
         table.add_row(
             e.get("id", ""),
-            truncate(e.get("name", ""), 40),
+            e.get("name", ""),  # Full title, no truncation
             format_status(meta.get("status", "unknown")),
             format_priority(meta.get("priority", "medium")),
             ", ".join(meta.get("assignees", []))[:20] or "-",
