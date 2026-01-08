@@ -72,11 +72,7 @@ class FalkorDBSearchInterface(SearchInterface):
             rel.created_at AS created_at,
             rel.name AS name,
             rel.fact AS fact,
-            CASE
-                WHEN rel.episodes IS NULL THEN []
-                WHEN typeOf(rel.episodes) = 'LIST' THEN rel.episodes
-                ELSE split(rel.episodes, ",")
-            END AS episodes,
+            rel.episodes AS episodes,
             rel.expired_at AS expired_at,
             rel.valid_at AS valid_at,
             rel.invalid_at AS invalid_at,
@@ -114,6 +110,17 @@ class FalkorDBSearchInterface(SearchInterface):
             ]:
                 attributes.pop(key, None)
 
+            # Handle episodes field - can be None, List, or comma-separated String
+            raw_episodes = record.get("episodes")
+            if raw_episodes is None:
+                episodes = []
+            elif isinstance(raw_episodes, list):
+                episodes = raw_episodes
+            elif isinstance(raw_episodes, str):
+                episodes = raw_episodes.split(",") if raw_episodes else []
+            else:
+                episodes = []
+
             edge = EntityEdge(
                 uuid=record["uuid"],
                 source_node_uuid=record["source_node_uuid"],
@@ -122,7 +129,7 @@ class FalkorDBSearchInterface(SearchInterface):
                 fact_embedding=record.get("fact_embedding"),
                 name=record["name"],
                 group_id=record["group_id"],
-                episodes=record["episodes"],
+                episodes=episodes,
                 created_at=parse_db_date(record["created_at"]),  # type: ignore[arg-type]
                 expired_at=parse_db_date(record["expired_at"]),
                 valid_at=parse_db_date(record["valid_at"]),
