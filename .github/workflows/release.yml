@@ -60,15 +60,9 @@ jobs:
       - name: "△ Determine version"
         id: version
         run: |
-          # Get current version from latest tag
-          CURRENT_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [[ -n "$CURRENT_TAG" ]]; then
-            CURRENT="${CURRENT_TAG#v}"
-          else
-            # Fallback to pyproject.toml
-            CURRENT=$(grep '^version = ' packages/python/sibyl-core/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          fi
-          echo "Current version: $CURRENT (from tag: ${CURRENT_TAG:-none})"
+          # Get current version from VERSION file (single source of truth)
+          CURRENT=$(cat VERSION | tr -d '\n')
+          echo "Current version: $CURRENT"
 
           if [[ -n "${{ inputs.version }}" ]]; then
             VERSION="${{ inputs.version }}"
@@ -95,20 +89,11 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Releasing: $CURRENT → $VERSION"
 
-      - name: "△ Update versions → ${{ steps.version.outputs.version }}"
+      - name: "△ Update version → ${{ steps.version.outputs.version }}"
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-
-          # Update sibyl-core
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" packages/python/sibyl-core/pyproject.toml
-
-          # Update sibyl-dev (CLI)
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" apps/cli/pyproject.toml
-
-          # Update sibyl-server (API)
-          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" apps/api/pyproject.toml
-
-          echo "Updated versions to $VERSION"
+          echo "$VERSION" > VERSION
+          echo "Updated VERSION to $VERSION"
 
       # Note: Lint/typecheck skipped - CI already validates on main
 
@@ -128,9 +113,7 @@ jobs:
       - name: "◆ Commit version bump"
         if: ${{ !inputs.dry_run }}
         run: |
-          git add packages/python/sibyl-core/pyproject.toml
-          git add apps/cli/pyproject.toml
-          git add apps/api/pyproject.toml
+          git add VERSION
           git commit -m "🔖 v${{ steps.version.outputs.version }}"
 
       - name: "◆ Create and push tag"

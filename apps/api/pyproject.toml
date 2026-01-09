@@ -5,13 +5,17 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "../../VERSION"
+pattern = "(?P<version>.+)"
+
 # =============================================================================
 # Project Metadata
 # =============================================================================
 
 [project]
 name = "sibyld"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Sibyl daemon - Collective Intelligence Runtime server"
 readme = "README.md"
 license = "Apache-2.0"

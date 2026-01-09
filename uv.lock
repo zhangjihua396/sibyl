@@ -2922,7 +2922,6 @@ wheels = [
 
 [[package]]
 name = "sibyl-core"
-version = "0.1.0"
 source = { editable = "packages/python/sibyl-core" }
 dependencies = [
     { name = "anyio" },
@@ -2951,7 +2950,7 @@ dev = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.0" },
     { name = "crawl4ai", specifier = ">=0.7.8" },
-    { name = "graphiti-core", extras = ["falkordb", "anthropic"], specifier = ">=0.24" },
+    { name = "graphiti-core", extras = ["anthropic", "falkordb"], specifier = ">=0.24" },
     { name = "httpx", specifier = ">=0.27" },
     { name = "mistune", specifier = ">=3.0" },
     { name = "passlib", specifier = ">=1.7" },
@@ -2973,7 +2972,6 @@ dev = [
 
 [[package]]
 name = "sibyl-dev"
-version = "0.1.0"
 source = { editable = "apps/cli" }
 dependencies = [
     { name = "httpx" },
@@ -3014,7 +3012,6 @@ dev = [
 
 [[package]]
 name = "sibyld"
-version = "0.1.0"
 source = { editable = "apps/api" }
 dependencies = [
     { name = "alembic" },
@@ -3100,7 +3097,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.20.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.38" },
 ]
-provides-extras = ["generator", "graphrag", "graphrag-leiden", "docs"]
+provides-extras = ["docs", "generator", "graphrag", "graphrag-leiden"]
 
 [package.metadata.requires-dev]
 dev = [

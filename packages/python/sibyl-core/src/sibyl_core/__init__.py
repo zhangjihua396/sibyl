@@ -10,6 +10,7 @@ This package provides:
 - Auth primitives (JWT, password hashing)
 """
 
+from sibyl_core._version import __version__, get_version
 from sibyl_core.config import CoreConfig, core_config
 from sibyl_core.errors import (
     ConventionsMCPError,
@@ -23,8 +24,6 @@ from sibyl_core.errors import (
     SibylError,
     ValidationError,
 )
-
-__version__ = "0.1.0"
 
 __all__ = [
     # Errors
@@ -40,5 +39,8 @@ __all__ = [
     "SearchError",
     "SibylError",
     "ValidationError",
+    # Version
+    "__version__",
     "core_config",
+    "get_version",
 ]
