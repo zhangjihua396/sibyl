@@ -179,9 +179,6 @@ tasks:
   # ==========================================================================
   sync:
     # Create venv if missing/corrupt, then sync
-    command: "uv venv --allow-existing && uv sync"
-    inputs:
-      - "pyproject.toml"
-      - "uv.lock"
+    command: "uv sync"
     options:
       shell: true
