@@ -23,6 +23,7 @@ on:
         default: false
 
 permissions:
+  actions: write
   contents: write
   id-token: write
   packages: write
@@ -130,6 +131,12 @@ jobs:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
           body: ${{ steps.release_notes.outputs.content }}
+
+      - name: "◇ Trigger Docker publish"
+        if: ${{ !inputs.dry_run }}
+        run: gh workflow run docker-publish.yml --ref v${{ steps.version.outputs.version }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: "► Summary"
         run: |
