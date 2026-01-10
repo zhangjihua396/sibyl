@@ -1,2 +1,2 @@
-use_gitmoji = false
+use_gitmoji = true
 instruction_preset = "conventional"
