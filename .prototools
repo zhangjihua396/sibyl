@@ -1,5 +1,6 @@
 # Sibyl monorepo toolchain versions
 # Managed by proto - https://moonrepo.dev/proto
+# moon is built-in to proto v0.45+, no plugin needed
 
 moon = "~1"
 python = "3.13"

@@ -97,7 +97,7 @@ install_moon() {
     fi
 
     info "Installing moon (monorepo orchestration)..."
-    proto plugin add moon "https://raw.githubusercontent.com/moonrepo/moon/master/proto-plugin.toml"
+    # Moon is built-in to proto v0.45+, no plugin needed
     proto install moon
 
     if command_exists moon; then
@@ -206,17 +206,16 @@ setup_precommit() {
 # CLI Installation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-install_cli() {
+verify_cli() {
     header "Sibyl CLI"
 
-    info "Installing sibyl and sibyld in development mode..."
-    uv pip install -e packages/python/sibyl-core -e apps/api -e apps/cli
-
-    if command_exists sibyl && command_exists sibyld; then
+    # CLI tools are installed in .venv/bin/ - verify they exist
+    if [[ -x ".venv/bin/sibyl" ]] && [[ -x ".venv/bin/sibyld" ]]; then
         success "CLI tools installed: ${NEON_CYAN}sibyl${RESET}, ${NEON_CYAN}sibyld${RESET}"
+        echo -e "${DIM}Run via: uv run sibyl ... or uv run sibyld ...${RESET}"
     else
-        warn "CLI tools may need PATH configuration"
-        echo -e "${DIM}Add to your shell rc: export PATH=\"\$HOME/.local/bin:\$PATH\"${RESET}"
+        warn "CLI tools not found in .venv/bin/"
+        echo -e "${DIM}Try: uv sync --all-groups${RESET}"
     fi
 }
 
@@ -263,7 +262,7 @@ main() {
     check_docker || true  # Don't fail if Docker missing
     install_dependencies
     setup_precommit
-    install_cli
+    verify_cli
 
     print_summary
 }

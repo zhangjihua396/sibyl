@@ -7,30 +7,30 @@
 #   2. Installs sibyl-cli via uv
 #   3. Starts Sibyl (prompts for API keys on first run)
 
-set -euo pipefail
+set -eu
 
 # ============================================================================
 # Colors (SilkCircuit palette)
 # ============================================================================
-PURPLE='\033[38;2;225;53;255m'
-CYAN='\033[38;2;128;255;234m'
-GREEN='\033[38;2;80;250;123m'
-YELLOW='\033[38;2;241;250;140m'
-RED='\033[38;2;255;99;99m'
-DIM='\033[2m'
-BOLD='\033[1m'
-RESET='\033[0m'
+PURPLE=$(printf '\033[38;2;225;53;255m')
+CYAN=$(printf '\033[38;2;128;255;234m')
+GREEN=$(printf '\033[38;2;80;250;123m')
+YELLOW=$(printf '\033[38;2;241;250;140m')
+RED=$(printf '\033[38;2;255;99;99m')
+DIM=$(printf '\033[2m')
+BOLD=$(printf '\033[1m')
+RESET=$(printf '\033[0m')
 
 # ============================================================================
 # Helpers
 # ============================================================================
-info() { echo -e "${CYAN}▸${RESET} $1"; }
-success() { echo -e "${GREEN}✓${RESET} $1"; }
-warn() { echo -e "${YELLOW}!${RESET} $1"; }
-error() { echo -e "${RED}✗${RESET} $1"; exit 1; }
+info() { printf '%s\n' "${CYAN}▸${RESET} $1"; }
+success() { printf '%s\n' "${GREEN}✓${RESET} $1"; }
+warn() { printf '%s\n' "${YELLOW}!${RESET} $1"; }
+error() { printf '%s\n' "${RED}✗${RESET} $1"; exit 1; }
 
 banner() {
-    echo -e "${PURPLE}${BOLD}"
+    printf '%s' "${PURPLE}${BOLD}"
     cat << 'EOF'
    _____ _ __          __
   / ___/(_) /_  __  __/ /
@@ -39,8 +39,8 @@ banner() {
 /____/_/_.___/\__, /_/
              /____/
 EOF
-    echo -e "${RESET}"
-    echo -e "${DIM}Collective Intelligence Runtime${RESET}"
+    printf '%s\n' "${RESET}"
+    printf '%s\n' "${DIM}Collective Intelligence Runtime${RESET}"
     echo
 }
 
@@ -56,11 +56,11 @@ check_os() {
 }
 
 check_docker() {
-    if ! command -v docker &> /dev/null; then
+    if ! command -v docker >/dev/null 2>&1; then
         error "Docker is required but not installed.\n\n  Install from: https://docs.docker.com/get-docker/"
     fi
 
-    if ! docker info &> /dev/null; then
+    if ! docker info >/dev/null 2>&1; then
         error "Docker daemon is not running.\n\n  Start Docker and try again."
     fi
 
@@ -71,7 +71,7 @@ check_docker() {
 # Installation
 # ============================================================================
 install_uv() {
-    if command -v uv &> /dev/null; then
+    if command -v uv >/dev/null 2>&1; then
         success "uv is already installed ($(uv --version))"
         return
     fi
@@ -82,7 +82,7 @@ install_uv() {
     # Add to PATH for this session
     export PATH="$HOME/.local/bin:$PATH"
 
-    if command -v uv &> /dev/null; then
+    if command -v uv >/dev/null 2>&1; then
         success "uv installed successfully"
     else
         error "Failed to install uv"
@@ -102,7 +102,7 @@ install_sibyl() {
     # Ensure tool bin is in PATH
     export PATH="$HOME/.local/bin:$PATH"
 
-    if command -v sibyl &> /dev/null; then
+    if command -v sibyl >/dev/null 2>&1; then
         success "sibyl-dev installed successfully"
     else
         error "Failed to install sibyl-dev"
@@ -123,9 +123,9 @@ main() {
     install_sibyl
 
     echo
-    echo -e "${GREEN}${BOLD}Installation complete!${RESET}"
+    printf '%s\n' "${GREEN}${BOLD}Installation complete!${RESET}"
     echo
-    echo -e "Starting Sibyl..."
+    printf '%s\n' "Starting Sibyl..."
     echo
 
     # Start Sibyl (will prompt for API keys on first run)

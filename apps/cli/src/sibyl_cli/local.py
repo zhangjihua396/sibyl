@@ -297,41 +297,10 @@ def run_compose(args: list[str], capture: bool = False) -> subprocess.CompletedP
     return subprocess.run(cmd, check=False)
 
 
-def prompt_api_keys() -> tuple[str, str]:
-    """Prompt user for API keys."""
-    console.print()
-    console.print(f"[{ELECTRIC_PURPLE}][bold]API Configuration[/bold][/{ELECTRIC_PURPLE}]")
-    console.print("[dim]Sibyl needs API keys for semantic search and entity extraction.[/dim]")
-    console.print()
-
-    # OpenAI
-    console.print(
-        f"[{NEON_CYAN}]OpenAI API Key[/{NEON_CYAN}] [dim](https://platform.openai.com/api-keys)[/dim]"
-    )
-    openai_key = typer.prompt("  Enter key", hide_input=False)
-
-    if not openai_key:
-        error("OpenAI API key is required")
-        raise typer.Exit(1)
-
-    if not openai_key.startswith("sk-"):
-        warn("OpenAI key should start with 'sk-'")
-
-    console.print()
-
-    # Anthropic
-    console.print(
-        f"[{NEON_CYAN}]Anthropic API Key[/{NEON_CYAN}] [dim](https://console.anthropic.com/settings/keys)[/dim]"
-    )
-    anthropic_key = typer.prompt("  Enter key", hide_input=False)
-
-    if not anthropic_key:
-        error("Anthropic API key is required")
-        raise typer.Exit(1)
-
-    if not anthropic_key.startswith("sk-ant-"):
-        warn("Anthropic key should start with 'sk-ant-'")
-
+def get_api_keys_from_env() -> tuple[str, str]:
+    """Get API keys from environment variables."""
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
     return openai_key, anthropic_key
 
 
@@ -399,11 +368,14 @@ def start(
     if not SIBYL_LOCAL_ENV.exists():
         info("First run - configuring Sibyl...")
 
-        openai_key, anthropic_key = prompt_api_keys()
+        openai_key, anthropic_key = get_api_keys_from_env()
         jwt_secret = secrets.token_hex(32)
 
         write_env_file(openai_key, anthropic_key, jwt_secret)
         success("Configuration saved")
+
+        if not openai_key or not anthropic_key:
+            warn("API keys not found in environment - configure via web UI")
 
     # Write compose file (always, in case of updates)
     write_compose_file()
