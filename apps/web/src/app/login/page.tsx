@@ -176,7 +176,7 @@ const inputClasses =
 function SignInForm({ next }: { next: string | null }) {
   return (
     <form action="/api/auth/local/login" method="post" className="h-full relative pb-14">
-      {next && <input type="hidden" name="redirect" value={next} />}
+      <input type="hidden" name="redirect" value={next || '/'} />
 
       <div className="space-y-4">
         <div className="space-y-1.5">
@@ -243,7 +243,7 @@ function SignInForm({ next }: { next: string | null }) {
 function SignUpForm({ next }: { next: string | null }) {
   return (
     <form action="/api/auth/local/signup" method="post" className="h-full relative pb-14">
-      {next && <input type="hidden" name="redirect" value={next} />}
+      <input type="hidden" name="redirect" value={next || '/'} />
 
       <div className="space-y-4">
         <div className="space-y-1.5">

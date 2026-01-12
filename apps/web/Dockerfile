@@ -39,8 +39,10 @@ COPY VERSION /app/
 COPY apps/web .
 
 # Set production env for build
+# SIBYL_BACKEND_URL uses Docker service name for server-side rewrites
 ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1
+    NEXT_TELEMETRY_DISABLED=1 \
+    SIBYL_BACKEND_URL=http://api:3334
 
 # Build the app
 RUN pnpm build
@@ -49,7 +51,7 @@ RUN pnpm build
 # Stage 3: Runtime
 FROM node:22-alpine AS runner
 
-WORKDIR /app
+WORKDIR /app/apps/web
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs && \
@@ -61,9 +63,9 @@ ENV NODE_ENV=production \
     PORT=3337 \
     HOSTNAME=0.0.0.0
 
-# Copy standalone output (most efficient)
+# Copy standalone output (preserves monorepo structure)
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone /app
 COPY --from=builder /app/apps/web/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
 
 # Switch to non-root user

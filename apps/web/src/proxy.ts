@@ -26,9 +26,10 @@ export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const start = Date.now();
 
-  // Login page: always allow (cookies may exist but be invalid/expired)
-  if (pathname === '/login') {
-    log.debug('proxy', { path: pathname, action: 'allow_login' });
+  // Login and setup pages: always allow without auth
+  // Setup page handles its own redirect if setup is already complete
+  if (pathname === '/login' || pathname === '/setup') {
+    log.debug('proxy', { path: pathname, action: 'allow_public' });
     return NextResponse.next();
   }
 

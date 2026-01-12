@@ -94,6 +94,16 @@ def create_combined_app(  # noqa: PLR0915
         except Exception as e:
             log.warning("PostgreSQL unavailable at startup", error=str(e))
 
+        # Run database migrations (only if DB is connected)
+        if db_connected:
+            try:
+                from sibyl.db.migrations import run_migrations
+
+                await run_migrations()
+            except Exception:
+                log.exception("Database migration failed")
+                raise
+
         # Recover stuck crawl sources (only if DB is connected)
         if db_connected:
             try:
