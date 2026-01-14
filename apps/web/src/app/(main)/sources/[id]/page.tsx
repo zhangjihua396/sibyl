@@ -123,8 +123,8 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
 
   const breadcrumbItems = [
     { label: ROUTE_CONFIG[''].label, href: '/', icon: ROUTE_CONFIG[''].icon },
-    { label: 'Sources', href: '/sources', icon: ROUTE_CONFIG.sources.icon },
-    { label: source?.name || 'Loading...' },
+    { label: '数据源', href: '/sources', icon: ROUTE_CONFIG.sources.icon },
+    { label: source?.name || '加载中...' },
   ];
 
   if (error) {
@@ -224,7 +224,7 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium bg-sc-red/20 text-sc-red hover:bg-sc-red/30 border border-sc-red/30 transition-all"
               >
                 <StopCircle width={16} height={16} />
-                Cancel {source.source_type === 'local' ? 'Sync' : 'Crawl'}
+                Cancel {source.source_type === 'local' ? 'Sync' : '爬取'}
               </button>
             ) : (
               <button
@@ -279,7 +279,7 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
           />
           <StatCard
             icon={<Hash width={18} height={18} className="text-sc-coral" />}
-            label="Chunks"
+            label="文本块"
             value={source.chunk_count}
           />
           <StatCard
@@ -290,13 +290,13 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
                 <Globe width={18} height={18} className="text-sc-purple" />
               )
             }
-            label="Type"
+            label="类型"
             value={typeConfig.label}
           />
           {source.source_type !== 'local' && (
             <StatCard
               icon={<Clock width={18} height={18} className="text-sc-yellow" />}
-              label="Crawl Depth"
+              label="爬取深度"
               value={source.crawl_depth}
             />
           )}
@@ -489,7 +489,7 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
                   id="include_patterns"
                   value={editForm.include_patterns}
                   onChange={e => setEditForm(f => ({ ...f, include_patterns: e.target.value }))}
-                  placeholder="One pattern per line"
+                  placeholder="每行一个模式"
                   rows={3}
                   className="w-full px-3 py-2 bg-sc-bg-dark border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary font-mono text-sm focus:outline-none focus:border-sc-purple resize-none"
                 />
@@ -506,7 +506,7 @@ export default function SourceDetailPage({ params }: SourceDetailPageProps) {
                   id="exclude_patterns"
                   value={editForm.exclude_patterns}
                   onChange={e => setEditForm(f => ({ ...f, exclude_patterns: e.target.value }))}
-                  placeholder="One pattern per line"
+                  placeholder="每行一个模式"
                   rows={3}
                   className="w-full px-3 py-2 bg-sc-bg-dark border border-sc-fg-subtle/20 rounded-lg text-sc-fg-primary font-mono text-sm focus:outline-none focus:border-sc-purple resize-none"
                 />

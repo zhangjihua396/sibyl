@@ -172,7 +172,7 @@ export function isPendingMessage(msg: ChatMessage): msg is PendingMessage {
 export function isTaskToolCall(
   msg: ChatMessage
 ): msg is ToolCallMessage & { subagent: NonNullable<ToolCallMessage['subagent']> } {
-  return msg.kind === 'tool_call' && msg.tool.name === 'Task' && msg.subagent !== undefined;
+  return msg.kind === 'tool_call' && msg.tool.name === '任务' && msg.subagent !== undefined;
 }
 
 /** Check if message is a TaskOutput call (polling background agent) */
@@ -231,7 +231,7 @@ export function transformApiMessage(msg: AgentMessage): ChatMessage {
   switch (msg.type) {
     case 'tool_call': {
       const toolName = metadata.tool_name as string;
-      const isTask = toolName === 'Task';
+      const isTask = toolName === '任务';
 
       return {
         ...base,

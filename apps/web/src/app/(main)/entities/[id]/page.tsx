@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   } catch {
     return {
-      title: 'Entity',
+      title: '实体',
       description: 'View entity details',
     };
   }
@@ -49,7 +49,7 @@ export default async function EntityDetailPage({ params }: PageProps) {
     // Other errors - show error state
     return (
       <ErrorState
-        title="Failed to load entity"
+        title="加载实体失败"
         message={error instanceof Error ? error.message : 'An unexpected error occurred'}
         action={
           <Link href="/entities">

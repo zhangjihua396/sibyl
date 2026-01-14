@@ -69,7 +69,7 @@ export const AGENT_STATUS_CONFIG: Record<
     icon: '◆',
   },
   failed: {
-    label: 'Failed',
+    label: '失败',
     color: '#ff6363',
     bgClass: 'bg-[#ff6363]/20',
     textClass: 'text-[#ff6363]',

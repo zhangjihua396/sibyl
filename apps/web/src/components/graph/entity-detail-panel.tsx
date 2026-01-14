@@ -115,7 +115,7 @@ export const EntityDetailPanel = memo(function EntityDetailPanel({
             type="button"
             onClick={onClose}
             className="p-1 text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight rounded transition-colors"
-            aria-label="Close panel"
+            aria-label="关闭面板"
           >
             <span aria-hidden="true">✕</span>
           </button>
@@ -126,7 +126,7 @@ export const EntityDetailPanel = memo(function EntityDetailPanel({
       <div className={`flex-1 overflow-y-auto ${isSheet ? 'px-4 pb-8' : 'p-4'}`}>
         {isLoading ? (
           <div className="flex justify-center py-8">
-            <LoadingState message="Loading..." variant="orbital" />
+            <LoadingState message="加载中..." variant="orbital" />
           </div>
         ) : error ? (
           <div className="text-sm text-sc-red py-4">Failed to load entity</div>

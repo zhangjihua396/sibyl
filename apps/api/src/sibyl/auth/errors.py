@@ -58,11 +58,11 @@ class AuthorizationError(HTTPException):
 class NoOrgContextError(AuthorizationError):
     """Raised when org context is required but missing."""
 
-    def __init__(self, action: str = "perform this action"):
+    def __init__(self, action: str = "执行此操作"):
         super().__init__(
             code=AuthErrorCode.NO_ORG_CONTEXT,
-            message=f"Organization context required to {action}",
-            details={"hint": "Ensure you have selected an organization"},
+            message=f"执行{action}需要组织上下文",
+            details={"hint": "请确保您已选择一个组织"},
         )
 
 
@@ -83,7 +83,7 @@ class OrgAccessDeniedError(AuthorizationError):
 
         super().__init__(
             code=AuthErrorCode.ORG_ACCESS_DENIED,
-            message=f"Requires {required_role} role in organization",
+            message=f"需要组织中的{required_role}角色",
             details=details,
         )
 
@@ -106,7 +106,7 @@ class ProjectAccessDeniedError(AuthorizationError):
 
         super().__init__(
             code=AuthErrorCode.PROJECT_ACCESS_DENIED,
-            message=f"Requires {required_role} access to project",
+            message=f"需要项目的{required_role}访问权限",
             details=details,
         )
 
@@ -129,7 +129,7 @@ class ResourceAccessDeniedError(AuthorizationError):
 
         super().__init__(
             code=AuthErrorCode.RESOURCE_ACCESS_DENIED,
-            message=f"Access denied to {resource_type}",
+            message=f"拒绝访问{resource_type}",
             details=details,
         )
 
@@ -141,11 +141,11 @@ class OwnershipRequiredError(AuthorizationError):
         self,
         resource_type: str,
         resource_id: str,
-        action: str = "modify",
+        action: str = "修改",
     ):
         super().__init__(
             code=AuthErrorCode.OWNERSHIP_REQUIRED,
-            message=f"Only the owner can {action} this {resource_type}",
+            message=f"只有所有者可以{action}此{resource_type}",
             details={
                 "resource_type": resource_type,
                 "resource_id": resource_id,

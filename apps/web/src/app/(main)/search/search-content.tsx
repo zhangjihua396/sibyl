@@ -23,9 +23,9 @@ import { useCodeExamples, useRAGHybridSearch, useSearch, useSources, useStats } 
 type SearchMode = 'knowledge' | 'docs' | 'code';
 
 const SEARCH_MODES: { id: SearchMode; label: string; icon: string; description: string }[] = [
-  { id: 'knowledge', label: 'Knowledge', icon: '◇', description: 'Patterns, rules, tasks' },
+  { id: 'knowledge', label: '知识', icon: '◇', description: 'Patterns, rules, tasks' },
   { id: 'docs', label: 'Docs', icon: '▤', description: 'Crawled documentation' },
-  { id: 'code', label: 'Code', icon: '⟨⟩', description: 'Code examples' },
+  { id: 'code', label: '代码', icon: '⟨⟩', description: 'Code examples' },
 ];
 
 // Curated searchable entity types for knowledge mode
@@ -217,7 +217,7 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
       <Breadcrumb />
 
       <PageHeader
-        description="Find knowledge, documentation, and code"
+        description="查找知识、文档和代码"
         meta={
           submittedQuery
             ? mode === 'knowledge'
@@ -511,9 +511,9 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
       {submittedQuery ? (
         <div className="space-y-3 sm:space-y-4">
           {isLoading ? (
-            <LoadingState message="Searching..." />
+            <LoadingState message="搜索中..." />
           ) : error ? (
-            <ErrorState title="Search failed" message={error.message} />
+            <ErrorState title="搜索失败" message={error.message} />
           ) : mode === 'knowledge' ? (
             // Knowledge Results
             filteredKnowledgeResults && filteredKnowledgeResults.length > 0 ? (
@@ -569,12 +569,12 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
             ) : (
               <EnhancedEmptyState
                 icon={<FileText width={40} height={40} className="text-sc-yellow" />}
-                title="No documentation found"
-                description="Try different keywords or check if sources have been crawled"
+                title="未找到文档"
+                description="请尝试其他关键词或检查数据源是否已爬取"
                 variant="filtered"
                 actions={[
                   {
-                    label: 'Clear search',
+                    label: '清除搜索',
                     onClick: () => {
                       setQuery('');
                       setSubmittedQuery('');
@@ -611,7 +611,7 @@ export function SearchContent({ initialQuery, initialResults, initialStats }: Se
               variant="filtered"
               actions={[
                 {
-                  label: 'Clear search',
+                  label: '清除搜索',
                   onClick: () => {
                     setQuery('');
                     setSubmittedQuery('');

@@ -146,7 +146,7 @@ export function DashboardContent({ initialStats }: DashboardContentProps) {
     <div className="space-y-4 sm:space-y-6 animate-fade-in">
       {/* Dashboard breadcrumb */}
       <nav
-        aria-label="Breadcrumb"
+        aria-label="面包屑导航"
         className="flex items-center gap-1.5 text-sm text-sc-fg-muted min-h-[24px]"
         style={{ viewTransitionName: 'breadcrumb' }}
       >

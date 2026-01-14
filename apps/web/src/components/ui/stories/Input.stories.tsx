@@ -93,7 +93,7 @@ export const LabelExamples: StoryObj = {
       </div>
       <div>
         <Label description="This will be shown to other users">Display Name</Label>
-        <Input placeholder="Your name" />
+        <Input placeholder="您的姓名" />
       </div>
     </div>
   ),
@@ -112,7 +112,7 @@ export const AllInputTypes: StoryObj = {
       </div>
       <div>
         <Label>With Error</Label>
-        <Input placeholder="Email" error="Invalid email" />
+        <Input placeholder="邮箱" error="Invalid email" />
       </div>
       <div>
         <Label>Search Input (Large)</Label>

@@ -101,7 +101,7 @@ export function TasksEmptyState({ onCreateTask }: { onCreateTask?: () => void })
       title="No tasks found"
       description="No tasks match your current filters. Press C or use the button below to create a new task."
       actions={[
-        ...(onCreateTask ? [{ label: 'Create Task', onClick: onCreateTask }] : []),
+        ...(onCreateTask ? [{ label: '创建任务', onClick: onCreateTask }] : []),
         { label: 'View Projects', href: '/projects', variant: 'secondary' },
       ]}
     />
@@ -115,7 +115,7 @@ export function ProjectsEmptyState({ onCreateProject }: { onCreateProject?: () =
       title="No projects yet"
       description="Projects help you organize related tasks and track progress. Start by creating your first project."
       actions={[
-        ...(onCreateProject ? [{ label: 'Create Project', onClick: onCreateProject }] : []),
+        ...(onCreateProject ? [{ label: '创建项目', onClick: onCreateProject }] : []),
       ]}
     />
   );
@@ -138,11 +138,11 @@ export function SearchEmptyState({ query, onClear }: { query?: string; onClear?:
     return (
       <EnhancedEmptyState
         icon={<Search width={40} height={40} className="text-sc-yellow" />}
-        title="No results found"
+        title="未找到结果"
         description={`No matches for "${query}". Try a different search term or browse entities.`}
         variant="filtered"
         actions={[
-          ...(onClear ? [{ label: 'Clear search', onClick: onClear }] : []),
+          ...(onClear ? [{ label: '清除搜索', onClick: onClear }] : []),
           { label: 'Browse Entities', href: '/entities', variant: 'secondary' },
         ]}
       />
@@ -164,7 +164,7 @@ export function SourcesEmptyState({ onAddSource }: { onAddSource?: () => void })
       icon={<Globe width={40} height={40} className="text-sc-cyan" />}
       title="No documentation sources"
       description="Add external documentation sources to search alongside your knowledge graph. Crawl API docs, guides, and references."
-      actions={[...(onAddSource ? [{ label: 'Add Source', onClick: onAddSource }] : [])]}
+      actions={[...(onAddSource ? [{ label: '添加数据源', onClick: onAddSource }] : [])]}
     />
   );
 }
@@ -259,7 +259,7 @@ export function EpicsEmptyState({
       title="No epics yet"
       description="Epics group related tasks into larger initiatives. Create an epic to organize your feature work."
       actions={[
-        ...(onCreateEpic ? [{ label: 'Create Epic', onClick: onCreateEpic }] : []),
+        ...(onCreateEpic ? [{ label: '创建史诗', onClick: onCreateEpic }] : []),
         { label: 'View Tasks', href: '/tasks', variant: 'secondary' },
       ]}
     />

@@ -79,7 +79,7 @@ export const EmptyStateVariants: StoryObj = {
       <div className="border border-sc-fg-subtle/20 rounded-xl p-4">
         <EmptyState
           variant="search"
-          title="No results found"
+          title="未找到结果"
           description="Try adjusting your search query"
         />
       </div>

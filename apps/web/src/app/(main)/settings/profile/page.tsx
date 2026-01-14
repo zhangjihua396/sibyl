@@ -136,7 +136,7 @@ function AvatarUploadModal({
         type="button"
         className="absolute inset-0 bg-sc-bg-dark/80 backdrop-blur-sm cursor-default"
         onClick={onClose}
-        aria-label="Close"
+        aria-label="关闭"
       />
       <div className="relative w-full max-w-md bg-sc-bg-base border border-sc-fg-subtle/20 rounded-xl shadow-2xl overflow-hidden">
         {/* Header */}
@@ -380,7 +380,7 @@ export default function ProfilePage() {
               onSave={async name => {
                 await updateMutation.mutateAsync({ name });
               }}
-              placeholder="Your name"
+              placeholder="您的姓名"
               className="text-2xl sm:text-3xl font-bold text-sc-fg-primary mb-2"
             />
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -404,7 +404,7 @@ export default function ProfilePage() {
           onSave={async bio => {
             await updateMutation.mutateAsync({ bio });
           }}
-          placeholder="Tell us about yourself..."
+          placeholder="介绍一下您自己..."
           className="text-sc-fg-secondary leading-relaxed"
           multiline
           rows={4}

@@ -1,5 +1,5 @@
 import { LoadingState } from '@/components/ui/spinner';
 
 export default function Loading() {
-  return <LoadingState message="Loading data settings..." />;
+  return <LoadingState message="加载数据设置中..." />;
 }

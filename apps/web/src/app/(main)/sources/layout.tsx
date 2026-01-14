@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Sources',
+  title: '数据源',
   description: 'Manage knowledge sources and document crawling',
 };
 

@@ -144,6 +144,11 @@ class GraphClient:
         if not api_key:
             api_key = os.getenv("OPENAI_API_KEY", "")
 
+        # Set OPENAI_API_KEY environment variable for OpenAI client libraries
+        # that read the key from environment (like some embeddings libraries)
+        if api_key and not os.getenv("OPENAI_API_KEY"):
+            os.environ["OPENAI_API_KEY"] = api_key
+
         config = LLMConfig(
             api_key=api_key,
             model=settings.llm_model,

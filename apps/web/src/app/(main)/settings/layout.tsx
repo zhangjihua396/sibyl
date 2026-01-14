@@ -12,8 +12,8 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       <PageHeader
-        title="Settings"
-        description="Manage your account, preferences, and team settings"
+        title="设置"
+        description="管理您的账户、偏好设置和团队设置"
       />
 
       <div className="flex flex-col md:flex-row gap-6">

@@ -376,7 +376,7 @@ export function QuickTaskModal({
                 disabled={!title.trim() || isSubmitting}
                 className="px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
               >
-                {isSubmitting ? 'Creating...' : 'Create Task'}
+                {isSubmitting ? 'Creating...' : '创建任务'}
               </button>
             </div>
           </div>

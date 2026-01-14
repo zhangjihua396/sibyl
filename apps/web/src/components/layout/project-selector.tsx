@@ -58,7 +58,7 @@ export function ProjectSelector() {
       return { name: 'All Projects', count: 0 };
     }
     const firstProject = projects.find(p => p.id === selectedProjects[0]);
-    const firstName = firstProject?.name ?? 'Project';
+    const firstName = firstProject?.name ?? '项目';
     return { name: firstName, count: selectedProjects.length - 1 };
   }, [isAll, selectedProjects, projects]);
 

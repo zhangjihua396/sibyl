@@ -26,6 +26,7 @@ import {
   TrendingUp,
   User,
   Users,
+  Xmark,
   Zap,
 } from '@/components/ui/icons';
 import { Spinner } from '@/components/ui/spinner';
@@ -33,6 +34,7 @@ import { ErrorState, Tooltip } from '@/components/ui/tooltip';
 import type { ProjectRole, TaskListResponse, TaskStatus, TaskSummary } from '@/lib/api';
 import { TASK_STATUS_CONFIG } from '@/lib/constants';
 import {
+  useCreateEntity,
   useDeleteEntity,
   useMe,
   useProjectMembers,
@@ -154,6 +156,44 @@ export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
   const projects = projectsData?.entities ?? [];
   const allTasks = allTasksData?.entities ?? [];
 
+  // Project creation mutation
+  const createEntity = useCreateEntity();
+
+  // Create project modal state
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+
+  const handleCreateProject = useCallback(async () => {
+    if (!projectName.trim()) {
+      toast.error('Project name is required');
+      return;
+    }
+    try {
+      await createEntity.mutateAsync({
+        name: projectName,
+        description: projectDescription || undefined,
+        entity_type: 'project',
+        metadata: { status: 'active' },
+      });
+      toast.success('Project created successfully');
+      setShowCreateModal(false);
+      setProjectName('');
+      setProjectDescription('');
+    } catch {
+      toast.error('Failed to create project');
+    }
+  }, [projectName, projectDescription, createEntity]);
+
+  const handleProjectDeleted = useCallback(() => {
+    // Clear the selected project from URL
+    if (selectedProjectId) {
+      const params = new URLSearchParams(searchParams);
+      params.delete('id');
+      router.push(`/projects${params.toString() ? `?${params.toString()}` : ''}`);
+    }
+  }, [selectedProjectId, searchParams, router]);
+
   // Group tasks by project and calculate stats
   const projectStatsMap = useMemo(() => {
     const map = new Map<string, ProjectStats>();
@@ -244,7 +284,7 @@ export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
   const breadcrumbItems = selectedProject
     ? [
         { label: ROUTE_CONFIG[''].label, href: '/', icon: ROUTE_CONFIG[''].icon },
-        { label: 'Projects', href: '/projects', icon: ROUTE_CONFIG.projects.icon },
+        { label: '项目', href: '/projects', icon: ROUTE_CONFIG.projects.icon },
         { label: selectedProject.name },
       ]
     : undefined;
@@ -266,9 +306,9 @@ export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
     return (
       <div className="space-y-4">
         <Breadcrumb />
-        <PageHeader description="Manage your development projects" />
+        <PageHeader description="管理您的开发项目" />
         <ErrorState
-          title="Failed to load projects"
+          title="加载项目失败"
           message={projectsError instanceof Error ? projectsError.message : 'Unknown error'}
         />
       </div>
@@ -280,7 +320,7 @@ export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
     return (
       <div className="space-y-4">
         <Breadcrumb />
-        <PageHeader description="Manage your development projects" meta="0 projects" />
+        <PageHeader description="管理您的开发项目" meta="0 projects" />
         <ProjectsEmptyState />
       </div>
     );
@@ -291,12 +331,14 @@ export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
       <Breadcrumb items={breadcrumbItems} />
 
       <PageHeader
-        description="Manage your development projects"
+        description="管理您的开发项目"
         meta={`${projects.length} projects | ${totalStats.tasks} tasks | ${totalStats.active} active`}
         action={
           <button
             type="button"
-            className="shrink-0 px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm"
+            onClick={() => setShowCreateModal(true)}
+            disabled={createEntity.isPending}
+            className="shrink-0 px-4 py-2 bg-sc-purple hover:bg-sc-purple/80 text-white rounded-lg font-medium transition-colors flex items-center gap-1.5 text-sm disabled:opacity-50"
           >
             <span>+</span>
             <span>New Project</span>
@@ -402,6 +444,7 @@ export function ProjectsContent({ initialProjects }: ProjectsContentProps) {
               project={selectedProject}
               stats={selectedStats}
               tasks={selectedProjectTasks}
+              onDeleted={handleProjectDeleted}
             />
           )}
         </div>
@@ -714,7 +757,7 @@ function ProjectDetail({ project, stats, tasks, onDeleted }: ProjectDetailProps)
             <EditableText
               value={project.name}
               onSave={handleNameSave}
-              placeholder="Project name"
+              placeholder="项目名称"
               required
               className="text-2xl font-bold text-sc-fg-primary"
             />
@@ -782,7 +825,7 @@ function ProjectDetail({ project, stats, tasks, onDeleted }: ProjectDetailProps)
             type="button"
             className="absolute inset-0 bg-sc-bg-dark/80 backdrop-blur-sm cursor-default"
             onClick={() => setShowDeleteConfirm(false)}
-            aria-label="Close"
+            aria-label="关闭"
           />
           <div className="relative bg-sc-bg-base border border-sc-fg-subtle/30 rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl">
             <div className="flex items-start gap-4">
@@ -1102,7 +1145,7 @@ const PROJECT_ROLES: ProjectRole[] = [
 ];
 
 const ROLE_DISPLAY: Record<ProjectRole, string> = {
-  project_owner: 'Owner',
+  project_owner: '所有者',
   project_maintainer: 'Maintainer',
   project_contributor: 'Contributor',
   project_viewer: 'Viewer',
@@ -1191,7 +1234,7 @@ function ProjectMembersList({ projectId }: { projectId: string }) {
                 type="button"
                 onClick={() => handleRemove(member.user.id, member.user.name)}
                 className="p-1 text-sc-fg-muted hover:text-sc-red transition-colors"
-                title="Remove member"
+                title="移除成员"
               >
                 <Trash width={14} height={14} />
               </button>

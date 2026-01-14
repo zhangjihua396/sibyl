@@ -116,7 +116,7 @@ function PasswordSection() {
                 type={showPasswords ? 'text' : 'password'}
                 value={currentPassword}
                 onChange={e => setCurrentPassword(e.target.value)}
-                placeholder="Enter current password"
+                placeholder="输入当前密码"
                 autoFocus
               />
             </div>
@@ -133,7 +133,7 @@ function PasswordSection() {
               type={showPasswords ? 'text' : 'password'}
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min 8 characters)"
+              placeholder="输入新密码（最少8个字符）"
             />
           </div>
           <div>
@@ -148,13 +148,13 @@ function PasswordSection() {
               type={showPasswords ? 'text' : 'password'}
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
-              placeholder="Confirm new password"
+              placeholder="确认新密码"
             />
           </div>
           <Checkbox
             checked={showPasswords}
             onCheckedChange={checked => setShowPasswords(checked === true)}
-            label="Show passwords"
+            label="显示密码"
           />
           <div className="flex gap-2 justify-end">
             <Button variant="ghost" onClick={handleCancel} type="button">
@@ -276,7 +276,7 @@ function SessionsSection() {
               {!session.is_current && (
                 <IconButton
                   icon={<Xmark width={14} height={14} />}
-                  label="Revoke session"
+                  label="撤销会话"
                   size="sm"
                   variant="ghost"
                   onClick={() => handleRevoke(session.id)}
@@ -386,7 +386,7 @@ function ApiKeysSection() {
               icon={copied ? <Check width={14} height={14} /> : <Copy width={14} height={14} />}
               onClick={handleCopyKey}
             >
-              {copied ? 'Copied' : 'Copy'}
+              {copied ? '已复制' : '复制'}
             </Button>
           </div>
           <div className="mt-3 flex justify-end">

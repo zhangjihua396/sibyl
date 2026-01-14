@@ -74,7 +74,7 @@ async def resolve_claims(request: Request, session: AsyncSession | None = None) 
             ):
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Insufficient API key scope",
+                    detail="API密钥权限不足",
                 )
             return {
                 "sub": str(auth.user_id),
@@ -92,16 +92,16 @@ async def get_current_user(
 ) -> User:
     claims = await resolve_claims(request, session)
     if not claims:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
 
     try:
         user_id = UUID(str(claims.get("sub", "")))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from e
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录凭证无效") from e
 
     user = await session.get(User, user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
     return user
 
 
@@ -111,20 +111,20 @@ async def get_current_organization(
 ) -> Organization:
     claims = await resolve_claims(request, session)
     if not claims:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
 
     org_raw = claims.get("org")
     if not org_raw:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="No organization context")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="请选择组织")
 
     try:
         org_id = UUID(str(org_raw))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from e
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录凭证无效") from e
 
     org = await session.get(Organization, org_id)
     if org is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="组织不存在")
     return org
 
 
@@ -141,14 +141,14 @@ async def get_current_org_role(
     )
     membership = result.scalar_one_or_none()
     if membership is None:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="不是组织成员")
     return membership.role
 
 
 def require_org_role(*allowed: OrganizationRole):
     async def _check_role(role: OrganizationRole = Depends(get_current_org_role)) -> None:
         if role not in allowed:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权访问")
 
     async def _noop() -> None:
         pass
@@ -169,17 +169,17 @@ async def build_auth_context(
     """
     claims = await resolve_claims(request, session)
     if not claims:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")
 
     # Get user
     try:
         user_id = UUID(str(claims.get("sub", "")))
     except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from e
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录凭证无效") from e
 
     user = await session.get(User, user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="用户不存在")
 
     # Get org and role
     org = None

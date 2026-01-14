@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Tasks',
+  title: '任务',
   description: 'Manage your tasks with kanban boards and status tracking',
 };
 

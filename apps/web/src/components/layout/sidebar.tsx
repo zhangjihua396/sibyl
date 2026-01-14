@@ -25,14 +25,14 @@ import { NavLink } from './nav-link';
 // Navigation with Iconoir icons
 const NAVIGATION: Array<{ name: string; href: string; icon: IconComponent }> = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Projects', href: '/projects', icon: FolderKanban },
-  { name: 'Epics', href: '/epics', icon: Layers },
-  { name: 'Tasks', href: '/tasks', icon: ListTodo },
-  { name: 'Agents', href: '/agents', icon: Sparks },
-  { name: 'Sources', href: '/sources', icon: BookOpen },
-  { name: 'Graph', href: '/graph', icon: Network },
-  { name: 'Entities', href: '/entities', icon: Boxes },
-  { name: 'Search', href: '/search', icon: Search },
+  { name: '项目', href: '/projects', icon: FolderKanban },
+  { name: '史诗', href: '/epics', icon: Layers },
+  { name: '任务', href: '/tasks', icon: ListTodo },
+  { name: '智能代理', href: '/agents', icon: Sparks },
+  { name: '数据源', href: '/sources', icon: BookOpen },
+  { name: '图谱', href: '/graph', icon: Network },
+  { name: '知识实体', href: '/entities', icon: Boxes },
+  { name: '搜索', href: '/search', icon: Search },
 ];
 
 interface SidebarContentProps {

@@ -34,12 +34,12 @@ import {
  */
 export type ToolName =
   | 'Read'
-  | 'Edit'
+  | '编辑'
   | 'Write'
   | 'Bash'
   | 'Grep'
   | 'Glob'
-  | 'Task'
+  | '任务'
   | 'TaskOutput'
   | 'WebSearch'
   | 'WebFetch'
@@ -324,12 +324,12 @@ export function hasCustomRenderer(toolName: string): boolean {
 
 export const TOOLS = {
   READ: 'Read' as const,
-  EDIT: 'Edit' as const,
+  EDIT: '编辑' as const,
   WRITE: 'Write' as const,
   BASH: 'Bash' as const,
   GREP: 'Grep' as const,
   GLOB: 'Glob' as const,
-  TASK: 'Task' as const,
+  TASK: '任务' as const,
   TASK_OUTPUT: 'TaskOutput' as const,
   WEB_SEARCH: 'WebSearch' as const,
   WEB_FETCH: 'WebFetch' as const,

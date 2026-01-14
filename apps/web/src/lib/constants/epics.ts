@@ -23,7 +23,7 @@ export const EPIC_STATUS_CONFIG: Record<
     icon: '◇',
   },
   in_progress: {
-    label: 'In Progress',
+    label: '进行中',
     color: '#e135ff',
     bgClass: 'bg-[#e135ff]/20',
     textClass: 'text-[#e135ff]',

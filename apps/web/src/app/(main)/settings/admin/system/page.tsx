@@ -158,22 +158,22 @@ export default function SystemStatusPage() {
       {/* Key Metrics */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
-          label="Uptime"
+          label="运行时间"
           value={formatUptime(health?.uptime_seconds || 0)}
           icon={<Clock width={14} height={14} />}
         />
         <StatCard
-          label="Total Entities"
+          label="实体总数"
           value={stats?.total_entities?.toLocaleString() || 0}
           icon={<Database width={14} height={14} />}
         />
         <StatCard
-          label="Server"
+          label="服务器"
           value={health?.server_name || 'sibyl'}
           icon={<Activity width={14} height={14} />}
         />
         <StatCard
-          label="Graph Status"
+          label="图谱状态"
           value={health?.graph_connected ? 'Connected' : 'Disconnected'}
           icon={<Network width={14} height={14} />}
         />
@@ -207,7 +207,7 @@ export default function SystemStatusPage() {
             </div>
             <StatusBadge
               status={health?.status === 'healthy'}
-              label={health?.status === 'healthy' ? 'Connected' : 'Error'}
+              label={health?.status === 'healthy' ? 'Connected' : '错误'}
             />
           </div>
         </div>

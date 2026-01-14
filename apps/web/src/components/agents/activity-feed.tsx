@@ -56,7 +56,7 @@ const EVENT_CONFIG: Record<
   },
   agent_failed: {
     icon: WarningCircle,
-    label: 'Failed',
+    label: '失败',
     colorClass: 'text-sc-red',
     bgClass: 'bg-sc-red/20',
   },

@@ -231,7 +231,7 @@ function EpicsPageContent() {
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search epics..."
+              placeholder="搜索史诗..."
               className="w-full pl-9 pr-3 py-2 bg-sc-bg-elevated border border-sc-fg-subtle/20 rounded-lg text-sm text-sc-fg-primary placeholder:text-sc-fg-subtle focus:border-sc-purple focus:outline-none focus:ring-2 focus:ring-sc-purple/10 transition-all"
             />
             {searchQuery && (
@@ -330,7 +330,7 @@ function EpicsPageContent() {
       {/* Epic Grid */}
       {error ? (
         <ErrorState
-          title="Failed to load epics"
+          title="加载史诗列表失败"
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       ) : (

@@ -222,7 +222,7 @@ export function ChatPanel({
                           setEditingId(null);
                         }}
                         className="p-1 text-sc-green hover:bg-sc-green/10 rounded"
-                        title="Save"
+                        title="保存"
                       >
                         ✓
                       </button>
@@ -230,7 +230,7 @@ export function ChatPanel({
                         type="button"
                         onClick={() => setEditingId(null)}
                         className="p-1 text-sc-fg-muted hover:bg-sc-fg-subtle/10 rounded"
-                        title="Cancel"
+                        title="取消"
                       >
                         ✕
                       </button>
@@ -248,7 +248,7 @@ export function ChatPanel({
                             setEditValue(msg.content);
                           }}
                           className="p-1 text-sc-fg-muted hover:text-sc-cyan hover:bg-sc-cyan/10 rounded text-xs"
-                          title="Edit"
+                          title="编辑"
                         >
                           ✎
                         </button>
@@ -256,7 +256,7 @@ export function ChatPanel({
                           type="button"
                           onClick={() => onCancelPending(msg.id)}
                           className="p-1 text-sc-fg-muted hover:text-sc-red hover:bg-sc-red/10 rounded text-xs"
-                          title="Cancel"
+                          title="取消"
                         >
                           ✕
                         </button>

@@ -15,7 +15,7 @@ interface SettingsNavItem {
 
 const SETTINGS_NAVIGATION: SettingsNavItem[] = [
   {
-    name: 'Profile',
+    name: '个人资料',
     href: '/settings/profile',
     icon: User,
     description: 'Your personal information',
@@ -27,25 +27,25 @@ const SETTINGS_NAVIGATION: SettingsNavItem[] = [
     description: 'Display and behavior settings',
   },
   {
-    name: 'Security',
+    name: '安全',
     href: '/settings/security',
     icon: Settings,
     description: 'Password, sessions, and API keys',
   },
   {
-    name: 'Organizations',
+    name: '组织',
     href: '/settings/organizations',
     icon: Users,
     description: 'Manage your organizations',
   },
   {
-    name: 'Teams',
+    name: '团队',
     href: '/settings/teams',
     icon: Users,
     description: 'Team membership and settings',
   },
   {
-    name: 'Data',
+    name: '数据',
     href: '/settings/data',
     icon: Database,
     description: 'Backup and restore your graph',
@@ -66,7 +66,7 @@ const ADMIN_NAVIGATION: SettingsNavItem[] = [
     description: 'Backup management and archives',
   },
   {
-    name: 'System',
+    name: '系统',
     href: '/settings/admin/system',
     icon: Activity,
     description: 'Health and diagnostics',

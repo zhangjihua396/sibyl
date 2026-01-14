@@ -102,7 +102,7 @@ export const SourceCard = memo(function SourceCard({
           disabled={isCrawling || crawlStatus === 'in_progress'}
           className="flex-1"
         >
-          {crawlStatus === 'in_progress' ? 'Crawling...' : 'Crawl Now'}
+          {crawlStatus === 'in_progress' ? 'Crawling...' : '立即爬取'}
         </Button>
         <Link
           href={`/sources/${source.id}`}

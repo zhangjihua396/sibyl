@@ -77,7 +77,7 @@ export const WithIcon: Story = {
 
 export const Loading: Story = {
   args: {
-    children: 'Loading...',
+    children: '加载中...',
     loading: true,
   },
 };

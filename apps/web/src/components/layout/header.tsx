@@ -118,7 +118,7 @@ export function Header() {
         type="button"
         onClick={() => router.push('/search')}
         className="sm:hidden p-2 rounded-lg text-sc-fg-muted hover:text-sc-fg-primary hover:bg-sc-bg-highlight transition-colors"
-        aria-label="Search"
+        aria-label="搜索"
       >
         <Search width={20} height={20} />
       </button>

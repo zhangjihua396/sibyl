@@ -49,7 +49,7 @@ export function Spinner({
         ${className}
       `}
       role="status"
-      aria-label="Loading"
+      aria-label="加载中"
     />
   );
 }
@@ -67,7 +67,7 @@ function OrbitalSpinner({ size = 'md' }: { size: SpinnerSize }) {
   const { container, dot } = sizeMap[size];
 
   return (
-    <div className={`relative ${container}`} role="status" aria-label="Loading">
+    <div className={`relative ${container}`} role="status" aria-label="加载中">
       <div className="absolute inset-0 animate-orbital">
         <div
           className={`absolute top-0 left-1/2 -translate-x-1/2 ${dot} rounded-full bg-sc-purple`}
@@ -112,7 +112,7 @@ function GradientSpinner({ size = 'md' }: { size: SpinnerSize }) {
         borderImage: 'linear-gradient(135deg, #e135ff, #80ffea, #ff6ac1) 1',
       }}
       role="status"
-      aria-label="Loading"
+      aria-label="加载中"
     />
   );
 }

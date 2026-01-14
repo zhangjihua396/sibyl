@@ -124,7 +124,7 @@ export function TaskHeader({
           <EditableText
             value={task.name}
             onSave={v => updateField('name', v, false)}
-            placeholder="Task name"
+            placeholder="任务名称"
             required
             className="text-2xl font-bold"
           />

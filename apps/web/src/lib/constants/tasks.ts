@@ -45,7 +45,7 @@ export const TASK_STATUS_CONFIG: Record<
     icon: '◈',
   },
   done: {
-    label: 'Done',
+    label: '完成',
     color: '#50fa7b',
     bgClass: 'bg-[#50fa7b]/20',
     textClass: 'text-[#50fa7b]',

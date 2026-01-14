@@ -217,6 +217,6 @@ TIMEOUTS = {
     "graph_connect": 10.0,
     "graph_query": 30.0,
     "search": 15.0,
-    "embedding": 20.0,
+    "embedding": 60.0,  # Increased for slower embedding APIs (e.g., Qwen/Alibaba Cloud)
     "ingestion_file": 60.0,
 }

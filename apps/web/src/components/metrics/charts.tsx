@@ -338,7 +338,7 @@ export function AssigneeBarChart({ data, className, maxItems = 8 }: AssigneeChar
             stackId="a"
             fill={COLORS.purple}
             radius={[0, 0, 0, 0]}
-            name="In Progress"
+            name="进行中"
           />
           <Bar
             dataKey="pending"

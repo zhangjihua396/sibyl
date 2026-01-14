@@ -231,7 +231,7 @@ export function EntitiesContent({
       <Breadcrumb />
 
       <PageHeader
-        description="Browse and manage knowledge entities"
+        description="浏览和管理知识实体"
         meta={`${data?.total ?? 0} total`}
       />
 
@@ -241,7 +241,7 @@ export function EntitiesContent({
           <div className="flex-1 sm:max-w-md">
             <Input
               type="text"
-              placeholder="Search entities..."
+              placeholder="搜索实体..."
               value={searchInput}
               onChange={e => handleSearchChange(e.target.value)}
               icon="⌕"
@@ -285,7 +285,7 @@ export function EntitiesContent({
       {isLoading ? (
         <LoadingState />
       ) : error ? (
-        <ErrorState title="Failed to load entities" message={error.message} />
+        <ErrorState title="加载实体失败" message={error.message} />
       ) : entities.length === 0 ? (
         <EntitiesEmptyState
           entityType={typeFilter}

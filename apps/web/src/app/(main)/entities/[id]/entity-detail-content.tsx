@@ -121,7 +121,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                     Cancel
                   </Button>
                   <ColorButton color="green" onClick={handleSave} disabled={updateEntity.isPending}>
-                    {updateEntity.isPending ? 'Saving...' : 'Save'}
+                    {updateEntity.isPending ? 'Saving...' : '保存'}
                   </ColorButton>
                 </>
               ) : (
@@ -135,7 +135,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                     Edit
                   </ColorButton>
                   <ColorButton color="red" onClick={handleDelete} disabled={deleteEntity.isPending}>
-                    {deleteEntity.isPending ? 'Deleting...' : 'Delete'}
+                    {deleteEntity.isPending ? 'Deleting...' : '删除'}
                   </ColorButton>
                 </>
               )}
@@ -156,7 +156,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                 value={editedDescription}
                 onChange={e => setEditedDescription(e.target.value)}
                 rows={3}
-                placeholder="Enter description..."
+                placeholder="输入描述..."
               />
             ) : currentEntity.description ? (
               <Markdown content={currentEntity.description} />
@@ -174,7 +174,7 @@ export function EntityDetailContent({ initialEntity }: EntityDetailContentProps)
                 onChange={e => setEditedContent(e.target.value)}
                 rows={12}
                 monospace
-                placeholder="Enter content..."
+                placeholder="输入内容..."
               />
             ) : currentEntity.content ? (
               <Markdown content={currentEntity.content} />

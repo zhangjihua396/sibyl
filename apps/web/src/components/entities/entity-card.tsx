@@ -95,7 +95,7 @@ export const EntityCard = memo(function EntityCard({
                   type="button"
                   onClick={() => onDelete(entity.id)}
                   className="p-2 text-sc-fg-muted hover:text-sc-red rounded-lg hover:bg-sc-red/10 transition-colors"
-                  title="Delete"
+                  title="删除"
                   aria-label={`Delete ${entity.name}`}
                 >
                   <span aria-hidden="true">✕</span>

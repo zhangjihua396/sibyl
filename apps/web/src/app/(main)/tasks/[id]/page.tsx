@@ -26,9 +26,9 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
   if (error) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="task" entityName="Error" />
+        <EntityBreadcrumb entityType="task" entityName="错误" />
         <ErrorState
-          title="Failed to load task"
+          title="加载任务失败"
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       </div>
@@ -40,7 +40,7 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
       {/* Fluid breadcrumb navigation */}
       <EntityBreadcrumb
         entityType="task"
-        entityName={task?.name || 'Loading...'}
+        entityName={task?.name || '加载中...'}
         parentProject={parentProject}
       />
 

@@ -92,7 +92,7 @@ export function AdminAccountStep({ onBack, onAccountCreated }: AdminAccountStepP
             type="text"
             required
             autoComplete="name"
-            placeholder="Your name"
+            placeholder="您的姓名"
             className="w-full px-3 py-2.5 rounded-lg bg-sc-bg-base border border-sc-fg-subtle/20 text-sc-fg-primary placeholder:text-sc-fg-subtle/50 focus:outline-none focus:border-sc-purple/60 focus:ring-2 focus:ring-sc-purple/20 transition-all"
           />
         </div>

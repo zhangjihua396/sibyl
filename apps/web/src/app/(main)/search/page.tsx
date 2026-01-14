@@ -6,7 +6,7 @@ import { fetchSearchResults, fetchStats } from '@/lib/api-server';
 import { SearchContent } from './search-content';
 
 export const metadata: Metadata = {
-  title: 'Search',
+  title: '搜索',
   description: 'Semantic search across your knowledge graph',
 };
 

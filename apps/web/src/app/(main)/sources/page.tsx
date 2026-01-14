@@ -456,7 +456,7 @@ export default function SourcesPage() {
             type="button"
             onClick={() => refetch()}
             className="p-2 sm:p-2.5 bg-sc-bg-base border border-sc-fg-subtle/20 rounded-lg sm:rounded-xl text-sc-fg-muted hover:text-sc-fg-primary hover:border-sc-fg-subtle/40 transition-colors"
-            title="Refresh"
+            title="刷新"
           >
             <RefreshCw width={16} height={16} />
           </button>
@@ -480,10 +480,10 @@ export default function SourcesPage() {
                   {(
                     [
                       { value: 'all', label: 'All' },
-                      { value: 'completed', label: 'Done' },
+                      { value: 'completed', label: '完成' },
                       { value: 'pending', label: 'Pending' },
-                      { value: 'in_progress', label: 'Active' },
-                      { value: 'failed', label: 'Failed' },
+                      { value: 'in_progress', label: '活跃' },
+                      { value: 'failed', label: '失败' },
                     ] as const
                   ).map(status => (
                     <button

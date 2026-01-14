@@ -85,7 +85,7 @@ export function ClusterDetail({
           type="button"
           onClick={() => graphRef.current?.zoomIn()}
           className="w-8 h-8 flex items-center justify-center bg-sc-bg-elevated/90 backdrop-blur-sm border border-sc-purple/20 rounded-lg text-sc-fg-primary hover:bg-sc-purple/20 transition-colors"
-          title="Zoom in"
+          title="放大"
         >
           +
         </button>
@@ -93,7 +93,7 @@ export function ClusterDetail({
           type="button"
           onClick={() => graphRef.current?.zoomOut()}
           className="w-8 h-8 flex items-center justify-center bg-sc-bg-elevated/90 backdrop-blur-sm border border-sc-purple/20 rounded-lg text-sc-fg-primary hover:bg-sc-purple/20 transition-colors"
-          title="Zoom out"
+          title="缩小"
         >
           -
         </button>

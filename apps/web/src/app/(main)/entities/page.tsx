@@ -7,7 +7,7 @@ import { fetchEntities, fetchStats } from '@/lib/api-server';
 import { EntitiesContent } from './entities-content';
 
 export const metadata: Metadata = {
-  title: 'Entities',
+  title: '知识实体',
   description: 'Browse and search knowledge graph entities',
 };
 

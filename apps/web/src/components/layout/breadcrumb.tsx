@@ -24,15 +24,15 @@ import {
  */
 export const ROUTE_CONFIG: Record<string, { label: string; icon: IconComponent }> = {
   '': { label: 'Home', icon: LayoutDashboard },
-  projects: { label: 'Projects', icon: FolderKanban },
-  epics: { label: 'Epics', icon: Layers },
-  tasks: { label: 'Tasks', icon: ListTodo },
-  agents: { label: 'Agents', icon: Sparks },
-  sources: { label: 'Sources', icon: BookOpen },
+  projects: { label: '项目', icon: FolderKanban },
+  epics: { label: '史诗', icon: Layers },
+  tasks: { label: '任务', icon: ListTodo },
+  agents: { label: '智能代理', icon: Sparks },
+  sources: { label: '数据源', icon: BookOpen },
   documents: { label: 'Documents', icon: FileText },
-  graph: { label: 'Graph', icon: Network },
-  entities: { label: 'Entities', icon: Boxes },
-  search: { label: 'Search', icon: Search },
+  graph: { label: '图谱', icon: Network },
+  entities: { label: '知识实体', icon: Boxes },
+  search: { label: '搜索', icon: Search },
 };
 
 interface BreadcrumbItem {
@@ -100,7 +100,7 @@ function BreadcrumbInner({ items, className = '' }: BreadcrumbProps) {
 
   return (
     <nav
-      aria-label="Breadcrumb"
+      aria-label="面包屑导航"
       className={`flex items-center gap-1.5 text-sm text-sc-fg-muted h-6 overflow-hidden ${className}`}
       style={{ viewTransitionName: 'breadcrumb' }}
     >
@@ -160,7 +160,7 @@ export function EntityBreadcrumb({ entityType, entityName, parentProject }: Enti
 
   // Add parent context based on entity type
   if (entityType === 'task') {
-    items.push({ label: 'Tasks', href: '/tasks', icon: ROUTE_CONFIG.tasks.icon });
+    items.push({ label: '任务', href: '/tasks', icon: ROUTE_CONFIG.tasks.icon });
     if (parentProject) {
       items.push({
         label: parentProject.name,
@@ -169,7 +169,7 @@ export function EntityBreadcrumb({ entityType, entityName, parentProject }: Enti
       });
     }
   } else if (entityType === 'epic') {
-    items.push({ label: 'Epics', href: '/epics', icon: ROUTE_CONFIG.epics.icon });
+    items.push({ label: '史诗', href: '/epics', icon: ROUTE_CONFIG.epics.icon });
     if (parentProject) {
       items.push({
         label: parentProject.name,
@@ -178,7 +178,7 @@ export function EntityBreadcrumb({ entityType, entityName, parentProject }: Enti
       });
     }
   } else if (entityType === 'agent') {
-    items.push({ label: 'Agents', href: '/agents', icon: ROUTE_CONFIG.agents.icon });
+    items.push({ label: '智能代理', href: '/agents', icon: ROUTE_CONFIG.agents.icon });
     if (parentProject) {
       items.push({
         label: parentProject.name,
@@ -187,13 +187,13 @@ export function EntityBreadcrumb({ entityType, entityName, parentProject }: Enti
       });
     }
   } else if (entityType === 'project') {
-    items.push({ label: 'Projects', href: '/projects', icon: ROUTE_CONFIG.projects.icon });
+    items.push({ label: '项目', href: '/projects', icon: ROUTE_CONFIG.projects.icon });
   } else if (entityType === 'entity') {
-    items.push({ label: 'Entities', href: '/entities', icon: ROUTE_CONFIG.entities.icon });
+    items.push({ label: '知识实体', href: '/entities', icon: ROUTE_CONFIG.entities.icon });
   } else if (entityType === 'source') {
-    items.push({ label: 'Sources', href: '/sources', icon: ROUTE_CONFIG.sources.icon });
+    items.push({ label: '数据源', href: '/sources', icon: ROUTE_CONFIG.sources.icon });
   } else if (entityType === 'planning') {
-    items.push({ label: 'Agents', href: '/agents', icon: ROUTE_CONFIG.agents.icon });
+    items.push({ label: '智能代理', href: '/agents', icon: ROUTE_CONFIG.agents.icon });
     items.push({
       label: 'Planning',
       href: '/agents?view=planning',

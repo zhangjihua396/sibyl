@@ -17,7 +17,7 @@ export const CRAWL_STATUS_CONFIG: Record<
     icon: '○',
   },
   in_progress: {
-    label: 'Crawling',
+    label: '爬取中',
     color: '#e135ff',
     bgClass: 'bg-[#e135ff]/20',
     textClass: 'text-[#e135ff]',
@@ -31,7 +31,7 @@ export const CRAWL_STATUS_CONFIG: Record<
     icon: '◆',
   },
   failed: {
-    label: 'Failed',
+    label: '失败',
     color: '#ff6363',
     bgClass: 'bg-[#ff6363]/20',
     textClass: 'text-[#ff6363]',

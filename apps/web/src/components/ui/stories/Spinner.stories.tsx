@@ -87,7 +87,7 @@ export const SpinnerVariants: StoryObj = {
 export const LoadingStateDefault: StoryObj = {
   render: () => (
     <div className="w-[400px] border border-sc-fg-subtle/20 rounded-xl">
-      <LoadingState message="Loading entities..." />
+      <LoadingState message="加载实体中..." />
     </div>
   ),
 };

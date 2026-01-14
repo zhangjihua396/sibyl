@@ -18,12 +18,12 @@ import {
 // Navigation items with Iconoir icons
 const COMMAND_NAV: Array<{ name: string; href: string; icon: ReactNode }> = [
   { name: 'Dashboard', href: '/', icon: <LayoutDashboard width={18} height={18} /> },
-  { name: 'Projects', href: '/projects', icon: <FolderKanban width={18} height={18} /> },
-  { name: 'Tasks', href: '/tasks', icon: <ListTodo width={18} height={18} /> },
-  { name: 'Sources', href: '/sources', icon: <BookOpen width={18} height={18} /> },
-  { name: 'Graph', href: '/graph', icon: <Network width={18} height={18} /> },
-  { name: 'Entities', href: '/entities', icon: <Boxes width={18} height={18} /> },
-  { name: 'Search', href: '/search', icon: <Search width={18} height={18} /> },
+  { name: '项目', href: '/projects', icon: <FolderKanban width={18} height={18} /> },
+  { name: '任务', href: '/tasks', icon: <ListTodo width={18} height={18} /> },
+  { name: '数据源', href: '/sources', icon: <BookOpen width={18} height={18} /> },
+  { name: '图谱', href: '/graph', icon: <Network width={18} height={18} /> },
+  { name: '知识实体', href: '/entities', icon: <Boxes width={18} height={18} /> },
+  { name: '搜索', href: '/search', icon: <Search width={18} height={18} /> },
 ];
 
 interface CommandItem {
@@ -61,7 +61,7 @@ export function CommandPalette({
       ? [
           {
             id: 'create-task',
-            label: 'Create Task',
+            label: '创建任务',
             description: 'Add a new task',
             icon: <List width={18} height={18} />,
             shortcut: 'C',
@@ -77,7 +77,7 @@ export function CommandPalette({
       ? [
           {
             id: 'create-project',
-            label: 'Create Project',
+            label: '创建项目',
             description: 'Start a new project',
             icon: <KanbanBoard width={18} height={18} />,
             action: () => {
@@ -183,7 +183,7 @@ export function CommandPalette({
   const categoryLabels: Record<string, string> = {
     create: 'Create',
     navigation: 'Navigate',
-    action: 'Actions',
+    action: '操作',
   };
 
   return (

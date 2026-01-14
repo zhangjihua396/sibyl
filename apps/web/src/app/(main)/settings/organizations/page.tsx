@@ -67,7 +67,7 @@ function CreateOrgForm({ onSuccess, onCancel }: CreateOrgFormProps) {
           id="org-name"
           value={name}
           onChange={e => setName(e.target.value)}
-          placeholder="My Organization"
+          placeholder="我的组织"
           autoFocus
         />
       </div>
@@ -182,7 +182,7 @@ function OrgMembersList({ slug, currentUserId, userRole }: OrgMembersListProps) 
               </select>
               <IconButton
                 icon={<Trash width={14} height={14} />}
-                label="Remove member"
+                label="移除成员"
                 size="sm"
                 variant="ghost"
                 onClick={() => handleRemove(member.user.id, member.user.name)}
@@ -286,13 +286,13 @@ function OrgCard({ org, isCurrent, currentUserId }: OrgCardProps) {
                 <Input
                   value={editName}
                   onChange={e => setEditName(e.target.value)}
-                  placeholder="Organization name"
+                  placeholder="组织名称"
                   className="text-sm"
                 />
                 <Input
                   value={editSlug}
                   onChange={e => setEditSlug(e.target.value)}
-                  placeholder="slug"
+                  placeholder="标识符"
                   className="text-xs"
                 />
               </div>

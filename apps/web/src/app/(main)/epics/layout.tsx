@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Epics',
+  title: '史诗',
   description: 'Organize work with epics and track progress',
 };
 

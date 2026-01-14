@@ -6,7 +6,7 @@ import { fetchProjects } from '@/lib/api-server';
 import { ProjectsContent } from './projects-content';
 
 export const metadata: Metadata = {
-  title: 'Projects',
+  title: '项目',
   description: 'Manage your Sibyl projects',
 };
 

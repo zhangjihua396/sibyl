@@ -52,19 +52,19 @@ OAUTH_STATE_COOKIE = "sibyl_oauth_state"
 
 class ApiKeyCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    live: bool = Field(default=True, description="Use sk_live_ prefix (true) or sk_test_ (false)")
-    scopes: list[str] = Field(default_factory=lambda: ["mcp"], description="Granted scopes")
+    live: bool = Field(default=True, description="是否使用生产密钥 (sk_live_)")
+    scopes: list[str] = Field(default_factory=lambda: ["mcp"], description="授予的权限范围")
     expires_days: int | None = Field(
-        default=None, ge=1, le=365, description="Optional expiry in days"
+        default=None, ge=1, le=365, description="可选的过期时间（天）"
     )
 
 
 class MeUpdateRequest(BaseModel):
-    email: str | None = Field(default=None, max_length=255)
-    name: str | None = Field(default=None, max_length=255)
-    avatar_url: str | None = Field(default=None, max_length=2048)
-    current_password: str | None = Field(default=None, min_length=1)
-    new_password: str | None = Field(default=None, min_length=8)
+    email: str | None = Field(default=None, max_length=255, description="新的邮箱")
+    name: str | None = Field(default=None, max_length=255, description="新的用户名")
+    avatar_url: str | None = Field(default=None, max_length=2048, description="新的头像URL")
+    current_password: str | None = Field(default=None, min_length=1, description="当前密码")
+    new_password: str | None = Field(default=None, min_length=8, description="新密码")
 
 
 def _cookie_secure() -> bool:
@@ -170,7 +170,7 @@ def _require_jwt_secret() -> str:
     if not secret:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="JWT secret not configured",
+            detail="JWT 密钥未配置",
         )
     return secret
 
@@ -191,13 +191,13 @@ class LocalLoginRequest(BaseModel):
 class DeviceStartRequest(BaseModel):
     client_name: str | None = Field(default=None, max_length=255)
     scope: str = Field(default="mcp", max_length=255)
-    interval: int = Field(default=5, ge=1, le=60, description="Polling interval seconds")
-    expires_in: int = Field(default=600, ge=60, le=3600, description="Expiry seconds")
+    interval: int = Field(default=5, ge=1, le=60, description="轮询间隔（秒）")
+    expires_in: int = Field(default=600, ge=60, le=3600, description="过期时间（秒）")
 
 
 class DeviceTokenRequest(BaseModel):
     device_code: str = Field(..., min_length=10, max_length=512)
-    grant_type: str | None = Field(default=None, description="Optional, OAuth-style")
+    grant_type: str | None = Field(default=None, description="可选的 OAuth 风格")
 
 
 class RefreshTokenRequest(BaseModel):

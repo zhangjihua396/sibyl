@@ -48,10 +48,10 @@ interface CrawlProgressProps {
 const STATUS_CONFIG = {
   starting: { label: 'Starting', color: 'text-sc-yellow', bg: 'bg-sc-yellow/10' },
   discovering: { label: 'Discovering', color: 'text-sc-cyan', bg: 'bg-sc-cyan/10' },
-  crawling: { label: 'Crawling', color: 'text-sc-purple', bg: 'bg-sc-purple/10' },
+  crawling: { label: '爬取中', color: 'text-sc-purple', bg: 'bg-sc-purple/10' },
   processing: { label: 'Processing', color: 'text-sc-coral', bg: 'bg-sc-coral/10' },
   completed: { label: 'Completed', color: 'text-sc-green', bg: 'bg-sc-green/10' },
-  error: { label: 'Error', color: 'text-sc-red', bg: 'bg-sc-red/10' },
+  error: { label: '错误', color: 'text-sc-red', bg: 'bg-sc-red/10' },
   stopped: { label: 'Stopped', color: 'text-sc-fg-subtle', bg: 'bg-sc-fg-subtle/10' },
 };
 

@@ -223,7 +223,7 @@ function TasksPageContent() {
       {/* Task Board - Mobile List / Desktop Kanban */}
       {error ? (
         <ErrorState
-          title="Failed to load tasks"
+          title="加载任务列表失败"
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       ) : tasks.length === 0 && !isLoading ? (

@@ -15,9 +15,9 @@ import {
 } from '@/lib/hooks';
 
 const ROLE_CONFIG = {
-  owner: { icon: Star, color: 'text-sc-yellow', label: 'Owner' },
-  admin: { icon: Settings, color: 'text-sc-purple', label: 'Admin' },
-  member: { icon: User, color: 'text-sc-cyan', label: 'Member' },
+  owner: { icon: Star, color: 'text-sc-yellow', label: '所有者' },
+  admin: { icon: Settings, color: 'text-sc-purple', label: '管理员' },
+  member: { icon: User, color: 'text-sc-cyan', label: '成员' },
   viewer: { icon: Eye, color: 'text-sc-fg-muted', label: 'Viewer' },
 } as const;
 
@@ -197,7 +197,7 @@ function OrgMembersCard({ org, currentUserId, isCurrentOrg }: OrgMembersCardProp
                         </select>
                         <IconButton
                           icon={<Trash width={14} height={14} />}
-                          label="Remove member"
+                          label="移除成员"
                           size="sm"
                           variant="ghost"
                           onClick={() => handleRemove(member.user.id, member.user.name)}

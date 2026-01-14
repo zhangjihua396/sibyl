@@ -62,7 +62,7 @@ function ApiKeyCard({
     statusIcon = <Check width={16} height={16} />;
     statusColor = 'text-sc-green';
     statusBg = 'bg-sc-green/10 border-sc-green/20';
-    statusText = 'Active';
+    statusText = '活跃';
   } else if (valid === false) {
     statusIcon = <WarningTriangle width={16} height={16} />;
     statusColor = 'text-sc-red';
@@ -273,7 +273,7 @@ function EditModal({
                     Saving...
                   </>
                 ) : (
-                  'Save'
+                  '保存'
                 )}
               </button>
             </div>
@@ -411,7 +411,7 @@ export default function AIServicesPage() {
       <div className="grid gap-4">
         <ApiKeyCard
           name="OpenAI"
-          description="Powers vector embeddings for semantic search. Uses text-embedding-3-small model."
+          description="为语义搜索提供向量嵌入支持，使用 text-embedding-3-small 模型。"
           setting={settings?.settings?.openai_api_key}
           valid={openaiValid}
           error={validation?.openai_error ?? updateSettings.data?.validation?.openai_api_key?.error}
@@ -422,7 +422,7 @@ export default function AIServicesPage() {
         />
         <ApiKeyCard
           name="Anthropic"
-          description="Powers entity extraction and built-in agents. Uses Claude Haiku for extraction."
+          description="支持实体提取和内置代理，使用 Claude Haiku 进行提取。"
           setting={settings?.settings?.anthropic_api_key}
           valid={anthropicValid}
           error={

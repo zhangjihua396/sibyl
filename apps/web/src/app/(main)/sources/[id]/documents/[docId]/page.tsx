@@ -108,8 +108,8 @@ export default function DocumentDetailPage({ params }: DocumentDetailPageProps) 
 
   const breadcrumbItems = [
     { label: ROUTE_CONFIG[''].label, href: '/', icon: ROUTE_CONFIG[''].icon },
-    { label: 'Sources', href: '/sources' },
-    { label: document?.source_name || 'Source', href: `/sources/${sourceId}` },
+    { label: '数据源', href: '/sources' },
+    { label: document?.source_name || '数据源', href: `/sources/${sourceId}` },
     { label: document?.title || 'Document', href: `/sources/${sourceId}/documents/${docId}` },
   ];
 
@@ -284,7 +284,7 @@ export default function DocumentDetailPage({ params }: DocumentDetailPageProps) 
                     value={editedContent}
                     onChange={e => setEditedContent(e.target.value)}
                     className="w-full min-h-[400px] bg-sc-bg-dark border border-sc-fg-subtle/20 rounded-xl p-4 text-sc-fg-primary font-mono text-sm leading-relaxed focus:outline-none focus:border-sc-purple/50 resize-y"
-                    placeholder="Document content (Markdown supported)..."
+                    placeholder="文档内容（支持Markdown）..."
                   />
                   <div className="flex items-center justify-end gap-2">
                     <button
@@ -326,17 +326,17 @@ export default function DocumentDetailPage({ params }: DocumentDetailPageProps) 
             <div className="space-y-4">
               <StatRow
                 icon={<FileText width={14} height={14} className="text-sc-cyan" />}
-                label="Words"
+                label="字数"
                 value={document.word_count.toLocaleString()}
               />
               <StatRow
                 icon={<Hash width={14} height={14} className="text-sc-coral" />}
-                label="Tokens"
+                label="令牌数"
                 value={document.token_count.toLocaleString()}
               />
               <StatRow
                 icon={<Calendar width={14} height={14} className="text-sc-purple" />}
-                label="Crawled"
+                label="已爬取"
                 value={formatDateTime(document.crawled_at)}
               />
             </div>

@@ -86,7 +86,7 @@ function MobileEntitySheet({ entityId, onClose }: { entityId: string; onClose: (
         className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-default"
         onClick={onClose}
         onKeyDown={e => e.key === 'Escape' && onClose()}
-        aria-label="Close panel"
+        aria-label="关闭面板"
       />
       <div className="absolute bottom-0 left-0 right-0 max-h-[70vh] bg-sc-bg-base rounded-t-2xl overflow-hidden animate-slide-up">
         <div className="flex justify-center py-2">
@@ -205,9 +205,9 @@ function ClusterLegend({
 
 // Entity type labels for the UI (prettier versions)
 const ENTITY_TYPE_LABELS: Record<string, string> = {
-  task: 'Tasks',
-  project: 'Projects',
-  epic: 'Epics',
+  task: '任务',
+  project: '项目',
+  epic: '史诗',
   pattern: 'Patterns',
   episode: 'Episodes',
   topic: 'Topics',
@@ -217,13 +217,13 @@ const ENTITY_TYPE_LABELS: Record<string, string> = {
   convention: 'Conventions',
   tool: 'Tools',
   language: 'Languages',
-  source: 'Sources',
+  source: '数据源',
   document: 'Documents',
   file: 'Files',
   function: 'Functions',
   error_pattern: 'Errors',
   milestone: 'Milestones',
-  team: 'Teams',
+  team: '团队',
 };
 
 // Stats overlay - shows real totals and displayed counts
@@ -361,7 +361,7 @@ function GraphToolbar({
               type="button"
               onClick={onZoomIn}
               className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-              title="Zoom in"
+              title="放大"
             >
               <PlusCircle width={16} height={16} />
             </button>
@@ -369,7 +369,7 @@ function GraphToolbar({
               type="button"
               onClick={onZoomOut}
               className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-              title="Zoom out"
+              title="缩小"
             >
               <MinusCircle width={16} height={16} />
             </button>
@@ -377,7 +377,7 @@ function GraphToolbar({
               type="button"
               onClick={onFitView}
               className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-              title="Fit to view"
+              title="适应视图"
             >
               <Focus width={16} height={16} />
             </button>
@@ -385,7 +385,7 @@ function GraphToolbar({
               type="button"
               onClick={onReset}
               className="p-1.5 rounded hover:bg-sc-bg-highlight text-sc-fg-subtle hover:text-sc-fg-primary transition-colors"
-              title="Reset view"
+              title="重置视图"
             >
               <RotateCcw width={16} height={16} />
             </button>

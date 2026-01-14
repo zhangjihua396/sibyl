@@ -62,7 +62,7 @@ function LoginContent() {
       <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-12 bg-sc-bg-dark">
         <Spinner size="lg" color="purple" />
         <p className="mt-4 text-sc-fg-muted text-sm">
-          {setupStatus?.needs_setup ? 'Redirecting to setup...' : 'Loading...'}
+          {setupStatus?.needs_setup ? 'Redirecting to setup...' : '加载中...'}
         </p>
       </div>
     );
@@ -257,7 +257,7 @@ function SignUpForm({ next }: { next: string | null }) {
             autoComplete="name"
             required
             className={inputClasses}
-            placeholder="Your name"
+            placeholder="您的姓名"
           />
         </div>
 

@@ -24,9 +24,9 @@ export default function AgentDetailPage({ params }: AgentDetailPageProps) {
   if (error) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="agent" entityName="Error" />
+        <EntityBreadcrumb entityType="agent" entityName="错误" />
         <ErrorState
-          title="Failed to load agent"
+          title="加载代理失败"
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       </div>
@@ -36,7 +36,7 @@ export default function AgentDetailPage({ params }: AgentDetailPageProps) {
   if (isLoading || !agent) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="agent" entityName="Loading..." />
+        <EntityBreadcrumb entityType="agent" entityName="加载中..." />
         <LoadingState />
       </div>
     );

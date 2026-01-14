@@ -48,7 +48,7 @@ export function TaskContentSections({
                 ? 'bg-sc-purple/20 text-sc-purple'
                 : 'text-sc-fg-subtle hover:text-sc-fg-muted hover:bg-sc-bg-highlight/50'
             }`}
-            title={editingContent ? 'View markdown' : 'Edit'}
+            title={editingContent ? 'View markdown' : '编辑'}
           >
             <Pencil width={14} height={14} />
           </button>
@@ -145,7 +145,7 @@ export function TaskContentSections({
                   ? 'bg-sc-green/20 text-sc-green'
                   : 'text-sc-fg-subtle hover:text-sc-fg-muted hover:bg-sc-bg-highlight/50'
               }`}
-              title={editingLearnings ? 'View markdown' : 'Edit'}
+              title={editingLearnings ? 'View markdown' : '编辑'}
             >
               <Pencil width={14} height={14} />
             </button>

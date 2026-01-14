@@ -170,7 +170,7 @@ export default function DataSettingsPage() {
                 <Checkbox
                   checked={skipExisting}
                   onCheckedChange={checked => setSkipExisting(checked === true)}
-                  label="Skip existing entities (recommended)"
+                  label="跳过已存在的实体（推荐）"
                 />
 
                 {/* Restore Button */}

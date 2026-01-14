@@ -366,7 +366,7 @@ const AgentCard = memo(function AgentCard({
         <div className="flex items-center justify-between mt-3 pt-2 border-t border-sc-fg-subtle/10">
           <div className="flex items-center gap-3 text-[10px] text-sc-fg-muted">
             {agent.tokens_used > 0 && (
-              <span className="flex items-center gap-1" title="Tokens used">
+              <span className="flex items-center gap-1" title="已使用令牌数">
                 <span className="opacity-60">◇</span>
                 {agent.tokens_used.toLocaleString()}
               </span>
@@ -848,7 +848,7 @@ function AgentsPageContent() {
             <LoadingState />
           ) : error ? (
             <ErrorState
-              title="Failed to load agents"
+              title="加载代理列表失败"
               message={error instanceof Error ? error.message : 'Unknown error'}
             />
           ) : agents.length === 0 ? (

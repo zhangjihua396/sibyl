@@ -69,9 +69,9 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
   if (error) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="epic" entityName="Error" />
+        <EntityBreadcrumb entityType="epic" entityName="错误" />
         <ErrorState
-          title="Failed to load epic"
+          title="加载史诗失败"
           message={error instanceof Error ? error.message : 'Unknown error'}
         />
       </div>
@@ -81,7 +81,7 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
   if (isLoading || !epic) {
     return (
       <div className="space-y-4 animate-fade-in">
-        <EntityBreadcrumb entityType="epic" entityName="Loading..." />
+        <EntityBreadcrumb entityType="epic" entityName="加载中..." />
         <LoadingState />
       </div>
     );
@@ -288,7 +288,7 @@ export default function EpicDetailPage({ params }: EpicDetailPageProps) {
             entityName={epic.name}
             entityType="epic"
             related={epic.related}
-            title="Related Entities"
+            title="相关实体"
           />
         </div>
       )}

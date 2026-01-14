@@ -64,7 +64,7 @@ export const FormFieldExample: StoryObj = {
       <FormField label="Display Name" description="This will be shown publicly" required>
         <Input placeholder="Enter your name" />
       </FormField>
-      <FormField label="Email" error="Email is already taken">
+      <FormField label="邮箱" error="Email is already taken">
         <Input placeholder="you@example.com" />
       </FormField>
       <FormFieldInline label="Enable notifications">

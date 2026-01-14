@@ -5,10 +5,42 @@ Server-specific settings (HTTP, PostgreSQL, auth middleware) remain in sibyl-ser
 """
 
 import os
+from pathlib import Path
 from typing import Literal
 
+from dotenv import load_dotenv
 from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Load .env file from project root before initializing settings
+# Try multiple paths to find the .env file
+def _find_and_load_env():
+    """Find and load .env file from project root."""
+    # First try current working directory (might be project root)
+    cwd = Path.cwd()
+    if (cwd / ".env").exists():
+        load_dotenv(cwd / ".env")
+        return
+
+    # Try going up from current working directory
+    current = cwd
+    for _ in range(6):  # Go up at most 6 levels
+        env_file = current / ".env"
+        if env_file.exists():
+            load_dotenv(env_file)
+            return
+        current = current.parent
+
+    # As last resort, try from this file's location
+    current = Path(__file__).resolve()
+    for _ in range(6):
+        env_file = current / ".env"
+        if env_file.exists():
+            load_dotenv(env_file)
+            return
+        current = current.parent
+
+_find_and_load_env()
 
 
 class CoreConfig(BaseSettings):
